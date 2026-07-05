@@ -1,0 +1,184 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "field:category_name",
+ "creation": "2026-06-01 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "category_name",
+  "description",
+  "category_icon",
+  "custom_icon_image",
+  "accent_color",
+  "is_active",
+  "tax_defaults_section",
+  "tax_defaults_enabled",
+  "default_tax_category",
+  "default_taxable",
+  "default_sales_type",
+  "default_uom_for_fbr",
+  "default_scenario_id"
+ ],
+ "fields": [
+  {
+   "fieldname": "category_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Category Name",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Small Text",
+   "label": "Description"
+  },
+  {
+   "fieldname": "category_icon",
+   "fieldtype": "Data",
+   "label": "Category Icon"
+  },
+  {
+   "fieldname": "custom_icon_image",
+   "fieldtype": "Attach Image",
+   "label": "Custom Icon Image"
+  },
+  {
+   "fieldname": "accent_color",
+   "fieldtype": "Color",
+   "label": "Accent Color"
+  },
+  {
+   "default": "1",
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Is Active"
+  },
+  {
+   "fieldname": "tax_defaults_section",
+   "fieldtype": "Section Break",
+   "label": "Tax Defaults"
+  },
+  {
+   "default": "0",
+   "description": "When enabled, items in this product category inherit this tax setup unless an Item Tax Profile override exists.",
+   "fieldname": "tax_defaults_enabled",
+   "fieldtype": "Check",
+   "label": "Tax Defaults Enabled"
+  },
+  {
+   "depends_on": "eval:doc.tax_defaults_enabled",
+   "fieldname": "default_tax_category",
+   "fieldtype": "Link",
+   "label": "Default Tax Category",
+   "options": "Ledgix Tax Category"
+  },
+  {
+   "default": "1",
+   "depends_on": "eval:doc.tax_defaults_enabled",
+   "fieldname": "default_taxable",
+   "fieldtype": "Check",
+   "label": "Default Taxable"
+  },
+  {
+   "depends_on": "eval:doc.tax_defaults_enabled",
+   "fieldname": "default_sales_type",
+   "fieldtype": "Data",
+   "label": "Default Sales Type"
+  },
+  {
+   "depends_on": "eval:doc.tax_defaults_enabled",
+   "fieldname": "default_uom_for_fbr",
+   "fieldtype": "Data",
+   "label": "Default UOM for FBR"
+  },
+  {
+   "depends_on": "eval:doc.tax_defaults_enabled",
+   "fieldname": "default_scenario_id",
+   "fieldtype": "Data",
+   "label": "Default Scenario ID"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "is_submittable": 0,
+ "istable": 0,
+ "links": [],
+ "modified": "2026-06-01 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Ledgix",
+ "name": "Ledgix Category",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "submit": 0,
+   "cancel": 0,
+   "amend": 0,
+   "report": 1,
+   "export": 1,
+   "share": 1,
+   "print": 1,
+   "email": 1,
+   "role": "System Manager"
+  },
+  {
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "submit": 0,
+   "cancel": 0,
+   "amend": 0,
+   "report": 1,
+   "export": 1,
+   "share": 1,
+   "print": 1,
+   "email": 1,
+   "role": "Ledgix Admin"
+  },
+  {
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 0,
+   "submit": 0,
+   "cancel": 0,
+   "amend": 0,
+   "report": 0,
+   "export": 0,
+   "share": 0,
+   "print": 1,
+   "email": 1,
+   "role": "Ledgix Manager"
+  },
+  {
+   "read": 1,
+   "write": 0,
+   "create": 0,
+   "delete": 0,
+   "submit": 0,
+   "cancel": 0,
+   "amend": 0,
+   "report": 0,
+   "export": 0,
+   "share": 0,
+   "print": 1,
+   "email": 0,
+   "role": "Ledgix Cashier"
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

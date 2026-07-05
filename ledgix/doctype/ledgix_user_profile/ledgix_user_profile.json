@@ -1,0 +1,149 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "field:user",
+ "creation": "2026-05-14 13:19:56.515380",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "user_profile_section",
+  "user",
+  "full_name",
+  "role_profile",
+  "mobile_number",
+  "is_active",
+  "permissions_and_access_section",
+  "can_access_pos",
+  "can_manage_inventory",
+  "can_view_reports"
+ ],
+ "fields": [
+  {
+   "fieldname": "user_profile_section",
+   "fieldtype": "Section Break",
+   "label": "User Profile"
+  },
+  {
+   "fieldname": "user",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "User",
+   "options": "User",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fetch_from": "user.full_name",
+   "fieldname": "full_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Full Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "role_profile",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Role Profile",
+   "options": "Role Profile"
+  },
+  {
+   "fetch_from": "user.mobile_no",
+   "fieldname": "mobile_number",
+   "fieldtype": "Data",
+   "label": "Mobile Number"
+  },
+  {
+   "default": "Checked",
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Is Active"
+  },
+  {
+   "fieldname": "permissions_and_access_section",
+   "fieldtype": "Section Break",
+   "label": "Permissions and Access"
+  },
+  {
+   "default": "Checked",
+   "fieldname": "can_access_pos",
+   "fieldtype": "Check",
+   "label": "Can Access POS"
+  },
+  {
+   "default": "0",
+   "fieldname": "can_manage_inventory",
+   "fieldtype": "Check",
+   "label": "Can Manage Inventory"
+  },
+  {
+   "default": "0",
+   "fieldname": "can_view_reports",
+   "fieldtype": "Check",
+   "label": "Can View Reports"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-05-14 16:24:36.759427",
+ "modified_by": "Administrator",
+ "module": "Ledgix",
+ "name": "Ledgix User Profile",
+ "naming_rule": "By fieldname",
+ "owner": "alishahwaiz96@gmail.com",
+ "permissions": [
+  {
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "submit": 0,
+   "cancel": 0,
+   "amend": 0,
+   "report": 1,
+   "export": 1,
+   "share": 1,
+   "print": 1,
+   "email": 1,
+   "role": "System Manager"
+  },
+  {
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "submit": 0,
+   "cancel": 0,
+   "amend": 0,
+   "report": 1,
+   "export": 1,
+   "share": 1,
+   "print": 1,
+   "email": 1,
+   "role": "Ledgix Admin"
+  },
+  {
+   "read": 1,
+   "write": 0,
+   "create": 0,
+   "delete": 0,
+   "submit": 0,
+   "cancel": 0,
+   "amend": 0,
+   "report": 0,
+   "export": 0,
+   "share": 0,
+   "print": 1,
+   "email": 0,
+   "role": "Ledgix Manager"
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

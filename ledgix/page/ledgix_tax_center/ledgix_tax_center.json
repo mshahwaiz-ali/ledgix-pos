@@ -1,0 +1,30 @@
+{
+ "content": null,
+ "creation": "2026-05-29 00:00:00.000000",
+ "docstatus": 0,
+ "doctype": "Page",
+ "icon": "octicon octicon-law",
+ "idx": 0,
+ "modified": "2026-05-29 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Ledgix",
+ "name": "ledgix-tax-center",
+ "owner": "Administrator",
+ "page_name": "ledgix-tax-center",
+ "roles": [
+  {
+   "role": "System Manager"
+  },
+  {
+   "role": "Ledgix Admin"
+  },
+  {
+   "role": "Ledgix Manager"
+  }
+ ],
+ "script": null,
+ "standard": "Yes",
+ "style": null,
+ "system_page": 0,
+ "title": "Tax & Compliance Center"
+}

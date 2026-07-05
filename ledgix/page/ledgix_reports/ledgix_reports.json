@@ -1,0 +1,30 @@
+{
+ "content": null,
+ "creation": "2026-05-20 08:03:52.102999",
+ "docstatus": 0,
+ "doctype": "Page",
+ "icon": "octicon octicon-graph",
+ "idx": 0,
+ "modified": "2026-05-20 08:03:52.102999",
+ "modified_by": "Administrator",
+ "module": "Ledgix",
+ "name": "ledgix-reports",
+ "owner": "Administrator",
+ "page_name": "ledgix-reports",
+ "roles": [
+  {
+   "role": "System Manager"
+  },
+  {
+   "role": "Ledgix Admin"
+  },
+  {
+   "role": "Ledgix Manager"
+  }
+ ],
+ "script": null,
+ "standard": "Yes",
+ "style": null,
+ "system_page": 0,
+ "title": ""
+}

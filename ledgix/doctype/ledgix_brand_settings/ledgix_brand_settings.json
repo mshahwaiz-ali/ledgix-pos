@@ -1,0 +1,126 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "creation": "2026-06-24 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "brand_identity_section",
+  "brand_name",
+  "brand_tagline",
+  "logo_assets_section",
+  "symbol_logo",
+  "full_logo",
+  "favicon",
+  "brand_color_section",
+  "primary_brand_color",
+  "usage_notes_section",
+  "usage_notes"
+ ],
+ "fields": [
+  {
+   "fieldname": "brand_identity_section",
+   "fieldtype": "Section Break",
+   "label": "Brand Identity"
+  },
+  {
+   "default": "Ledgix",
+   "fieldname": "brand_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Brand Name",
+   "reqd": 1
+  },
+  {
+   "default": "Retail operations",
+   "fieldname": "brand_tagline",
+   "fieldtype": "Data",
+   "label": "Brand Tagline"
+  },
+  {
+   "fieldname": "logo_assets_section",
+   "fieldtype": "Section Break",
+   "label": "Logo Assets"
+  },
+  {
+   "description": "Square mark for navbar, desk header, favicon, and collapsed sidebar.",
+   "fieldname": "symbol_logo",
+   "fieldtype": "Attach Image",
+   "label": "Symbol Logo"
+  },
+  {
+   "description": "Full logo with text for login page and large headers.",
+   "fieldname": "full_logo",
+   "fieldtype": "Attach Image",
+   "label": "Full Logo"
+  },
+  {
+   "description": "Optional browser tab icon. Falls back to symbol logo.",
+   "fieldname": "favicon",
+   "fieldtype": "Attach Image",
+   "label": "Favicon"
+  },
+  {
+   "fieldname": "brand_color_section",
+   "fieldtype": "Section Break",
+   "label": "Brand Color"
+  },
+  {
+   "default": "#8C2031",
+   "fieldname": "primary_brand_color",
+   "fieldtype": "Color",
+   "label": "Primary Brand Color"
+  },
+  {
+   "fieldname": "usage_notes_section",
+   "fieldtype": "Section Break",
+   "label": "Usage"
+  },
+  {
+   "fieldname": "usage_notes",
+   "fieldtype": "HTML",
+   "label": "Usage Notes",
+   "options": "<div class=\"text-muted\">Upload logos here once. They replace the default Frappe logo on login, desk header, Ledgix navigator, and favicon. Leave empty to keep the default Frappe logo.</div>"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-06-24 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Ledgix",
+ "name": "Ledgix Brand Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Ledgix Admin",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

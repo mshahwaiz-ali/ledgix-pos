@@ -1,0 +1,183 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-05-26 18:36:28.134069",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "business_name",
+  "ntn",
+  "strn__sales_tax_registration_number",
+  "province",
+  "business_type",
+  "default_tax_category",
+  "default_sales_type",
+  "default_buyer_type",
+  "tax_enabled",
+  "price_includes_tax",
+  "receipt_tax_display_enabled",
+  "fbr_enabled",
+  "fbr_mode",
+  "pos_registration_number",
+  "branch__outlet_name",
+  "outlet_address"
+ ],
+ "fields": [
+  {
+   "fieldname": "business_name",
+   "fieldtype": "Data",
+   "label": "Business Name"
+  },
+  {
+   "fieldname": "ntn",
+   "fieldtype": "Data",
+   "label": "NTN"
+  },
+  {
+   "fieldname": "strn__sales_tax_registration_number",
+   "fieldtype": "Data",
+   "label": "STRN / Sales Tax Registration Number"
+  },
+  {
+   "fieldname": "province",
+   "fieldtype": "Select",
+   "label": "Province",
+   "options": "Punjab\nSindh\nKhyber Pakhtunkhwa\nBalochistan\nIslamabad Capital Territory\nGilgit-Baltistan\nAzad Jammu and Kashmir"
+  },
+  {
+   "fieldname": "business_type",
+   "fieldtype": "Select",
+   "label": "Business Type",
+   "options": "Retail\nWholesale\nRetail & Wholesale\nService\nOther"
+  },
+  {
+   "fieldname": "default_tax_category",
+   "fieldtype": "Link",
+   "label": "Default Tax Category",
+   "options": "Ledgix Tax Category"
+  },
+  {
+   "fieldname": "default_sales_type",
+   "fieldtype": "Data",
+   "label": "Default Sales Type"
+  },
+  {
+   "fieldname": "default_buyer_type",
+   "fieldtype": "Select",
+   "label": "Default Buyer Type",
+   "options": "Registered\nUnregistered\nConsumer"
+  },
+  {
+   "default": "0",
+   "fieldname": "tax_enabled",
+   "fieldtype": "Check",
+   "label": "Tax Enabled"
+  },
+  {
+   "default": "1",
+   "description": "When enabled, item selling prices are treated as final customer prices with tax already included.",
+   "fieldname": "price_includes_tax",
+   "fieldtype": "Check",
+   "label": "Price Includes Tax"
+  },
+  {
+   "default": "1",
+   "fieldname": "receipt_tax_display_enabled",
+   "fieldtype": "Check",
+   "label": "Receipt Tax Display Enabled"
+  },
+  {
+   "default": "0",
+   "description": "Deprecated. Configure FBR in Ledgix FBR Settings (Tax Center → FBR Control).",
+   "fieldname": "fbr_enabled",
+   "fieldtype": "Check",
+   "label": "FBR Enabled (Deprecated)",
+   "read_only": 1
+  },
+  {
+   "description": "Deprecated. Configure FBR in Ledgix FBR Settings (Tax Center → FBR Control).",
+   "fieldname": "fbr_mode",
+   "fieldtype": "Select",
+   "label": "FBR Mode (Deprecated)",
+   "options": "Disabled\nSandbox\nProduction",
+   "read_only": 1
+  },
+  {
+   "fieldname": "pos_registration_number",
+   "fieldtype": "Data",
+   "label": "POS Registration Number"
+  },
+  {
+   "fieldname": "branch__outlet_name",
+   "fieldtype": "Data",
+   "label": "Branch / Outlet Name"
+  },
+  {
+   "fieldname": "outlet_address",
+   "fieldtype": "Small Text",
+   "label": "Outlet Address"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-05-26 18:39:07.903545",
+ "modified_by": "Administrator",
+ "module": "Ledgix",
+ "name": "Ledgix Tax Profile",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "submit": 0,
+   "cancel": 0,
+   "amend": 0,
+   "report": 1,
+   "export": 1,
+   "share": 1,
+   "print": 1,
+   "email": 1,
+   "role": "System Manager"
+  },
+  {
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "submit": 0,
+   "cancel": 0,
+   "amend": 0,
+   "report": 1,
+   "export": 1,
+   "share": 1,
+   "print": 1,
+   "email": 1,
+   "role": "Ledgix Admin"
+  },
+  {
+   "read": 1,
+   "write": 0,
+   "create": 0,
+   "delete": 0,
+   "submit": 0,
+   "cancel": 0,
+   "amend": 0,
+   "report": 0,
+   "export": 0,
+   "share": 0,
+   "print": 1,
+   "email": 0,
+   "role": "Ledgix Manager"
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

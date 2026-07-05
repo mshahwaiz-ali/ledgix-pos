@@ -1,0 +1,34 @@
+{
+ "add_total_row": 0,
+ "add_translate_data": 0,
+ "columns": [],
+ "creation": "2026-05-17 15:59:18.934297",
+ "disabled": 1,
+ "docstatus": 0,
+ "doctype": "Report",
+ "filters": [],
+ "idx": 0,
+ "is_standard": "Yes",
+ "letter_head": null,
+ "modified": "2026-05-17 16:00:10.097488",
+ "modified_by": "Administrator",
+ "module": "Ledgix",
+ "name": "Item Intelligence Legacy",
+ "owner": "Administrator",
+ "prepared_report": 0,
+ "ref_doctype": "Ledgix Item",
+ "report_name": "Item Intelligence Legacy",
+ "report_type": "Script Report",
+ "roles": [
+  {
+   "role": "System Manager"
+  },
+  {
+   "role": "Ledgix Admin"
+  },
+  {
+   "role": "Ledgix Manager"
+  }
+ ],
+ "timeout": 0
+}

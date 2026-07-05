@@ -1,0 +1,112 @@
+{
+ "actions": [],
+ "creation": "2026-05-26 16:15:28.065819",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "maintenance_actions_section",
+  "numbering_reset",
+  "transaction_reset",
+  "prepare_fresh_tenant",
+  "safety_confirmation_section",
+  "backup_confirmed",
+  "confirmation_text",
+  "admin_password"
+ ],
+ "fields": [
+  {
+   "fieldname": "maintenance_actions_section",
+   "fieldtype": "Section Break",
+   "label": "Maintenance Actions"
+  },
+  {
+   "description": "Reset Ledgix document numbering counters only.",
+   "fieldname": "numbering_reset",
+   "fieldtype": "Button",
+   "label": "Numbering Reset"
+  },
+  {
+   "description": "Remove transaction/testing data and reset numbering.",
+   "fieldname": "transaction_reset",
+   "fieldtype": "Button",
+   "label": "Transaction Reset"
+  },
+  {
+   "description": "Prepare this site for a new shop/customer handover.",
+   "fieldname": "prepare_fresh_tenant",
+   "fieldtype": "Button",
+   "label": "Prepare Fresh Tenant"
+  },
+  {
+   "fieldname": "safety_confirmation_section",
+   "fieldtype": "Section Break",
+   "label": "Safety Confirmation"
+  },
+  {
+   "default": "0",
+   "description": "Required before running destructive maintenance actions.",
+   "fieldname": "backup_confirmed",
+   "fieldtype": "Check",
+   "label": "Backup Confirmed"
+  },
+  {
+   "description": "Type RESET LEDGIX before running reset actions.",
+   "fieldname": "confirmation_text",
+   "fieldtype": "Data",
+   "label": "Confirmation Text"
+  },
+  {
+   "description": "Current admin password required for reset actions.",
+   "fieldname": "admin_password",
+   "fieldtype": "Password",
+   "label": "Admin Password"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-05-26 16:15:28.065819",
+ "modified_by": "Administrator",
+ "module": "Ledgix",
+ "name": "Ledgix Maintenance Tool",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "submit": 0,
+   "cancel": 0,
+   "amend": 0,
+   "report": 1,
+   "export": 1,
+   "share": 1,
+   "print": 1,
+   "email": 1,
+   "role": "System Manager"
+  },
+  {
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "submit": 0,
+   "cancel": 0,
+   "amend": 0,
+   "report": 1,
+   "export": 1,
+   "share": 1,
+   "print": 1,
+   "email": 1,
+   "role": "Ledgix Super Admin"
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

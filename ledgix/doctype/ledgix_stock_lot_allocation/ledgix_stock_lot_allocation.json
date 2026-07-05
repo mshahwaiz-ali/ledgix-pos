@@ -1,0 +1,199 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "format:ALLOC-{#####}",
+ "creation": "2026-05-22 20:23:03.945656",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "allocation_information_section",
+  "stock_lot",
+  "item",
+  "purchase",
+  "purchase_item_row",
+  "sale",
+  "sale_item_row",
+  "sales_return",
+  "allocation_type",
+  "qty",
+  "pricing_section",
+  "cost_rate",
+  "sale_rate",
+  "profit_amount",
+  "status_section",
+  "transaction_date",
+  "is_reversed"
+ ],
+ "fields": [
+  {
+   "fieldname": "allocation_information_section",
+   "fieldtype": "Section Break",
+   "label": "Allocation Information"
+  },
+  {
+   "fieldname": "stock_lot",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Stock Lot",
+   "options": "Ledgix Stock Lot",
+   "read_only": 1
+  },
+  {
+   "fieldname": "item",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Item",
+   "options": "Ledgix Item",
+   "read_only": 1
+  },
+  {
+   "fieldname": "purchase",
+   "fieldtype": "Link",
+   "label": "Purchase",
+   "options": "Ledgix Purchase"
+  },
+  {
+   "fieldname": "purchase_item_row",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Purchase Item Row"
+  },
+  {
+   "fieldname": "sale",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Sale",
+   "options": "Ledgix Sale"
+  },
+  {
+   "fieldname": "sale_item_row",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Sale Item Row"
+  },
+  {
+   "fieldname": "sales_return",
+   "fieldtype": "Link",
+   "label": "Sales Return",
+   "options": "Ledgix Sales Return"
+  },
+  {
+   "default": "Sale",
+   "fieldname": "allocation_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Allocation Type",
+   "options": "Purchase\nSale\nReturn\nCancel"
+  },
+  {
+   "fieldname": "qty",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Quantity",
+   "read_only": 1
+  },
+  {
+   "fieldname": "pricing_section",
+   "fieldtype": "Section Break",
+   "label": "Pricing"
+  },
+  {
+   "fieldname": "cost_rate",
+   "fieldtype": "Currency",
+   "label": "Cost Rate",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sale_rate",
+   "fieldtype": "Currency",
+   "label": "Sale Rate",
+   "read_only": 1
+  },
+  {
+   "fieldname": "profit_amount",
+   "fieldtype": "Currency",
+   "label": "Profit Amount",
+   "read_only": 1
+  },
+  {
+   "fieldname": "status_section",
+   "fieldtype": "Section Break",
+   "label": "Status"
+  },
+  {
+   "fieldname": "transaction_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Transaction Date"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_reversed",
+   "fieldtype": "Check",
+   "label": "Is Reversed",
+   "read_only": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-05-23 03:00:06.594644",
+ "modified_by": "Administrator",
+ "module": "Ledgix",
+ "name": "Ledgix Stock Lot Allocation",
+ "naming_rule": "Expression (old style)",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "submit": 0,
+   "cancel": 0,
+   "amend": 0,
+   "report": 1,
+   "export": 1,
+   "share": 1,
+   "print": 1,
+   "email": 1,
+   "role": "System Manager"
+  },
+  {
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "submit": 0,
+   "cancel": 0,
+   "amend": 0,
+   "report": 1,
+   "export": 1,
+   "share": 1,
+   "print": 1,
+   "email": 1,
+   "role": "Ledgix Admin"
+  },
+  {
+   "read": 1,
+   "write": 0,
+   "create": 0,
+   "delete": 0,
+   "submit": 0,
+   "cancel": 0,
+   "amend": 0,
+   "report": 0,
+   "export": 0,
+   "share": 0,
+   "print": 1,
+   "email": 0,
+   "role": "Ledgix Manager"
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

@@ -1,0 +1,547 @@
+/* Ledgix modal / dialog form fields — neutral borders, always visible */
+
+:root {
+	--lx-modal-field-border: #d1d5db;
+	--lx-modal-field-border-hover: #9ca3af;
+	--lx-modal-field-focus-border: #94a3b8;
+	--lx-modal-field-focus-ring: rgba(148, 163, 184, 0.22);
+	--lx-modal-field-bg: #ffffff;
+	--lx-modal-field-radius: 9px;
+}
+
+/* Any desk modal opened while Ledgix shell is active */
+body:has(.ledgix-app-shell) .modal-dialog :is(
+	.form-control,
+	.input-with-feedback,
+	select.input-with-feedback,
+	textarea,
+	.awesomplete > input,
+	.awesomplete .input-with-feedback
+),
+:is(
+	.lx-operations-dialog,
+	.ledgix-tax-themed-dialog,
+	.ledgix-pos-themed-dialog,
+	.ledgix-return-dialog,
+	.ledgix-payment-dialog,
+	.ledgix-serial-picker-dialog,
+	.ledgix-split-dialog,
+	.ledgix-sale-complete-dialog,
+	.ledgix-held-sales-dialog,
+	.ledgix-shift-dialog,
+	.ledgix-scanner-dialog,
+	.recent-receipts-dialog,
+	.ledgix-nav-modal
+) :is(
+	.form-control,
+	.input-with-feedback,
+	select.input-with-feedback,
+	textarea,
+	.awesomplete > input,
+	.awesomplete .input-with-feedback,
+	.lx-bi-input
+) {
+	display: block;
+	width: 100%;
+	min-height: 36px;
+	padding: 7px 10px;
+	border: 1px solid var(--lx-modal-field-border) !important;
+	border-radius: var(--lx-modal-field-radius) !important;
+	background: var(--lx-modal-field-bg) !important;
+	color: #0f172a !important;
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.92) !important;
+	font-size: 13px;
+	line-height: 1.35;
+	transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+
+body:has(.ledgix-app-shell) .modal-dialog textarea,
+:is(
+	.lx-operations-dialog,
+	.ledgix-tax-themed-dialog,
+	.ledgix-pos-themed-dialog
+) textarea,
+body:has(.ledgix-app-shell) .modal-dialog .form-control[data-fieldtype="Small Text"],
+:is(
+	.lx-operations-dialog,
+	.ledgix-tax-themed-dialog,
+	.ledgix-pos-themed-dialog
+) .form-control[data-fieldtype="Small Text"] {
+	min-height: 82px;
+	resize: vertical;
+}
+
+body:has(.ledgix-app-shell) .modal-dialog :is(
+	.form-control,
+	.input-with-feedback,
+	select.input-with-feedback,
+	textarea,
+	.awesomplete > input,
+	.awesomplete .input-with-feedback
+):hover:not(:disabled):not([readonly]),
+:is(
+	.lx-operations-dialog,
+	.ledgix-tax-themed-dialog,
+	.ledgix-pos-themed-dialog,
+	.ledgix-return-dialog,
+	.ledgix-payment-dialog,
+	.ledgix-serial-picker-dialog,
+	.ledgix-split-dialog
+) :is(
+	.form-control,
+	.input-with-feedback,
+	select.input-with-feedback,
+	textarea,
+	.awesomplete > input,
+	.awesomplete .input-with-feedback
+):hover:not(:disabled):not([readonly]) {
+	border-color: var(--lx-modal-field-border-hover) !important;
+}
+
+body:has(.ledgix-app-shell) .modal-dialog :is(
+	.form-control,
+	.input-with-feedback,
+	select.input-with-feedback,
+	textarea,
+	.awesomplete > input,
+	.awesomplete .input-with-feedback
+):focus,
+body:has(.ledgix-app-shell) .modal-dialog :is(
+	.form-control,
+	.input-with-feedback,
+	select.input-with-feedback,
+	textarea,
+	.awesomplete > input,
+	.awesomplete .input-with-feedback
+):focus-visible,
+:is(
+	.lx-operations-dialog,
+	.ledgix-tax-themed-dialog,
+	.ledgix-pos-themed-dialog,
+	.ledgix-return-dialog,
+	.ledgix-payment-dialog,
+	.ledgix-serial-picker-dialog,
+	.ledgix-split-dialog,
+	.ledgix-sale-complete-dialog,
+	.ledgix-held-sales-dialog,
+	.ledgix-shift-dialog,
+	.ledgix-scanner-dialog,
+	.recent-receipts-dialog
+) :is(
+	.form-control,
+	.input-with-feedback,
+	select.input-with-feedback,
+	textarea,
+	.awesomplete > input,
+	.awesomplete .input-with-feedback
+):focus,
+:is(
+	.lx-operations-dialog,
+	.ledgix-tax-themed-dialog,
+	.ledgix-pos-themed-dialog,
+	.ledgix-return-dialog,
+	.ledgix-payment-dialog,
+	.ledgix-serial-picker-dialog,
+	.ledgix-split-dialog,
+	.ledgix-sale-complete-dialog,
+	.ledgix-held-sales-dialog,
+	.ledgix-shift-dialog,
+	.ledgix-scanner-dialog,
+	.recent-receipts-dialog
+) :is(
+	.form-control,
+	.input-with-feedback,
+	select.input-with-feedback,
+	textarea,
+	.awesomplete > input,
+	.awesomplete .input-with-feedback
+):focus-visible {
+	outline: none !important;
+	border-color: var(--lx-modal-field-focus-border) !important;
+	box-shadow: 0 0 0 3px var(--lx-modal-field-focus-ring) !important;
+	background: #ffffff !important;
+}
+
+body:has(.ledgix-app-shell) .modal-dialog :is(
+	.form-control,
+	.input-with-feedback,
+	select.input-with-feedback,
+	textarea
+):disabled,
+body:has(.ledgix-app-shell) .modal-dialog :is(
+	.form-control,
+	.input-with-feedback,
+	select.input-with-feedback,
+	textarea
+)[readonly],
+:is(
+	.lx-operations-dialog,
+	.ledgix-tax-themed-dialog,
+	.ledgix-pos-themed-dialog
+) :is(
+	.form-control,
+	.input-with-feedback,
+	select.input-with-feedback,
+	textarea
+):disabled,
+:is(
+	.lx-operations-dialog,
+	.ledgix-tax-themed-dialog,
+	.ledgix-pos-themed-dialog
+) :is(
+	.form-control,
+	.input-with-feedback,
+	select.input-with-feedback,
+	textarea
+)[readonly] {
+	background: #f8fafc !important;
+	border-color: #e5e7eb !important;
+	color: #64748b !important;
+	opacity: 1 !important;
+}
+
+body:has(.ledgix-app-shell) .modal-dialog .control-label,
+:is(
+	.lx-operations-dialog,
+	.ledgix-tax-themed-dialog,
+	.ledgix-pos-themed-dialog
+) .control-label {
+	color: #334155;
+	font-weight: 650;
+}
+
+/* Modal checkboxes — small rounded boxes, accent fill when checked */
+
+body:has(.ledgix-app-shell) .modal-dialog .frappe-control[data-fieldtype="Check"],
+:is(
+	.lx-operations-dialog,
+	.ledgix-tax-themed-dialog,
+	.ledgix-pos-themed-dialog,
+	.ledgix-return-dialog,
+	.ledgix-payment-dialog,
+	.ledgix-serial-picker-dialog,
+	.ledgix-split-dialog,
+	.ledgix-sale-complete-dialog,
+	.ledgix-held-sales-dialog,
+	.ledgix-shift-dialog,
+	.ledgix-scanner-dialog,
+	.recent-receipts-dialog,
+	.ledgix-nav-modal
+) .frappe-control[data-fieldtype="Check"] {
+	min-height: auto !important;
+	padding: 0 !important;
+	border: 0 !important;
+	background: transparent !important;
+	box-shadow: none !important;
+}
+
+body:has(.ledgix-app-shell) .modal-dialog .frappe-control[data-fieldtype="Check"] .checkbox,
+body:has(.ledgix-app-shell) .modal-dialog .frappe-control[data-fieldtype="Check"] .control-input,
+:is(
+	.lx-operations-dialog,
+	.ledgix-tax-themed-dialog,
+	.ledgix-pos-themed-dialog,
+	.ledgix-return-dialog,
+	.ledgix-payment-dialog,
+	.ledgix-serial-picker-dialog,
+	.ledgix-split-dialog,
+	.ledgix-sale-complete-dialog,
+	.ledgix-held-sales-dialog,
+	.ledgix-shift-dialog,
+	.ledgix-scanner-dialog,
+	.recent-receipts-dialog,
+	.ledgix-nav-modal
+) .frappe-control[data-fieldtype="Check"] .checkbox,
+:is(
+	.lx-operations-dialog,
+	.ledgix-tax-themed-dialog,
+	.ledgix-pos-themed-dialog,
+	.ledgix-return-dialog,
+	.ledgix-payment-dialog,
+	.ledgix-serial-picker-dialog,
+	.ledgix-split-dialog,
+	.ledgix-sale-complete-dialog,
+	.ledgix-held-sales-dialog,
+	.ledgix-shift-dialog,
+	.ledgix-scanner-dialog,
+	.recent-receipts-dialog,
+	.ledgix-nav-modal
+) .frappe-control[data-fieldtype="Check"] .control-input {
+	margin: 0 !important;
+	padding: 0 !important;
+	border: 0 !important;
+	background: transparent !important;
+	box-shadow: none !important;
+}
+
+body:has(.ledgix-app-shell) .modal-dialog .frappe-control[data-fieldtype="Check"] .checkbox label,
+body:has(.ledgix-app-shell) .modal-dialog .checkbox label,
+:is(
+	.lx-operations-dialog,
+	.ledgix-tax-themed-dialog,
+	.ledgix-pos-themed-dialog,
+	.ledgix-return-dialog,
+	.ledgix-payment-dialog,
+	.ledgix-serial-picker-dialog,
+	.ledgix-split-dialog,
+	.ledgix-sale-complete-dialog,
+	.ledgix-held-sales-dialog,
+	.ledgix-shift-dialog,
+	.ledgix-scanner-dialog,
+	.recent-receipts-dialog,
+	.ledgix-nav-modal
+) .frappe-control[data-fieldtype="Check"] .checkbox label,
+:is(
+	.lx-operations-dialog,
+	.ledgix-tax-themed-dialog,
+	.ledgix-pos-themed-dialog,
+	.ledgix-return-dialog,
+	.ledgix-payment-dialog,
+	.ledgix-serial-picker-dialog,
+	.ledgix-split-dialog,
+	.ledgix-sale-complete-dialog,
+	.ledgix-held-sales-dialog,
+	.ledgix-shift-dialog,
+	.ledgix-scanner-dialog,
+	.recent-receipts-dialog,
+	.ledgix-nav-modal
+) .checkbox label {
+	display: inline-flex !important;
+	align-items: center !important;
+	gap: 8px !important;
+	min-height: 0 !important;
+	margin: 0 !important;
+	padding: 0 !important;
+	cursor: pointer !important;
+}
+
+body:has(.ledgix-app-shell) .modal-dialog .frappe-control[data-fieldtype="Check"] .label-area,
+:is(
+	.lx-operations-dialog,
+	.ledgix-tax-themed-dialog,
+	.ledgix-pos-themed-dialog,
+	.ledgix-return-dialog,
+	.ledgix-payment-dialog,
+	.ledgix-serial-picker-dialog,
+	.ledgix-split-dialog,
+	.ledgix-sale-complete-dialog,
+	.ledgix-held-sales-dialog,
+	.ledgix-shift-dialog,
+	.ledgix-scanner-dialog,
+	.recent-receipts-dialog,
+	.ledgix-nav-modal
+) .frappe-control[data-fieldtype="Check"] .label-area {
+	color: #334155 !important;
+	font-size: 13px !important;
+	font-weight: 650 !important;
+	line-height: 1.25 !important;
+}
+
+body:has(.ledgix-app-shell) .modal-dialog .frappe-control[data-fieldtype="Check"] input[type="checkbox"],
+body:has(.ledgix-app-shell) .modal-dialog .checkbox input[type="checkbox"],
+:is(
+	.lx-operations-dialog,
+	.ledgix-tax-themed-dialog,
+	.ledgix-pos-themed-dialog,
+	.ledgix-return-dialog,
+	.ledgix-payment-dialog,
+	.ledgix-serial-picker-dialog,
+	.ledgix-split-dialog,
+	.ledgix-sale-complete-dialog,
+	.ledgix-held-sales-dialog,
+	.ledgix-shift-dialog,
+	.ledgix-scanner-dialog,
+	.recent-receipts-dialog,
+	.ledgix-nav-modal
+) .frappe-control[data-fieldtype="Check"] input[type="checkbox"],
+:is(
+	.lx-operations-dialog,
+	.ledgix-tax-themed-dialog,
+	.ledgix-pos-themed-dialog,
+	.ledgix-return-dialog,
+	.ledgix-payment-dialog,
+	.ledgix-serial-picker-dialog,
+	.ledgix-split-dialog,
+	.ledgix-sale-complete-dialog,
+	.ledgix-held-sales-dialog,
+	.ledgix-shift-dialog,
+	.ledgix-scanner-dialog,
+	.recent-receipts-dialog,
+	.ledgix-nav-modal
+) .checkbox input[type="checkbox"],
+:is(
+	.lx-operations-dialog,
+	.ledgix-tax-themed-dialog,
+	.ledgix-pos-themed-dialog,
+	.ledgix-return-dialog,
+	.ledgix-payment-dialog,
+	.ledgix-serial-picker-dialog,
+	.ledgix-split-dialog
+) .serial-picker-check,
+:is(
+	.lx-operations-dialog,
+	.ledgix-tax-themed-dialog,
+	.ledgix-pos-themed-dialog,
+	.ledgix-return-dialog,
+	.ledgix-payment-dialog
+) .receipt-whatsapp-check {
+	-webkit-appearance: none !important;
+	-moz-appearance: none !important;
+	appearance: none !important;
+	display: inline-block !important;
+	flex: 0 0 auto !important;
+	width: 15px !important;
+	height: 15px !important;
+	min-width: 15px !important;
+	min-height: 15px !important;
+	max-width: 15px !important;
+	max-height: 15px !important;
+	margin: 0 !important;
+	padding: 0 !important;
+	border: 1.5px solid #cbd5e1 !important;
+	border-radius: 5px !important;
+	background: #ffffff !important;
+	background-repeat: no-repeat !important;
+	background-position: center !important;
+	background-size: 10px 8px !important;
+	box-shadow: none !important;
+	cursor: pointer !important;
+	vertical-align: middle !important;
+	position: relative !important;
+	accent-color: var(--ledgix-accent, var(--lx-accent, #475569)) !important;
+}
+
+body:has(.ledgix-app-shell) .modal-dialog .frappe-control[data-fieldtype="Check"] input[type="checkbox"]:checked,
+body:has(.ledgix-app-shell) .modal-dialog .checkbox input[type="checkbox"]:checked,
+:is(
+	.lx-operations-dialog,
+	.ledgix-tax-themed-dialog,
+	.ledgix-pos-themed-dialog,
+	.ledgix-return-dialog,
+	.ledgix-payment-dialog,
+	.ledgix-serial-picker-dialog,
+	.ledgix-split-dialog,
+	.ledgix-sale-complete-dialog,
+	.ledgix-held-sales-dialog,
+	.ledgix-shift-dialog,
+	.ledgix-scanner-dialog,
+	.recent-receipts-dialog,
+	.ledgix-nav-modal
+) .frappe-control[data-fieldtype="Check"] input[type="checkbox"]:checked,
+:is(
+	.lx-operations-dialog,
+	.ledgix-tax-themed-dialog,
+	.ledgix-pos-themed-dialog,
+	.ledgix-return-dialog,
+	.ledgix-payment-dialog,
+	.ledgix-serial-picker-dialog,
+	.ledgix-split-dialog,
+	.ledgix-sale-complete-dialog,
+	.ledgix-held-sales-dialog,
+	.ledgix-shift-dialog,
+	.ledgix-scanner-dialog,
+	.recent-receipts-dialog,
+	.ledgix-nav-modal
+) .checkbox input[type="checkbox"]:checked,
+:is(
+	.lx-operations-dialog,
+	.ledgix-tax-themed-dialog,
+	.ledgix-pos-themed-dialog,
+	.ledgix-return-dialog,
+	.ledgix-payment-dialog,
+	.ledgix-serial-picker-dialog,
+	.ledgix-split-dialog
+) .serial-picker-check:checked,
+:is(
+	.lx-operations-dialog,
+	.ledgix-tax-themed-dialog,
+	.ledgix-pos-themed-dialog,
+	.ledgix-return-dialog,
+	.ledgix-payment-dialog
+) .receipt-whatsapp-check:checked {
+	background-color: var(--ledgix-accent, var(--lx-accent, #475569)) !important;
+	border-color: var(--ledgix-accent, var(--lx-accent, #475569)) !important;
+	background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 8 7' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 4.00001L2.66667 5.80001L7 1.20001' stroke='white' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+}
+
+body:has(.ledgix-app-shell) .modal-dialog .frappe-control[data-fieldtype="Check"] input[type="checkbox"]:focus,
+body:has(.ledgix-app-shell) .modal-dialog .frappe-control[data-fieldtype="Check"] input[type="checkbox"]:focus-visible,
+body:has(.ledgix-app-shell) .modal-dialog .checkbox input[type="checkbox"]:focus,
+body:has(.ledgix-app-shell) .modal-dialog .checkbox input[type="checkbox"]:focus-visible,
+:is(
+	.lx-operations-dialog,
+	.ledgix-tax-themed-dialog,
+	.ledgix-pos-themed-dialog,
+	.ledgix-return-dialog,
+	.ledgix-payment-dialog,
+	.ledgix-serial-picker-dialog,
+	.ledgix-split-dialog,
+	.ledgix-sale-complete-dialog,
+	.ledgix-held-sales-dialog,
+	.ledgix-shift-dialog,
+	.ledgix-scanner-dialog,
+	.recent-receipts-dialog,
+	.ledgix-nav-modal
+) .frappe-control[data-fieldtype="Check"] input[type="checkbox"]:focus,
+:is(
+	.lx-operations-dialog,
+	.ledgix-tax-themed-dialog,
+	.ledgix-pos-themed-dialog,
+	.ledgix-return-dialog,
+	.ledgix-payment-dialog,
+	.ledgix-serial-picker-dialog,
+	.ledgix-split-dialog,
+	.ledgix-sale-complete-dialog,
+	.ledgix-held-sales-dialog,
+	.ledgix-shift-dialog,
+	.ledgix-scanner-dialog,
+	.recent-receipts-dialog,
+	.ledgix-nav-modal
+) .frappe-control[data-fieldtype="Check"] input[type="checkbox"]:focus-visible,
+:is(
+	.lx-operations-dialog,
+	.ledgix-tax-themed-dialog,
+	.ledgix-pos-themed-dialog,
+	.ledgix-return-dialog,
+	.ledgix-payment-dialog,
+	.ledgix-serial-picker-dialog,
+	.ledgix-split-dialog
+) .serial-picker-check:focus,
+:is(
+	.lx-operations-dialog,
+	.ledgix-tax-themed-dialog,
+	.ledgix-pos-themed-dialog,
+	.ledgix-return-dialog,
+	.ledgix-payment-dialog
+) .receipt-whatsapp-check:focus {
+	outline: none !important;
+	box-shadow: 0 0 0 3px color-mix(in srgb, var(--ledgix-accent, var(--lx-accent, #475569)) 24%, transparent) !important;
+}
+
+body:has(.ledgix-app-shell) .modal-dialog .frappe-control[data-fieldtype="Check"] input[type="checkbox"]:disabled,
+body:has(.ledgix-app-shell) .modal-dialog .checkbox input[type="checkbox"]:disabled,
+:is(
+	.lx-operations-dialog,
+	.ledgix-tax-themed-dialog,
+	.ledgix-pos-themed-dialog
+) .frappe-control[data-fieldtype="Check"] input[type="checkbox"]:disabled,
+:is(
+	.lx-operations-dialog,
+	.ledgix-tax-themed-dialog,
+	.ledgix-pos-themed-dialog
+) .checkbox input[type="checkbox"]:disabled {
+	cursor: not-allowed !important;
+	opacity: 0.55 !important;
+	background: #f8fafc !important;
+	border-color: #e5e7eb !important;
+}
+
+body:has(.ledgix-app-shell) .modal-dialog .frappe-control[data-fieldtype="Check"] input[type="checkbox"]:disabled:checked,
+:is(
+	.lx-operations-dialog,
+	.ledgix-tax-themed-dialog,
+	.ledgix-pos-themed-dialog
+) .frappe-control[data-fieldtype="Check"] input[type="checkbox"]:disabled:checked {
+	background-color: #94a3b8 !important;
+	border-color: #94a3b8 !important;
+}

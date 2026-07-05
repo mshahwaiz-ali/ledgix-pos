@@ -1,0 +1,219 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-05-26 18:56:34.705902",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "sales_return",
+  "original_sale",
+  "original_sale_item_row",
+  "item",
+  "returned_qty",
+  "original_tax_rate",
+  "returned_taxable_amount",
+  "returned_tax_amount",
+  "gross_amount",
+  "taxable_amount",
+  "tax_rate",
+  "tax_amount",
+  "net_amount",
+  "price_includes_tax",
+  "tax_category",
+  "hs_code",
+  "uom_for_fbr",
+  "sales_type",
+  "scenario_id",
+  "sro_schedule_number",
+  "sro_item_serial_number"
+ ],
+ "fields": [
+  {
+   "fieldname": "sales_return",
+   "fieldtype": "Link",
+   "label": "Sales Return",
+   "options": "Ledgix Sales Return"
+  },
+  {
+   "fieldname": "gross_amount",
+   "fieldtype": "Currency",
+   "label": "Gross Amount",
+   "read_only": 1
+  },
+  {
+   "fieldname": "taxable_amount",
+   "fieldtype": "Currency",
+   "label": "Taxable Amount",
+   "read_only": 1
+  },
+  {
+   "fieldname": "tax_rate",
+   "fieldtype": "Percent",
+   "label": "Tax Rate",
+   "read_only": 1
+  },
+  {
+   "fieldname": "tax_amount",
+   "fieldtype": "Currency",
+   "label": "Tax Amount",
+   "read_only": 1
+  },
+  {
+   "fieldname": "net_amount",
+   "fieldtype": "Currency",
+   "label": "Net Amount",
+   "read_only": 1
+  },
+  {
+   "fieldname": "price_includes_tax",
+   "fieldtype": "Check",
+   "label": "Price Includes Tax",
+   "read_only": 1
+  },
+  {
+   "fieldname": "original_sale",
+   "fieldtype": "Link",
+   "label": "Original Sale",
+   "options": "Ledgix Sale"
+  },
+  {
+   "fieldname": "original_sale_item_row",
+   "fieldtype": "Data",
+   "label": "Original Sale Item Row"
+  },
+  {
+   "fieldname": "item",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Item",
+   "options": "Ledgix Item"
+  },
+  {
+   "fieldname": "returned_qty",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Returned Qty"
+  },
+  {
+   "fieldname": "original_tax_rate",
+   "fieldtype": "Percent",
+   "in_list_view": 1,
+   "label": "Original Tax Rate"
+  },
+  {
+   "fieldname": "returned_taxable_amount",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Returned Taxable Amount"
+  },
+  {
+   "fieldname": "returned_tax_amount",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Returned Tax Amount"
+  },
+  {
+   "fieldname": "tax_category",
+   "fieldtype": "Link",
+   "label": "Tax Category",
+   "options": "Ledgix Tax Category"
+  },
+  {
+   "fieldname": "hs_code",
+   "fieldtype": "Data",
+   "label": "HS Code"
+  },
+  {
+   "fieldname": "uom_for_fbr",
+   "fieldtype": "Data",
+   "label": "UOM for FBR",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sales_type",
+   "fieldtype": "Data",
+   "label": "Sales Type",
+   "read_only": 1
+  },
+  {
+   "fieldname": "scenario_id",
+   "fieldtype": "Data",
+   "label": "Scenario ID",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sro_schedule_number",
+   "fieldtype": "Data",
+   "label": "SRO Schedule Number",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sro_item_serial_number",
+   "fieldtype": "Data",
+   "label": "SRO Item Serial Number",
+   "read_only": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-05-26 19:01:39.289539",
+ "modified_by": "Administrator",
+ "module": "Ledgix",
+ "name": "Ledgix Return Tax Detail",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "submit": 0,
+   "cancel": 0,
+   "amend": 0,
+   "report": 1,
+   "export": 1,
+   "share": 1,
+   "print": 1,
+   "email": 1,
+   "role": "System Manager"
+  },
+  {
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "submit": 0,
+   "cancel": 0,
+   "amend": 0,
+   "report": 1,
+   "export": 1,
+   "share": 1,
+   "print": 1,
+   "email": 1,
+   "role": "Ledgix Admin"
+  },
+  {
+   "read": 1,
+   "write": 0,
+   "create": 0,
+   "delete": 0,
+   "submit": 0,
+   "cancel": 0,
+   "amend": 0,
+   "report": 0,
+   "export": 0,
+   "share": 0,
+   "print": 1,
+   "email": 0,
+   "role": "Ledgix Manager"
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

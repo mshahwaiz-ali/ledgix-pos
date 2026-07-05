@@ -1,0 +1,337 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "format:SAL-{#####}",
+ "creation": "2026-05-14 15:47:14.357189",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "section_break_oui2",
+  "amended_from",
+  "customer",
+  "sale_date",
+  "pos_shift",
+  "invoice_number",
+  "client_sale_id",
+  "status",
+  "totals_section",
+  "items",
+  "subtotal_before_discount",
+  "discount_type",
+  "discount_value",
+  "discount_amount",
+  "total_amount",
+  "tax_amount",
+  "grand_total",
+  "total_profit",
+  "tax_details",
+  "paid_amount",
+  "remaining_amount",
+  "change_amount",
+  "allow_partial_payment",
+  "payments",
+  "payment_status",
+  "fbr_submission_section",
+  "fbr_status",
+  "fbr_invoice_number",
+  "fbr_qr_code",
+  "fbr_submitted_at",
+  "fbr_upload_due_at",
+  "fbr_error_code",
+  "fbr_error_message",
+  "fbr_submission_log"
+ ],
+ "fields": [
+  {
+   "fieldname": "section_break_oui2",
+   "fieldtype": "Section Break",
+   "label": "Sale Information"
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Ledgix Sale",
+   "print_hide": 1,
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "default": "Walk-in Customer",
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "label": "Customer",
+   "options": "Ledgix Customer",
+   "reqd": 1
+  },
+  {
+   "fieldname": "sale_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Sale Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "invoice_number",
+   "fieldtype": "Data",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "label": "Invoice Number"
+  },
+  {
+   "fieldname": "client_sale_id",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "in_standard_filter": 1,
+   "label": "Client Sale ID",
+   "no_copy": 1,
+   "read_only": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Status",
+   "options": "Draft\nSubmitted\nCancelled",
+   "read_only": 1
+  },
+  {
+   "fieldname": "totals_section",
+   "fieldtype": "Section Break",
+   "label": "Totals"
+  },
+  {
+   "fieldname": "items",
+   "fieldtype": "Table",
+   "label": "Items",
+   "options": "Ledgix Sale Item"
+  },
+  {
+   "fieldname": "subtotal_before_discount",
+   "fieldtype": "Currency",
+   "label": "Subtotal Before Discount",
+   "read_only": 1
+  },
+  {
+   "fieldname": "discount_type",
+   "fieldtype": "Select",
+   "label": "Discount Type",
+   "options": "\nAmount\nPercent",
+   "read_only": 1
+  },
+  {
+   "fieldname": "discount_value",
+   "fieldtype": "Float",
+   "label": "Discount Value",
+   "read_only": 1
+  },
+  {
+   "fieldname": "discount_amount",
+   "fieldtype": "Currency",
+   "label": "Discount Amount",
+   "read_only": 1
+  },
+  {
+   "fieldname": "total_amount",
+   "fieldtype": "Currency",
+   "label": "Total Amount",
+   "read_only": 1
+  },
+  {
+   "fieldname": "tax_amount",
+   "fieldtype": "Currency",
+   "label": "Tax Amount",
+   "read_only": 1
+  },
+  {
+   "fieldname": "grand_total",
+   "fieldtype": "Currency",
+   "label": "Grand Total",
+   "read_only": 1
+  },
+  {
+   "fieldname": "total_profit",
+   "fieldtype": "Currency",
+   "label": "Total Profit",
+   "read_only": 1
+  },
+  {
+   "fieldname": "tax_details",
+   "fieldtype": "Table",
+   "label": "Tax Details",
+   "options": "Ledgix Invoice Tax Detail",
+   "read_only": 1
+  },
+  {
+   "fieldname": "payments",
+   "fieldtype": "Table",
+   "label": "Payments",
+   "options": "Ledgix Sale Payment"
+  },
+  {
+   "fieldname": "paid_amount",
+   "fieldtype": "Currency",
+   "label": "Paid Amount",
+   "read_only": 1
+  },
+  {
+   "fieldname": "remaining_amount",
+   "fieldtype": "Currency",
+   "label": "Remaining Amount",
+   "read_only": 1
+  },
+  {
+   "fieldname": "change_amount",
+   "fieldtype": "Currency",
+   "label": "Change Amount",
+   "read_only": 1
+  },
+  {
+   "fieldname": "payment_status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Payment Status",
+   "options": "Unpaid\nPartial\nPaid",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "allow_partial_payment",
+   "fieldtype": "Check",
+   "hidden": 1,
+   "label": "Allow Partial Payment",
+   "print_hide": 1
+  },
+  {
+   "fieldname": "pos_shift",
+   "fieldtype": "Link",
+   "label": "POS Shift",
+   "options": "Ledgix POS Shift"
+  },
+  {
+   "fieldname": "fbr_submission_section",
+   "fieldtype": "Section Break",
+   "label": "FBR Submission"
+  },
+  {
+   "default": "Not Required",
+   "fieldname": "fbr_status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "FBR Status",
+   "options": "Not Required\nPending\nValidated\nSubmitted\nFailed\nOffline Pending\nSkipped\nPaused",
+   "read_only": 1
+  },
+  {
+   "fieldname": "fbr_invoice_number",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "FBR Invoice Number",
+   "read_only": 1
+  },
+  {
+   "fieldname": "fbr_qr_code",
+   "fieldtype": "Small Text",
+   "label": "FBR QR Code",
+   "read_only": 1
+  },
+  {
+   "fieldname": "fbr_submitted_at",
+   "fieldtype": "Datetime",
+   "label": "FBR Submitted At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "fbr_upload_due_at",
+   "fieldtype": "Datetime",
+   "label": "FBR Upload Due At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "fbr_error_code",
+   "fieldtype": "Data",
+   "label": "FBR Error Code",
+   "read_only": 1
+  },
+  {
+   "fieldname": "fbr_error_message",
+   "fieldtype": "Small Text",
+   "label": "FBR Error Message",
+   "read_only": 1
+  },
+  {
+   "fieldname": "fbr_submission_log",
+   "fieldtype": "Link",
+   "label": "FBR Submission Log",
+   "options": "Ledgix FBR Submission Log",
+   "read_only": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "is_submittable": 1,
+ "links": [],
+ "modified": "2026-05-30 20:24:01.757414",
+ "modified_by": "Administrator",
+ "module": "Ledgix",
+ "name": "Ledgix Sale",
+ "naming_rule": "Expression (old style)",
+ "owner": "alishahwaiz96@gmail.com",
+ "permissions": [
+  {
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "submit": 1,
+   "cancel": 1,
+   "amend": 1,
+   "report": 1,
+   "export": 1,
+   "share": 1,
+   "print": 1,
+   "email": 1,
+   "role": "System Manager"
+  },
+  {
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "submit": 1,
+   "cancel": 1,
+   "amend": 1,
+   "report": 1,
+   "export": 1,
+   "share": 1,
+   "print": 1,
+   "email": 1,
+   "role": "Ledgix Admin"
+  },
+  {
+   "read": 1,
+   "write": 0,
+   "create": 0,
+   "delete": 0,
+   "submit": 0,
+   "cancel": 0,
+   "amend": 0,
+   "report": 0,
+   "export": 0,
+   "share": 0,
+   "print": 1,
+   "email": 0,
+   "role": "Ledgix Manager"
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

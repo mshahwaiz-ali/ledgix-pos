@@ -1,0 +1,32 @@
+{
+ "content": null,
+ "creation": "2026-05-16 07:20:36.576748",
+ "docstatus": 0,
+ "doctype": "Page",
+ "idx": 0,
+ "modified": "2026-05-16 07:20:36.576748",
+ "modified_by": "Administrator",
+ "module": "Ledgix",
+ "name": "quick-item-scan",
+ "owner": "Administrator",
+ "page_name": "quick-item-scan",
+ "roles": [
+  {
+   "role": "Ledgix Cashier"
+  },
+  {
+   "role": "Ledgix Manager"
+  },
+  {
+   "role": "Ledgix Admin"
+  },
+  {
+   "role": "System Manager"
+  }
+ ],
+ "script": null,
+ "standard": "Yes",
+ "style": null,
+ "system_page": 0,
+ "title": ""
+}

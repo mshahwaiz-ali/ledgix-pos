@@ -1,0 +1,239 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "field:customer_name",
+ "creation": "2026-05-14 13:57:20.178489",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "customer_info_section",
+  "customer_name",
+  "mobile_number",
+  "email_address",
+  "customer_type",
+  "credit_limit",
+  "current_balance",
+  "is_active",
+  "fbr_buyer_details_section",
+  "buyer_ntn_cnic",
+  "buyer_strn",
+  "buyer_registration_type",
+  "buyer_province",
+  "buyer_fbr_address",
+  "fbr_verification_status",
+  "last_fbr_verification_date",
+  "address_information_section",
+  "address_line_1",
+  "area",
+  "city",
+  "notes"
+ ],
+ "fields": [
+  {
+   "fieldname": "customer_info_section",
+   "fieldtype": "Section Break",
+   "label": "Customer Info"
+  },
+  {
+   "fieldname": "customer_name",
+   "fieldtype": "Data",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "label": "Customer Name",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "mobile_number",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Mobile Number"
+  },
+  {
+   "fieldname": "email_address",
+   "fieldtype": "Data",
+   "label": "Email Address"
+  },
+  {
+   "default": "Retail",
+   "fieldname": "customer_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Customer Type",
+   "options": "Retail\nWholesale"
+  },
+  {
+   "default": "0",
+   "fieldname": "credit_limit",
+   "fieldtype": "Currency",
+   "label": "Credit Limit"
+  },
+  {
+   "fieldname": "current_balance",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Current Balance",
+   "read_only": 1
+  },
+  {
+   "default": "Checked",
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Is Active"
+  },
+  {
+   "fieldname": "address_information_section",
+   "fieldtype": "Section Break",
+   "label": "Address Information"
+  },
+  {
+   "fieldname": "address_line_1",
+   "fieldtype": "Data",
+   "label": "Address Line 1"
+  },
+  {
+   "fieldname": "area",
+   "fieldtype": "Data",
+   "in_filter": 1,
+   "label": "Area"
+  },
+  {
+   "fieldname": "city",
+   "fieldtype": "Data",
+   "in_filter": 1,
+   "label": "City"
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Small Text",
+   "label": "Notes"
+  },
+  {
+   "fieldname": "fbr_buyer_details_section",
+   "fieldtype": "Section Break",
+   "label": "FBR Buyer Details"
+  },
+  {
+   "fieldname": "buyer_strn",
+   "fieldtype": "Data",
+   "label": "Buyer STRN"
+  },
+  {
+   "default": "Unregistered",
+   "fieldname": "buyer_registration_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Buyer Registration Type",
+   "options": "Registered\nUnregistered"
+  },
+  {
+   "fieldname": "buyer_province",
+   "fieldtype": "Data",
+   "label": "Buyer Province"
+  },
+  {
+   "fieldname": "buyer_fbr_address",
+   "fieldtype": "Small Text",
+   "label": "Buyer FBR Address"
+  },
+  {
+   "default": "Not Checked",
+   "fieldname": "fbr_verification_status",
+   "fieldtype": "Select",
+   "label": "FBR Verification Status",
+   "options": "Not Checked\nVerified\nFailed\nSkipped",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_fbr_verification_date",
+   "fieldtype": "Date",
+   "label": "Last FBR Verification Date",
+   "read_only": 1
+  },
+  {
+   "fieldname": "buyer_ntn_cnic",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Buyer NTN/CNIC"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-05-30 20:28:31.991210",
+ "modified_by": "Administrator",
+ "module": "Ledgix",
+ "name": "Ledgix Customer",
+ "naming_rule": "By fieldname",
+ "owner": "alishahwaiz96@gmail.com",
+ "permissions": [
+  {
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "submit": 0,
+   "cancel": 0,
+   "amend": 0,
+   "report": 1,
+   "export": 1,
+   "share": 1,
+   "print": 1,
+   "email": 1,
+   "role": "System Manager"
+  },
+  {
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "submit": 0,
+   "cancel": 0,
+   "amend": 0,
+   "report": 1,
+   "export": 1,
+   "share": 1,
+   "print": 1,
+   "email": 1,
+   "role": "Ledgix Admin"
+  },
+  {
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 0,
+   "submit": 0,
+   "cancel": 0,
+   "amend": 0,
+   "report": 0,
+   "export": 0,
+   "share": 0,
+   "print": 1,
+   "email": 1,
+   "role": "Ledgix Manager"
+  },
+  {
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 0,
+   "submit": 0,
+   "cancel": 0,
+   "amend": 0,
+   "report": 0,
+   "export": 0,
+   "share": 0,
+   "print": 1,
+   "email": 1,
+   "role": "Ledgix Cashier"
+  }
+ ],
+ "quick_entry": 1,
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

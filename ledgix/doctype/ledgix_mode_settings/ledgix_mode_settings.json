@@ -1,0 +1,71 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-05-16 22:28:03.212386",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "ledgix_setting_section",
+  "stock_control_mode"
+ ],
+ "fields": [
+  {
+   "fieldname": "ledgix_setting_section",
+   "fieldtype": "Section Break",
+   "label": "Ledgix Mode Setting"
+  },
+  {
+   "default": "Strict Inventory",
+   "fieldname": "stock_control_mode",
+   "fieldtype": "Select",
+   "label": "Stock Control Mode",
+   "options": "Strict Inventory\nBilling Only"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-05-16 22:38:06.155141",
+ "modified_by": "Administrator",
+ "module": "Ledgix",
+ "name": "Ledgix Mode Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "submit": 0,
+   "cancel": 0,
+   "amend": 0,
+   "report": 1,
+   "export": 1,
+   "share": 1,
+   "print": 1,
+   "email": 1,
+   "role": "System Manager"
+  },
+  {
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "submit": 0,
+   "cancel": 0,
+   "amend": 0,
+   "report": 1,
+   "export": 1,
+   "share": 1,
+   "print": 1,
+   "email": 1,
+   "role": "Ledgix Admin"
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

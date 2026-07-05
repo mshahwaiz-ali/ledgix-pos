@@ -1,0 +1,42 @@
+/* Login + desk brand polish */
+body.website-login .app-logo {
+	width: auto;
+	max-width: 220px;
+	max-height: 120px;
+	height: auto;
+	object-fit: contain;
+}
+
+body.website-login .page-card-head h4 {
+	color: #111827;
+	font-weight: 700;
+}
+
+.navbar-brand img.app-logo,
+.navbar-home img {
+	object-fit: contain;
+}
+
+.ledgix-nav-mark-image {
+	width: 100%;
+	height: 100%;
+	object-fit: contain;
+	display: block;
+	padding: 4px;
+	box-sizing: border-box;
+}
+
+.ledgix-nav-mark.is-image-mark {
+	background: #ffffff;
+	border: 1px solid rgba(140, 32, 49, 0.12);
+	box-shadow: 0 10px 22px rgba(140, 32, 49, 0.14);
+}
+
+.ledgix-app-shell.is-collapsed .ledgix-nav-mark.is-image-mark {
+	padding: 0;
+}
+
+.centered.splash .ledgix-splash-logo {
+	width: auto;
+	height: auto;
+}

@@ -1,0 +1,111 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-05-18 09:52:40.175807",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "theme_setting_section",
+  "enable_custom_accent",
+  "auto_generate_theme_shades",
+  "primary_accent_color",
+  "accent_hover",
+  "accent_soft",
+  "accent_soft_2",
+  "accent_border"
+ ],
+ "fields": [
+  {
+   "default": "1",
+   "fieldname": "enable_custom_accent",
+   "fieldtype": "Check",
+   "label": "Enable Custom Accent"
+  },
+  {
+   "fieldname": "primary_accent_color",
+   "fieldtype": "Color",
+   "label": "Primary Accent Color"
+  },
+  {
+   "fieldname": "theme_setting_section",
+   "fieldtype": "Section Break",
+   "label": "Theme Setting"
+  },
+  {
+   "default": "1",
+   "fieldname": "auto_generate_theme_shades",
+   "fieldtype": "Check",
+   "label": "Auto Generate Theme Shades"
+  },
+  {
+   "fieldname": "accent_hover",
+   "fieldtype": "Color",
+   "label": "Accent Hover",
+   "read_only": 1
+  },
+  {
+   "fieldname": "accent_soft",
+   "fieldtype": "Color",
+   "label": "Accent Soft",
+   "read_only": 1
+  },
+  {
+   "fieldname": "accent_soft_2",
+   "fieldtype": "Color",
+   "label": "Accent Soft 2",
+   "read_only": 1
+  },
+  {
+   "fieldname": "accent_border",
+   "fieldtype": "Color",
+   "label": "Accent Border",
+   "read_only": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-05-23 20:44:40.079880",
+ "modified_by": "Administrator",
+ "module": "Ledgix",
+ "name": "Ledgix POS Theme Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "submit": 0,
+   "cancel": 0,
+   "amend": 0,
+   "report": 1,
+   "export": 1,
+   "share": 1,
+   "print": 1,
+   "email": 1,
+   "role": "System Manager"
+  },
+  {
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "submit": 0,
+   "cancel": 0,
+   "amend": 0,
+   "report": 1,
+   "export": 1,
+   "share": 1,
+   "print": 1,
+   "email": 1,
+   "role": "Ledgix Admin"
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

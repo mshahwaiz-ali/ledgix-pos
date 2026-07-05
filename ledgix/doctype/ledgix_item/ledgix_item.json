@@ -1,0 +1,257 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "field:item_code",
+ "creation": "2026-05-07 07:18:07.475910",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "legix_items_section",
+  "item_code",
+  "item_name",
+  "category",
+  "barcode",
+  "sku",
+  "unit",
+  "opening_stock",
+  "current_stock",
+  "stock_adjustment_section",
+  "stock_in_qty",
+  "stock_out_qty",
+  "stock_serial_numbers",
+  "minimum_stock",
+  "stock_status",
+  "cost_price",
+  "selling_price",
+  "profit_amount",
+  "profit_margin",
+  "active",
+  "tracking_type"
+ ],
+ "fields": [
+  {
+   "fieldname": "legix_items_section",
+   "fieldtype": "Section Break",
+   "label": "Legix_items"
+  },
+  {
+   "allow_in_quick_entry": 1,
+   "fieldname": "item_code",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Item Code",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "allow_in_quick_entry": 1,
+   "fieldname": "item_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Item Name",
+   "reqd": 1
+  },
+  {
+   "fieldname": "barcode",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Barcode",
+   "unique": 1
+  },
+  {
+   "fieldname": "category",
+   "fieldtype": "Link",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "label": "Category",
+   "options": "Ledgix Category"
+  },
+  {
+   "default": "Piece",
+   "fieldname": "unit",
+   "fieldtype": "Select",
+   "label": "Unit",
+   "options": "Piece\nKg\nGram\nLiter\nPack"
+  },
+  {
+   "default": "0",
+   "fieldname": "cost_price",
+   "fieldtype": "Currency",
+   "label": "Cost Price",
+   "permlevel": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "selling_price",
+   "fieldtype": "Currency",
+   "label": "Selling Price"
+  },
+  {
+   "fieldname": "profit_amount",
+   "fieldtype": "Currency",
+   "label": "Profit Amount",
+   "permlevel": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "profit_margin",
+   "fieldtype": "Percent",
+   "label": "Profit Margin",
+   "permlevel": 1,
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "opening_stock",
+   "fieldtype": "Float",
+   "label": "Opening Stock"
+  },
+  {
+   "default": "10",
+   "fieldname": "minimum_stock",
+   "fieldtype": "Float",
+   "label": "Minimum Stock"
+  },
+  {
+   "default": "1",
+   "fieldname": "active",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Active"
+  },
+  {
+   "fieldname": "sku",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "SKU",
+   "unique": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "current_stock",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Current Stock",
+   "read_only": 1
+  },
+  {
+   "fieldname": "stock_adjustment_section",
+   "fieldtype": "Section Break",
+   "label": "Stock Adjustment"
+  },
+  {
+   "default": "0",
+   "description": "Creates a Manual IN stock movement on save.",
+   "fieldname": "stock_in_qty",
+   "fieldtype": "Float",
+   "label": "Add Stock (+)"
+  },
+  {
+   "default": "0",
+   "description": "Creates a Manual OUT stock movement on save. Not available for Serial Based items.",
+   "fieldname": "stock_out_qty",
+   "fieldtype": "Float",
+   "label": "Remove Stock (-)"
+  },
+  {
+   "depends_on": "eval:doc.tracking_type=='Serial Based' && doc.stock_in_qty > 0",
+   "description": "One per line or comma-separated. Leave empty to auto-generate.",
+   "fieldname": "stock_serial_numbers",
+   "fieldtype": "Small Text",
+   "label": "Serial Numbers"
+  },
+  {
+   "fieldname": "stock_status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Stock Status",
+   "options": "In Stock\nLow Stock\nOut of Stock",
+   "read_only": 1
+  },
+  {
+   "default": "Normal",
+   "fieldname": "tracking_type",
+   "fieldtype": "Select",
+   "in_filter": 1,
+   "label": "Tracking Type",
+   "options": "Normal\nLot Based\nSerial Based"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-05-22 20:15:12.816023",
+ "modified_by": "Administrator",
+ "module": "Ledgix",
+ "name": "Ledgix Item",
+ "naming_rule": "By fieldname",
+ "owner": "alishahwaiz96@gmail.com",
+ "permissions": [
+  {
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "submit": 0,
+   "cancel": 0,
+   "amend": 0,
+   "report": 1,
+   "export": 1,
+   "share": 1,
+   "print": 1,
+   "email": 1,
+   "role": "System Manager"
+  },
+  {
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "submit": 0,
+   "cancel": 0,
+   "amend": 0,
+   "report": 1,
+   "export": 1,
+   "share": 1,
+   "print": 1,
+   "email": 1,
+   "role": "Ledgix Admin"
+  },
+  {
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 0,
+   "submit": 0,
+   "cancel": 0,
+   "amend": 0,
+   "report": 0,
+   "export": 0,
+   "share": 0,
+   "print": 1,
+   "email": 1,
+   "role": "Ledgix Manager"
+  },
+  {
+   "read": 1,
+   "write": 0,
+   "create": 0,
+   "delete": 0,
+   "submit": 0,
+   "cancel": 0,
+   "amend": 0,
+   "report": 0,
+   "export": 0,
+   "share": 0,
+   "print": 1,
+   "email": 0,
+   "role": "Ledgix Cashier"
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

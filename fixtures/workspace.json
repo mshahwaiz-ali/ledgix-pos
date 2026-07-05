@@ -1,0 +1,375 @@
+[
+ {
+  "charts": [],
+  "content": "[{\"id\":\"hdr_pages\",\"type\":\"header\",\"data\":{\"text\":\"\\n        <div style=\\\"margin:14px 0 4px;padding:10px 12px;border-radius:12px;background:linear-gradient(135deg,rgba(15,23,42,0.06),rgba(15,23,42,0.015));border:1px solid rgba(15,23,42,0.08);\\\">\\n            <div style=\\\"font-size:15px;font-weight:800;color:#111827;\\\">Pages & Screens</div>\\n            <div style=\\\"font-size:12px;color:#6b7280;margin-top:2px;\\\">Custom Ledgix screens.</div>\\n        </div>\",\"col\":12}},{\"id\":\"sc_pages_1\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Dashboard\",\"col\":3}},{\"id\":\"sc_pages_2\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Ledgix POS\",\"col\":3}},{\"id\":\"sc_pages_3\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Operations Center\",\"col\":3}},{\"id\":\"sc_pages_4\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Reports & Analytics\",\"col\":3}},{\"id\":\"sc_pages_5\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Business Intelligence Center\",\"col\":3}},{\"id\":\"sc_pages_6\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Tax & Compliance Center\",\"col\":3}},{\"id\":\"sc_pages_7\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Quick Item Scan\",\"col\":3}},{\"id\":\"sc_pages_8\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Role Permissions\",\"col\":3}},{\"id\":\"hdr_transactions\",\"type\":\"header\",\"data\":{\"text\":\"\\n        <div style=\\\"margin:14px 0 4px;padding:10px 12px;border-radius:12px;background:linear-gradient(135deg,rgba(15,23,42,0.06),rgba(15,23,42,0.015));border:1px solid rgba(15,23,42,0.08);\\\">\\n            <div style=\\\"font-size:15px;font-weight:800;color:#111827;\\\">DocTypes \\u2014 Transactions</div>\\n            <div style=\\\"font-size:12px;color:#6b7280;margin-top:2px;\\\">Sales, purchases, returns, shifts.</div>\\n        </div>\",\"col\":12}},{\"id\":\"sc_transactions_1\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Sales\",\"col\":3}},{\"id\":\"sc_transactions_2\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Sales Returns\",\"col\":3}},{\"id\":\"sc_transactions_3\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Purchases\",\"col\":3}},{\"id\":\"sc_transactions_4\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"POS Shifts\",\"col\":3}},{\"id\":\"sc_transactions_5\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Held POS Sales\",\"col\":3}},{\"id\":\"sc_transactions_6\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Stock Movements\",\"col\":3}},{\"id\":\"hdr_inventory\",\"type\":\"header\",\"data\":{\"text\":\"\\n        <div style=\\\"margin:14px 0 4px;padding:10px 12px;border-radius:12px;background:linear-gradient(135deg,rgba(15,23,42,0.06),rgba(15,23,42,0.015));border:1px solid rgba(15,23,42,0.08);\\\">\\n            <div style=\\\"font-size:15px;font-weight:800;color:#111827;\\\">DocTypes \\u2014 Inventory & Parties</div>\\n            <div style=\\\"font-size:12px;color:#6b7280;margin-top:2px;\\\">Products, categories, parties.</div>\\n        </div>\",\"col\":12}},{\"id\":\"sc_inventory_1\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Items\",\"col\":3}},{\"id\":\"sc_inventory_2\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Categories\",\"col\":3}},{\"id\":\"sc_inventory_3\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Customers\",\"col\":3}},{\"id\":\"sc_inventory_4\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Suppliers\",\"col\":3}},{\"id\":\"hdr_stock_identity\",\"type\":\"header\",\"data\":{\"text\":\"\\n        <div style=\\\"margin:14px 0 4px;padding:10px 12px;border-radius:12px;background:linear-gradient(135deg,rgba(15,23,42,0.06),rgba(15,23,42,0.015));border:1px solid rgba(15,23,42,0.08);\\\">\\n            <div style=\\\"font-size:15px;font-weight:800;color:#111827;\\\">DocTypes \\u2014 Stock Identity</div>\\n            <div style=\\\"font-size:12px;color:#6b7280;margin-top:2px;\\\">Lots, serials, allocations.</div>\\n        </div>\",\"col\":12}},{\"id\":\"sc_stock_identity_1\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Stock Lots\",\"col\":3}},{\"id\":\"sc_stock_identity_2\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Stock Serials\",\"col\":3}},{\"id\":\"sc_stock_identity_3\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Lot Allocations\",\"col\":3}},{\"id\":\"hdr_tax_fbr\",\"type\":\"header\",\"data\":{\"text\":\"\\n        <div style=\\\"margin:14px 0 4px;padding:10px 12px;border-radius:12px;background:linear-gradient(135deg,rgba(15,23,42,0.06),rgba(15,23,42,0.015));border:1px solid rgba(15,23,42,0.08);\\\">\\n            <div style=\\\"font-size:15px;font-weight:800;color:#111827;\\\">DocTypes \\u2014 Tax & FBR</div>\\n            <div style=\\\"font-size:12px;color:#6b7280;margin-top:2px;\\\">Tax masters, FBR settings, logs.</div>\\n        </div>\",\"col\":12}},{\"id\":\"sc_tax_fbr_1\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Tax Profile\",\"col\":3}},{\"id\":\"sc_tax_fbr_2\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Tax Categories\",\"col\":3}},{\"id\":\"sc_tax_fbr_3\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Tax Rates\",\"col\":3}},{\"id\":\"sc_tax_fbr_4\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Item Tax Profiles\",\"col\":3}},{\"id\":\"sc_tax_fbr_5\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"FBR Settings\",\"col\":3}},{\"id\":\"sc_tax_fbr_6\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"FBR Submission Log\",\"col\":3}},{\"id\":\"sc_tax_fbr_7\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Tax Audit Log\",\"col\":3}},{\"id\":\"hdr_reports\",\"type\":\"header\",\"data\":{\"text\":\"\\n        <div style=\\\"margin:14px 0 4px;padding:10px 12px;border-radius:12px;background:linear-gradient(135deg,rgba(15,23,42,0.06),rgba(15,23,42,0.015));border:1px solid rgba(15,23,42,0.08);\\\">\\n            <div style=\\\"font-size:15px;font-weight:800;color:#111827;\\\">Reports</div>\\n            <div style=\\\"font-size:12px;color:#6b7280;margin-top:2px;\\\">Stock, sales, purchases, statements.</div>\\n        </div>\",\"col\":12}},{\"id\":\"sc_reports_1\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Current Stock\",\"col\":3}},{\"id\":\"sc_reports_2\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Low Stock\",\"col\":3}},{\"id\":\"sc_reports_3\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Inventory Intelligence\",\"col\":3}},{\"id\":\"sc_reports_4\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Item Intelligence\",\"col\":3}},{\"id\":\"sc_reports_5\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Sales Report\",\"col\":3}},{\"id\":\"sc_reports_6\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Sales Return Report\",\"col\":3}},{\"id\":\"sc_reports_7\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Purchase Report\",\"col\":3}},{\"id\":\"sc_reports_8\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Stock Movement Report\",\"col\":3}},{\"id\":\"sc_reports_9\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Customer Statement\",\"col\":3}},{\"id\":\"hdr_administration\",\"type\":\"header\",\"data\":{\"text\":\"\\n        <div style=\\\"margin:14px 0 4px;padding:10px 12px;border-radius:12px;background:linear-gradient(135deg,rgba(15,23,42,0.06),rgba(15,23,42,0.015));border:1px solid rgba(15,23,42,0.08);\\\">\\n            <div style=\\\"font-size:15px;font-weight:800;color:#111827;\\\">DocTypes \\u2014 Administration</div>\\n            <div style=\\\"font-size:12px;color:#6b7280;margin-top:2px;\\\">Users, roles, settings.</div>\\n        </div>\",\"col\":12}},{\"id\":\"sc_administration_1\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"User Profiles\",\"col\":3}},{\"id\":\"sc_administration_2\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Mode Settings\",\"col\":3}},{\"id\":\"sc_administration_3\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"POS Theme Settings\",\"col\":3}},{\"id\":\"sc_administration_4\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Maintenance Tool\",\"col\":3}},{\"id\":\"sc_administration_5\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Users\",\"col\":3}},{\"id\":\"sc_administration_6\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Roles\",\"col\":3}}]",
+  "custom_blocks": [],
+  "docstatus": 0,
+  "doctype": "Workspace",
+  "for_user": "",
+  "hide_custom": 0,
+  "indicator_color": "green",
+  "is_hidden": 0,
+  "label": "Ledgix",
+  "links": [],
+  "module": "Ledgix",
+  "name": "Ledgix",
+  "number_cards": [],
+  "parent_page": "",
+  "public": 1,
+  "quick_lists": [],
+  "roles": [
+   {
+    "role": "System Manager"
+   },
+   {
+    "role": "Ledgix Admin"
+   },
+   {
+    "role": "Ledgix Manager"
+   },
+   {
+    "role": "Ledgix Cashier"
+   }
+  ],
+  "sequence_id": 1.0,
+  "shortcuts": [
+   {
+    "color": "Blue",
+    "doc_view": "List",
+    "label": "Dashboard",
+    "link_to": "ledgix-dashboard",
+    "type": "Page"
+   },
+   {
+    "color": "Green",
+    "doc_view": "List",
+    "label": "Ledgix POS",
+    "link_to": "ledgix-pos",
+    "type": "Page"
+   },
+   {
+    "color": "Orange",
+    "doc_view": "List",
+    "label": "Operations Center",
+    "link_to": "ledgix_operations",
+    "type": "Page"
+   },
+   {
+    "color": "Purple",
+    "doc_view": "List",
+    "label": "Reports & Analytics",
+    "link_to": "ledgix-reports",
+    "type": "Page"
+   },
+   {
+    "color": "Purple",
+    "doc_view": "List",
+    "label": "Business Intelligence Center",
+    "link_to": "business-intelligence-center",
+    "type": "Page"
+   },
+   {
+    "color": "Red",
+    "doc_view": "List",
+    "label": "Tax & Compliance Center",
+    "link_to": "ledgix-tax-center",
+    "type": "Page"
+   },
+   {
+    "color": "Blue",
+    "doc_view": "List",
+    "label": "Quick Item Scan",
+    "link_to": "quick-item-scan",
+    "type": "Page"
+   },
+   {
+    "color": "Orange",
+    "doc_view": "List",
+    "label": "Role Permissions",
+    "link_to": "permission-manager",
+    "type": "Page"
+   },
+   {
+    "color": "Green",
+    "doc_view": "List",
+    "label": "Sales",
+    "link_to": "Ledgix Sale",
+    "type": "DocType",
+    "stats_filter": "[]"
+   },
+   {
+    "color": "Red",
+    "doc_view": "List",
+    "label": "Sales Returns",
+    "link_to": "Ledgix Sales Return",
+    "type": "DocType",
+    "stats_filter": "[]"
+   },
+   {
+    "color": "Blue",
+    "doc_view": "List",
+    "label": "Purchases",
+    "link_to": "Ledgix Purchase",
+    "type": "DocType",
+    "stats_filter": "[]"
+   },
+   {
+    "color": "Orange",
+    "doc_view": "List",
+    "label": "POS Shifts",
+    "link_to": "Ledgix POS Shift",
+    "type": "DocType",
+    "stats_filter": "[]"
+   },
+   {
+    "color": "Yellow",
+    "doc_view": "List",
+    "label": "Held POS Sales",
+    "link_to": "Ledgix POS Hold",
+    "type": "DocType",
+    "stats_filter": "[]"
+   },
+   {
+    "color": "Orange",
+    "doc_view": "List",
+    "label": "Stock Movements",
+    "link_to": "Ledgix Stock Movement",
+    "type": "DocType",
+    "stats_filter": "[]"
+   },
+   {
+    "color": "Blue",
+    "doc_view": "List",
+    "label": "Items",
+    "link_to": "Ledgix Item",
+    "type": "DocType",
+    "stats_filter": "[]"
+   },
+   {
+    "color": "Purple",
+    "doc_view": "List",
+    "label": "Categories",
+    "link_to": "Ledgix Category",
+    "type": "DocType",
+    "stats_filter": "[]"
+   },
+   {
+    "color": "Green",
+    "doc_view": "List",
+    "label": "Customers",
+    "link_to": "Ledgix Customer",
+    "type": "DocType",
+    "stats_filter": "[]"
+   },
+   {
+    "color": "Yellow",
+    "doc_view": "List",
+    "label": "Suppliers",
+    "link_to": "Ledgix Supplier",
+    "type": "DocType",
+    "stats_filter": "[]"
+   },
+   {
+    "color": "Blue",
+    "doc_view": "List",
+    "label": "Stock Lots",
+    "link_to": "Ledgix Stock Lot",
+    "type": "DocType",
+    "stats_filter": "[]"
+   },
+   {
+    "color": "Purple",
+    "doc_view": "List",
+    "label": "Stock Serials",
+    "link_to": "Ledgix Stock Serial",
+    "type": "DocType",
+    "stats_filter": "[]"
+   },
+   {
+    "color": "Orange",
+    "doc_view": "List",
+    "label": "Lot Allocations",
+    "link_to": "Ledgix Stock Lot Allocation",
+    "type": "DocType",
+    "stats_filter": "[]"
+   },
+   {
+    "color": "Purple",
+    "doc_view": "List",
+    "label": "Tax Profile",
+    "link_to": "Ledgix Tax Profile",
+    "type": "DocType",
+    "stats_filter": "[]"
+   },
+   {
+    "color": "Blue",
+    "doc_view": "List",
+    "label": "Tax Categories",
+    "link_to": "Ledgix Tax Category",
+    "type": "DocType",
+    "stats_filter": "[]"
+   },
+   {
+    "color": "Green",
+    "doc_view": "List",
+    "label": "Tax Rates",
+    "link_to": "Ledgix Tax Rate",
+    "type": "DocType",
+    "stats_filter": "[]"
+   },
+   {
+    "color": "Orange",
+    "doc_view": "List",
+    "label": "Item Tax Profiles",
+    "link_to": "Ledgix Item Tax Profile",
+    "type": "DocType",
+    "stats_filter": "[]"
+   },
+   {
+    "color": "Red",
+    "doc_view": "List",
+    "label": "FBR Settings",
+    "link_to": "Ledgix FBR Settings",
+    "type": "DocType",
+    "stats_filter": "[]"
+   },
+   {
+    "color": "Red",
+    "doc_view": "List",
+    "label": "FBR Submission Log",
+    "link_to": "Ledgix FBR Submission Log",
+    "type": "DocType",
+    "stats_filter": "[]"
+   },
+   {
+    "color": "Red",
+    "doc_view": "List",
+    "label": "Tax Audit Log",
+    "link_to": "Ledgix Tax Audit Log",
+    "type": "DocType",
+    "stats_filter": "[]"
+   },
+   {
+    "color": "Green",
+    "doc_view": "List",
+    "label": "Current Stock",
+    "link_to": "Ledgix Current Stock",
+    "type": "Report",
+    "report_ref_doctype": "Ledgix Item"
+   },
+   {
+    "color": "Red",
+    "doc_view": "List",
+    "label": "Low Stock",
+    "link_to": "Ledgix Low Stock",
+    "type": "Report",
+    "report_ref_doctype": "Ledgix Item"
+   },
+   {
+    "color": "Purple",
+    "doc_view": "List",
+    "label": "Inventory Intelligence",
+    "link_to": "Inventory Intelligence Report",
+    "type": "Report",
+    "report_ref_doctype": "Ledgix Item"
+   },
+   {
+    "color": "Blue",
+    "doc_view": "List",
+    "label": "Item Intelligence",
+    "link_to": "Item Intelligence Legacy",
+    "type": "Report",
+    "report_ref_doctype": "Ledgix Item"
+   },
+   {
+    "color": "Green",
+    "doc_view": "List",
+    "label": "Sales Report",
+    "link_to": "Ledgix Sales Report",
+    "type": "Report",
+    "report_ref_doctype": "Ledgix Sale"
+   },
+   {
+    "color": "Red",
+    "doc_view": "List",
+    "label": "Sales Return Report",
+    "link_to": "Ledgix Sales Return Report",
+    "type": "Report",
+    "report_ref_doctype": "Ledgix Sales Return"
+   },
+   {
+    "color": "Blue",
+    "doc_view": "List",
+    "label": "Purchase Report",
+    "link_to": "Ledgix Purchase Report",
+    "type": "Report",
+    "report_ref_doctype": "Ledgix Purchase"
+   },
+   {
+    "color": "Orange",
+    "doc_view": "List",
+    "label": "Stock Movement Report",
+    "link_to": "Ledgix Stock Movement Report",
+    "type": "Report",
+    "report_ref_doctype": "Ledgix Stock Movement"
+   },
+   {
+    "color": "Purple",
+    "doc_view": "List",
+    "label": "Customer Statement",
+    "link_to": "Ledgix Customer Statement",
+    "type": "Report",
+    "report_ref_doctype": "Ledgix Customer"
+   },
+   {
+    "color": "Blue",
+    "doc_view": "List",
+    "label": "User Profiles",
+    "link_to": "Ledgix User Profile",
+    "type": "DocType",
+    "stats_filter": "[]"
+   },
+   {
+    "color": "Purple",
+    "doc_view": "List",
+    "label": "Mode Settings",
+    "link_to": "Ledgix Mode Settings",
+    "type": "DocType",
+    "stats_filter": "[]"
+   },
+   {
+    "color": "Purple",
+    "doc_view": "List",
+    "label": "POS Theme Settings",
+    "link_to": "Ledgix POS Theme Settings",
+    "type": "DocType",
+    "stats_filter": "[]"
+   },
+   {
+    "color": "Red",
+    "doc_view": "List",
+    "label": "Maintenance Tool",
+    "link_to": "Ledgix Maintenance Tool",
+    "type": "DocType",
+    "stats_filter": "[]"
+   },
+   {
+    "color": "Grey",
+    "doc_view": "List",
+    "label": "Users",
+    "link_to": "User",
+    "type": "DocType",
+    "stats_filter": "[]"
+   },
+   {
+    "color": "Grey",
+    "doc_view": "List",
+    "label": "Roles",
+    "link_to": "Role",
+    "type": "DocType",
+    "stats_filter": "[]"
+   }
+  ],
+  "title": "Ledgix"
+ }
+]

@@ -1,0 +1,158 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "format:ITEM-TAX-{#####}",
+ "creation": "2026-05-26 18:46:13.400444",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "item",
+  "taxable",
+  "tax_category",
+  "hs_code",
+  "uom_for_fbr",
+  "sales_type",
+  "scenario_id",
+  "sro_schedule_number",
+  "sro_item_serial_number",
+  "default_tax_rate",
+  "needs_review",
+  "active"
+ ],
+ "fields": [
+  {
+   "fieldname": "item",
+   "fieldtype": "Link",
+   "label": "Item",
+   "options": "Ledgix Item",
+   "reqd": 1
+  },
+  {
+   "default": "1",
+   "fieldname": "taxable",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Taxable"
+  },
+  {
+   "fieldname": "tax_category",
+   "fieldtype": "Link",
+   "label": "Tax Category",
+   "options": "Ledgix Tax Category",
+   "reqd": 1
+  },
+  {
+   "fieldname": "hs_code",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "HS Code"
+  },
+  {
+   "fieldname": "uom_for_fbr",
+   "fieldtype": "Data",
+   "label": "UOM for FBR"
+  },
+  {
+   "fieldname": "sales_type",
+   "fieldtype": "Data",
+   "label": "Sales Type"
+  },
+  {
+   "fieldname": "scenario_id",
+   "fieldtype": "Data",
+   "label": "Scenario ID"
+  },
+  {
+   "fieldname": "sro_schedule_number",
+   "fieldtype": "Data",
+   "label": "SRO Schedule Number"
+  },
+  {
+   "fieldname": "sro_item_serial_number",
+   "fieldtype": "Data",
+   "label": "SRO Item Serial Number"
+  },
+  {
+   "fieldname": "default_tax_rate",
+   "fieldtype": "Percent",
+   "label": "Default Tax Rate",
+   "read_only": 1
+  },
+  {
+   "default": "1",
+   "fieldname": "needs_review",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Needs Review"
+  },
+  {
+   "default": "1",
+   "fieldname": "active",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Active"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-05-26 18:50:25.018764",
+ "modified_by": "Administrator",
+ "module": "Ledgix",
+ "name": "Ledgix Item Tax Profile",
+ "naming_rule": "Expression (old style)",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "submit": 0,
+   "cancel": 0,
+   "amend": 0,
+   "report": 1,
+   "export": 1,
+   "share": 1,
+   "print": 1,
+   "email": 1,
+   "role": "System Manager"
+  },
+  {
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "submit": 0,
+   "cancel": 0,
+   "amend": 0,
+   "report": 1,
+   "export": 1,
+   "share": 1,
+   "print": 1,
+   "email": 1,
+   "role": "Ledgix Admin"
+  },
+  {
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 0,
+   "submit": 0,
+   "cancel": 0,
+   "amend": 0,
+   "report": 0,
+   "export": 0,
+   "share": 0,
+   "print": 1,
+   "email": 1,
+   "role": "Ledgix Manager"
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

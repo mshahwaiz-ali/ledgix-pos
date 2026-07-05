@@ -1,0 +1,6 @@
+Metadata-Version: 2.4
+Name: ledgix_saas
+Version: 0.0.0
+Summary: POS and inventory platform for retail shops
+Author-email: Ali <alishahwaiz96@gmail.com>
+Requires-Python: >=3.10

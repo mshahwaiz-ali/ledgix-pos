@@ -1,0 +1,201 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "format:FBR-LOG-{YYYY}-{#####}",
+ "creation": "2026-05-30 20:06:45.418374",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "reference_section",
+  "reference_doctype",
+  "reference_name",
+  "invoice_type",
+  "fbr_status_section",
+  "fbr_status",
+  "fbr_invoice_number",
+  "attempt_count",
+  "next_retry_time",
+  "request__response_section",
+  "request_json",
+  "response_json",
+  "error_details_section",
+  "error_code",
+  "error_message",
+  "submission_info_section",
+  "submitted_by",
+  "submitted_at"
+ ],
+ "fields": [
+  {
+   "fieldname": "reference_section",
+   "fieldtype": "Section Break",
+   "label": "Reference"
+  },
+  {
+   "fieldname": "reference_doctype",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Reference DocType",
+   "options": "DocType",
+   "reqd": 1
+  },
+  {
+   "fieldname": "reference_name",
+   "fieldtype": "Dynamic Link",
+   "in_list_view": 1,
+   "label": "Reference Name",
+   "options": "reference_doctype",
+   "reqd": 1
+  },
+  {
+   "fieldname": "invoice_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Invoice Type",
+   "options": "Sale Invoice\nDebit Note\nCredit Note\nReturn"
+  },
+  {
+   "fieldname": "fbr_status_section",
+   "fieldtype": "Section Break",
+   "label": "FBR Status"
+  },
+  {
+   "default": "Pending",
+   "fieldname": "fbr_status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "FBR Status",
+   "options": "Pending\nValidated\nSubmitted\nFailed\nSkipped\nPaused\nNot Required",
+   "reqd": 1
+  },
+  {
+   "fieldname": "fbr_invoice_number",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "FBR Invoice Number"
+  },
+  {
+   "default": "0",
+   "fieldname": "attempt_count",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Attempt Count"
+  },
+  {
+   "fieldname": "next_retry_time",
+   "fieldtype": "Datetime",
+   "label": "Next Retry Time"
+  },
+  {
+   "fieldname": "request__response_section",
+   "fieldtype": "Section Break",
+   "label": "Request / Response"
+  },
+  {
+   "fieldname": "request_json",
+   "fieldtype": "Code",
+   "label": "Request JSON",
+   "options": "JSON"
+  },
+  {
+   "fieldname": "response_json",
+   "fieldtype": "Code",
+   "label": "Response JSON",
+   "options": "JSON"
+  },
+  {
+   "fieldname": "error_details_section",
+   "fieldtype": "Section Break",
+   "label": "Error Details"
+  },
+  {
+   "fieldname": "error_code",
+   "fieldtype": "Data",
+   "label": "Error Code"
+  },
+  {
+   "fieldname": "error_message",
+   "fieldtype": "Small Text",
+   "label": "Error Message"
+  },
+  {
+   "fieldname": "submission_info_section",
+   "fieldtype": "Section Break",
+   "label": "Submission Info"
+  },
+  {
+   "fieldname": "submitted_by",
+   "fieldtype": "Link",
+   "label": "Submitted By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "submitted_at",
+   "fieldtype": "Datetime",
+   "label": "Submitted At",
+   "read_only": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-05-30 20:15:39.469597",
+ "modified_by": "Administrator",
+ "module": "Ledgix",
+ "name": "Ledgix FBR Submission Log",
+ "naming_rule": "Expression (old style)",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "submit": 0,
+   "cancel": 0,
+   "amend": 0,
+   "report": 1,
+   "export": 1,
+   "share": 1,
+   "print": 1,
+   "email": 1,
+   "role": "System Manager"
+  },
+  {
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "submit": 0,
+   "cancel": 0,
+   "amend": 0,
+   "report": 1,
+   "export": 1,
+   "share": 1,
+   "print": 1,
+   "email": 1,
+   "role": "Ledgix Admin"
+  },
+  {
+   "read": 1,
+   "write": 0,
+   "create": 0,
+   "delete": 0,
+   "submit": 0,
+   "cancel": 0,
+   "amend": 0,
+   "report": 0,
+   "export": 0,
+   "share": 0,
+   "print": 1,
+   "email": 0,
+   "role": "Ledgix Manager"
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

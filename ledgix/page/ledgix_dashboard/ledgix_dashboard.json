@@ -1,0 +1,21 @@
+{
+  "doctype": "Page",
+  "name": "ledgix-dashboard",
+  "page_name": "ledgix-dashboard",
+  "title": "",
+  "module": "Ledgix",
+  "standard": "Yes",
+  "script": "ledgix_dashboard.js",
+  "css": "ledgix_dashboard.css",
+  "roles": [
+    {
+      "role": "System Manager"
+    },
+    {
+      "role": "Ledgix Admin"
+    },
+    {
+      "role": "Ledgix Manager"
+    }
+  ]
+}

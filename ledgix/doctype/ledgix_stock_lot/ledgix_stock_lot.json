@@ -1,0 +1,186 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "format:LOT-{#####}",
+ "creation": "2026-05-22 20:15:49.323187",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "lot_information_section",
+  "item",
+  "purchase",
+  "purchase_item_row",
+  "supplier",
+  "purchase_date",
+  "quantity_information_section",
+  "purchased_qty",
+  "sold_qty",
+  "returned_qty",
+  "remaining_qty",
+  "pricing_information_section",
+  "cost_rate",
+  "total_cost",
+  "status"
+ ],
+ "fields": [
+  {
+   "fieldname": "lot_information_section",
+   "fieldtype": "Section Break",
+   "label": "Lot Information"
+  },
+  {
+   "fieldname": "item",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Item",
+   "options": "Ledgix Item",
+   "read_only": 1
+  },
+  {
+   "fieldname": "purchase",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Purchase",
+   "options": "Ledgix Purchase"
+  },
+  {
+   "fieldname": "purchase_item_row",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Purchase Item Row"
+  },
+  {
+   "fieldname": "supplier",
+   "fieldtype": "Link",
+   "label": "Supplier",
+   "options": "Ledgix Supplier"
+  },
+  {
+   "fieldname": "purchase_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Purchase Date"
+  },
+  {
+   "fieldname": "quantity_information_section",
+   "fieldtype": "Section Break",
+   "label": "Quantity Information"
+  },
+  {
+   "fieldname": "purchased_qty",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Purchased Qty",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "sold_qty",
+   "fieldtype": "Float",
+   "label": "Sold Qty",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "returned_qty",
+   "fieldtype": "Float",
+   "label": "Returned Qty",
+   "read_only": 1
+  },
+  {
+   "fieldname": "remaining_qty",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Remaining Qty",
+   "read_only": 1
+  },
+  {
+   "fieldname": "pricing_information_section",
+   "fieldtype": "Section Break",
+   "label": "Pricing Information"
+  },
+  {
+   "fieldname": "cost_rate",
+   "fieldtype": "Currency",
+   "label": "Cost Rate",
+   "read_only": 1
+  },
+  {
+   "fieldname": "total_cost",
+   "fieldtype": "Currency",
+   "label": "Total Cost",
+   "read_only": 1
+  },
+  {
+   "default": "Open",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Status",
+   "options": "Open\nClosed\nCancelled",
+   "read_only": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-05-22 21:56:06.871487",
+ "modified_by": "Administrator",
+ "module": "Ledgix",
+ "name": "Ledgix Stock Lot",
+ "naming_rule": "Expression (old style)",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "submit": 0,
+   "cancel": 0,
+   "amend": 0,
+   "report": 1,
+   "export": 1,
+   "share": 1,
+   "print": 1,
+   "email": 1,
+   "role": "System Manager"
+  },
+  {
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "submit": 0,
+   "cancel": 0,
+   "amend": 0,
+   "report": 1,
+   "export": 1,
+   "share": 1,
+   "print": 1,
+   "email": 1,
+   "role": "Ledgix Admin"
+  },
+  {
+   "read": 1,
+   "write": 0,
+   "create": 0,
+   "delete": 0,
+   "submit": 0,
+   "cancel": 0,
+   "amend": 0,
+   "report": 0,
+   "export": 0,
+   "share": 0,
+   "print": 1,
+   "email": 0,
+   "role": "Ledgix Manager"
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

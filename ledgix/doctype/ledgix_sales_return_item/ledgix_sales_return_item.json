@@ -1,0 +1,157 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-05-15 05:38:46.136423",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "item",
+  "original_sale_item_row",
+  "quantity",
+  "serial_numbers",
+  "rate",
+  "amount",
+  "cost_price",
+  "profit_per_unit",
+  "item_total_profit"
+ ],
+ "fields": [
+  {
+   "fieldname": "item",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Item",
+   "options": "Ledgix Item",
+   "read_only": 1,
+   "reqd": 1,
+   "columns": 3
+  },
+  {
+   "fieldname": "original_sale_item_row",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Original Sale Item Row",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "quantity",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Quantity",
+   "reqd": 1,
+   "columns": 1
+  },
+  {
+   "description": "For Serial Based items only. Enter the serial numbers being returned.",
+   "fieldname": "serial_numbers",
+   "fieldtype": "Small Text",
+   "label": "Serial Numbers",
+   "in_list_view": 1,
+   "columns": 3
+  },
+  {
+   "fieldname": "rate",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Rate",
+   "read_only": 1,
+   "reqd": 1,
+   "columns": 1
+  },
+  {
+   "fieldname": "amount",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Amount",
+   "read_only": 1,
+   "columns": 2
+  },
+  {
+   "fieldname": "cost_price",
+   "fieldtype": "Currency",
+   "hidden": 1,
+   "label": "Cost Price",
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "profit_per_unit",
+   "fieldtype": "Currency",
+   "hidden": 1,
+   "label": "Profit Per Unit",
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "item_total_profit",
+   "fieldtype": "Currency",
+   "hidden": 1,
+   "label": "Item Total Profit",
+   "print_hide": 1,
+   "read_only": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-05-24 21:55:00.000000",
+ "modified_by": "alishahwaiz96@gmail.com",
+ "module": "Ledgix",
+ "name": "Ledgix Sales Return Item",
+ "owner": "alishahwaiz96@gmail.com",
+ "permissions": [
+  {
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "submit": 0,
+   "cancel": 0,
+   "amend": 0,
+   "report": 1,
+   "export": 1,
+   "share": 1,
+   "print": 1,
+   "email": 1,
+   "role": "System Manager"
+  },
+  {
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "submit": 0,
+   "cancel": 0,
+   "amend": 0,
+   "report": 1,
+   "export": 1,
+   "share": 1,
+   "print": 1,
+   "email": 1,
+   "role": "Ledgix Admin"
+  },
+  {
+   "read": 1,
+   "write": 0,
+   "create": 0,
+   "delete": 0,
+   "submit": 0,
+   "cancel": 0,
+   "amend": 0,
+   "report": 0,
+   "export": 0,
+   "share": 0,
+   "print": 1,
+   "email": 0,
+   "role": "Ledgix Manager"
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

@@ -1,0 +1,22 @@
+.page-container.ledgix-page-no-frappe-head .page-head,
+.page-container.ledgix-page-no-frappe-head .page-head-content,
+.page-container.ledgix-page-no-frappe-head .page-title,
+.page-container.ledgix-page-no-frappe-head .title-area,
+.page-container.ledgix-page-no-frappe-head .page-actions {
+	display: none !important;
+	visibility: hidden !important;
+	height: 0 !important;
+	min-height: 0 !important;
+	max-height: 0 !important;
+	margin: 0 !important;
+	padding: 0 !important;
+	border: 0 !important;
+	overflow: hidden !important;
+}
+
+.page-container.ledgix-page-no-frappe-head .page-body,
+.page-container.ledgix-page-no-frappe-head .layout-main-section,
+.page-container.ledgix-page-no-frappe-head .layout-main-section-wrapper {
+	padding-top: 0 !important;
+	margin-top: 0 !important;
+}

@@ -1,0 +1,115 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "format:TAX-AUDIT-{#####}",
+ "creation": "2026-05-26 19:02:34.645790",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "reference_doctype",
+  "reference_name",
+  "field_changed",
+  "old_value",
+  "new_value",
+  "changed_by",
+  "changed_at",
+  "reason__note"
+ ],
+ "fields": [
+  {
+   "fieldname": "reference_doctype",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Reference Doctype",
+   "options": "DocType"
+  },
+  {
+   "fieldname": "reference_name",
+   "fieldtype": "Dynamic Link",
+   "in_list_view": 1,
+   "label": "Reference Name",
+   "options": "reference_doctype"
+  },
+  {
+   "fieldname": "field_changed",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Field Changed"
+  },
+  {
+   "fieldname": "old_value",
+   "fieldtype": "Small Text",
+   "label": "Old Value"
+  },
+  {
+   "fieldname": "new_value",
+   "fieldtype": "Small Text",
+   "label": "New Value"
+  },
+  {
+   "default": "__user",
+   "fieldname": "changed_by",
+   "fieldtype": "Link",
+   "label": "Changed By",
+   "options": "User"
+  },
+  {
+   "default": "Now",
+   "fieldname": "changed_at",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "label": "Changed At"
+  },
+  {
+   "fieldname": "reason__note",
+   "fieldtype": "Small Text",
+   "label": "Reason / Note"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-05-26 19:06:06.609368",
+ "modified_by": "Administrator",
+ "module": "Ledgix",
+ "name": "Ledgix Tax Audit Log",
+ "naming_rule": "Expression (old style)",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "submit": 0,
+   "cancel": 0,
+   "amend": 0,
+   "report": 1,
+   "export": 1,
+   "share": 1,
+   "print": 1,
+   "email": 1,
+   "role": "System Manager"
+  },
+  {
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "submit": 0,
+   "cancel": 0,
+   "amend": 0,
+   "report": 1,
+   "export": 1,
+   "share": 1,
+   "print": 1,
+   "email": 1,
+   "role": "Ledgix Admin"
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

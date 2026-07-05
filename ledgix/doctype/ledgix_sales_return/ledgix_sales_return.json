@@ -1,0 +1,217 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "format:RET-{#####}",
+ "creation": "2026-05-15 05:36:01.768096",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "section_break_msso",
+  "amended_from",
+  "customer",
+  "original_sale",
+  "return_items_section",
+  "items",
+  "totals_section",
+  "total_amount",
+  "total_profit_reversal",
+  "tax_details",
+  "tax_amount",
+  "grand_total",
+  "fbr_submission_section",
+  "fbr_status",
+  "fbr_invoice_number",
+  "fbr_submitted_at",
+  "fbr_error_code",
+  "fbr_error_message",
+  "fbr_submission_log"
+ ],
+ "fields": [
+  {
+   "fieldname": "section_break_msso",
+   "fieldtype": "Section Break",
+   "label": "Return Details"
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Ledgix Sales Return",
+   "print_hide": 1,
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "customer",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Customer",
+   "read_only": 1
+  },
+  {
+   "fieldname": "original_sale",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Original Sale",
+   "options": "Ledgix Sale",
+   "reqd": 1
+  },
+  {
+   "fieldname": "return_items_section",
+   "fieldtype": "Section Break",
+   "label": "Return Items"
+  },
+  {
+   "fieldname": "items",
+   "fieldtype": "Table",
+   "label": "Items",
+   "options": "Ledgix Sales Return Item"
+  },
+  {
+   "fieldname": "totals_section",
+   "fieldtype": "Section Break",
+   "label": "Totals"
+  },
+  {
+   "fieldname": "total_amount",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Total Amount",
+   "read_only": 1
+  },
+  {
+   "fieldname": "total_profit_reversal",
+   "fieldtype": "Currency",
+   "hidden": 1,
+   "label": "Total Profit Reversal",
+   "read_only": 1
+  },
+  {
+   "fieldname": "tax_details",
+   "fieldtype": "Table",
+   "label": "Tax Details",
+   "options": "Ledgix Return Tax Detail",
+   "read_only": 1
+  },
+  {
+   "fieldname": "tax_amount",
+   "fieldtype": "Currency",
+   "label": "Tax Amount",
+   "read_only": 1
+  },
+  {
+   "fieldname": "grand_total",
+   "fieldtype": "Currency",
+   "label": "Grand Total",
+   "read_only": 1
+  },
+  {
+   "fieldname": "fbr_submission_section",
+   "fieldtype": "Section Break",
+   "label": "FBR Submission"
+  },
+  {
+   "default": "Not Required",
+   "fieldname": "fbr_status",
+   "fieldtype": "Select",
+   "label": "FBR Status",
+   "options": "Not Required\nPending\nValidated\nSubmitted\nFailed\nSkipped\nPaused",
+   "read_only": 1
+  },
+  {
+   "fieldname": "fbr_invoice_number",
+   "fieldtype": "Data",
+   "label": "FBR Credit Note Number",
+   "read_only": 1
+  },
+  {
+   "fieldname": "fbr_submitted_at",
+   "fieldtype": "Datetime",
+   "label": "FBR Submitted At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "fbr_error_code",
+   "fieldtype": "Data",
+   "label": "FBR Error Code",
+   "read_only": 1
+  },
+  {
+   "fieldname": "fbr_error_message",
+   "fieldtype": "Small Text",
+   "label": "FBR Error Message",
+   "read_only": 1
+  },
+  {
+   "fieldname": "fbr_submission_log",
+   "fieldtype": "Link",
+   "label": "FBR Submission Log",
+   "options": "Ledgix FBR Submission Log",
+   "read_only": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "is_submittable": 1,
+ "links": [],
+ "modified": "2026-05-29 17:26:29.094333",
+ "modified_by": "Administrator",
+ "module": "Ledgix",
+ "name": "Ledgix Sales Return",
+ "naming_rule": "Expression (old style)",
+ "owner": "alishahwaiz96@gmail.com",
+ "permissions": [
+  {
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "submit": 1,
+   "cancel": 1,
+   "amend": 1,
+   "report": 1,
+   "export": 1,
+   "share": 1,
+   "print": 1,
+   "email": 1,
+   "role": "System Manager"
+  },
+  {
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "submit": 1,
+   "cancel": 1,
+   "amend": 1,
+   "report": 1,
+   "export": 1,
+   "share": 1,
+   "print": 1,
+   "email": 1,
+   "role": "Ledgix Admin"
+  },
+  {
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 0,
+   "submit": 1,
+   "cancel": 0,
+   "amend": 0,
+   "report": 0,
+   "export": 0,
+   "share": 0,
+   "print": 1,
+   "email": 1,
+   "role": "Ledgix Manager"
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

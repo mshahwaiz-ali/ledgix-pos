@@ -1,0 +1,231 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-05-30 19:49:18.826798",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "fbr_control_section",
+  "enabled",
+  "mode",
+  "submit_trigger",
+  "block_sale_if_fbr_fails",
+  "sandbox_post_on_submit",
+  "retry_enabled",
+  "max_retry_count",
+  "offline_upload_hours",
+  "seller_identity_section",
+  "seller_ntn_cnic",
+  "seller_business_name",
+  "seller_province",
+  "seller_address",
+  "token_configuration_section",
+  "sandbox_token",
+  "production_token",
+  "pause__safety_section",
+  "pause_reason",
+  "paused_at",
+  "paused_by",
+  "sync_status_section",
+  "last_sync_status"
+ ],
+ "fields": [
+  {
+   "fieldname": "fbr_control_section",
+   "fieldtype": "Section Break",
+   "label": "FBR Control"
+  },
+  {
+   "default": "0",
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "label": "Enabled"
+  },
+  {
+   "default": "Disabled",
+   "fieldname": "mode",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Mode",
+   "options": "Disabled\nSandbox\nProduction\nPaused\nManual Only",
+   "reqd": 1
+  },
+  {
+   "default": "Manual",
+   "fieldname": "submit_trigger",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Submit Trigger",
+   "options": "Manual\nOn Submit\nValidate Only",
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "description": "Blocks sale submit only when FBR readiness validation fails before commit. Live post failures are logged after commit.",
+   "fieldname": "block_sale_if_fbr_fails",
+   "fieldtype": "Check",
+   "label": "Block Sale If FBR Readiness Fails"
+  },
+  {
+   "default": "0",
+   "description": "When enabled with Sandbox mode and On Submit trigger, posts to FBR sandbox instead of validate-only.",
+   "fieldname": "sandbox_post_on_submit",
+   "fieldtype": "Check",
+   "label": "Sandbox Post On Submit"
+  },
+  {
+   "default": "1",
+   "fieldname": "retry_enabled",
+   "fieldtype": "Check",
+   "label": "Retry Enabled"
+  },
+  {
+   "default": "3",
+   "fieldname": "max_retry_count",
+   "fieldtype": "Int",
+   "label": "Max Retry Count"
+  },
+  {
+   "default": "24",
+   "description": "Hours allowed to upload invoices after a network/offline failure (FBR Rule 150XC).",
+   "fieldname": "offline_upload_hours",
+   "fieldtype": "Int",
+   "label": "Offline Upload Window (Hours)"
+  },
+  {
+   "fieldname": "seller_identity_section",
+   "fieldtype": "Section Break",
+   "label": "Seller Identity"
+  },
+  {
+   "fieldname": "seller_ntn_cnic",
+   "fieldtype": "Data",
+   "label": "Seller NTN/CNIC"
+  },
+  {
+   "fieldname": "seller_business_name",
+   "fieldtype": "Data",
+   "label": "Seller Business Name"
+  },
+  {
+   "fieldname": "seller_province",
+   "fieldtype": "Data",
+   "label": "Seller Province"
+  },
+  {
+   "fieldname": "seller_address",
+   "fieldtype": "Small Text",
+   "label": "Seller Address"
+  },
+  {
+   "fieldname": "token_configuration_section",
+   "fieldtype": "Section Break",
+   "label": "Token Configuration"
+  },
+  {
+   "fieldname": "sandbox_token",
+   "fieldtype": "Password",
+   "label": "Sandbox Token"
+  },
+  {
+   "fieldname": "production_token",
+   "fieldtype": "Password",
+   "label": "Production Token"
+  },
+  {
+   "fieldname": "paused_at",
+   "fieldtype": "Datetime",
+   "label": "Paused At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "pause_reason",
+   "fieldtype": "Small Text",
+   "label": "Pause Reason"
+  },
+  {
+   "fieldname": "paused_by",
+   "fieldtype": "Link",
+   "label": "Paused By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sync_status_section",
+   "fieldtype": "Section Break",
+   "label": "Sync Status"
+  },
+  {
+   "fieldname": "last_sync_status",
+   "fieldtype": "Small Text",
+   "label": "Last Sync Status",
+   "read_only": 1
+  },
+  {
+   "fieldname": "pause__safety_section",
+   "fieldtype": "Section Break",
+   "label": "Pause / Safety"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-05-30 20:02:44.203936",
+ "modified_by": "Administrator",
+ "module": "Ledgix",
+ "name": "Ledgix FBR Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "submit": 0,
+   "cancel": 0,
+   "amend": 0,
+   "report": 1,
+   "export": 1,
+   "share": 1,
+   "print": 1,
+   "email": 1,
+   "role": "System Manager"
+  },
+  {
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "submit": 0,
+   "cancel": 0,
+   "amend": 0,
+   "report": 1,
+   "export": 1,
+   "share": 1,
+   "print": 1,
+   "email": 1,
+   "role": "Ledgix Admin"
+  },
+  {
+   "read": 1,
+   "write": 0,
+   "create": 0,
+   "delete": 0,
+   "submit": 0,
+   "cancel": 0,
+   "amend": 0,
+   "report": 0,
+   "export": 0,
+   "share": 0,
+   "print": 1,
+   "email": 0,
+   "role": "Ledgix Manager"
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

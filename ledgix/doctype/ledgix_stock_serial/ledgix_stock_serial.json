@@ -1,0 +1,235 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "format:SER-{#####}",
+ "creation": "2026-05-24 21:25:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "serial_information_section",
+  "serial_no",
+  "item",
+  "status",
+  "purchase_information_section",
+  "purchase",
+  "purchase_item_row",
+  "supplier",
+  "purchase_date",
+  "cost_rate",
+  "sale_information_section",
+  "sale",
+  "sale_item_row",
+  "customer",
+  "sold_date",
+  "return_information_section",
+  "sales_return",
+  "return_item_row",
+  "return_date",
+  "notes"
+ ],
+ "fields": [
+  {
+   "fieldname": "serial_information_section",
+   "fieldtype": "Section Break",
+   "label": "Serial Information"
+  },
+  {
+   "fieldname": "serial_no",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Serial Number",
+   "reqd": 1,
+   "unique": 1,
+   "description": "Generic serial number for a specific stock unit."
+  },
+  {
+   "fieldname": "item",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Item",
+   "options": "Ledgix Item",
+   "reqd": 1
+  },
+  {
+   "default": "Available",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Available\nSold\nReturned\nCancelled",
+   "reqd": 1
+  },
+  {
+   "fieldname": "purchase_information_section",
+   "fieldtype": "Section Break",
+   "label": "Purchase Information"
+  },
+  {
+   "fieldname": "purchase",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Purchase",
+   "options": "Ledgix Purchase"
+  },
+  {
+   "fieldname": "purchase_item_row",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Purchase Item Row"
+  },
+  {
+   "fieldname": "supplier",
+   "fieldtype": "Link",
+   "label": "Supplier",
+   "options": "Ledgix Supplier"
+  },
+  {
+   "fieldname": "purchase_date",
+   "fieldtype": "Date",
+   "label": "Purchase Date"
+  },
+  {
+   "fieldname": "cost_rate",
+   "fieldtype": "Currency",
+   "label": "Cost Rate"
+  },
+  {
+   "fieldname": "sale_information_section",
+   "fieldtype": "Section Break",
+   "label": "Sale Information"
+  },
+  {
+   "fieldname": "sale",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Sale",
+   "options": "Ledgix Sale"
+  },
+  {
+   "fieldname": "sale_item_row",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Sale Item Row"
+  },
+  {
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "label": "Customer",
+   "options": "Ledgix Customer"
+  },
+  {
+   "fieldname": "sold_date",
+   "fieldtype": "Date",
+   "label": "Sold Date"
+  },
+  {
+   "fieldname": "return_information_section",
+   "fieldtype": "Section Break",
+   "label": "Return Information"
+  },
+  {
+   "fieldname": "sales_return",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Sales Return",
+   "options": "Ledgix Sales Return"
+  },
+  {
+   "fieldname": "return_item_row",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Return Item Row"
+  },
+  {
+   "fieldname": "return_date",
+   "fieldtype": "Date",
+   "label": "Return Date"
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Small Text",
+   "label": "Notes"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-05-24 21:55:00.000000",
+ "modified_by": "Administrator",
+ "module": "Ledgix",
+ "name": "Ledgix Stock Serial",
+ "naming_rule": "Expression (old style)",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "submit": 0,
+   "cancel": 0,
+   "amend": 0,
+   "report": 1,
+   "export": 1,
+   "share": 1,
+   "print": 1,
+   "email": 1,
+   "role": "System Manager"
+  },
+  {
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "submit": 0,
+   "cancel": 0,
+   "amend": 0,
+   "report": 1,
+   "export": 1,
+   "share": 1,
+   "print": 1,
+   "email": 1,
+   "role": "Ledgix Admin"
+  },
+  {
+   "read": 1,
+   "write": 0,
+   "create": 0,
+   "delete": 0,
+   "submit": 0,
+   "cancel": 0,
+   "amend": 0,
+   "report": 0,
+   "export": 0,
+   "share": 0,
+   "print": 1,
+   "email": 0,
+   "role": "Ledgix Manager"
+  },
+  {
+   "read": 1,
+   "write": 0,
+   "create": 0,
+   "delete": 0,
+   "submit": 0,
+   "cancel": 0,
+   "amend": 0,
+   "report": 0,
+   "export": 0,
+   "share": 0,
+   "print": 1,
+   "email": 0,
+   "role": "Ledgix Cashier"
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

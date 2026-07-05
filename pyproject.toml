@@ -1,0 +1,101 @@
+[project]
+name = "ledgix_saas"
+authors = [
+    { name = "Ali", email = "alishahwaiz96@gmail.com" }
+]
+description = "POS and inventory platform for retail shops"
+requires-python = ">=3.10"
+dynamic = ["version"]
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+include-package-data = false
+packages = [
+    "ledgix_saas",
+    "ledgix_saas.api",
+    "ledgix_saas.config",
+    "ledgix_saas.setup",
+    "ledgix_saas.templates",
+    "ledgix_saas.templates.pages",
+    "ledgix_saas.patches",
+    "ledgix_saas.patches.v1_0",
+    "ledgix_saas.www",
+    "ledgix",
+    "ledgix.page",
+    "ledgix.report",
+    "ledgix.print_format",
+    "ledgix.doctype",
+    "ledgix.page.ledgix_tax_center",
+    "ledgix.page.ledgix_pos",
+    "ledgix.page.ledgix_dashboard",
+    "ledgix.page.quick_item_scan",
+    "ledgix.page.ledgix_operations",
+    "ledgix.page.ledgix_reports",
+    "ledgix.report.ledgix_sales_report",
+    "ledgix.report.ledgix_item_full_cycle",
+    "ledgix.report.ledgix_sales_return_report",
+    "ledgix.report.ledgix_stock_movement_report",
+    "ledgix.report.ledgix_purchase_report",
+    "ledgix.report.ledgix_customer_statement",
+    "ledgix.report.inventory_intelligence_report",
+    "ledgix.print_format.ledgix_thermal_receipt",
+    "ledgix.doctype.ledgix_maintenance_tool",
+    "ledgix.doctype.ledgix_item",
+    "ledgix.doctype.ledgix_pos_shift",
+    "ledgix.doctype.ledgix_return_tax_detail",
+    "ledgix.doctype.ledgix_mode_settings",
+    "ledgix.doctype.ledgix_tax_rate",
+    "ledgix.doctype.ledgix_user_profile",
+    "ledgix.doctype.ledgix_sales_return_item",
+    "ledgix.doctype.ledgix_sale",
+    "ledgix.doctype.ledgix_stock_serial",
+    "ledgix.doctype.ledgix_brand_settings",
+    "ledgix.doctype.ledgix_stock_lot",
+    "ledgix.doctype.ledgix_purchase",
+    "ledgix.doctype.ledgix_fbr_settings",
+    "ledgix.doctype.ledgix_sales_return",
+    "ledgix.doctype.ledgix_category",
+    "ledgix.doctype.ledgix_item_tax_profile",
+    "ledgix.doctype.ledgix_supplier",
+    "ledgix.doctype.ledgix_stock_lot_allocation",
+    "ledgix.doctype.ledgix_pos_theme_settings",
+    "ledgix.doctype.ledgix_pos_hold",
+    "ledgix.doctype.ledgix_sale_item",
+    "ledgix.doctype.ledgix_customer",
+    "ledgix.doctype.ledgix_tax_category",
+    "ledgix.doctype.ledgix_sale_payment",
+    "ledgix.doctype.ledgix_tax_audit_log",
+    "ledgix.doctype.ledgix_tax_profile",
+    "ledgix.doctype.ledgix_invoice_tax_detail",
+    "ledgix.doctype.ledgix_pos_hold_item",
+    "ledgix.doctype.ledgix_fbr_submission_log",
+    "ledgix.doctype.ledgix_stock_movement",
+    "ledgix.doctype.ledgix_purchase_item",
+]
+
+[tool.setuptools.package-dir]
+"ledgix_saas" = "."
+"ledgix_saas.api" = "api"
+"ledgix_saas.config" = "config"
+"ledgix_saas.setup" = "setup"
+"ledgix_saas.templates" = "templates"
+"ledgix_saas.templates.pages" = "templates/pages"
+"ledgix_saas.patches" = "patches"
+"ledgix_saas.patches.v1_0" = "patches/v1_0"
+"ledgix_saas.www" = "www"
+"ledgix" = "ledgix"
+
+[tool.setuptools.package-data]
+"ledgix_saas" = ["*.json", "*.md", "*.txt", "*.html", "*.css", "*.js", "*.xml", "modules.txt", "patches.txt", "public/**/*", "fixtures/**/*"]
+"ledgix_saas.www" = ["*.html"]
+"ledgix_saas.templates" = ["**/*.html"]
+"ledgix" = ["**/*.json", "**/*.js", "**/*.css", "**/*.html", "**/*.md", "**/*.txt", "**/*.xml", "**/*.png", "**/*.svg", "**/*.jpg", "**/*.jpeg", "**/*.gif", "**/*.ico", "**/*.csv"]
+
+[tool.setuptools.exclude-package-data]
+"*" = ["**/__pycache__/*", "**/*.pyc"]
+
+[tool.bench.frappe-dependencies]
+frappe = ">=15.0.0"
