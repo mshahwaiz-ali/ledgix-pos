@@ -1,7 +1,7 @@
 import re
 
 import frappe
-from frappe.utils import cint, flt, getdate, nowdate
+from frappe.utils import cint, flt, getdate
 
 from ledgix_saas.api.fbr_settings import get_fbr_control_state_internal, get_fbr_settings_internal
 from ledgix_saas.api.security import has_any_role
@@ -97,6 +97,20 @@ def _format_tax_rate(value):
     return f"{rate:g}%"
 
 
+def _fbr_rate_description(row):
+    return _clean_text(row.get("fbr_rate_description")) or _format_tax_rate(row.get("tax_rate"))
+
+
+def _charged_tax_amount(row):
+    return flt(
+        flt(row.get("tax_amount"))
+        + flt(row.get("extra_tax"))
+        + flt(row.get("further_tax"))
+        + flt(row.get("fed_payable")),
+        2,
+    )
+
+
 def _add_required_error(errors, label):
     errors.append(f"{label} is required for FBR payload.")
 
@@ -154,8 +168,8 @@ def _validate_sro_fields(row, prefix, errors, warnings):
     schedule_number = _clean_text(row.get("sro_schedule_number"))
     item_serial_number = _clean_text(row.get("sro_item_serial_number"))
     if bool(schedule_number) != bool(item_serial_number):
-        warnings.append(
-            f"{prefix} SRO schedule number and SRO item serial number should both be provided when either is used."
+        errors.append(
+            f"{prefix} SRO schedule number and SRO item serial number must both be provided when either is used."
         )
 
 
@@ -207,6 +221,7 @@ def _return_summary(return_doc=None, return_name=None):
             "docstatus": None,
             "customer": "",
             "original_sale": "",
+            "return_date": None,
             "total_amount": 0,
             "tax_amount": 0,
             "grand_total": 0,
@@ -217,6 +232,7 @@ def _return_summary(return_doc=None, return_name=None):
         "docstatus": cint(return_doc.docstatus),
         "customer": return_doc.get("customer") or "",
         "original_sale": return_doc.get("original_sale") or "",
+        "return_date": return_doc.get("return_date"),
         "total_amount": flt(return_doc.get("total_amount"), 2),
         "tax_amount": flt(return_doc.get("tax_amount"), 2),
         "grand_total": flt(return_doc.get("grand_total"), 2),
@@ -229,7 +245,6 @@ def _return_summary(return_doc=None, return_name=None):
 # -----------------------------------------------------------------------------
 
 def build_fbr_seller_block():
-    """Compatibility seller builder for historical records without snapshots."""
     settings = get_fbr_settings_internal()
     return {
         "seller_ntn_cnic": settings.get("seller_ntn_cnic") or "",
@@ -243,12 +258,6 @@ def build_fbr_seller_block():
 
 
 def build_fbr_seller_block_from_sale(sale_doc):
-    """Build seller legal identity from the finalized Sale snapshot.
-
-    Existing historical sales without seller snapshot fields fall back to live FBR
-    settings for compatibility only. New V2 sales are independent of future seller
-    settings/brand edits.
-    """
     if not sale_doc:
         return build_fbr_seller_block()
 
@@ -276,7 +285,6 @@ def build_fbr_seller_block_from_sale(sale_doc):
 
 
 def build_fbr_buyer_block(customer_doc):
-    """Compatibility buyer builder for legacy records without sale snapshots."""
     defaults = _get_tax_profile_defaults()
     if not customer_doc:
         return {
@@ -301,7 +309,6 @@ def build_fbr_buyer_block(customer_doc):
 
 
 def build_fbr_buyer_block_from_sale(sale_doc):
-    """Build buyer data from immutable finalized Sale snapshots."""
     defaults = _get_tax_profile_defaults()
     if not sale_doc:
         return build_fbr_buyer_block(None)
@@ -362,6 +369,15 @@ def _validate_tax_rows(rows, errors, warnings, mode, prefix_label="Tax row"):
             if _is_missing(row.get(fieldname)):
                 _add_required_error(errors, f"{prefix} {label}")
 
+        for fieldname, label in (
+            ("sales_tax_withheld_at_source", "sales tax withheld at source"),
+            ("extra_tax", "extra tax"),
+            ("further_tax", "further tax"),
+            ("fed_payable", "FED payable"),
+        ):
+            if flt(row.get(fieldname)) < 0:
+                errors.append(f"{prefix} {label} cannot be negative.")
+
         hs_code = _clean_hs_code(row.get("hs_code"))
         if hs_code and not _is_valid_hs_code(hs_code):
             errors.append(f"{prefix} HS code format is invalid.")
@@ -371,8 +387,6 @@ def _validate_tax_rows(rows, errors, warnings, mode, prefix_label="Tax row"):
 
         if mode == "Sandbox" and not row.get("scenario_id"):
             _add_required_error(errors, f"{prefix} scenario ID")
-        elif mode != "Sandbox" and not row.get("scenario_id"):
-            warnings.append(f"{prefix} scenario ID is not configured.")
 
         if row.get("tax_basis") == "Notified Retail Price" and flt(row.get("notified_retail_price")) <= 0:
             errors.append(f"{prefix} notified retail price is required for Third Schedule tax basis.")
@@ -417,6 +431,26 @@ def _validate_buyer_block(buyer, errors, warnings, production_mode=False):
             warnings.append("Registered buyer has no STRN.")
 
 
+def _unique_scenario_ids(rows):
+    ids = []
+    for row in rows or []:
+        scenario_id = _clean_text(row.get("scenario_id"))
+        if scenario_id and scenario_id not in ids:
+            ids.append(scenario_id)
+    return ids
+
+
+def _validate_single_sandbox_scenario(rows, errors):
+    scenario_ids = _unique_scenario_ids(rows)
+    if not scenario_ids:
+        _add_required_error(errors, "Scenario ID")
+    elif len(scenario_ids) > 1:
+        errors.append(
+            "Sandbox invoice contains multiple scenario IDs. FBR scenario testing requires one scenario per invoice."
+        )
+    return scenario_ids
+
+
 def _validate_sale_fbr_readiness_internal(sale_name):
     errors, warnings = [], []
     settings = get_fbr_settings_internal()
@@ -453,13 +487,15 @@ def _validate_sale_fbr_readiness_internal(sale_name):
 
     tax_rows = get_invoice_tax_rows_for_fbr(sale_doc)
     if tax_rows:
-        tax_total = flt(sum(flt(row.get("tax_amount")) for row in tax_rows), 2)
+        invoice_tax_total = flt(sum(_charged_tax_amount(row) for row in tax_rows), 2)
         net_total = flt(sum(flt(row.get("net_amount")) for row in tax_rows), 2)
-        if abs(tax_total - flt(sale_doc.get("tax_amount"), 2)) > 0.05:
-            errors.append("Sale tax_amount does not match tax_details tax_amount total.")
+        if abs(invoice_tax_total - flt(sale_doc.get("tax_amount"), 2)) > 0.05:
+            errors.append("Sale tax_amount does not match immutable FBR tax component total.")
         if abs(net_total - flt(sale_doc.get("grand_total"), 2)) > 0.05:
             errors.append("Sale grand_total does not match tax_details net_amount total.")
     _validate_tax_rows(tax_rows, errors, warnings, mode)
+    if mode == "Sandbox":
+        _validate_single_sandbox_scenario(tax_rows, errors)
 
     if production_mode:
         warnings.append("Production mode is selected. Verify credentials and FBR master data before submission.")
@@ -504,7 +540,12 @@ def build_fbr_item_rows(sale_doc):
             "discount_amount": flt(row.get("discount_amount"), 2),
             "taxable_amount": flt(row.get("taxable_amount"), 2),
             "tax_rate": flt(row.get("tax_rate"), 2),
+            "fbr_rate_description": _fbr_rate_description(row),
             "tax_amount": flt(row.get("tax_amount"), 2),
+            "sales_tax_withheld_at_source": flt(row.get("sales_tax_withheld_at_source"), 2),
+            "extra_tax": flt(row.get("extra_tax"), 2),
+            "further_tax": flt(row.get("further_tax"), 2),
+            "fed_payable": flt(row.get("fed_payable"), 2),
             "net_amount": flt(row.get("net_amount"), 2),
             "price_includes_tax": 1 if row.get("price_includes_tax") else 0,
             "tax_category": row.get("tax_category") or "",
@@ -524,19 +565,10 @@ def _payload_totals(items, sale_doc):
     return {
         "gross_amount": flt(sum(flt(row.get("gross_amount")) for row in items), 2),
         "taxable_amount": flt(sum(flt(row.get("taxable_amount")) for row in items), 2),
-        "tax_amount": flt(sum(flt(row.get("tax_amount")) for row in items), 2),
+        "tax_amount": flt(sum(_charged_tax_amount(row) for row in items), 2),
         "net_amount": flt(sum(flt(row.get("net_amount")) for row in items), 2),
         "grand_total": flt(sale_doc.get("grand_total"), 2) if sale_doc else 0,
     }
-
-
-def _scenario_ids(sale_doc):
-    ids = []
-    for row in get_invoice_tax_rows_for_fbr(sale_doc):
-        scenario_id = _clean_text(row.get("scenario_id"))
-        if scenario_id and scenario_id not in ids:
-            ids.append(scenario_id)
-    return ids
 
 
 def build_internal_fbr_payload(sale_doc):
@@ -544,7 +576,7 @@ def build_internal_fbr_payload(sale_doc):
     item_rows = build_fbr_item_rows(sale_doc) if sale_doc else []
     return {
         "source": "Ledgix",
-        "payload_version": "2.0",
+        "payload_version": "2.1",
         "environment": settings.get("mode") or "Disabled",
         "invoice_type": "Sale Invoice",
         "sale": {
@@ -566,34 +598,36 @@ def build_internal_fbr_payload(sale_doc):
     }
 
 
+def _official_item_payload(row, qty_field="qty", discount_field="discount_amount"):
+    return {
+        "hsCode": _clean_hs_code(row.get("hs_code")),
+        "productDescription": _item_description(row.get("item")),
+        "rate": _fbr_rate_description(row),
+        "uoM": row.get("uom_for_fbr") or "",
+        "quantity": flt(row.get(qty_field), 2),
+        "totalValues": _money(row.get("net_amount")),
+        "valueSalesExcludingST": _money(row.get("taxable_amount")),
+        "fixedNotifiedValueOrRetailPrice": _money(row.get("notified_retail_price"))
+        if row.get("tax_basis") == "Notified Retail Price" else 0.00,
+        "salesTaxApplicable": _money(row.get("tax_amount")),
+        "salesTaxWithheldAtSource": _money(row.get("sales_tax_withheld_at_source")),
+        "extraTax": _money(row.get("extra_tax")),
+        "furtherTax": _money(row.get("further_tax")),
+        "sroScheduleNo": row.get("sro_schedule_number") or "",
+        "fedPayable": _money(row.get("fed_payable")),
+        "discount": _money(row.get(discount_field)),
+        "saleType": row.get("sales_type") or "",
+        "sroItemSerialNo": row.get("sro_item_serial_number") or "",
+    }
+
+
 def build_official_sale_invoice_payload(sale_doc):
     if not sale_doc:
         return {}
     settings = get_fbr_settings_internal()
     seller = build_fbr_seller_block_from_sale(sale_doc)
     buyer = build_fbr_buyer_block_from_sale(sale_doc)
-    items = []
-    for row in get_invoice_tax_rows_for_fbr(sale_doc):
-        items.append({
-            "hsCode": _clean_hs_code(row.get("hs_code")),
-            "productDescription": _item_description(row.get("item")),
-            "rate": _format_tax_rate(row.get("tax_rate")),
-            "uoM": row.get("uom_for_fbr") or "",
-            "quantity": flt(row.get("qty"), 2),
-            "totalValues": _money(row.get("net_amount")),
-            "valueSalesExcludingST": _money(row.get("taxable_amount")),
-            "fixedNotifiedValueOrRetailPrice": _money(row.get("notified_retail_price"))
-            if row.get("tax_basis") == "Notified Retail Price" else 0.00,
-            "salesTaxApplicable": _money(row.get("tax_amount")),
-            "salesTaxWithheldAtSource": 0.00,
-            "extraTax": 0.00,
-            "furtherTax": 0.00,
-            "sroScheduleNo": row.get("sro_schedule_number") or "",
-            "fedPayable": 0.00,
-            "discount": _money(row.get("discount_amount")),
-            "saleType": row.get("sales_type") or "",
-            "sroItemSerialNo": row.get("sro_item_serial_number") or "",
-        })
+    tax_rows = get_invoice_tax_rows_for_fbr(sale_doc)
 
     payload = {
         "invoiceType": "Sale Invoice",
@@ -608,10 +642,10 @@ def build_official_sale_invoice_payload(sale_doc):
         "buyerAddress": buyer.get("buyer_fbr_address") or "",
         "buyerRegistrationType": buyer.get("buyer_registration_type") or "",
         "invoiceRefNo": "",
-        "items": items,
+        "items": [_official_item_payload(row) for row in tax_rows],
     }
-    scenario_ids = _scenario_ids(sale_doc)
-    if settings.get("mode") == "Sandbox" and scenario_ids:
+    scenario_ids = _unique_scenario_ids(tax_rows)
+    if settings.get("mode") == "Sandbox" and len(scenario_ids) == 1:
         payload["scenarioId"] = scenario_ids[0]
     return payload
 
@@ -621,16 +655,7 @@ def _build_sale_invoice_payload_internal(sale_name):
     sale_doc = get_sale_for_fbr(sale_name)
     official_payload = build_official_sale_invoice_payload(sale_doc)
     internal_payload = build_internal_fbr_payload(sale_doc)
-    if sale_doc:
-        scenario_ids = _scenario_ids(sale_doc)
-        if get_fbr_settings_internal().get("mode") == "Sandbox" and not scenario_ids:
-            validation.setdefault("errors", [])
-            _add_required_error(validation["errors"], "Scenario ID")
-        if len(scenario_ids) > 1:
-            validation.setdefault("warnings", []).append(
-                "Multiple scenario IDs found in tax rows; first non-empty scenario ID was used."
-            )
-        validation["valid"] = not validation.get("errors")
+    validation["valid"] = not validation.get("errors")
     return {"validation": validation, "payload": official_payload, "internal_payload": internal_payload}
 
 
@@ -641,7 +666,7 @@ def build_sale_invoice_payload(sale_name):
 
 
 # -----------------------------------------------------------------------------
-# Sales return / credit note
+# Sales return / electronic note
 # -----------------------------------------------------------------------------
 
 def _validate_return_fbr_readiness_internal(return_name):
@@ -665,20 +690,48 @@ def _validate_return_fbr_readiness_internal(return_name):
         errors.append("Cancelled sales return cannot be used for FBR payload.")
     if not return_doc.get("original_sale"):
         _add_required_error(errors, "Original sale")
+    if not return_doc.get("return_date"):
+        _add_required_error(errors, "Return date")
+    if not _clean_text(return_doc.get("return_reason")):
+        _add_required_error(errors, "Return reason")
 
     original_sale = get_sale_for_fbr(return_doc.get("original_sale"))
     original_fbr_invoice = _clean_text(original_sale.get("fbr_invoice_number")) if original_sale else ""
     if return_doc.get("original_sale") and not original_sale:
         errors.append(f"Original sale {return_doc.get('original_sale')} was not found.")
-    if original_sale and not original_fbr_invoice:
-        if (settings.get("mode") or "Disabled") == "Production":
-            errors.append("Original sale must have an FBR invoice number before posting a credit note.")
-        else:
-            warnings.append("Original sale has no FBR invoice number yet.")
 
-    _validate_tax_rows(
-        get_return_tax_rows_for_fbr(return_doc), errors, warnings, settings.get("mode") or "Disabled", "Return tax row"
-    )
+    mode = settings.get("mode") or "Disabled"
+    if original_sale and mode in {"Sandbox", "Production"} and not original_fbr_invoice:
+        errors.append("Original sale must have an FBR invoice number before validating or posting an electronic note.")
+
+    if original_sale and return_doc.get("return_date") and original_sale.get("sale_date"):
+        original_date = getdate(original_sale.get("sale_date"))
+        note_date = getdate(return_doc.get("return_date"))
+        age_days = (note_date - original_date).days
+        if age_days < 0:
+            errors.append("Return date cannot be earlier than the original invoice date.")
+        elif age_days > 180:
+            errors.append("FBR electronic note date cannot be more than 180 days after the original invoice date.")
+
+    if original_sale:
+        seller = build_fbr_seller_block_from_sale(original_sale)
+        buyer = build_fbr_buyer_block_from_sale(original_sale)
+        _validate_seller_block(seller, errors, warnings, production_mode=(mode == "Production"))
+        _validate_buyer_block(buyer, errors, warnings, production_mode=(mode == "Production"))
+
+    tax_rows = get_return_tax_rows_for_fbr(return_doc)
+    if tax_rows:
+        invoice_tax_total = flt(sum(_charged_tax_amount(row) for row in tax_rows), 2)
+        net_total = flt(sum(flt(row.get("net_amount")) for row in tax_rows), 2)
+        if abs(invoice_tax_total - flt(return_doc.get("tax_amount"), 2)) > 0.05:
+            errors.append("Return tax_amount does not match immutable FBR tax component total.")
+        if abs(net_total - flt(return_doc.get("grand_total"), 2)) > 0.05:
+            errors.append("Return grand_total does not match tax_details net_amount total.")
+
+    _validate_tax_rows(tax_rows, errors, warnings, mode, "Return tax row")
+    if mode == "Sandbox":
+        _validate_single_sandbox_scenario(tax_rows, errors)
+
     return {
         "valid": not errors,
         "errors": errors,
@@ -696,32 +749,14 @@ def build_official_return_invoice_payload(return_doc):
     original_sale = get_sale_for_fbr(return_doc.get("original_sale"))
     seller = build_fbr_seller_block_from_sale(original_sale)
     buyer = build_fbr_buyer_block_from_sale(original_sale)
-    items = []
-    for row in get_return_tax_rows_for_fbr(return_doc):
-        items.append({
-            "hsCode": _clean_hs_code(row.get("hs_code")),
-            "productDescription": _item_description(row.get("item")),
-            "rate": _format_tax_rate(row.get("tax_rate")),
-            "uoM": row.get("uom_for_fbr") or "",
-            "quantity": flt(row.get("returned_qty") or row.get("qty"), 2),
-            "totalValues": _money(row.get("net_amount")),
-            "valueSalesExcludingST": _money(row.get("taxable_amount")),
-            "fixedNotifiedValueOrRetailPrice": _money(row.get("notified_retail_price"))
-            if row.get("tax_basis") == "Notified Retail Price" else 0.00,
-            "salesTaxApplicable": _money(row.get("tax_amount")),
-            "salesTaxWithheldAtSource": 0.00,
-            "extraTax": 0.00,
-            "furtherTax": 0.00,
-            "sroScheduleNo": row.get("sro_schedule_number") or "",
-            "fedPayable": 0.00,
-            "discount": 0.00,
-            "saleType": row.get("sales_type") or "",
-            "sroItemSerialNo": row.get("sro_item_serial_number") or "",
-        })
+    tax_rows = get_return_tax_rows_for_fbr(return_doc)
 
+    # Current FBR v1.12 material contains credit-note validation rules while some
+    # tables describe Debit Note only. Preserve the existing Credit Note contract
+    # until the client's assigned Sandbox confirms the exact accepted note type.
     payload = {
         "invoiceType": "Credit Note",
-        "invoiceDate": _format_invoice_date(nowdate()),
+        "invoiceDate": _format_invoice_date(return_doc.get("return_date")),
         "sellerNTNCNIC": _clean_identifier(seller.get("seller_ntn_cnic")),
         "sellerBusinessName": seller.get("seller_business_name") or "",
         "sellerProvince": seller.get("seller_province") or "",
@@ -732,14 +767,12 @@ def build_official_return_invoice_payload(return_doc):
         "buyerAddress": buyer.get("buyer_fbr_address") or "",
         "buyerRegistrationType": buyer.get("buyer_registration_type") or "",
         "invoiceRefNo": _clean_text(original_sale.get("fbr_invoice_number")) if original_sale else "",
-        "items": items,
+        "reason": _clean_text(return_doc.get("return_reason")),
+        "reasonRemarks": _clean_text(return_doc.get("fbr_reason_remarks")),
+        "items": [_official_item_payload(row, qty_field="returned_qty", discount_field="discount_amount") for row in tax_rows],
     }
-    scenario_ids = []
-    for row in get_return_tax_rows_for_fbr(return_doc):
-        scenario_id = _clean_text(row.get("scenario_id"))
-        if scenario_id and scenario_id not in scenario_ids:
-            scenario_ids.append(scenario_id)
-    if settings.get("mode") == "Sandbox" and scenario_ids:
+    scenario_ids = _unique_scenario_ids(tax_rows)
+    if settings.get("mode") == "Sandbox" and len(scenario_ids) == 1:
         payload["scenarioId"] = scenario_ids[0]
     return payload
 
@@ -748,16 +781,7 @@ def _build_return_invoice_payload_internal(return_name):
     validation = _validate_return_fbr_readiness_internal(return_name)
     return_doc = get_return_for_fbr(return_name)
     payload = build_official_return_invoice_payload(return_doc)
-    if return_doc and get_fbr_settings_internal().get("mode") == "Sandbox":
-        scenario_ids = [
-            _clean_text(row.get("scenario_id"))
-            for row in get_return_tax_rows_for_fbr(return_doc)
-            if _clean_text(row.get("scenario_id"))
-        ]
-        if not scenario_ids:
-            validation.setdefault("errors", [])
-            _add_required_error(validation["errors"], "Scenario ID")
-        validation["valid"] = not validation.get("errors")
+    validation["valid"] = not validation.get("errors")
     return {"validation": validation, "payload": payload}
 
 
