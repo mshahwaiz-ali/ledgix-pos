@@ -130,3 +130,36 @@ class TestLedgixSale(FrappeTestCase):
 		credit = get_customer_receivables(customer.name)
 		self.assertAlmostEqual(credit["outstanding"], 60, places=2)
 		self.assertAlmostEqual(credit["available_credit"], 440, places=2)
+
+	def test_strict_inventory_sale_posts_and_cancels_stock_once(self):
+		configure_v2_test_environment("Strict Inventory")
+		item = make_item(selling_price=100, cost_price=40, opening_stock=5)
+		customer = make_customer(customer_type="B2B", credit_limit=1000)
+
+		sale = make_sale(
+			customer.name,
+			item.name,
+			quantity=2,
+			rate=100,
+			sale_channel="B2B",
+			submit=True,
+		)
+
+		self.assertEqual(frappe.db.get_value("Ledgix Item", item.name, "current_stock"), 3)
+		self.assertEqual(
+			frappe.db.count(
+				"Ledgix Stock Movement",
+				filters={"reference_doctype": "Ledgix Sale", "reference_name": sale.name, "docstatus": 1},
+			),
+			1,
+		)
+
+		sale.cancel()
+		self.assertEqual(frappe.db.get_value("Ledgix Item", item.name, "current_stock"), 5)
+		self.assertEqual(
+			frappe.db.count(
+				"Ledgix Stock Movement",
+				filters={"reference_doctype": "Ledgix Sale", "reference_name": sale.name, "docstatus": 2},
+			),
+			1,
+		)
