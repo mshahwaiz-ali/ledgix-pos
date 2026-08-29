@@ -114,6 +114,14 @@ def _mode_gate(requested_mode, settings, operation):
     if requests is None:
         return _not_sent("Not Ready", f"Python requests is not available; FBR {operation} was not sent.")
 
+    # Production validation remains available for controlled checks, but no
+    # Production POST can leave Ledgix until an admin explicitly arms posting.
+    if requested_mode == "Production" and operation == "post" and not settings.get("production_post_armed"):
+        return _not_sent(
+            "Not Ready",
+            "Production posting is not armed. Enable Arm Production Posting only after Sandbox certification and go-live approval.",
+        )
+
     token_configured = settings.get("sandbox_token_configured") if requested_mode == "Sandbox" else settings.get("production_token_configured")
     if not token_configured:
         return _not_sent("Not Ready", f"{requested_mode} token is not configured.")
@@ -165,13 +173,15 @@ def get_client_status():
     mode = settings.get("mode") or "Disabled"
     enabled = bool(settings.get("enabled")) and mode in {"Sandbox", "Production"}
     requests_ready = requests_available()
+    production_post_armed = bool(settings.get("production_post_armed"))
     return {
         "mode": mode,
         "requests_available": requests_ready,
         "sandbox_validate_connected": bool(requests_ready and enabled and mode == "Sandbox" and settings.get("sandbox_token_configured")),
         "sandbox_post_connected": bool(requests_ready and enabled and mode == "Sandbox" and settings.get("sandbox_token_configured")),
         "production_validate_connected": bool(requests_ready and enabled and mode == "Production" and settings.get("production_token_configured")),
-        "production_post_connected": bool(requests_ready and enabled and mode == "Production" and settings.get("production_token_configured")),
+        "production_post_connected": bool(requests_ready and enabled and mode == "Production" and settings.get("production_token_configured") and production_post_armed),
+        "production_post_armed": production_post_armed,
         "token_configured": bool(
             (mode == "Sandbox" and settings.get("sandbox_token_configured"))
             or (mode == "Production" and settings.get("production_token_configured"))
@@ -212,4 +222,3 @@ def post_invoice(payload, mode=None):
     result["fbr_operation"] = "post"
     result["fbr_mode"] = requested_mode
     return result
-
