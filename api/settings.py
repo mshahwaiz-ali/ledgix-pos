@@ -1,105 +1,49 @@
 # ============================================================
-# LEDGIX SETTINGS HELPERS
+# LEDGIX COMPATIBILITY SETTINGS HELPERS
 # ============================================================
-# Shared stock-mode and theme helpers used by POS and Reports.
-# Keep these stable because multiple pages depend on them.
+# V2 has one inventory-authoritative transaction model and one branding source.
+# These functions keep older public API paths importable without re-introducing
+# the retired Billing Only / POS Theme settings into current product behavior.
 
 import frappe
-from frappe.utils import flt, cint
+from frappe.utils import cint
+
 from ledgix_saas.api.security import (
     require_ledgix_admin_or_system_manager,
     require_ledgix_cashier_or_above,
 )
 
+
 def get_stock_control_mode():
-    if not frappe.db.exists("DocType", "Ledgix Mode Settings"):
-        return "Strict Inventory"
+    """Compatibility value for older callers.
 
-    mode = frappe.db.get_single_value("Ledgix Mode Settings", "stock_control_mode")
-
-    if mode not in ["Strict Inventory", "Billing Only"]:
-        return "Strict Inventory"
-
-    return mode
+    New V2 sales always post through the authoritative stock service. The old
+    site-wide Billing Only switch is retired because it made purchases stock-aware
+    while allowing sales to bypass inventory.
+    """
+    return "Strict Inventory"
 
 
 @frappe.whitelist()
 def get_pos_theme_settings():
+    """Compatibility read backed by the single Ledgix Brand Settings source."""
     require_ledgix_cashier_or_above()
-
-    default_settings = normalize_theme_settings({})
-
-    if not frappe.db.exists("DocType", "Ledgix POS Theme Settings"):
-        return default_settings
-
-    try:
-        settings = frappe.get_single("Ledgix POS Theme Settings")
-        return normalize_theme_settings({
-            "enable_custom_accent": settings.enable_custom_accent,
-            "primary_accent_color": settings.primary_accent_color,
-            "accent_hover": settings.accent_hover,
-            "accent_soft": settings.accent_soft,
-            "accent_soft_2": settings.accent_soft_2,
-            "accent_border": settings.accent_border,
-        })
-
-    except Exception:
-        return default_settings
+    primary = ""
+    if frappe.db.exists("DocType", "Ledgix Brand Settings"):
+        primary = frappe.db.get_single_value("Ledgix Brand Settings", "primary_brand_color") or ""
+    return normalize_theme_settings({
+        "enable_custom_accent": 1 if primary else 0,
+        "primary_accent_color": primary,
+    })
 
 
 @frappe.whitelist()
-def save_pos_theme_settings(
-    primary_accent_color=None,
-    enable_custom_accent=1,
-    accent_hover=None,
-    accent_soft=None,
-    accent_soft_2=None,
-    accent_border=None,
-):
+def save_pos_theme_settings(*args, **kwargs):
+    """Retained method path with an explicit migration message for old clients."""
     require_ledgix_admin_or_system_manager()
-
-    enabled = cint(enable_custom_accent)
-    doc = frappe.get_single("Ledgix POS Theme Settings")
-
-    if not enabled:
-        doc.enable_custom_accent = 0
-        doc.primary_accent_color = ""
-        doc.accent_hover = ""
-        doc.accent_soft = ""
-        doc.accent_soft_2 = ""
-        doc.accent_border = ""
-        doc.save(ignore_permissions=True)
-        frappe.db.commit()
-        frappe.clear_cache(doctype="Ledgix POS Theme Settings")
-
-        return {
-            "success": True,
-            "theme_settings": get_pos_theme_settings(),
-        }
-
-    primary = normalize_hex(primary_accent_color)
-    if not primary:
-        frappe.throw("Primary Accent Color is required")
-
-    doc.enable_custom_accent = 1
-    doc.primary_accent_color = primary
-
-    generated = build_theme_shades(primary)
-    use_generated = cint(getattr(doc, "auto_generate_theme_shades", 1))
-
-    doc.accent_hover = generated["accent_hover"] if use_generated or not accent_hover else accent_hover
-    doc.accent_soft = generated["accent_soft"] if use_generated or not accent_soft else accent_soft
-    doc.accent_soft_2 = generated["accent_soft_2"] if use_generated or not accent_soft_2 else accent_soft_2
-    doc.accent_border = generated["accent_border"] if use_generated or not accent_border else accent_border
-
-    doc.save(ignore_permissions=True)
-    frappe.db.commit()
-    frappe.clear_cache(doctype="Ledgix POS Theme Settings")
-
-    return {
-        "success": True,
-        "theme_settings": get_pos_theme_settings(),
-    }
+    frappe.throw(
+        "POS Theme Settings were retired in Ledgix V2. Configure the site brand color in Ledgix Brand Settings."
+    )
 
 
 def normalize_theme_settings(settings):
@@ -124,20 +68,19 @@ def normalize_theme_settings(settings):
         }
 
     generated = build_theme_shades(primary)
-
     return {
         "enable_custom_accent": enabled,
         "primary_accent_color": primary,
-        "accent_hover": normalize_hex(source.get("accent_hover")) or generated["accent_hover"],
-        "accent_soft": source.get("accent_soft") or generated["accent_soft"],
-        "accent_soft_2": source.get("accent_soft_2") or generated["accent_soft_2"],
-        "accent_border": source.get("accent_border") or generated["accent_border"],
-        "accent_ring": source.get("accent_ring") or generated["accent_ring"],
+        "accent_hover": generated["accent_hover"],
+        "accent_soft": generated["accent_soft"],
+        "accent_soft_2": generated["accent_soft_2"],
+        "accent_border": generated["accent_border"],
+        "accent_ring": generated["accent_ring"],
         "accent_rgb": rgb_string(primary),
-        "accent_soft_hover": source.get("accent_soft_hover") or generated["accent_soft_hover"],
-        "accent_border_strong": source.get("accent_border_strong") or generated["accent_border_strong"],
-        "accent_track_bg": source.get("accent_track_bg") or generated["accent_track_bg"],
-        "accent_track_border": source.get("accent_track_border") or generated["accent_track_border"],
+        "accent_soft_hover": generated["accent_soft_hover"],
+        "accent_border_strong": generated["accent_border_strong"],
+        "accent_track_bg": generated["accent_track_bg"],
+        "accent_track_border": generated["accent_track_border"],
     }
 
 
@@ -212,33 +155,16 @@ def build_theme_shades(primary):
 
 
 def is_strict_inventory_mode():
-    return get_stock_control_mode() == "Strict Inventory"
+    return True
 
 
 def sale_matches_current_stock_mode(sale_name):
+    """Compatibility guard for historical return/search APIs.
+
+    Historical Billing Only sales may legitimately have no stock movement. They
+    remain readable/returnable; the Sales Return controller decides stock impact
+    from the original sale's actual posted movements.
     """
-    Detects whether a submitted sale belongs to the current POS stock mode.
-
-    Inventory Mode:
-        Sale must have submitted stock movement(s).
-
-    Billing Only Mode:
-        Sale must not have submitted stock movement(s).
-    """
-
     if not sale_name:
         return False
-
-    has_stock_movement = frappe.db.exists(
-        "Ledgix Stock Movement",
-        {
-            "reference_doctype": "Ledgix Sale",
-            "reference_name": sale_name,
-            "docstatus": 1
-        }
-    )
-
-    if is_strict_inventory_mode():
-        return bool(has_stock_movement)
-
-    return not bool(has_stock_movement)
+    return bool(frappe.db.exists("Ledgix Sale", {"name": sale_name, "docstatus": 1}))
