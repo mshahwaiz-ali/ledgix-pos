@@ -8,6 +8,9 @@
  "field_order": [
   "item_information_section",
   "item",
+  "item_name_snapshot",
+  "item_code_snapshot",
+  "unit_snapshot",
   "quantity",
   "serial_numbers",
   "price_list_snapshot",
@@ -29,6 +32,9 @@
  "fields": [
   {"fieldname":"item_information_section","fieldtype":"Section Break","label":"Item Information"},
   {"fieldname":"item","fieldtype":"Link","in_list_view":1,"label":"Item","options":"Ledgix Item","reqd":1,"columns":3},
+  {"fieldname":"item_name_snapshot","fieldtype":"Data","label":"Item Name Snapshot","read_only":1},
+  {"fieldname":"item_code_snapshot","fieldtype":"Data","label":"Item Code Snapshot","read_only":1},
+  {"fieldname":"unit_snapshot","fieldtype":"Data","label":"Unit Snapshot","read_only":1},
   {"default":"1","fieldname":"quantity","fieldtype":"Float","in_list_view":1,"label":"Quantity","reqd":1,"columns":1},
   {"description":"For Serial Based items only. Enter the serial numbers being sold.","fieldname":"serial_numbers","fieldtype":"Small Text","label":"Serial Numbers","in_list_view":1,"columns":3},
   {"fieldname":"price_list_snapshot","fieldtype":"Link","label":"Price List Snapshot","options":"Ledgix Price List","read_only":1},
@@ -65,5 +71,6 @@
  "rows_threshold_for_grid_search": 20,
  "sort_field": "modified",
  "sort_order": "DESC",
- "states": []
+ "states": [],
+ "track_changes": 1
 }
