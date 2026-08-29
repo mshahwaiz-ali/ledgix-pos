@@ -5,4 +5,5 @@
 # Patches added in this section will be executed after doctypes are migrated
 ledgix_saas.patches.v1_0.rename_tax_rate_fields
 ledgix_saas.patches.v1_0.bootstrap_v2_commerce_contracts
+ledgix_saas.patches.v1_0.normalize_v2_payment_methods
 ledgix_saas.patches.v1_0.backfill_sale_seller_snapshots
