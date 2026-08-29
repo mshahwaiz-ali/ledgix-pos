@@ -243,11 +243,71 @@ class LedgixPOSV2 {
 	remove_tender(index) { this.state.tenders.splice(index,1); this.render_cart(); }
 
 	async complete_sale() {
-		if(!this.state.cart.length||this.state.loading)return;
-		try { this.set_loading(true); const result=await this.call("ledgix_saas.api.v2_pos.complete_pos_v2_sale",{cart_items:this.cart_payload(),tenders:this.state.tenders,customer:this.state.customer,sale_channel:this.state.sale_channel,price_list:this.state.price_list,discount_type:this.state.discount_type,discount_value:this.state.discount_value,client_sale_id:this.ensure_client_sale_id()}); frappe.show_alert({message:`Sale ${result.invoice_number||result.sale} completed`,indicator:"green"},5); this.clear_cart(); if(result.sale)this.offer_print(result.sale,result.print_mode); await this.refresh_context(); await this.load_items(); }
-		catch(error){this.handle_error(error);} finally{this.set_loading(false);}
+		if (!this.state.cart.length || this.state.loading) return;
+		try {
+			this.set_loading(true);
+			const result = await this.call("ledgix_saas.api.v2_pos.complete_pos_v2_sale", {
+				cart_items: this.cart_payload(), tenders: this.state.tenders, customer: this.state.customer,
+				sale_channel: this.state.sale_channel, price_list: this.state.price_list,
+				discount_type: this.state.discount_type, discount_value: this.state.discount_value,
+				client_sale_id: this.ensure_client_sale_id(),
+			});
+			frappe.show_alert({ message: `Sale ${result.invoice_number || result.sale} completed`, indicator: "green" }, 5);
+			this.clear_cart();
+			if (result.sale) this.handle_post_sale_print(result.sale, result.print_mode);
+			await this.refresh_context();
+			await this.load_items();
+		} catch (error) {
+			this.handle_error(error);
+		} finally {
+			this.set_loading(false);
+		}
 	}
-	offer_print(sale,mode){const format=mode==="A4"?"Ledgix B2B Invoice":"Ledgix Thermal Receipt";frappe.confirm(`Print ${mode==="A4"?"A4 invoice":"receipt"}?`,()=>window.open(`/printview?doctype=Ledgix%20Sale&name=${encodeURIComponent(sale)}&format=${encodeURIComponent(format)}&no_letterhead=0`,"_blank"));}
+
+	print_url(sale, mode) {
+		const format = mode === "A4" ? "Ledgix B2B Invoice" : "Ledgix Thermal Receipt";
+		return `/printview?doctype=Ledgix%20Sale&name=${encodeURIComponent(sale)}&format=${encodeURIComponent(format)}&no_letterhead=0`;
+	}
+
+	handle_post_sale_print(sale, mode) {
+		const url = this.print_url(sale, mode);
+		if (mode === "A4") {
+			frappe.confirm("Open A4 invoice?", () => window.open(url, "_blank"));
+			return;
+		}
+		this.auto_print_retail_receipt(url);
+	}
+
+	auto_print_retail_receipt(url) {
+		const frame = document.createElement("iframe");
+		frame.setAttribute("aria-hidden", "true");
+		frame.style.cssText = "position:fixed;right:0;bottom:0;width:1px;height:1px;border:0;opacity:0;pointer-events:none";
+		document.body.appendChild(frame);
+
+		let removed = false;
+		const cleanup = () => {
+			if (removed) return;
+			removed = true;
+			frame.remove();
+		};
+
+		frame.onload = () => {
+			try {
+				const target = frame.contentWindow;
+				target.addEventListener("afterprint", cleanup, { once: true });
+				setTimeout(() => {
+					target.focus();
+					target.print();
+				}, 80);
+				setTimeout(cleanup, 120000);
+			} catch (error) {
+				cleanup();
+				const opened = window.open(url, "_blank");
+				if (!opened) frappe.show_alert({ message: "Receipt is ready. Allow printing/pop-ups or reprint it from Sales.", indicator: "orange" }, 7);
+			}
+		};
+		frame.src = url;
+	}
 
 	async toggle_shift(){if(this.state.active_shift){frappe.prompt([{fieldname:"actual_cash",fieldtype:"Currency",label:"Actual Closing Cash",reqd:1}],async v=>{try{await this.call("ledgix_saas.api.api.close_pos_shift",{actual_cash:v.actual_cash,shift_name:this.state.active_shift});await this.refresh_context();}catch(e){this.handle_error(e);}},"Close Shift","Close");return;}frappe.prompt([{fieldname:"opening_cash",fieldtype:"Currency",label:"Opening Cash",default:0,reqd:1}],async v=>{try{await this.call("ledgix_saas.api.api.open_pos_shift",{opening_cash:v.opening_cash});await this.refresh_context();}catch(e){this.handle_error(e);}},"Open Shift","Open");}
 	async refresh_context(){const boot=await this.call("ledgix_saas.api.v2_pos.get_pos_v2_boot",{customer:this.state.customer,sale_channel:this.state.sale_channel});this.apply_boot(boot);}
