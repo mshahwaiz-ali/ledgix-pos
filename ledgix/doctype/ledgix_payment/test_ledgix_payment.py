@@ -7,10 +7,26 @@ from ledgix.doctype.v2_test_utils import (
 	make_customer,
 	make_item,
 	make_sale,
+	unique_name,
 )
 from ledgix.report.ledgix_customer_statement.ledgix_customer_statement import get_data as get_statement_data
 from ledgix_saas.services.payments import post_payment, reverse_payment
 from ledgix_saas.services.receivables import get_customer_receivables
+
+
+def make_payment_method(*, method_type="Card", enabled=1, requires_reference=0, allow_change=0):
+	name = unique_name("PAY-METHOD")
+	doc = frappe.get_doc({
+		"doctype": "Ledgix Payment Method",
+		"payment_method_name": name,
+		"method_type": method_type,
+		"enabled": enabled,
+		"requires_reference": requires_reference,
+		"allow_change": allow_change,
+		"sort_order": 50,
+	})
+	doc.insert(ignore_permissions=True)
+	return doc
 
 
 class TestLedgixPayment(FrappeTestCase):
@@ -18,6 +34,36 @@ class TestLedgixPayment(FrappeTestCase):
 		super().setUp()
 		configure_v2_test_environment()
 		ensure_cash_payment_method()
+
+	def test_disabled_payment_method_is_rejected(self):
+		method = make_payment_method(enabled=0)
+		payment = frappe.new_doc("Ledgix Payment")
+		payment.payment_method = method.name
+		payment.amount = 25
+		payment.amount_tendered = 25
+
+		with self.assertRaises(frappe.ValidationError):
+			payment.validate()
+
+	def test_required_payment_reference_is_enforced(self):
+		method = make_payment_method(requires_reference=1)
+		payment = frappe.new_doc("Ledgix Payment")
+		payment.payment_method = method.name
+		payment.amount = 25
+		payment.amount_tendered = 25
+
+		with self.assertRaises(frappe.ValidationError):
+			payment.validate()
+
+	def test_non_cash_payment_method_cannot_return_change(self):
+		method = make_payment_method(method_type="Card", allow_change=0)
+		payment = frappe.new_doc("Ledgix Payment")
+		payment.payment_method = method.name
+		payment.amount = 100
+		payment.amount_tendered = 120
+
+		with self.assertRaises(frappe.ValidationError):
+			payment.validate()
 
 	def test_allocation_amount_must_be_positive(self):
 		payment = frappe.new_doc("Ledgix Payment")
