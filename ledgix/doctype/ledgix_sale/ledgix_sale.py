@@ -6,10 +6,10 @@ from frappe.model.document import Document
 from frappe.utils import flt
 
 from ledgix_saas.api.settings import is_strict_inventory_mode
-from ledgix_saas.api.taxation import apply_tax_snapshot_to_sale_doc
 from ledgix_saas.services.receivables import get_customer_receivables, refresh_customer_credit_summary
 from ledgix_saas.services.sales import apply_customer_snapshot
 from ledgix_saas.services.stock import cancel_reference_movements, post_sale_movements
+from ledgix_saas.services.tax import apply_sale_tax_snapshot
 
 
 class LedgixSale(Document):
@@ -27,7 +27,7 @@ class LedgixSale(Document):
         self.validate_pos_shift()
         self.calculate_totals()
 
-        tax_result = apply_tax_snapshot_to_sale_doc(self)
+        tax_result = apply_sale_tax_snapshot(self)
         for message in (tax_result.get("validation") or {}).get("warnings") or []:
             frappe.msgprint(message, indicator="orange", title="Tax Mapping")
 
