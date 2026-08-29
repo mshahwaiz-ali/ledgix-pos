@@ -41,18 +41,21 @@ def _brand_identity():
 	}
 
 
-def _seller_identity():
+def get_seller_identity():
+	"""Resolve the current site seller identity from canonical Ledgix settings."""
 	from ledgix_saas.api.fbr_settings import get_fbr_settings_internal
 
 	brand = _brand_identity()
 	fbr = get_fbr_settings_internal() or {}
 	province = fbr.get("seller_province") or ""
-	if not province and frappe.db.exists("DocType", "Ledgix Tax Profile"):
-		province = frappe.db.get_single_value("Ledgix Tax Profile", "province") or ""
+	outlet_address = ""
+	if frappe.db.exists("DocType", "Ledgix Tax Profile"):
+		province = province or frappe.db.get_single_value("Ledgix Tax Profile", "province") or ""
+		outlet_address = frappe.db.get_single_value("Ledgix Tax Profile", "outlet_address") or ""
 
 	return {
 		"name": fbr.get("seller_business_name") or brand.get("legal_business_name") or brand.get("brand_name") or "Ledgix",
-		"address": fbr.get("seller_address") or brand.get("business_address") or "",
+		"address": fbr.get("seller_address") or brand.get("business_address") or outlet_address,
 		"province": province,
 		"ntn_cnic": fbr.get("seller_ntn_cnic") or brand.get("ntn") or "",
 		"strn": brand.get("strn") or "",
@@ -67,7 +70,7 @@ def apply_seller_snapshot(sale):
 	Presentation assets such as logo and colors remain live branding. Legal/tax
 	identity is historical transaction data and must not change on reprint/retry.
 	"""
-	identity = _seller_identity()
+	identity = get_seller_identity()
 	sale.seller_name_snapshot = identity["name"]
 	sale.seller_address_snapshot = identity["address"]
 	sale.seller_province_snapshot = identity["province"]
