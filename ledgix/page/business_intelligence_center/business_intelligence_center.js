@@ -182,7 +182,7 @@ class LedgixInventoryIntelligence {
 				${this.metric("Sell-through", summary.sell_through_percent, "percent")}
 				${this.metric("Risk", summary.risk_level || "Low", "text", this.risk_tone(summary.risk_level))}
 			</section>
-			<section class="lx-ii-story-risk-grid">
+			<section class="lx-ii-story-risk-grid" style="align-items: start;">
 				<div class="lx-ii-card lx-ii-story ${this.escape(story.tone || "neutral")}">
 					<div class="lx-ii-card-head"><div><h3>${this.escape(story.title || "Inventory story")}</h3><p>${this.escape(story.text || "No activity matched the current filters.")}</p></div></div>
 					${(story.signals || []).length ? `<div class="lx-ii-signals">${story.signals.map(signal => `<span>${this.escape(signal)}</span>`).join("")}</div>` : ""}
@@ -222,8 +222,13 @@ class LedgixInventoryIntelligence {
 		return `<div class="lx-ii-table-wrap"><table class="lx-ii-table"><thead><tr><th>Date</th><th>Event</th><th>Item / Identity</th><th>Reference</th><th>Party</th><th>Qty</th><th>Running Qty</th><th>Rate</th><th>Profit</th></tr></thead><tbody>${rows.slice(0, 150).map(row => {
 			const event = row.cycle_status || row.event_type || "Activity";
 			const identity = row.serial_no || row.lot_number || "";
-			const reference = row.reference || row.sale || row.purchase || row.sales_return || "";
-			const qty = Number(row.sale_qty || 0) ? -Number(row.sale_qty || 0) : Number(row.return_qty || 0) ? Number(row.return_qty || 0) : Number(row.purchased_qty || row.qty || 0);
+			const isReturn = ["Return", "Partial Return"].includes(event);
+			const reference = isReturn ? (row.sales_return || row.reference || row.sale || "") : (row.reference || row.sale || row.purchase || row.sales_return || "");
+			let qty = Number(row.qty || 0);
+			if (event === "Sale") qty = -Number(row.sale_qty || row.qty || 0);
+			else if (isReturn) qty = Number(row.return_qty || row.qty || 0);
+			else if (event === "Purchase") qty = Number(row.purchased_qty || row.qty || 0);
+			else if (event === "Cancel") qty = Number(row.return_qty || 0);
 			const rate = Number(row.sale_rate || 0) || Number(row.cost_rate || row.unit_cost || 0);
 			const profit = Number(row.profit || row.profit_impact || 0) - Number(row.loss || 0);
 			return `<tr><td>${this.escape(row.date || row.purchase_date || row.sale_date || row.return_date || "—")}</td><td><span class="lx-ii-event is-${this.escape(String(event).toLowerCase().replace(/\s+/g, "-"))}">${this.escape(event)}</span></td><td><strong>${this.escape(row.item_name || row.item || "—")}</strong><small>${this.escape(identity)}</small></td><td>${this.reference_button(event, reference)}</td><td>${this.escape(row.customer || row.supplier || "—")}</td><td>${this.number(qty, 2)}</td><td>${this.number(row.current_lot_qty ?? row.running_qty ?? 0, 2)}</td><td>${this.money(rate)}</td><td class="${profit < 0 ? "is-negative" : profit > 0 ? "is-positive" : ""}">${this.money(profit)}</td></tr>`;
@@ -232,10 +237,11 @@ class LedgixInventoryIntelligence {
 
 	reference_button(event, reference) {
 		if (!reference) return "—";
+		if (String(reference).includes(",")) return this.escape(reference);
 		let doctype = "";
 		if (event === "Purchase") doctype = "Ledgix Purchase";
-		if (["Sale", "Partial Return"].includes(event)) doctype = "Ledgix Sale";
-		if (event === "Return") doctype = "Ledgix Sales Return";
+		if (event === "Sale") doctype = "Ledgix Sale";
+		if (["Return", "Partial Return"].includes(event)) doctype = "Ledgix Sales Return";
 		if (!doctype) return this.escape(reference);
 		return `<button class="lx-ii-link" data-route-doc="${this.escape(doctype)}" data-name="${this.escape(reference)}">${this.escape(reference)}</button>`;
 	}
