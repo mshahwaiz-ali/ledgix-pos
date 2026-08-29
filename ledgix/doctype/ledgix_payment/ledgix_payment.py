@@ -17,7 +17,13 @@ class LedgixPayment(Document):
 		self.change_amount = max(flt(self.amount_tendered) - flt(self.amount), 0)
 
 	def _validate_allocations(self):
-		allocated = sum(flt(row.allocated_amount) for row in self.allocations)
+		allocated = 0.0
+		for row in self.allocations:
+			row_amount = flt(row.allocated_amount)
+			if row_amount <= 0:
+				frappe.throw(_("Payment allocation amount must be greater than zero."))
+			allocated += row_amount
+
 		if allocated - flt(self.amount) > 0.005:
 			frappe.throw(_("Payment allocations cannot exceed the payment amount."))
 		self.allocated_amount = allocated
