@@ -18,7 +18,35 @@ def configure_v2_test_environment(stock_mode: str = "Billing Only") -> None:
 	frappe.db.set_single_value("Ledgix FBR Settings", "mode", "Disabled")
 	frappe.db.set_single_value("Ledgix FBR Settings", "submit_trigger", "Manual")
 	frappe.db.set_single_value("Ledgix FBR Settings", "block_sale_if_fbr_fails", 0)
+	frappe.db.set_single_value("Ledgix FBR Settings", "seller_ntn_cnic", "")
+	frappe.db.set_single_value("Ledgix FBR Settings", "seller_business_name", "")
+	frappe.db.set_single_value("Ledgix FBR Settings", "seller_province", "")
+	frappe.db.set_single_value("Ledgix FBR Settings", "seller_address", "")
+	frappe.db.set_single_value("Ledgix Tax Profile", "tax_enabled", 0)
+	frappe.db.set_single_value("Ledgix Tax Profile", "price_includes_tax", 0)
+	frappe.db.set_single_value("Ledgix Tax Profile", "default_tax_category", "")
+	frappe.db.set_single_value("Ledgix Tax Profile", "default_sales_type", "")
+	frappe.db.set_single_value("Ledgix Tax Profile", "default_buyer_type", "Unregistered")
+	frappe.db.set_single_value("Ledgix Tax Profile", "province", "Punjab")
+	frappe.db.set_single_value("Ledgix Tax Profile", "outlet_address", "Test Outlet")
 	frappe.clear_cache(doctype="Ledgix Mode Settings")
+	frappe.clear_cache(doctype="Ledgix FBR Settings")
+	frappe.clear_cache(doctype="Ledgix Tax Profile")
+
+
+def configure_tax_profile(tax_category, *, price_includes_tax: bool = False) -> None:
+	frappe.db.set_single_value("Ledgix Tax Profile", "tax_enabled", 1)
+	frappe.db.set_single_value("Ledgix Tax Profile", "price_includes_tax", 1 if price_includes_tax else 0)
+	frappe.db.set_single_value("Ledgix Tax Profile", "default_tax_category", tax_category)
+	frappe.db.set_single_value("Ledgix Tax Profile", "default_sales_type", "Goods at standard rate")
+	frappe.db.set_single_value("Ledgix Tax Profile", "default_buyer_type", "Registered")
+	frappe.db.set_single_value("Ledgix Tax Profile", "province", "Punjab")
+	frappe.db.set_single_value("Ledgix Tax Profile", "outlet_address", "Test Outlet")
+	frappe.db.set_single_value("Ledgix FBR Settings", "seller_ntn_cnic", "1234567")
+	frappe.db.set_single_value("Ledgix FBR Settings", "seller_business_name", "Ledgix Test Seller")
+	frappe.db.set_single_value("Ledgix FBR Settings", "seller_province", "Punjab")
+	frappe.db.set_single_value("Ledgix FBR Settings", "seller_address", "Test Seller Address")
+	frappe.clear_cache(doctype="Ledgix Tax Profile")
 	frappe.clear_cache(doctype="Ledgix FBR Settings")
 
 
@@ -106,6 +134,77 @@ def make_supplier():
 		"supplier_type": "Local",
 		"is_active": 1,
 	})
+	doc.insert(ignore_permissions=True)
+	return doc
+
+
+def make_tax_category(*, rate: float = 18):
+	name = unique_name("TAX")
+	doc = frappe.get_doc({
+		"doctype": "Ledgix Tax Category",
+		"category_name": name,
+		"tax_type": "Sales Tax",
+		"default_rate": rate,
+		"is_exempt": 0,
+		"is_zero_rated": 0,
+		"active": 1,
+	})
+	doc.insert(ignore_permissions=True)
+	return doc
+
+
+def make_tax_rate(tax_category, *, rate: float = 18, province: str = "Punjab"):
+	doc = frappe.get_doc({
+		"doctype": "Ledgix Tax Rate",
+		"tax_category": tax_category,
+		"rate": rate,
+		"effective_from": today(),
+		"applies_to": "Sales",
+		"province": province,
+		"active": 1,
+	})
+	doc.insert(ignore_permissions=True)
+	return doc
+
+
+def make_item_tax_profile(
+	item,
+	tax_category,
+	*,
+	tax_basis: str = "Transaction Value",
+	notified_retail_price: float = 0,
+	scenario_id: str = "SN001",
+):
+	doc = frappe.get_doc({
+		"doctype": "Ledgix Item Tax Profile",
+		"item": item,
+		"taxable": 1,
+		"tax_category": tax_category,
+		"tax_basis": tax_basis,
+		"notified_retail_price": notified_retail_price,
+		"hs_code": "2202.10",
+		"uom_for_fbr": "Numbers, pieces, units",
+		"sales_type": "Goods at standard rate",
+		"scenario_id": scenario_id,
+		"needs_review": 0,
+		"active": 1,
+	})
+	doc.insert(ignore_permissions=True)
+	return doc
+
+
+def make_user_with_roles(*roles):
+	email = f"{unique_name('USER').lower()}@example.com"
+	doc = frappe.get_doc({
+		"doctype": "User",
+		"email": email,
+		"first_name": "Ledgix Test User",
+		"enabled": 1,
+		"send_welcome_email": 0,
+		"user_type": "System User",
+	})
+	for role in roles:
+		doc.append("roles", {"role": role})
 	doc.insert(ignore_permissions=True)
 	return doc
 
