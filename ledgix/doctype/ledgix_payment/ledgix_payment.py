@@ -1,20 +1,47 @@
 import frappe
 from frappe import _
 from frappe.model.document import Document
-from frappe.utils import flt
+from frappe.utils import cint, flt
 
 
 class LedgixPayment(Document):
 	def validate(self):
+		self._validate_payment_method()
 		self._validate_amounts()
 		self._validate_allocations()
+
+	def _validate_payment_method(self):
+		method = frappe.db.get_value(
+			"Ledgix Payment Method",
+			self.payment_method,
+			["method_type", "enabled", "requires_reference", "allow_change"],
+			as_dict=True,
+		)
+		if not method:
+			frappe.throw(_("Unknown payment method: {0}").format(self.payment_method or ""))
+		if not cint(method.enabled):
+			frappe.throw(_("Payment Method {0} is disabled.").format(self.payment_method))
+		if cint(method.requires_reference) and not (self.reference_number or "").strip():
+			frappe.throw(_("Reference number is required for Payment Method {0}.").format(self.payment_method))
+
+		self.flags.payment_method_type = method.method_type or "Other"
+		self.flags.payment_method_allows_change = bool(cint(method.allow_change))
 
 	def _validate_amounts(self):
 		if flt(self.amount) <= 0:
 			frappe.throw(_("Payment amount must be greater than zero."))
-		if flt(self.amount_tendered) and flt(self.amount_tendered) < flt(self.amount):
+		if not flt(self.amount_tendered):
+			self.amount_tendered = flt(self.amount)
+		if flt(self.amount_tendered) < flt(self.amount):
 			frappe.throw(_("Amount tendered cannot be less than the payment amount."))
-		self.change_amount = max(flt(self.amount_tendered) - flt(self.amount), 0)
+
+		change_amount = max(flt(self.amount_tendered) - flt(self.amount), 0)
+		if change_amount > 0.005:
+			if self.flags.payment_method_type != "Cash":
+				frappe.throw(_("Only cash payment methods can return change."))
+			if not self.flags.payment_method_allows_change:
+				frappe.throw(_("Payment Method {0} does not allow cash change.").format(self.payment_method))
+		self.change_amount = change_amount
 
 	def _validate_allocations(self):
 		allocated = 0.0
