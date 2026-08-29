@@ -3,7 +3,7 @@ from pathlib import Path
 from frappe.tests.utils import FrappeTestCase
 
 
-APP_ROOT = Path(__file__).resolve().parents[4]
+APP_ROOT = Path(__file__).resolve().parents[3]
 
 
 class TestV2UIArchitecture(FrappeTestCase):
