@@ -19,6 +19,7 @@
 			primaryColor: brand.primary_brand_color || "#8C2031",
 			hasCustomSymbol: !!brand.has_custom_symbol,
 			hasCustomFull: !!brand.has_custom_full,
+			hasCustomFavicon: !!brand.has_custom_favicon,
 		};
 	}
 
@@ -63,13 +64,36 @@
 		if (!isLedgixDeskRoute()) return;
 		const brand = getBrand();
 		const logoUrl = brand.symbolUrl || FRAPPE_DEFAULT_LOGO;
-		document.querySelectorAll(".navbar-brand img.app-logo, .navbar-home img.app-logo, .navbar-home img").forEach((img) => {
-			if (!img || img.tagName !== "IMG") return;
-			img.src = logoUrl;
-			img.alt = brand.name;
-			img.style.objectFit = "contain";
+
+		document.querySelectorAll(".navbar-brand, .navbar-home").forEach((home) => {
+			if (!home) return;
+			const img = home.querySelector("img.app-logo, img");
+			let fallback = home.querySelector(".lx-brand-fallback");
+
+			if (brand.hasCustomSymbol && logoUrl) {
+				if (fallback) fallback.remove();
+				if (img) {
+					img.style.display = "";
+					img.src = logoUrl;
+					img.alt = brand.name;
+					img.style.objectFit = "contain";
+				}
+				return;
+			}
+
+			if (img) img.style.display = "none";
+			if (!fallback) {
+				fallback = document.createElement("span");
+				fallback.className = "lx-brand-fallback";
+				home.appendChild(fallback);
+			}
+			fallback.textContent = String(brand.name || "Ledgix").trim().charAt(0).toUpperCase() || "L";
+			fallback.title = brand.name;
 		});
-		setFavicon(brand.faviconUrl || logoUrl);
+
+		if (brand.hasCustomFavicon || brand.hasCustomSymbol) {
+			setFavicon(brand.faviconUrl || logoUrl);
+		}
 	}
 
 	function applyLoginBrand() {
