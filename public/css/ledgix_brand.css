@@ -17,6 +17,22 @@ body.website-login .page-card-head h4 {
 	object-fit: contain;
 }
 
+.navbar-brand .lx-brand-fallback,
+.navbar-home .lx-brand-fallback {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	border-radius: 5px;
+	background: var(--lx-v2-primary, #8C2031);
+	color: #fff;
+	font-size: 16px;
+	font-weight: 700;
+	line-height: 1;
+	letter-spacing: -0.02em;
+}
+
 .centered.splash .ledgix-splash-logo {
 	width: auto;
 	height: auto;
