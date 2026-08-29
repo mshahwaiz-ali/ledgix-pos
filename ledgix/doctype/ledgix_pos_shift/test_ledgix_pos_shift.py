@@ -14,6 +14,7 @@ from ledgix.doctype.v2_test_utils import (
 	make_price_list,
 	unique_name,
 )
+from ledgix_saas.api.shifts import close_pos_shift
 from ledgix_saas.api.v2_pos import complete_pos_v2_sale
 from ledgix_saas.services.payments import reverse_payment
 
@@ -148,3 +149,26 @@ class TestLedgixPOSShift(FrappeTestCase):
 		self.assertAlmostEqual(sale.paid_amount, 0, places=2)
 		self.assertAlmostEqual(sale.remaining_amount, 100, places=2)
 		self.assertEqual(sale.payment_status, "Unpaid")
+
+	def test_close_shift_api_finalizes_submitted_shift(self):
+		shift = frappe.get_doc({
+			"doctype": "Ledgix POS Shift",
+			"opening_cash": 125,
+		})
+		shift.insert(ignore_permissions=True)
+
+		result = close_pos_shift(
+			shift_name=shift.name,
+			actual_cash=125,
+			closing_notes="Till counted",
+		)
+
+		shift.reload()
+		self.assertTrue(result["success"])
+		self.assertEqual(shift.status, "Closed")
+		self.assertEqual(shift.docstatus, 1)
+		self.assertTrue(shift.closing_time)
+		self.assertEqual(shift.closed_by, frappe.session.user)
+		self.assertAlmostEqual(shift.expected_cash, 125, places=2)
+		self.assertAlmostEqual(shift.actual_cash, 125, places=2)
+		self.assertAlmostEqual(shift.cash_variance, 0, places=2)
