@@ -49,6 +49,12 @@ class TestV2UIArchitecture(FrappeTestCase):
         self.assertIn("ledgix_brand.css", hooks)
         self.assertIn("ledgix_v2_tokens.css", hooks)
 
+    def test_permissions_have_one_after_migrate_authority(self):
+        hooks = (APP_ROOT / "hooks.py").read_text(encoding="utf-8")
+        self.assertIn("ledgix_saas.setup.permissions.after_migrate", hooks)
+        self.assertNotIn("v2_permissions", hooks)
+        self.assertFalse((APP_ROOT / "setup" / "v2_permissions.py").exists())
+
     def test_pos_has_no_user_facing_stock_mode_switch(self):
         pos_js = (APP_ROOT / "ledgix" / "page" / "ledgix_pos" / "ledgix_pos.js").read_text(encoding="utf-8")
         self.assertNotIn("stock_control_mode", pos_js)
