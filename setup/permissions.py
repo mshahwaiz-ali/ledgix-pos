@@ -96,7 +96,6 @@ DOCTYPE_PERMISSIONS = {
 	"Ledgix Return Tax Detail": _rows(_full("System Manager"), _full("Ledgix Admin"), _read("Ledgix Manager")),
 	"Ledgix User Profile": _rows(_full("System Manager"), _full("Ledgix Admin"), _read("Ledgix Manager")),
 	"Ledgix Brand Settings": _rows(_full("System Manager"), _full("Ledgix Admin")),
-	"Ledgix Maintenance Tool": _rows(_full("System Manager")),
 }
 
 REPORT_ROLES = ("System Manager", "Ledgix Admin", "Ledgix Manager")
@@ -118,11 +117,12 @@ RETIRED_PAGES = (
 	"quick-item-scan",
 )
 
-# V2 has one inventory model and one branding source. These two Singles were
-# configuration-only legacy concepts, so upgraded sites can safely retire them.
-RETIRED_SETTING_DOCTYPES = (
+# These legacy product surfaces are not part of V2. Existing sites may still
+# contain their DocType metadata, so cleanup remains explicit and idempotent.
+RETIRED_DOCTYPES = (
 	"Ledgix Mode Settings",
 	"Ledgix POS Theme Settings",
+	"Ledgix Maintenance Tool",
 )
 
 ROLE_HOME_PAGES = {
@@ -199,9 +199,9 @@ def _migrate_legacy_pos_color():
 		frappe.db.set_single_value("Ledgix Brand Settings", "primary_brand_color", accent)
 
 
-def cleanup_retired_setting_doctypes():
+def cleanup_retired_doctypes():
 	_migrate_legacy_pos_color()
-	for doctype in RETIRED_SETTING_DOCTYPES:
+	for doctype in RETIRED_DOCTYPES:
 		if not frappe.db.exists("DocType", doctype):
 			continue
 		if frappe.db.get_value("DocType", doctype, "module") != "Ledgix":
@@ -257,7 +257,7 @@ def sync_report_roles():
 
 
 def sync_all():
-	cleanup_retired_setting_doctypes()
+	cleanup_retired_doctypes()
 	sync_doctype_permissions()
 	cleanup_retired_pages()
 	sync_page_roles()
