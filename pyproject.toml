@@ -1,8 +1,6 @@
 [project]
 name = "ledgix_saas"
-authors = [
-    { name = "Ali", email = "alishahwaiz96@gmail.com" }
-]
+authors = [{ name = "Ali", email = "alishahwaiz96@gmail.com" }]
 description = "POS and inventory platform for retail shops"
 requires-python = ">=3.10"
 dynamic = ["version"]
@@ -31,10 +29,7 @@ packages = [
     "ledgix.doctype",
     "ledgix.page.ledgix_tax_center",
     "ledgix.page.ledgix_pos",
-    "ledgix.page.ledgix_dashboard",
-    "ledgix.page.quick_item_scan",
-    "ledgix.page.ledgix_operations",
-    "ledgix.page.ledgix_reports",
+    "ledgix.page.business_intelligence_center",
     "ledgix.report.ledgix_sales_report",
     "ledgix.report.ledgix_item_full_cycle",
     "ledgix.report.ledgix_sales_return_report",
@@ -43,6 +38,7 @@ packages = [
     "ledgix.report.ledgix_customer_statement",
     "ledgix.report.inventory_intelligence_report",
     "ledgix.print_format.ledgix_thermal_receipt",
+    "ledgix.print_format.ledgix_b2b_invoice",
     "ledgix.doctype.ledgix_maintenance_tool",
     "ledgix.doctype.ledgix_item",
     "ledgix.doctype.ledgix_pos_shift",
