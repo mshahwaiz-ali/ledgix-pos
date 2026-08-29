@@ -89,8 +89,13 @@ def _validate_hold_context(channel, customer=None, price_list=None):
 
 
 def _retail_shift(channel):
+    # B2B holds are back-office commercial context and must never inherit an
+    # unrelated cashier register shift merely because the same user has one open.
+    if channel != "Retail":
+        return None
+
     shift = _get_open_shift_for_user()
-    if channel == "Retail" and not shift:
+    if not shift:
         frappe.throw("Please open a POS shift before holding a Retail sale.")
     return shift
 
