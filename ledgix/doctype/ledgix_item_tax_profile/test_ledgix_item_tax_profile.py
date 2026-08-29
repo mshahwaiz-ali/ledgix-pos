@@ -54,14 +54,20 @@ class TestLedgixItemTaxProfile(FrappeTestCase):
 		self.assertEqual(len(sale.tax_details), 1)
 		self.assertEqual(sale.tax_details[0].tax_basis, "Notified Retail Price")
 		self.assertAlmostEqual(sale.tax_details[0].notified_retail_price, 200, places=2)
+		self.assertEqual(sale.seller_name_snapshot, "Ledgix Test Seller")
+		self.assertEqual(sale.seller_ntn_cnic_snapshot, "1234567")
+		self.assertEqual(sale.seller_province_snapshot, "Punjab")
+		self.assertEqual(sale.seller_address_snapshot, "Test Seller Address")
 
 		payload = build_official_sale_invoice_payload(sale)
+		self.assertEqual(payload["sellerBusinessName"], "Ledgix Test Seller")
+		self.assertEqual(payload["sellerNTNCNIC"], "1234567")
 		self.assertEqual(payload["buyerBusinessName"], customer.customer_name)
 		self.assertEqual(payload["buyerNTNCNIC"], "12345678")
 		self.assertEqual(payload["items"][0]["rate"], "18%")
 		self.assertAlmostEqual(payload["items"][0]["fixedNotifiedValueOrRetailPrice"], 200, places=2)
 
-	def test_finalized_fbr_payload_is_immune_to_customer_and_tax_master_edits(self):
+	def test_finalized_fbr_payload_is_immune_to_seller_buyer_and_tax_master_edits(self):
 		sale, customer, mapping, tax_category = self._third_schedule_sale()
 		original_payload = build_official_sale_invoice_payload(frappe.get_doc("Ledgix Sale", sale.name))
 
@@ -88,9 +94,21 @@ class TestLedgixItemTaxProfile(FrappeTestCase):
 			5,
 			update_modified=False,
 		)
+		frappe.db.set_single_value("Ledgix FBR Settings", "seller_ntn_cnic", "9999999")
+		frappe.db.set_single_value("Ledgix FBR Settings", "seller_business_name", "Changed Seller")
+		frappe.db.set_single_value("Ledgix FBR Settings", "seller_province", "Sindh")
+		frappe.db.set_single_value("Ledgix FBR Settings", "seller_address", "Changed Seller Address")
+		frappe.db.set_single_value("Ledgix Brand Settings", "legal_business_name", "Changed Brand Legal Name")
+		frappe.db.set_single_value("Ledgix Brand Settings", "ntn", "8888888")
+		frappe.clear_cache(doctype="Ledgix FBR Settings")
+		frappe.clear_cache(doctype="Ledgix Brand Settings")
 
 		finalized_sale = frappe.get_doc("Ledgix Sale", sale.name)
 		payload = build_official_sale_invoice_payload(finalized_sale)
+		self.assertEqual(payload["sellerBusinessName"], original_payload["sellerBusinessName"])
+		self.assertEqual(payload["sellerNTNCNIC"], original_payload["sellerNTNCNIC"])
+		self.assertEqual(payload["sellerProvince"], original_payload["sellerProvince"])
+		self.assertEqual(payload["sellerAddress"], original_payload["sellerAddress"])
 		self.assertEqual(payload["buyerNTNCNIC"], original_payload["buyerNTNCNIC"])
 		self.assertEqual(payload["buyerAddress"], original_payload["buyerAddress"])
 		self.assertEqual(payload["items"][0]["rate"], original_payload["items"][0]["rate"])
