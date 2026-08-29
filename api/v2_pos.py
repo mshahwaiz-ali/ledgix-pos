@@ -112,7 +112,11 @@ def get_pos_v2_boot(customer=None, sale_channel="Retail"):
 	sale_channel = sale_channel if sale_channel in {"Retail", "B2B"} else "Retail"
 	if sale_channel == "B2B":
 		_require_manager(_("B2B checkout requires Manager or Admin access."))
-	customer = _customer_name(customer, sale_channel) if customer or sale_channel == "B2B" else _customer_name(None, "Retail")
+		customer = (customer or "").strip() or None
+		if customer and not frappe.db.exists("Ledgix Customer", customer):
+			frappe.throw(_("Customer not found."))
+	else:
+		customer = _customer_name(customer, "Retail")
 	price_list = resolve_price_list(customer, None, sale_channel)
 	return {
 		"sale_channel": sale_channel,
