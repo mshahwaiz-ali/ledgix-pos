@@ -13,6 +13,7 @@ SETTINGS_WRITE_FIELDS = {
     "enabled",
     "mode",
     "submit_trigger",
+    "production_post_armed",
     "block_sale_if_fbr_fails",
     "sandbox_post_on_submit",
     "retry_enabled",
@@ -46,6 +47,7 @@ DISABLED_DEFAULTS = {
     "enabled": False,
     "mode": "Disabled",
     "submit_trigger": "Manual",
+    "production_post_armed": False,
     "block_sale_if_fbr_fails": False,
     "sandbox_post_on_submit": False,
     "retry_enabled": False,
@@ -64,7 +66,6 @@ DISABLED_DEFAULTS = {
 }
 
 
-# Settings access
 def _doctype_exists():
     try:
         return bool(frappe.db.exists("DocType", SETTINGS_DOCTYPE))
@@ -108,6 +109,7 @@ def _settings_dict():
         "enabled": bool(cint(doc.get("enabled"))),
         "mode": doc.get("mode") or "Disabled",
         "submit_trigger": doc.get("submit_trigger") or "Manual",
+        "production_post_armed": bool(cint(doc.get("production_post_armed"))),
         "block_sale_if_fbr_fails": bool(cint(doc.get("block_sale_if_fbr_fails"))),
         "sandbox_post_on_submit": bool(cint(doc.get("sandbox_post_on_submit"))),
         "retry_enabled": bool(cint(doc.get("retry_enabled"))),
@@ -193,7 +195,13 @@ def save_fbr_settings(values):
             value = max(0, min(10, cint(value)))
         elif fieldname == "offline_upload_hours":
             value = max(1, min(72, cint(value or 24)))
-        elif fieldname in {"enabled", "block_sale_if_fbr_fails", "retry_enabled", "sandbox_post_on_submit"}:
+        elif fieldname in {
+            "enabled",
+            "production_post_armed",
+            "block_sale_if_fbr_fails",
+            "retry_enabled",
+            "sandbox_post_on_submit",
+        }:
             value = 1 if cint(value) else 0
 
         doc.set(fieldname, value)
@@ -203,6 +211,11 @@ def save_fbr_settings(values):
 
     mode = doc.get("mode") or "Disabled"
     pause_reason_provided = "pause_reason" in values
+
+    # Production posting must always be deliberately re-armed after leaving
+    # Production. This prevents a stale setting from becoming live later.
+    if mode != "Production":
+        doc.production_post_armed = 0
 
     if mode == "Paused" and old_mode != "Paused":
         doc.paused_at = now_datetime()
@@ -217,7 +230,6 @@ def save_fbr_settings(values):
     return get_fbr_settings()
 
 
-# Control helpers
 def get_fbr_mode():
     return get_fbr_settings_internal().get("mode") or "Disabled"
 
@@ -247,9 +259,12 @@ def is_manual_only():
 
 def should_submit_on_sale_submit():
     settings = get_fbr_settings_internal()
+    mode = settings.get("mode")
+    if mode == "Production" and not settings.get("production_post_armed"):
+        return False
     return (
         bool(settings.get("enabled"))
-        and settings.get("mode") in ACTIVE_MODES
+        and mode in ACTIVE_MODES
         and settings.get("submit_trigger") == "On Submit"
     )
 
@@ -291,6 +306,7 @@ def get_fbr_control_state_internal():
     submit_trigger = settings.get("submit_trigger") or "Manual"
     enabled_checked = bool(settings.get("enabled"))
     enabled = enabled_checked and mode in ACTIVE_MODES
+    production_post_armed = bool(settings.get("production_post_armed"))
 
     token_configured = False
     if mode == "Sandbox":
@@ -301,17 +317,19 @@ def get_fbr_control_state_internal():
     is_paused = mode == "Paused"
     manual_only = mode == "Manual Only" or (mode in ACTIVE_MODES and submit_trigger == "Manual")
     production_post_connected = bool(enabled and mode == "Production" and settings.get("production_token_configured"))
-    auto_submit_active = bool(production_post_connected and submit_trigger == "On Submit")
-    retry_worker_active = bool(production_post_connected and settings.get("retry_enabled"))
-    offline_worker_active = bool(
-        enabled
-        and settings.get("mode") in ACTIVE_MODES
-        and cint(settings.get("offline_upload_hours") or 24) > 0
-    )
+    production_post_ready = bool(production_post_connected and production_post_armed)
+    auto_submit_active = bool(production_post_ready and submit_trigger == "On Submit")
+    retry_worker_active = bool(production_post_ready and settings.get("retry_enabled"))
+    offline_worker_active = False
     can_manual_validate = bool(enabled and token_configured and mode in ACTIVE_MODES)
-    can_manual_submit = bool(production_post_connected)
+    can_manual_submit = bool(production_post_ready)
     can_auto_submit = auto_submit_active
-    can_attempt_submission = bool(enabled and token_configured and submit_trigger in {"On Submit", "Validate Only"})
+    can_attempt_submission = bool(
+        enabled
+        and token_configured
+        and submit_trigger in {"On Submit", "Validate Only"}
+        and (mode != "Production" or production_post_armed or submit_trigger == "Validate Only")
+    )
 
     if mode == "Disabled":
         reason = "FBR disabled"
@@ -325,6 +343,8 @@ def get_fbr_control_state_internal():
         reason = "Manual submission required"
     elif mode in ACTIVE_MODES and not token_configured:
         reason = "FBR token not configured"
+    elif mode == "Production" and submit_trigger == "On Submit" and not production_post_armed:
+        reason = "Production posting is not armed"
     else:
         reason = "Ready"
 
@@ -332,8 +352,10 @@ def get_fbr_control_state_internal():
         "enabled": enabled,
         "mode": mode,
         "submit_trigger": submit_trigger,
+        "production_post_armed": production_post_armed,
         "can_attempt_submission": can_attempt_submission,
         "production_post_connected": production_post_connected,
+        "production_post_ready": production_post_ready,
         "auto_submit_active": auto_submit_active,
         "retry_worker_active": retry_worker_active,
         "offline_worker_active": offline_worker_active,
