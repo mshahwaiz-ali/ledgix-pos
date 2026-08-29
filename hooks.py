@@ -38,7 +38,10 @@ jinja = {
 	],
 }
 
-after_migrate = ["ledgix_saas.setup.permissions.after_migrate"]
+after_migrate = [
+	"ledgix_saas.setup.permissions.after_migrate",
+	"ledgix_saas.setup.v2_permissions.after_migrate",
+]
 
 extend_bootinfo = [
 	"ledgix_saas.api.brand.extend_bootinfo",
