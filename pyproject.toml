@@ -18,6 +18,7 @@ packages = [
     "ledgix_saas.api",
     "ledgix_saas.config",
     "ledgix_saas.setup",
+    "ledgix_saas.services",
     "ledgix_saas.templates",
     "ledgix_saas.templates.pages",
     "ledgix_saas.patches",
@@ -74,6 +75,11 @@ packages = [
     "ledgix.doctype.ledgix_fbr_submission_log",
     "ledgix.doctype.ledgix_stock_movement",
     "ledgix.doctype.ledgix_purchase_item",
+    "ledgix.doctype.ledgix_price_list",
+    "ledgix.doctype.ledgix_item_price",
+    "ledgix.doctype.ledgix_payment_method",
+    "ledgix.doctype.ledgix_payment",
+    "ledgix.doctype.ledgix_payment_allocation",
 ]
 
 [tool.setuptools.package-dir]
@@ -81,6 +87,7 @@ packages = [
 "ledgix_saas.api" = "api"
 "ledgix_saas.config" = "config"
 "ledgix_saas.setup" = "setup"
+"ledgix_saas.services" = "services"
 "ledgix_saas.templates" = "templates"
 "ledgix_saas.templates.pages" = "templates/pages"
 "ledgix_saas.patches" = "patches"
