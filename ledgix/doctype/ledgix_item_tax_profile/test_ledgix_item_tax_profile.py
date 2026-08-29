@@ -10,6 +10,7 @@ from ledgix.doctype.v2_test_utils import (
 	make_sale,
 	make_tax_category,
 	make_tax_rate,
+	unique_name,
 )
 from ledgix_saas.api.fbr_payload import (
 	_validate_sale_fbr_readiness_internal,
@@ -97,6 +98,39 @@ class TestLedgixItemTaxProfile(FrappeTestCase):
 			payload["items"][0]["fixedNotifiedValueOrRetailPrice"],
 			original_payload["items"][0]["fixedNotifiedValueOrRetailPrice"],
 		)
+
+	def test_buyer_snapshot_uses_tax_profile_fallbacks(self):
+		tax_category = make_tax_category(rate=18)
+		make_tax_rate(tax_category.name, rate=18)
+		configure_tax_profile(tax_category.name)
+		item = make_item(selling_price=150)
+		make_item_tax_profile(item.name, tax_category.name, tax_basis="Transaction Value")
+
+		customer_name = unique_name("FBR-FALLBACK-CUSTOMER")
+		customer = frappe.get_doc({
+			"doctype": "Ledgix Customer",
+			"customer_name": customer_name,
+			"customer_type": "B2B",
+			"credit_limit": 5000,
+			"buyer_registration_type": "Unregistered",
+			"buyer_province": "",
+			"buyer_fbr_address": "",
+			"address_line_1": "",
+			"city": "",
+			"is_active": 1,
+		})
+		customer.insert(ignore_permissions=True)
+
+		sale = make_sale(customer.name, item.name, rate=150, sale_channel="B2B", submit=True)
+		sale.reload()
+		self.assertEqual(sale.buyer_province_snapshot, "Punjab")
+		self.assertEqual(sale.buyer_address_snapshot, "Test Outlet")
+		self.assertEqual(sale.buyer_registration_type_snapshot, "Unregistered")
+
+		payload = build_official_sale_invoice_payload(sale)
+		self.assertEqual(payload["buyerProvince"], "Punjab")
+		self.assertEqual(payload["buyerAddress"], "Test Outlet")
+		self.assertEqual(payload["buyerRegistrationType"], "Unregistered")
 
 	def test_third_schedule_sale_requires_notified_retail_price(self):
 		tax_category = make_tax_category(rate=18)
