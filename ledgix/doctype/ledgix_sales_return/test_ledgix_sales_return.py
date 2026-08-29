@@ -11,6 +11,7 @@ from ledgix.doctype.v2_test_utils import (
 	make_sale,
 	make_sales_return,
 )
+from ledgix_saas.api.v2_returns import create_pos_v2_return, get_pos_v2_return_context
 from ledgix_saas.services.receivables import get_customer_receivables
 
 
@@ -31,6 +32,20 @@ class TestLedgixSalesReturn(FrappeTestCase):
 			submit=True,
 		)
 		return item, customer, sale
+
+	def test_return_requires_reason(self):
+		_item, _customer, sale = self._make_stock_sale()
+		doc = frappe.new_doc("Ledgix Sales Return")
+		doc.original_sale = sale.name
+		doc.return_reason = ""
+		doc.append("items", {
+			"item": sale.items[0].item,
+			"original_sale_item_row": sale.items[0].name,
+			"quantity": 1,
+		})
+
+		with self.assertRaises(frappe.ValidationError):
+			doc.validate()
 
 	def test_return_derives_customer_financials_and_stock_from_original_sale(self):
 		item, customer, sale = self._make_stock_sale()
@@ -53,6 +68,29 @@ class TestLedgixSalesReturn(FrappeTestCase):
 
 		credit = get_customer_receivables(customer.name)
 		self.assertAlmostEqual(credit["outstanding"], 100, places=2)
+
+	def test_pos_return_contract_preserves_reason_and_exact_sale_row(self):
+		_item, _customer, sale = self._make_stock_sale()
+		context = get_pos_v2_return_context(sale.name)
+		self.assertEqual(context["sale_id"], sale.name)
+		self.assertEqual(len(context["items"]), 1)
+		row = context["items"][0]
+		self.assertEqual(row["original_sale_item_row"], sale.items[0].name)
+
+		result = create_pos_v2_return(
+			original_sale=sale.name,
+			return_items=[{
+				"item": row["item"],
+				"original_sale_item_row": row["original_sale_item_row"],
+				"qty": 1,
+			}],
+			reason="Damaged item",
+		)
+		return_doc = frappe.get_doc("Ledgix Sales Return", result["return_id"])
+		self.assertEqual(return_doc.return_reason, "Damaged item")
+		self.assertEqual(return_doc.items[0].original_sale_item_row, sale.items[0].name)
+		self.assertEqual(return_doc.customer, sale.customer)
+		self.assertAlmostEqual(return_doc.grand_total, 100, places=2)
 
 	def test_return_cannot_exceed_remaining_original_quantity(self):
 		_item, _customer, sale = self._make_stock_sale()
