@@ -10,6 +10,7 @@
   "amended_from",
   "customer",
   "original_sale",
+  "return_reason",
   "return_items_section",
   "items",
   "totals_section",
@@ -56,6 +57,12 @@
    "in_standard_filter": 1,
    "label": "Original Sale",
    "options": "Ledgix Sale",
+   "reqd": 1
+  },
+  {
+   "fieldname": "return_reason",
+   "fieldtype": "Small Text",
+   "label": "Return Reason",
    "reqd": 1
   },
   {
@@ -156,7 +163,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-05-29 17:26:29.094333",
+ "modified": "2026-08-29 00:00:00.000000",
  "modified_by": "Administrator",
  "module": "Ledgix",
  "name": "Ledgix Sales Return",
