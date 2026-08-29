@@ -2,16 +2,6 @@
 	"use strict";
 
 	const FRAPPE_DEFAULT_LOGO = "/assets/frappe/images/frappe-framework-logo.svg";
-	const NATIVE_PAGE_CONFIG = {
-		"ledgix-tax-center": {
-			title: "Tax & FBR Center",
-			instance: () => window.frappe?.ledgix_tax_center,
-		},
-		"business-intelligence-center": {
-			title: "Inventory Intelligence",
-			instance: () => window.frappe?.ledgix_business_intelligence,
-		},
-	};
 
 	function getBrand() {
 		const boot = (window.frappe && frappe.boot) || {};
@@ -63,7 +53,7 @@
 		link.href = url;
 	}
 
-	function applyDeskNavbarBrand() {
+	function applyDeskBrand() {
 		if (!isLedgixDeskRoute()) return;
 		const brand = getBrand();
 		const logoUrl = brand.symbolUrl || FRAPPE_DEFAULT_LOGO;
@@ -74,34 +64,6 @@
 			img.style.objectFit = "contain";
 		});
 		setFavicon(brand.faviconUrl || logoUrl);
-	}
-
-	function restoreNativePageChrome() {
-		const route = currentRouteName();
-		const config = NATIVE_PAGE_CONFIG[route];
-		if (!config || !window.frappe) return;
-
-		const instance = config.instance();
-		if (instance?.page?.set_title) {
-			instance.page.set_title(config.title);
-		}
-
-		const wrapper = instance?.wrapper;
-		const pageContainer = wrapper
-			? window.jQuery?.(wrapper).closest(".page-container")
-			: window.jQuery?.(".page-container:visible").last();
-		if (pageContainer?.length) {
-			pageContainer.removeClass("ledgix-page-no-frappe-head");
-			pageContainer.find(".page-head, .page-head-content, .page-title, .title-area, .page-actions").css("display", "");
-		}
-
-		if (route === "business-intelligence-center") {
-			window.jQuery?.(".lx-bi-title h2").text("Inventory Intelligence");
-			window.jQuery?.(".lx-bi-header").attr("aria-label", "Inventory Intelligence Header");
-		}
-		if (route === "ledgix-tax-center") {
-			window.jQuery?.(".lx-tax-hero-copy h1").text("Tax & FBR Center");
-		}
 	}
 
 	function applyLoginBrand() {
@@ -116,8 +78,7 @@
 	}
 
 	function applyAll() {
-		applyDeskNavbarBrand();
-		restoreNativePageChrome();
+		applyDeskBrand();
 		applyLoginBrand();
 	}
 
