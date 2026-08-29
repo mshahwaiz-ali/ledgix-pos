@@ -5,7 +5,6 @@ import frappe
 from frappe.model.document import Document
 from frappe.utils import cint, flt
 
-from ledgix_saas.api.settings import is_strict_inventory_mode
 from ledgix_saas.services.receivables import get_customer_receivables, refresh_customer_credit_summary
 from ledgix_saas.services.sales import apply_customer_snapshot
 from ledgix_saas.services.stock import cancel_reference_movements, post_sale_movements
@@ -36,10 +35,9 @@ class LedgixSale(Document):
         self.validate_payments()
         self.validate_credit()
 
-        if is_strict_inventory_mode():
-            from ledgix_saas.api.stock_identity import normalize_sale_serials, validate_sale_serial_numbers
-            normalize_sale_serials(self)
-            validate_sale_serial_numbers(self)
+        from ledgix_saas.api.stock_identity import normalize_sale_serials, validate_sale_serial_numbers
+        normalize_sale_serials(self)
+        validate_sale_serial_numbers(self)
 
     def validate_channel_requirements(self):
         if self.sale_channel not in ("Retail", "B2B"):
@@ -64,12 +62,11 @@ class LedgixSale(Document):
         self.status = "Submitted"
         self.db_set("status", "Submitted", update_modified=False)
 
-        if is_strict_inventory_mode():
-            post_sale_movements(self)
+        post_sale_movements(self)
 
-            from ledgix_saas.api.stock_identity import allocate_sale_fifo, allocate_sale_serials
-            allocate_sale_fifo(self)
-            allocate_sale_serials(self)
+        from ledgix_saas.api.stock_identity import allocate_sale_fifo, allocate_sale_serials
+        allocate_sale_fifo(self)
+        allocate_sale_serials(self)
 
         self.post_legacy_tenders_to_payment_ledger()
         self.update_pos_shift_cash()
@@ -80,11 +77,10 @@ class LedgixSale(Document):
         self.status = "Cancelled"
         self.db_set("status", "Cancelled", update_modified=False)
 
-        if is_strict_inventory_mode():
-            from ledgix_saas.api.stock_identity import reverse_sale_fifo_allocations, reverse_sale_serial_allocations
-            reverse_sale_fifo_allocations(self)
-            reverse_sale_serial_allocations(self)
-            cancel_reference_movements("Ledgix Sale", self.name)
+        from ledgix_saas.api.stock_identity import reverse_sale_fifo_allocations, reverse_sale_serial_allocations
+        reverse_sale_fifo_allocations(self)
+        reverse_sale_serial_allocations(self)
+        cancel_reference_movements("Ledgix Sale", self.name)
 
         self.update_pos_shift_cash()
         refresh_customer_credit_summary(self.customer)
@@ -94,9 +90,6 @@ class LedgixSale(Document):
             self.invoice_number = frappe.model.naming.make_autoname("INV-.#####")
 
     def validate_stock(self):
-        if not is_strict_inventory_mode():
-            return
-
         for row in self.items:
             from ledgix_saas.api.stock_identity import get_locked_current_stock
             current_stock = get_locked_current_stock(row.item)
@@ -204,7 +197,7 @@ class LedgixSale(Document):
             )
 
     def post_legacy_tenders_to_payment_ledger(self):
-        """Bridge POS tender rows into the V2 authoritative payment ledger."""
+        """Bridge finalized POS tender snapshots into the authoritative Payment ledger."""
         if not self.payments or not frappe.db.exists("DocType", "Ledgix Payment"):
             return
 
@@ -232,10 +225,6 @@ class LedgixSale(Document):
                 }],
             )
             remaining_to_allocate -= payment_amount
-
-    # ============================================================
-    # POS SHIFT CASH UPDATE
-    # ============================================================
 
     def update_pos_shift_cash(self):
         if not self.pos_shift:
