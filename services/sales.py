@@ -13,6 +13,19 @@ def infer_sale_channel(customer, explicit=None):
 	return "B2B" if customer_type in {"Wholesale", "B2B"} else "Retail"
 
 
+def _buyer_defaults():
+	if not frappe.db.exists("DocType", "Ledgix Tax Profile"):
+		return {"registration_type": "Unregistered", "province": "", "address": ""}
+	registration_type = frappe.db.get_single_value("Ledgix Tax Profile", "default_buyer_type") or "Unregistered"
+	if registration_type == "Consumer":
+		registration_type = "Unregistered"
+	return {
+		"registration_type": registration_type,
+		"province": frappe.db.get_single_value("Ledgix Tax Profile", "province") or "",
+		"address": frappe.db.get_single_value("Ledgix Tax Profile", "outlet_address") or "",
+	}
+
+
 def apply_customer_snapshot(sale):
 	if not sale.customer:
 		return
@@ -29,6 +42,7 @@ def apply_customer_snapshot(sale):
 	if not customer:
 		return
 
+	defaults = _buyer_defaults()
 	sale.sale_channel = infer_sale_channel(sale.customer, getattr(sale, "sale_channel", None))
 	sale.price_list = resolve_price_list(sale.customer, getattr(sale, "price_list", None), sale.sale_channel)
 	if sale.sale_channel == "B2B":
@@ -39,6 +53,10 @@ def apply_customer_snapshot(sale):
 	sale.buyer_name_snapshot = customer.customer_name
 	sale.buyer_ntn_cnic_snapshot = customer.buyer_ntn_cnic
 	sale.buyer_strn_snapshot = customer.buyer_strn
-	sale.buyer_registration_type_snapshot = customer.buyer_registration_type
-	sale.buyer_province_snapshot = customer.buyer_province
-	sale.buyer_address_snapshot = customer.buyer_fbr_address or ", ".join(filter(None, [customer.address_line_1, customer.city]))
+	sale.buyer_registration_type_snapshot = customer.buyer_registration_type or defaults["registration_type"]
+	sale.buyer_province_snapshot = customer.buyer_province or defaults["province"]
+	sale.buyer_address_snapshot = (
+		customer.buyer_fbr_address
+		or ", ".join(filter(None, [customer.address_line_1, customer.city]))
+		or defaults["address"]
+	)
