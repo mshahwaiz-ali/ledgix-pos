@@ -6,12 +6,12 @@ from frappe.utils import flt
 
 DEFAULT_PRICE_LIST = "Retail"
 PAYMENT_METHODS = (
-	("Cash", "Cash", 0, 1),
-	("Card", "Card", 1, 0),
-	("JazzCash", "Wallet", 1, 0),
-	("EasyPaisa", "Wallet", 1, 0),
-	("Bank Transfer", "Bank Transfer", 1, 0),
-	("Other", "Other", 1, 0),
+	("Cash", "Cash", 0, 1, 10),
+	("Card", "Card", 1, 0, 20),
+	("EasyPaisa", "Wallet", 1, 0, 30),
+	("JazzCash", "Wallet", 1, 0, 40),
+	("Bank Transfer", "Bank Transfer", 1, 0, 50),
+	("Other", "Other", 1, 0, 90),
 )
 
 
@@ -34,7 +34,7 @@ def _ensure_price_list():
 
 
 def _ensure_payment_methods():
-	for name, method_type, requires_reference, allow_change in PAYMENT_METHODS:
+	for name, method_type, requires_reference, allow_change, sort_order in PAYMENT_METHODS:
 		if frappe.db.exists("Ledgix Payment Method", name):
 			continue
 		doc = frappe.new_doc("Ledgix Payment Method")
@@ -43,6 +43,7 @@ def _ensure_payment_methods():
 		doc.enabled = 1
 		doc.requires_reference = requires_reference
 		doc.allow_change = allow_change
+		doc.sort_order = sort_order
 		doc.insert(ignore_permissions=True)
 
 
