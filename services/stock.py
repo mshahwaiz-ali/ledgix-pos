@@ -5,23 +5,35 @@ from frappe.utils import flt
 
 
 def _post_movement(*, item, quantity, movement_type, reference_doctype, reference_name, source, rate=0, note=None, movement_date=None):
-	existing = frappe.db.exists(
+	"""Post exactly one movement per document/item/direction.
+
+	Document line items may contain the same Item more than once. Callers aggregate
+	those rows before entering this boundary, so idempotence is keyed by the stable
+	document/item/direction identity instead of the quantity value.
+	"""
+	existing = frappe.db.get_value(
 		"Ledgix Stock Movement",
 		{
 			"reference_doctype": reference_doctype,
 			"reference_name": reference_name,
 			"item": item,
 			"movement_type": movement_type,
-			"quantity": quantity,
 			"docstatus": ["!=", 2],
 		},
+		["name", "quantity", "valuation_rate"],
+		as_dict=True,
 	)
 	if existing:
-		return existing
+		if abs(flt(existing.quantity) - flt(quantity)) > 0.000001:
+			frappe.throw(
+				f"Stock movement {existing.name} already exists for {reference_doctype} {reference_name} "
+				f"and item {item} with a different quantity."
+			)
+		return existing.name
 
 	movement = frappe.new_doc("Ledgix Stock Movement")
 	movement.item = item
-	movement.quantity = quantity
+	movement.quantity = flt(quantity)
 	movement.valuation_rate = max(flt(rate), 0)
 	movement.movement_type = movement_type
 	movement.reference_doctype = reference_doctype
@@ -38,12 +50,34 @@ def _post_movement(*, item, quantity, movement_type, reference_doctype, referenc
 	return movement.name
 
 
+def _aggregate_item_rows(rows, *, quantity_field="quantity", rate_field="rate"):
+	"""Aggregate duplicate item lines and keep a quantity-weighted valuation rate."""
+	aggregated = {}
+	for row in rows:
+		item = getattr(row, "item", None)
+		quantity = flt(getattr(row, quantity_field, 0))
+		if not item or quantity <= 0:
+			continue
+		rate = max(flt(getattr(row, rate_field, 0)), 0)
+		bucket = aggregated.setdefault(item, {"quantity": 0.0, "value": 0.0})
+		bucket["quantity"] += quantity
+		bucket["value"] += quantity * rate
+
+	for item, bucket in aggregated.items():
+		quantity = flt(bucket["quantity"])
+		yield item, quantity, (flt(bucket["value"]) / quantity if quantity else 0)
+
+
 def post_sale_movements(sale):
-	for row in sale.items:
+	for item, quantity, valuation_rate in _aggregate_item_rows(
+		sale.items,
+		quantity_field="quantity",
+		rate_field="cost_price",
+	):
 		_post_movement(
-			item=row.item,
-			quantity=row.quantity,
-			rate=getattr(row, "cost_price", 0),
+			item=item,
+			quantity=quantity,
+			rate=valuation_rate,
 			movement_type="OUT",
 			reference_doctype="Ledgix Sale",
 			reference_name=sale.name,
@@ -53,11 +87,15 @@ def post_sale_movements(sale):
 
 def post_purchase_movements(purchase):
 	"""Post purchase inventory and valuation through the Stock Movement boundary."""
-	for row in purchase.items:
+	for item, quantity, valuation_rate in _aggregate_item_rows(
+		purchase.items,
+		quantity_field="quantity",
+		rate_field="rate",
+	):
 		_post_movement(
-			item=row.item,
-			quantity=row.quantity,
-			rate=row.rate,
+			item=item,
+			quantity=quantity,
+			rate=valuation_rate,
 			movement_type="IN",
 			reference_doctype="Ledgix Purchase",
 			reference_name=purchase.name,
@@ -83,11 +121,15 @@ def post_sales_return_movements(sales_return):
 	)
 	if not original_has_stock:
 		return
-	for row in sales_return.items:
+	for item, quantity, valuation_rate in _aggregate_item_rows(
+		sales_return.items,
+		quantity_field="quantity",
+		rate_field="cost_price",
+	):
 		_post_movement(
-			item=row.item,
-			quantity=row.quantity,
-			rate=getattr(row, "cost_price", 0),
+			item=item,
+			quantity=quantity,
+			rate=valuation_rate,
 			movement_type="IN",
 			reference_doctype="Ledgix Sales Return",
 			reference_name=sales_return.name,
@@ -109,20 +151,32 @@ def cancel_reference_movements(reference_doctype, reference_name):
 def _legacy_reference_rate(row):
 	"""Recover valuation for pre-V2 movements where possible without guessing."""
 	if row.reference_doctype == "Ledgix Purchase" and row.reference_name:
-		value = frappe.db.get_value(
-			"Ledgix Purchase Item",
-			{"parent": row.reference_name, "item": row.item},
-			"rate",
-		)
-		return flt(value) if value is not None else None
+		values = frappe.db.sql(
+			"""
+			SELECT COALESCE(SUM(quantity), 0) AS qty,
+			       COALESCE(SUM(quantity * rate), 0) AS value
+			FROM `tabLedgix Purchase Item`
+			WHERE parent = %s AND item = %s
+			""",
+			(row.reference_name, row.item),
+			as_dict=True,
+		)[0]
+		qty = flt(values.qty)
+		return flt(values.value) / qty if qty > 0 else None
 
 	if row.reference_doctype == "Ledgix Sales Return" and row.reference_name:
-		value = frappe.db.get_value(
-			"Ledgix Sales Return Item",
-			{"parent": row.reference_name, "item": row.item},
-			"cost_price",
-		)
-		return flt(value) if value is not None else None
+		values = frappe.db.sql(
+			"""
+			SELECT COALESCE(SUM(quantity), 0) AS qty,
+			       COALESCE(SUM(quantity * cost_price), 0) AS value
+			FROM `tabLedgix Sales Return Item`
+			WHERE parent = %s AND item = %s
+			""",
+			(row.reference_name, row.item),
+			as_dict=True,
+		)[0]
+		qty = flt(values.qty)
+		return flt(values.value) / qty if qty > 0 else None
 
 	# OUT movements do not alter moving-average cost, so their missing valuation
 	# does not block a rebuild.
