@@ -38,6 +38,6 @@ class TestV2ReturnCreditBalance(FrappeTestCase):
         self.assertAlmostEqual(credit["net_balance"], -50, places=2)
         self.assertAlmostEqual(credit["available_credit"], 1050, places=2)
 
-        _columns, rows = customer_statement({"customer": customer.name})
+        _columns, rows, _message, _chart, _summary = customer_statement({"customer": customer.name})
         self.assertTrue(rows)
         self.assertAlmostEqual(rows[-1]["balance"], -50, places=2)
