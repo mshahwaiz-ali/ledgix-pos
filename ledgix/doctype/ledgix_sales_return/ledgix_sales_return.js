@@ -38,6 +38,7 @@ frappe.ui.form.on("Ledgix Sales Return", {
                     let row = frm.add_child("items");
 
                     row.item = item.item;
+                    row.original_sale_item_row = item.name;
                     row.quantity = item.quantity;
 
                     row.rate = item.rate;
