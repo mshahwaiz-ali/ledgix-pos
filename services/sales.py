@@ -29,15 +29,14 @@ def _buyer_defaults():
 def _brand_identity():
 	if not frappe.db.exists("DocType", "Ledgix Brand Settings"):
 		return {}
-	brand = frappe.get_single("Ledgix Brand Settings")
 	return {
-		"brand_name": brand.get("brand_name") or "",
-		"legal_business_name": brand.get("legal_business_name") or "",
-		"business_address": brand.get("business_address") or "",
-		"business_phone": brand.get("business_phone") or "",
-		"business_email": brand.get("business_email") or "",
-		"ntn": brand.get("ntn") or "",
-		"strn": brand.get("strn") or "",
+		"brand_name": frappe.db.get_single_value("Ledgix Brand Settings", "brand_name") or "",
+		"legal_business_name": frappe.db.get_single_value("Ledgix Brand Settings", "legal_business_name") or "",
+		"business_address": frappe.db.get_single_value("Ledgix Brand Settings", "business_address") or "",
+		"business_phone": frappe.db.get_single_value("Ledgix Brand Settings", "business_phone") or "",
+		"business_email": frappe.db.get_single_value("Ledgix Brand Settings", "business_email") or "",
+		"ntn": frappe.db.get_single_value("Ledgix Brand Settings", "ntn") or "",
+		"strn": frappe.db.get_single_value("Ledgix Brand Settings", "strn") or "",
 	}
 
 
