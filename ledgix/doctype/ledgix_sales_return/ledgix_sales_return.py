@@ -12,6 +12,8 @@ from ledgix_saas.services.stock import cancel_reference_movements, post_sales_re
 class LedgixSalesReturn(Document):
 
     def validate(self):
+        self.apply_original_sale_context()
+        self.resolve_original_sale_item_rows()
         self.validate_return_quantities()
         self.enforce_original_sale_item_financials()
         self.calculate_totals()
@@ -44,6 +46,41 @@ class LedgixSalesReturn(Document):
 
         if self.customer:
             refresh_customer_credit_summary(self.customer)
+
+    def apply_original_sale_context(self):
+        """Derive immutable return ownership from the submitted original sale."""
+        if not self.original_sale:
+            return
+        original_sale = frappe.get_doc("Ledgix Sale", self.original_sale)
+        if original_sale.docstatus != 1:
+            frappe.throw("Sales Return requires a submitted original sale.")
+        self.customer = original_sale.customer
+
+    def resolve_original_sale_item_rows(self):
+        """Resolve a return row to an original sale row on the server.
+
+        Older UI flows only sent an item code. That is safe when the item appears once
+        on the sale. If the same item appears on multiple sale rows, the caller must
+        provide original_sale_item_row so tax/price/cost snapshots cannot be guessed.
+        """
+        if not self.original_sale:
+            return
+        original_sale = frappe.get_doc("Ledgix Sale", self.original_sale)
+        rows_by_item = {}
+        for sale_row in original_sale.items:
+            rows_by_item.setdefault(sale_row.item, []).append(sale_row)
+
+        for row in self.items:
+            if getattr(row, "original_sale_item_row", None):
+                continue
+            matches = rows_by_item.get(row.item) or []
+            if len(matches) == 1:
+                row.original_sale_item_row = matches[0].name
+            elif len(matches) > 1:
+                frappe.throw(
+                    f"Item {row.item} appears on multiple original sale rows. "
+                    "Select the exact original sale item row before returning it."
+                )
 
     def validate_return_quantities(self):
         if not self.original_sale:
@@ -97,7 +134,7 @@ class LedgixSalesReturn(Document):
         for row in self.items:
             original_sale_item_row = getattr(row, "original_sale_item_row", None)
             if not original_sale_item_row:
-                continue
+                frappe.throw("Return row must reference an original sale item row.")
             original_row = original_rows.get(original_sale_item_row)
             if not original_row:
                 frappe.throw("Return row does not belong to the original sale.")
