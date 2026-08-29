@@ -18,18 +18,8 @@ BUSINESS_ROLES = (
 )
 
 PERM_KEYS = (
-	"read",
-	"write",
-	"create",
-	"delete",
-	"submit",
-	"cancel",
-	"amend",
-	"report",
-	"export",
-	"share",
-	"print",
-	"email",
+	"read", "write", "create", "delete", "submit", "cancel", "amend",
+	"report", "export", "share", "print", "email",
 )
 
 
@@ -45,21 +35,7 @@ def _full(role):
 
 
 def _full_submittable(role):
-	return _perm(
-		role,
-		read=1,
-		write=1,
-		create=1,
-		delete=1,
-		submit=1,
-		cancel=1,
-		amend=1,
-		report=1,
-		export=1,
-		share=1,
-		print=1,
-		email=1,
-	)
+	return _perm(role, read=1, write=1, create=1, delete=1, submit=1, cancel=1, amend=1, report=1, export=1, share=1, print=1, email=1)
 
 
 def _read(role):
@@ -85,8 +61,6 @@ def _rows(*rows):
 	return ordered
 
 
-# Business roles are deliberately narrower than System Manager. UI visibility is
-# never treated as authorization; sensitive actions are also checked server-side.
 DOCTYPE_PERMISSIONS = {
 	"Ledgix Item": _rows(_full("System Manager"), _full("Ledgix Admin"), _rw("Ledgix Manager"), _read("Ledgix Cashier")),
 	"Ledgix Category": _rows(_full("System Manager"), _full("Ledgix Admin"), _rw("Ledgix Manager"), _read("Ledgix Cashier")),
@@ -124,15 +98,11 @@ DOCTYPE_PERMISSIONS = {
 
 REPORT_ROLES = ("System Manager", "Ledgix Admin", "Ledgix Manager")
 
-# Legacy Pages remain available to Manager/Admin during migration, but are no
-# longer the homepage/navigation shell. They can be removed only after parity.
+# Final V2 custom-page footprint. Standard back-office work lives in native Frappe.
 PAGE_ROLES = {
 	"ledgix-pos": ("System Manager", "Ledgix Admin", "Ledgix Manager", "Ledgix Cashier"),
-	"ledgix_operations": ("System Manager", "Ledgix Admin", "Ledgix Manager"),
-	"ledgix-reports": ("System Manager", "Ledgix Admin", "Ledgix Manager"),
 	"ledgix-tax-center": ("System Manager", "Ledgix Admin", "Ledgix Manager"),
 	"business-intelligence-center": ("System Manager", "Ledgix Admin", "Ledgix Manager"),
-	"ledgix-dashboard": ("System Manager", "Ledgix Admin", "Ledgix Manager"),
 }
 
 ROLE_HOME_PAGES = {
@@ -184,13 +154,7 @@ def sync_page_roles():
 			continue
 		frappe.db.delete("Has Role", {"parent": page_name, "parenttype": "Page"})
 		for role in roles:
-			frappe.get_doc({
-				"doctype": "Has Role",
-				"parent": page_name,
-				"parenttype": "Page",
-				"parentfield": "roles",
-				"role": role,
-			}).insert(ignore_permissions=True)
+			frappe.get_doc({"doctype":"Has Role","parent":page_name,"parenttype":"Page","parentfield":"roles","role":role}).insert(ignore_permissions=True)
 
 
 def sync_role_home_pages():
@@ -204,13 +168,7 @@ def sync_workspace_roles():
 		return
 	frappe.db.delete("Has Role", {"parent": "Ledgix", "parenttype": "Workspace"})
 	for role in WORKSPACE_ROLES:
-		frappe.get_doc({
-			"doctype": "Has Role",
-			"parent": "Ledgix",
-			"parenttype": "Workspace",
-			"parentfield": "roles",
-			"role": role,
-		}).insert(ignore_permissions=True)
+		frappe.get_doc({"doctype":"Has Role","parent":"Ledgix","parenttype":"Workspace","parentfield":"roles","role":role}).insert(ignore_permissions=True)
 
 
 def sync_report_roles():
@@ -228,13 +186,7 @@ def sync_report_roles():
 			continue
 		frappe.db.delete("Has Role", {"parent": report_name, "parenttype": "Report"})
 		for role in REPORT_ROLES:
-			frappe.get_doc({
-				"doctype": "Has Role",
-				"parent": report_name,
-				"parenttype": "Report",
-				"parentfield": "roles",
-				"role": role,
-			}).insert(ignore_permissions=True)
+			frappe.get_doc({"doctype":"Has Role","parent":report_name,"parenttype":"Report","parentfield":"roles","role":role}).insert(ignore_permissions=True)
 
 
 def sync_all():
