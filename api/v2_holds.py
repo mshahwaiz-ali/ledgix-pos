@@ -23,6 +23,17 @@ def _normalize_channel(value):
     return channel
 
 
+def _available_serials(item, qty):
+    rows = frappe.get_all(
+        "Ledgix Stock Serial",
+        filters={"item": item, "status": "Available"},
+        fields=["serial_no"],
+        order_by="purchase_date asc, creation asc, serial_no asc",
+        limit_page_length=max(cint(qty), 1),
+    )
+    return [row.serial_no for row in rows]
+
+
 def _normalize_serial_selection(item, tracking_type, qty, serial_numbers):
     if tracking_type != "Serial Based":
         return ""
@@ -32,10 +43,13 @@ def _normalize_serial_selection(item, tracking_type, qty, serial_numbers):
         frappe.throw(f"Serial Based item {item} quantity must be a whole number.")
 
     serials = parse_serial_numbers(serial_numbers)
+    if not serials:
+        serials = _available_serials(item, qty)
+
     if cint(qty) != len(serials):
         frappe.throw(
             f"Serial Based item {item} requires {cint(qty)} serial number(s), "
-            f"but {len(serials)} provided."
+            f"but {len(serials)} available/selected."
         )
 
     for serial_no in serials:
