@@ -6,7 +6,7 @@ from frappe.model.document import Document
 from frappe.utils import cint, flt
 
 from ledgix_saas.services.receivables import get_customer_receivables, refresh_customer_credit_summary
-from ledgix_saas.services.sales import apply_customer_snapshot, apply_seller_snapshot
+from ledgix_saas.services.sales import apply_customer_snapshot, apply_item_snapshots, apply_seller_snapshot
 from ledgix_saas.services.stock import cancel_reference_movements, post_sale_movements
 from ledgix_saas.services.tax import apply_sale_tax_snapshot
 
@@ -21,6 +21,7 @@ class LedgixSale(Document):
             self.status = "Draft"
             apply_customer_snapshot(self)
             apply_seller_snapshot(self)
+            apply_item_snapshots(self)
 
         self.validate_channel_requirements()
         self.validate_stock()
@@ -41,9 +42,10 @@ class LedgixSale(Document):
         validate_sale_serial_numbers(self)
 
     def before_submit(self):
-        # Freeze seller legal/tax identity at the final posting boundary. Drafts may
-        # live for some time, so their earlier snapshot must not outrank submit-time truth.
+        # Freeze legal seller and customer-facing item identity at the final posting
+        # boundary so later master-data edits cannot change historical reprints.
         apply_seller_snapshot(self)
+        apply_item_snapshots(self)
 
     def validate_channel_requirements(self):
         if self.sale_channel not in ("Retail", "B2B"):
