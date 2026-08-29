@@ -105,6 +105,16 @@ PAGE_ROLES = {
 	"business-intelligence-center": ("System Manager", "Ledgix Admin", "Ledgix Manager"),
 }
 
+# Old custom shells were removed from source, but Frappe does not automatically
+# delete their Page records from existing sites. Keep this cleanup explicit and
+# idempotent so upgraded sites match the V2 page footprint.
+RETIRED_PAGES = (
+	"ledgix-dashboard",
+	"ledgix_operations",
+	"ledgix-reports",
+	"quick-item-scan",
+)
+
 ROLE_HOME_PAGES = {
 	"Ledgix Cashier": "ledgix-pos",
 	"Ledgix Manager": "Ledgix",
@@ -146,6 +156,21 @@ def sync_doctype_permissions():
 			continue
 		for row in permissions:
 			_apply_perm_row(doctype, 0, row)
+
+
+def cleanup_retired_pages():
+	for page_name in RETIRED_PAGES:
+		if not frappe.db.exists("Page", page_name):
+			continue
+		if frappe.db.get_value("Page", page_name, "module") != "Ledgix":
+			continue
+		frappe.delete_doc(
+			"Page",
+			page_name,
+			force=True,
+			ignore_permissions=True,
+			ignore_missing=True,
+		)
 
 
 def sync_page_roles():
@@ -191,6 +216,7 @@ def sync_report_roles():
 
 def sync_all():
 	sync_doctype_permissions()
+	cleanup_retired_pages()
 	sync_page_roles()
 	sync_role_home_pages()
 	sync_workspace_roles()
