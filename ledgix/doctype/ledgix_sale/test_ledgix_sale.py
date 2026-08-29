@@ -187,3 +187,32 @@ class TestLedgixSale(FrappeTestCase):
 			),
 			1,
 		)
+
+	def test_sale_with_posted_payment_activity_cannot_be_cancelled(self):
+		ensure_cash_payment_method()
+		item = make_item(selling_price=100, cost_price=40, opening_stock=5)
+		customer = make_customer(customer_type="B2B", credit_limit=500)
+
+		sale = make_sale(
+			customer.name,
+			item.name,
+			rate=100,
+			sale_channel="B2B",
+			payments=[{"payment_method": "Cash", "amount": 40}],
+			submit=True,
+		)
+		self.assertEqual(frappe.db.get_value("Ledgix Item", item.name, "current_stock"), 4)
+
+		with self.assertRaises(frappe.ValidationError):
+			sale.cancel()
+
+		sale.reload()
+		self.assertEqual(sale.docstatus, 1)
+		self.assertEqual(frappe.db.get_value("Ledgix Item", item.name, "current_stock"), 4)
+		self.assertEqual(
+			frappe.db.count(
+				"Ledgix Payment Allocation",
+				filters={"reference_doctype": "Ledgix Sale", "reference_name": sale.name},
+			),
+			1,
+		)
