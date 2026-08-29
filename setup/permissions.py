@@ -39,6 +39,11 @@ def _full_submittable(role):
 	return _perm(role, read=1, write=1, create=1, delete=1, submit=1, cancel=1, amend=1, report=1, export=1, share=1, print=1, email=1)
 
 
+def _payment_admin(role):
+	# Posted payments are corrected through explicit reversal transactions, not cancel/amend.
+	return _perm(role, read=1, write=1, create=1, delete=1, submit=1, report=1, export=1, share=1, print=1, email=1)
+
+
 def _read(role):
 	return _perm(role, read=1, print=1)
 
@@ -81,6 +86,11 @@ DOCTYPE_PERMISSIONS = {
 	"Ledgix POS Shift": _rows(_full_submittable("System Manager"), _full_submittable("Ledgix Admin"), _rw("Ledgix Manager"), _rw("Ledgix Cashier")),
 	"Ledgix POS Hold": _rows(_full("System Manager"), _full("Ledgix Admin"), _rw("Ledgix Manager"), _rw("Ledgix Cashier")),
 	"Ledgix POS Hold Item": _rows(_full("System Manager"), _full("Ledgix Admin"), _read("Ledgix Manager"), _read("Ledgix Cashier")),
+	"Ledgix Price List": _rows(_full("System Manager"), _full("Ledgix Admin"), _rw("Ledgix Manager"), _read("Ledgix Cashier")),
+	"Ledgix Item Price": _rows(_full("System Manager"), _full("Ledgix Admin"), _rw("Ledgix Manager"), _read("Ledgix Cashier")),
+	"Ledgix Payment Method": _rows(_full("System Manager"), _full("Ledgix Admin"), _read("Ledgix Manager"), _read("Ledgix Cashier")),
+	"Ledgix Payment": _rows(_payment_admin("System Manager"), _payment_admin("Ledgix Admin"), _audit_read("Ledgix Manager"), _read("Ledgix Cashier")),
+	"Ledgix Payment Allocation": _rows(_full("System Manager"), _full("Ledgix Admin"), _audit_read("Ledgix Manager"), _read("Ledgix Cashier")),
 	"Ledgix Stock Movement": _rows(_full_submittable("System Manager"), _audit_read("Ledgix Admin"), _audit_read("Ledgix Manager")),
 	"Ledgix Stock Serial": _rows(_full("System Manager"), _full("Ledgix Admin"), _read("Ledgix Manager"), _read("Ledgix Cashier")),
 	"Ledgix Stock Lot": _rows(_full("System Manager"), _full("Ledgix Admin"), _read("Ledgix Manager")),
