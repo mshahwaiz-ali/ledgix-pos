@@ -7,6 +7,7 @@ from ledgix.doctype.v2_test_utils import (
     make_item,
     make_sale,
 )
+from ledgix_saas.api.printing import get_fbr_qr_data_uri
 
 
 class TestV2PrintFormats(FrappeTestCase):
@@ -115,3 +116,27 @@ class TestV2PrintFormats(FrappeTestCase):
             self.assertIn("7654321", rendered)
             self.assertNotIn("Changed Seller Ltd", rendered)
             self.assertNotIn("Changed Address", rendered)
+
+    def test_fbr_invoice_qr_is_rendered_from_unique_invoice_number(self):
+        self._set_brand_identity("QR Seller Ltd", "QR Address", "1234567")
+        item = make_item(selling_price=100, cost_price=40, opening_stock=5)
+        customer = make_customer(customer_type="B2B", credit_limit=5000)
+        sale = make_sale(customer.name, item.name, rate=100, sale_channel="B2B", submit=True)
+        fbr_invoice_number = "7000007DI1747119701593"
+        frappe.db.set_value(
+            "Ledgix Sale",
+            sale.name,
+            {"fbr_invoice_number": fbr_invoice_number, "fbr_status": "Submitted"},
+            update_modified=False,
+        )
+
+        expected_qr = get_fbr_qr_data_uri(fbr_invoice_number)
+        self.assertTrue(expected_qr.startswith("data:image/svg+xml;base64,"))
+
+        thermal = frappe.get_print("Ledgix Sale", sale.name, print_format="Ledgix Thermal Receipt")
+        invoice = frappe.get_print("Ledgix Sale", sale.name, print_format="Ledgix B2B Invoice")
+
+        for rendered in (thermal, invoice):
+            self.assertIn(fbr_invoice_number, rendered)
+            self.assertIn(expected_qr, rendered)
+            self.assertIn("FBR Digital Invoice", rendered)
