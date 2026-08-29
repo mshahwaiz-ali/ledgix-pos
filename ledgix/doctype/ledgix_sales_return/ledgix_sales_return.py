@@ -3,7 +3,7 @@
 
 import frappe
 from frappe.model.document import Document
-from frappe.utils import flt
+from frappe.utils import flt, nowdate
 
 from ledgix_saas.services.receivables import refresh_customer_credit_summary
 from ledgix_saas.services.stock import cancel_reference_movements, post_sales_return_movements
@@ -13,6 +13,7 @@ class LedgixSalesReturn(Document):
 
     def validate(self):
         self.validate_return_reason()
+        self.ensure_return_date()
         self.apply_original_sale_context()
         self.resolve_original_sale_item_rows()
         self.validate_return_quantities()
@@ -53,6 +54,13 @@ class LedgixSalesReturn(Document):
         if not reason:
             frappe.throw("Return Reason is required.")
         self.return_reason = reason
+        self.fbr_reason_remarks = str(getattr(self, "fbr_reason_remarks", "") or "").strip()
+
+    def ensure_return_date(self):
+        # Freeze a business document date instead of generating the FBR note date at
+        # network-call time. Historical submissions/retries must keep the same date.
+        if not getattr(self, "return_date", None):
+            self.return_date = nowdate()
 
     def apply_original_sale_context(self):
         """Derive immutable return ownership from the submitted original sale."""
@@ -214,9 +222,13 @@ class LedgixSalesReturn(Document):
                     inclusive_mode = True
                 returned_gross_amount = flt(getattr(tax_row, "gross_amount", 0)) * return_ratio
                 returned_taxable_amount = flt(tax_row.taxable_amount) * return_ratio
-                returned_tax_amount = flt(tax_row.tax_amount) * return_ratio
+                returned_sales_tax = flt(tax_row.tax_amount) * return_ratio
+                returned_withheld = flt(getattr(tax_row, "sales_tax_withheld_at_source", 0)) * return_ratio
+                returned_extra_tax = flt(getattr(tax_row, "extra_tax", 0)) * return_ratio
+                returned_further_tax = flt(getattr(tax_row, "further_tax", 0)) * return_ratio
+                returned_fed = flt(getattr(tax_row, "fed_payable", 0)) * return_ratio
                 returned_net_amount = flt(tax_row.net_amount) * return_ratio
-                total_return_tax += returned_tax_amount
+                total_return_tax += returned_sales_tax + returned_extra_tax + returned_further_tax + returned_fed
 
                 self.append("tax_details", {
                     "sales_return": self.name,
@@ -228,11 +240,16 @@ class LedgixSalesReturn(Document):
                     "gross_amount": flt(returned_gross_amount, 2),
                     "taxable_amount": flt(returned_taxable_amount, 2),
                     "tax_rate": flt(tax_row.tax_rate),
-                    "tax_amount": flt(returned_tax_amount, 2),
+                    "fbr_rate_description": getattr(tax_row, "fbr_rate_description", None),
+                    "tax_amount": flt(returned_sales_tax, 2),
+                    "sales_tax_withheld_at_source": flt(returned_withheld, 2),
+                    "extra_tax": flt(returned_extra_tax, 2),
+                    "further_tax": flt(returned_further_tax, 2),
+                    "fed_payable": flt(returned_fed, 2),
                     "net_amount": flt(returned_net_amount, 2),
                     "price_includes_tax": price_includes_tax,
                     "returned_taxable_amount": flt(returned_taxable_amount, 2),
-                    "returned_tax_amount": flt(returned_tax_amount, 2),
+                    "returned_tax_amount": flt(returned_sales_tax, 2),
                     "tax_category": tax_row.tax_category,
                     "tax_basis": getattr(tax_row, "tax_basis", "Transaction Value"),
                     "notified_retail_price": flt(getattr(tax_row, "notified_retail_price", 0)),
