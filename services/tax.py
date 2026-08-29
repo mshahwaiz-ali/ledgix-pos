@@ -19,14 +19,42 @@ def _item_tax_mapping(item):
 	return frappe.db.get_value(
 		"Ledgix Item Tax Profile",
 		{"item": item, "active": 1},
-		["name", "tax_basis", "notified_retail_price"],
+		[
+			"name",
+			"tax_basis",
+			"notified_retail_price",
+			"fbr_rate_description",
+			"sales_tax_withheld_at_source_per_unit",
+			"extra_tax_per_unit",
+			"further_tax_per_unit",
+			"fed_payable_per_unit",
+		],
 		as_dict=True,
 		order_by="modified desc",
 	)
 
 
+def _format_tax_rate(rate):
+	rate = flt(rate)
+	if rate == int(rate):
+		return f"{int(rate)}%"
+	return f"{rate:g}%"
+
+
+def _component_amount(mapping, fieldname, qty):
+	if not mapping:
+		return 0.0
+	return flt(flt(mapping.get(fieldname)) * flt(qty), 2)
+
+
 def apply_sale_tax_snapshot(doc):
-	"""Apply immutable sale/item tax snapshots, including notified retail price basis."""
+	"""Apply immutable sale/item tax snapshots used for accounting and FBR DI payloads.
+
+	The ordinary sales-tax amount remains distinct from FBR fields such as Further
+	Tax, Extra Tax, FED and sales tax withheld at source. Charged additional taxes
+	contribute to the payable total. Withheld tax is reported to FBR but is not
+	double-added to what the customer owes.
+	"""
 	profile = get_tax_profile()
 	price_includes_tax = bool(profile.get("price_includes_tax"))
 
@@ -43,7 +71,7 @@ def apply_sale_tax_snapshot(doc):
 
 	posting_date = getattr(doc, "sale_date", None)
 	tax_rows = []
-	total_tax = 0.0
+	total_invoice_tax = 0.0
 
 	for row in doc.get("items") or []:
 		qty = flt(row.quantity)
@@ -73,8 +101,23 @@ def apply_sale_tax_snapshot(doc):
 			tax_rate,
 			price_includes_tax=price_includes_tax,
 		)
-		tax_amount = flt(breakdown.get("tax_amount"), 2)
-		total_tax += tax_amount
+		sales_tax_applicable = flt(breakdown.get("tax_amount"), 2)
+		sales_tax_withheld = _component_amount(mapping, "sales_tax_withheld_at_source_per_unit", qty)
+		extra_tax = _component_amount(mapping, "extra_tax_per_unit", qty)
+		further_tax = _component_amount(mapping, "further_tax_per_unit", qty)
+		fed_payable = _component_amount(mapping, "fed_payable_per_unit", qty)
+		charged_special_taxes = flt(extra_tax + further_tax + fed_payable, 2)
+		line_invoice_tax = flt(sales_tax_applicable + charged_special_taxes, 2)
+		total_invoice_tax += line_invoice_tax
+
+		fbr_rate_description = str(mapping.fbr_rate_description if mapping else "" or "").strip()
+		if not fbr_rate_description:
+			fbr_rate_description = _format_tax_rate(tax_rate)
+
+		if price_includes_tax:
+			net_amount = transaction_amount
+		else:
+			net_amount = flt(transaction_amount + line_invoice_tax, 2)
 
 		if hasattr(row, "item_tax_profile_snapshot"):
 			row.item_tax_profile_snapshot = mapping.name if mapping else None
@@ -98,8 +141,13 @@ def apply_sale_tax_snapshot(doc):
 			"taxable_amount": flt(breakdown.get("taxable_amount"), 2),
 			"tax_category": ctx.get("tax_category"),
 			"tax_rate": tax_rate,
-			"tax_amount": tax_amount,
-			"net_amount": flt(transaction_amount if price_includes_tax else transaction_amount + tax_amount, 2),
+			"fbr_rate_description": fbr_rate_description,
+			"tax_amount": sales_tax_applicable,
+			"sales_tax_withheld_at_source": sales_tax_withheld,
+			"extra_tax": extra_tax,
+			"further_tax": further_tax,
+			"fed_payable": fed_payable,
+			"net_amount": net_amount,
 			"price_includes_tax": 1 if price_includes_tax else 0,
 			"hs_code": ctx.get("hs_code"),
 			"uom_for_fbr": ctx.get("uom_for_fbr"),
@@ -109,8 +157,8 @@ def apply_sale_tax_snapshot(doc):
 			"sro_item_serial_number": ctx.get("sro_item_serial_number"),
 		})
 
-	doc.tax_amount = flt(total_tax, 2)
-	doc.grand_total = flt(doc.total_amount if price_includes_tax else flt(doc.total_amount) + total_tax, 2)
+	doc.tax_amount = flt(total_invoice_tax, 2)
+	doc.grand_total = flt(doc.total_amount if price_includes_tax else flt(doc.total_amount) + total_invoice_tax, 2)
 	if hasattr(doc, "tax_details"):
 		doc.set("tax_details", [])
 		for tax_row in tax_rows:
