@@ -40,6 +40,11 @@ class LedgixSale(Document):
         normalize_sale_serials(self)
         validate_sale_serial_numbers(self)
 
+    def before_submit(self):
+        # Freeze seller legal/tax identity at the final posting boundary. Drafts may
+        # live for some time, so their earlier snapshot must not outrank submit-time truth.
+        apply_seller_snapshot(self)
+
     def validate_channel_requirements(self):
         if self.sale_channel not in ("Retail", "B2B"):
             frappe.throw("Sale Channel must be Retail or B2B.")
