@@ -41,6 +41,27 @@ class TestLedgixUserProfile(FrappeTestCase):
 		self.assertFalse(frappe.has_permission("Ledgix Sale", ptype="create"))
 		self.assertTrue(frappe.has_permission("Ledgix Purchase", ptype="create"))
 
+	def test_v2_pricing_and_payment_permissions_share_main_role_contract(self):
+		cashier = make_user_with_roles("Ledgix Cashier")
+		frappe.set_user(cashier.name)
+		self.assertTrue(frappe.has_permission("Ledgix Price List", ptype="read"))
+		self.assertFalse(frappe.has_permission("Ledgix Price List", ptype="write"))
+		self.assertTrue(frappe.has_permission("Ledgix Payment Method", ptype="read"))
+		self.assertFalse(frappe.has_permission("Ledgix Payment", ptype="create"))
+
+		manager = make_user_with_roles("Ledgix Manager")
+		frappe.set_user(manager.name)
+		self.assertTrue(frappe.has_permission("Ledgix Price List", ptype="create"))
+		self.assertFalse(frappe.has_permission("Ledgix Payment Method", ptype="write"))
+		self.assertTrue(frappe.has_permission("Ledgix Payment", ptype="read"))
+		self.assertFalse(frappe.has_permission("Ledgix Payment", ptype="create"))
+
+		admin = make_user_with_roles("Ledgix Admin")
+		frappe.set_user(admin.name)
+		self.assertTrue(frappe.has_permission("Ledgix Payment", ptype="create"))
+		self.assertTrue(frappe.has_permission("Ledgix Payment", ptype="submit"))
+		self.assertFalse(frappe.has_permission("Ledgix Payment", ptype="cancel"))
+
 	def test_page_and_workspace_roles_match_v2_navigation_contract(self):
 		def roles_for(parent, parenttype):
 			return set(frappe.get_all(
