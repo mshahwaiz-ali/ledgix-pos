@@ -7,6 +7,7 @@ from pathlib import Path
 
 import frappe
 from frappe.permissions import add_permission, update_permission_property
+from frappe.utils import cint
 
 APP_ROOT = Path(__file__).resolve().parents[1]
 DOCTYPE_ROOT = APP_ROOT / "ledgix" / "doctype"
@@ -80,8 +81,6 @@ DOCTYPE_PERMISSIONS = {
 	"Ledgix Stock Serial": _rows(_full("System Manager"), _full("Ledgix Admin"), _read("Ledgix Manager"), _read("Ledgix Cashier")),
 	"Ledgix Stock Lot": _rows(_full("System Manager"), _full("Ledgix Admin"), _read("Ledgix Manager")),
 	"Ledgix Stock Lot Allocation": _rows(_full("System Manager"), _full("Ledgix Admin"), _read("Ledgix Manager")),
-	"Ledgix Mode Settings": _rows(_full("System Manager"), _full("Ledgix Admin")),
-	"Ledgix POS Theme Settings": _rows(_full("System Manager"), _full("Ledgix Admin")),
 	"Ledgix Tax Profile": _rows(_full("System Manager"), _full("Ledgix Admin"), _read("Ledgix Manager")),
 	"Ledgix Tax Category": _rows(_full("System Manager"), _full("Ledgix Admin"), _read("Ledgix Manager")),
 	"Ledgix Tax Rate": _rows(_full("System Manager"), _full("Ledgix Admin"), _read("Ledgix Manager")),
@@ -113,6 +112,13 @@ RETIRED_PAGES = (
 	"ledgix_operations",
 	"ledgix-reports",
 	"quick-item-scan",
+)
+
+# V2 has one inventory model and one branding source. These two Singles were
+# configuration-only legacy concepts, so upgraded sites can safely retire them.
+RETIRED_SETTING_DOCTYPES = (
+	"Ledgix Mode Settings",
+	"Ledgix POS Theme Settings",
 )
 
 ROLE_HOME_PAGES = {
@@ -173,6 +179,38 @@ def cleanup_retired_pages():
 		)
 
 
+def _migrate_legacy_pos_color():
+	if not frappe.db.exists("DocType", "Ledgix POS Theme Settings"):
+		return
+	if not frappe.db.exists("DocType", "Ledgix Brand Settings"):
+		return
+
+	enabled = cint(frappe.db.get_single_value("Ledgix POS Theme Settings", "enable_custom_accent"))
+	accent = str(frappe.db.get_single_value("Ledgix POS Theme Settings", "primary_accent_color") or "").strip()
+	brand_color = str(frappe.db.get_single_value("Ledgix Brand Settings", "primary_brand_color") or "").strip()
+
+	# Preserve an old configured accent only when the consolidated Brand Settings
+	# color is still blank/default. Never overwrite an explicitly branded site.
+	if enabled and accent and (not brand_color or brand_color.lower() == "#8c2031"):
+		frappe.db.set_single_value("Ledgix Brand Settings", "primary_brand_color", accent)
+
+
+def cleanup_retired_setting_doctypes():
+	_migrate_legacy_pos_color()
+	for doctype in RETIRED_SETTING_DOCTYPES:
+		if not frappe.db.exists("DocType", doctype):
+			continue
+		if frappe.db.get_value("DocType", doctype, "module") != "Ledgix":
+			continue
+		frappe.delete_doc(
+			"DocType",
+			doctype,
+			force=True,
+			ignore_permissions=True,
+			ignore_missing=True,
+		)
+
+
 def sync_page_roles():
 	for page_name, roles in PAGE_ROLES.items():
 		if not frappe.db.exists("Page", page_name):
@@ -215,6 +253,7 @@ def sync_report_roles():
 
 
 def sync_all():
+	cleanup_retired_setting_doctypes()
 	sync_doctype_permissions()
 	cleanup_retired_pages()
 	sync_page_roles()
