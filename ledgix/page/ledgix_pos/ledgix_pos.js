@@ -145,7 +145,7 @@ class LedgixPOSV2 {
 
 	select_category(category) { this.state.category = category || "All"; this.render_categories(); this.load_items(this.$root.find(".lx-search-input").val()); }
 	add_first_visible_item() { if (this.state.items.length === 1) this.add_item(this.state.items[0].name); }
-	add_item(name) { const item = this.state.items.find(row => row.name === name); if (!item) return; const row = this.state.cart.find(x => x.item === name); if (row) row.qty += 1; else this.state.cart.push({ item: item.name, name: item.item_name, qty: 1, rate: Number(item.rate || 0), list_rate: Number(item.list_rate || item.rate || 0), override_rate: null, override_reason: "" }); this.state.tenders = []; this.schedule_preview(); this.render_cart(); this.$root.find(".lx-search-input").val("").focus(); }
+	add_item(name) { const item = this.state.items.find(row => row.name === name); if (!item) return; const row = this.state.cart.find(x => x.item === name); if (row) row.qty += 1; else this.state.cart.push({ item: item.name, name: item.item_name, tracking_type: item.tracking_type || "Normal", serial_numbers: "", qty: 1, rate: Number(item.rate || 0), list_rate: Number(item.list_rate || item.rate || 0), override_rate: null, override_reason: "" }); this.state.tenders = []; this.schedule_preview(); this.render_cart(); this.$root.find(".lx-search-input").val("").focus(); }
 	change_qty(name, delta) { const row = this.state.cart.find(x => x.item === name); if (!row) return; row.qty = Math.max(0, Number(row.qty || 0) + delta); if (!row.qty) this.state.cart = this.state.cart.filter(x => x.item !== name); this.state.tenders = []; this.schedule_preview(); this.render_cart(); }
 	remove_item(name) { this.state.cart = this.state.cart.filter(x => x.item !== name); this.state.tenders = []; this.schedule_preview(); this.render_cart(); }
 	clear_cart() { this.state.cart = []; this.state.tenders = []; this.state.discount_value = 0; this.state.preview = null; this.state.client_sale_id = ""; this.render_cart(); }
@@ -164,7 +164,7 @@ class LedgixPOSV2 {
 		catch (error) { this.handle_error(error); }
 	}
 
-	cart_payload() { return this.state.cart.map(row => ({ item: row.item, qty: row.qty, override_rate: row.override_rate, override_reason: row.override_reason })); }
+	cart_payload() { return this.state.cart.map(row => ({ item: row.item, qty: row.qty, serial_numbers: row.serial_numbers || "", override_rate: row.override_rate, override_reason: row.override_reason })); }
 	schedule_preview() { clearTimeout(this.preview_timer); if (!this.state.cart.length) { this.state.preview = null; this.render_cart(); return; } this.preview_timer = setTimeout(() => this.preview(), 180); }
 	async preview() { try { this.state.preview = await this.call("ledgix_saas.api.v2_pos.preview_pos_v2_checkout", { cart_items: this.cart_payload(), customer: this.state.customer, sale_channel: this.state.sale_channel, price_list: this.state.price_list, discount_type: this.state.discount_type, discount_value: this.state.discount_value }); this.render_cart(); } catch (error) { this.handle_error(error); } }
 
@@ -244,7 +244,7 @@ class LedgixPOSV2 {
 	async hold_sale(){
 		if(!this.state.cart.length)return;
 		try{
-			const rows=this.state.cart.map(r=>({item:r.item,qty:r.qty,rate:r.override_rate??r.rate}));
+			const rows=this.state.cart.map(r=>({item:r.item,qty:r.qty,rate:r.override_rate??r.rate,serial_numbers:r.serial_numbers||""}));
 			const result=await this.call("ledgix_saas.api.v2_holds.hold_pos_v2_sale",{cart_items:rows,sale_channel:this.state.sale_channel,customer:this.state.customer,price_list:this.state.price_list,discount_type:this.state.discount_type,discount_value:this.state.discount_value});
 			frappe.show_alert({message:`Sale held: ${result.hold_id}`,indicator:"blue"});
 			this.clear_cart();
@@ -262,7 +262,7 @@ class LedgixPOSV2 {
 		this.state.price_list=resumed.price_list||boot.price_list||"";
 		await this.customer_control.set_value(customer);
 		const items=resumed.cart_items||[];
-		this.state.cart=items.map(x=>({item:x.item,name:x.item_name||x.item,qty:Number(x.qty||1),rate:Number(x.rate||0),list_rate:Number(x.rate||0),override_rate:null,override_reason:""}));
+		this.state.cart=items.map(x=>({item:x.item,name:x.item_name||x.item,tracking_type:x.tracking_type||"Normal",serial_numbers:x.serial_numbers||"",qty:Number(x.qty||1),rate:Number(x.rate||0),list_rate:Number(x.rate||0),override_rate:null,override_reason:""}));
 		this.state.discount_type=resumed.discount_type||"Amount";
 		this.state.discount_value=Number(resumed.discount_value||0);
 		this.state.tenders=[];
