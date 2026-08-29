@@ -272,12 +272,20 @@ def make_purchase(supplier, item, *, quantity: float = 1, rate: float = 50, subm
 	return doc
 
 
-def make_sales_return(sale, *, quantity: float = 1, include_row_reference: bool = True, submit: bool = False):
+def make_sales_return(
+	sale,
+	*,
+	quantity: float = 1,
+	include_row_reference: bool = True,
+	return_reason: str = "Test return",
+	submit: bool = False,
+):
 	sale_doc = frappe.get_doc("Ledgix Sale", sale) if isinstance(sale, str) else sale
 	original_row = sale_doc.items[0]
 	doc = frappe.get_doc({
 		"doctype": "Ledgix Sales Return",
 		"original_sale": sale_doc.name,
+		"return_reason": return_reason,
 	})
 	doc.append("items", {
 		"item": original_row.item,
