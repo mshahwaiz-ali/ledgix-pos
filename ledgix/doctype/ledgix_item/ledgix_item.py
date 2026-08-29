@@ -10,45 +10,63 @@ class LedgixItem(Document):
 
     def before_insert(self):
         self.current_stock = 0
+        self._validate_non_negative_inputs()
         self.update_stock_status()
 
     def after_insert(self):
         opening = flt(self.opening_stock)
         if opening > 0:
             from ledgix_saas.api.stock_ops import record_opening_stock
-
             record_opening_stock(self.name, opening)
 
     def validate(self):
+        self._validate_non_negative_inputs()
+
         if not self.is_new():
-            previous_stock = frappe.db.get_value("Ledgix Item", self.name, "current_stock")
-            if flt(self.current_stock) != flt(previous_stock):
-                self.current_stock = flt(previous_stock)
+            previous = frappe.db.get_value(
+                "Ledgix Item",
+                self.name,
+                ["current_stock", "opening_stock", "cost_price"],
+                as_dict=True,
+            ) or {}
+
+            # Inventory quantity belongs to submitted Stock Movements. Opening
+            # quantity is a create-time seed and cannot be replayed by editing an
+            # existing Item master.
+            self.current_stock = flt(previous.get("current_stock"))
+            self.opening_stock = flt(previous.get("opening_stock"))
+
+            # Moving-average cost is owned by purchase/valuation services after
+            # creation. Explicit service updates set this internal flag.
+            if not getattr(self.flags, "allow_cost_update", False):
+                self.cost_price = flt(previous.get("cost_price"))
 
         self.calculate_profit()
         self.update_stock_status()
 
+    def _validate_non_negative_inputs(self):
+        for fieldname, label in (
+            ("opening_stock", "Opening Stock"),
+            ("minimum_stock", "Minimum Stock"),
+            ("cost_price", "Cost Price"),
+            ("selling_price", "Fallback Selling Price"),
+        ):
+            if flt(self.get(fieldname)) < 0:
+                frappe.throw(f"{label} cannot be negative.")
+
     def calculate_profit(self):
-        cost = self.cost_price or 0
-        selling = self.selling_price or 0
-
+        cost = flt(self.cost_price)
+        selling = flt(self.selling_price)
         self.profit_amount = selling - cost
-
-        if cost > 0:
-            self.profit_margin = ((selling - cost) / cost) * 100
-        else:
-            self.profit_margin = 0
+        self.profit_margin = ((selling - cost) / cost) * 100 if cost > 0 else 0
 
     def update_stock_status(self):
-
-        current_stock = self.current_stock or 0
-        minimum_stock = self.minimum_stock or 0
+        current_stock = flt(self.current_stock)
+        minimum_stock = flt(self.minimum_stock)
 
         if current_stock <= 0:
             self.stock_status = "Out of Stock"
-
         elif current_stock <= minimum_stock:
             self.stock_status = "Low Stock"
-
         else:
             self.stock_status = "In Stock"
