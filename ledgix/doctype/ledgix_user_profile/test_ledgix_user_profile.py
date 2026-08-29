@@ -90,3 +90,21 @@ class TestLedgixUserProfile(FrappeTestCase):
 		self.assertEqual(frappe.db.get_value("Role", "Ledgix Cashier", "home_page"), "ledgix-pos")
 		self.assertEqual(frappe.db.get_value("Role", "Ledgix Manager", "home_page"), "Ledgix")
 		self.assertEqual(frappe.db.get_value("Role", "Ledgix Admin", "home_page"), "Ledgix")
+
+	def test_retired_global_mode_and_theme_settings_are_absent(self):
+		self.assertFalse(frappe.db.exists("DocType", "Ledgix Mode Settings"))
+		self.assertFalse(frappe.db.exists("DocType", "Ledgix POS Theme Settings"))
+
+		workspace = frappe.get_doc("Workspace", "Ledgix")
+		labels = {row.label for row in workspace.shortcuts}
+		self.assertNotIn("POS Settings", labels)
+		self.assertIn("Brand Settings", labels)
+
+	def test_stock_movement_is_a_read_only_business_ledger(self):
+		admin = make_user_with_roles("Ledgix Admin")
+		frappe.set_user(admin.name)
+		self.assertTrue(frappe.has_permission("Ledgix Stock Movement", ptype="read"))
+		self.assertTrue(frappe.has_permission("Ledgix Stock Movement", ptype="report"))
+		self.assertFalse(frappe.has_permission("Ledgix Stock Movement", ptype="create"))
+		self.assertFalse(frappe.has_permission("Ledgix Stock Movement", ptype="write"))
+		self.assertFalse(frappe.has_permission("Ledgix Stock Movement", ptype="cancel"))
