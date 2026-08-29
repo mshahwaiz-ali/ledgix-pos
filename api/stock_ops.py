@@ -33,7 +33,18 @@ def _set_movement_fields(movement, movement_source, reference_note):
         movement.reference_note = reference_note
 
 
-def _create_submitted_movement(item, movement_type, qty, movement_source, reference_note):
+def _current_cost(item):
+    return max(flt(frappe.db.get_value("Ledgix Item", item, "cost_price") or 0), 0)
+
+
+def _create_submitted_movement(
+    item,
+    movement_type,
+    qty,
+    movement_source,
+    reference_note,
+    valuation_rate=None,
+):
     if not frappe.db.exists("Ledgix Item", item):
         frappe.throw(f"Item {item} does not exist.")
 
@@ -45,6 +56,7 @@ def _create_submitted_movement(item, movement_type, qty, movement_source, refere
     movement.item = item
     movement.movement_type = movement_type
     movement.quantity = qty
+    movement.valuation_rate = _current_cost(item) if valuation_rate is None else max(flt(valuation_rate), 0)
     movement.movement_date = now_datetime()
     movement.reference_doctype = "Ledgix Item"
     movement.reference_name = item
@@ -59,9 +71,12 @@ def manual_stock_entry(item, qty_in=0, qty_out=0, serial_numbers=None, note=None
     require_ledgix_manager_or_above()
     qty_in = flt(qty_in)
     qty_out = flt(qty_out)
+    note = str(note or "").strip()
 
     if not item:
         frappe.throw("Item is required.")
+    if not note:
+        frappe.throw("Reason / Note is required for a manual stock adjustment.")
 
     if qty_in <= 0 and qty_out <= 0:
         frappe.throw("Enter Add Stock or Remove Stock quantity.")
@@ -134,13 +149,14 @@ def _apply_stock_in(item, qty, serial_numbers, movement_source, source_label, no
     reference_note = _movement_note(source_label, note)
     lot_name = None
     serial_count = 0
+    cost_rate = _current_cost(item)
 
     if is_serial_based_item(item):
         serial_count = create_stock_serials_for_manual_entry(
             item=item,
             qty=qty,
             serial_numbers=serial_numbers,
-            cost_rate=flt(frappe.db.get_value("Ledgix Item", item, "cost_price")),
+            cost_rate=cost_rate,
         )
 
     movement = _create_submitted_movement(
@@ -149,13 +165,14 @@ def _apply_stock_in(item, qty, serial_numbers, movement_source, source_label, no
         qty=qty,
         movement_source=movement_source,
         reference_note=reference_note,
+        valuation_rate=cost_rate,
     )
 
     if is_lot_based_item(item):
         lot_name = create_stock_lot_from_manual_entry(
             item=item,
             qty=qty,
-            rate=flt(frappe.db.get_value("Ledgix Item", item, "cost_price")),
+            rate=cost_rate,
             movement_name=movement.name,
         )
 
@@ -169,6 +186,7 @@ def _apply_stock_in(item, qty, serial_numbers, movement_source, source_label, no
 def _apply_stock_out(item, qty, movement_source, source_label, note=None):
     qty = flt(qty)
     reference_note = _movement_note(source_label, note)
+    cost_rate = _current_cost(item)
 
     if is_lot_based_item(item):
         reduce_lots_fifo_for_manual_out(item, qty)
@@ -179,5 +197,6 @@ def _apply_stock_out(item, qty, movement_source, source_label, note=None):
         qty=qty,
         movement_source=movement_source,
         reference_note=reference_note,
+        valuation_rate=cost_rate,
     )
     return movement.name
