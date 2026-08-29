@@ -117,6 +117,40 @@ class TestV2PrintFormats(FrappeTestCase):
             self.assertNotIn("Changed Seller Ltd", rendered)
             self.assertNotIn("Changed Address", rendered)
 
+    def test_receipt_and_invoice_use_frozen_item_identity(self):
+        self._set_brand_identity("Item Snapshot Seller", "Snapshot Address", "1234567")
+        item = make_item(selling_price=1900, cost_price=900, opening_stock=5)
+        frappe.db.set_value(
+            "Ledgix Item",
+            item.name,
+            {"item_name": "Akhrot Halwa", "unit": "Kg"},
+            update_modified=False,
+        )
+        customer = make_customer(customer_type="B2B", credit_limit=5000)
+        sale = make_sale(customer.name, item.name, rate=1900, sale_channel="B2B", submit=True)
+        sale.reload()
+
+        row = sale.items[0]
+        self.assertEqual(row.item_name_snapshot, "Akhrot Halwa")
+        self.assertEqual(row.item_code_snapshot, item.name)
+        self.assertEqual(row.unit_snapshot, "Kg")
+
+        frappe.db.set_value(
+            "Ledgix Item",
+            item.name,
+            {"item_name": "Renamed Halwa", "unit": "Pack"},
+            update_modified=False,
+        )
+
+        thermal = frappe.get_print("Ledgix Sale", sale.name, print_format="Ledgix Thermal Receipt")
+        invoice = frappe.get_print("Ledgix Sale", sale.name, print_format="Ledgix B2B Invoice")
+
+        for rendered in (thermal, invoice):
+            self.assertIn("Akhrot Halwa", rendered)
+            self.assertIn(item.name, rendered)
+            self.assertIn("Kg", rendered)
+            self.assertNotIn("Renamed Halwa", rendered)
+
     def test_fbr_invoice_qr_is_rendered_from_unique_invoice_number(self):
         self._set_brand_identity("QR Seller Ltd", "QR Address", "1234567")
         item = make_item(selling_price=100, cost_price=40, opening_stock=5)
