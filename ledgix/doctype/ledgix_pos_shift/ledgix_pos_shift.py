@@ -3,7 +3,7 @@
 
 import frappe
 from frappe.model.document import Document
-from frappe.utils import now_datetime, flt
+from frappe.utils import flt, now_datetime
 
 
 class LedgixPOSShift(Document):
@@ -80,40 +80,42 @@ class LedgixPOSShift(Document):
             fields=["name", "grand_total", "total_amount"],
             order_by="creation asc",
         )
-
-        cash_sales = 0
-        non_cash_sales = 0
-
-        for sale in sales:
-            sale_total = flt(sale.grand_total or sale.total_amount)
-            cash_tendered = 0
-            non_cash_paid = 0
-
-            payments = frappe.get_all(
-                "Ledgix Sale Payment",
-                filters={
-                    "parent": sale.name,
-                    "parenttype": "Ledgix Sale",
-                    "parentfield": "payments",
-                },
-                fields=["payment_method", "amount"],
-                order_by="idx asc",
-            )
-
-            for payment in payments:
-                if payment.payment_method == "Cash":
-                    cash_tendered += flt(payment.amount)
-                else:
-                    non_cash_paid += flt(payment.amount)
-
-            cash_required = max(sale_total - non_cash_paid, 0)
-            cash_sales += min(cash_tendered, cash_required)
-            non_cash_sales += min(non_cash_paid, sale_total)
-
-        self.cash_sales = flt(cash_sales)
-        self.non_cash_sales = flt(non_cash_sales)
-        self.total_sales = flt(self.cash_sales) + flt(self.non_cash_sales)
         self.invoice_count = len(sales)
+        self.total_sales = flt(sum(flt(row.grand_total or row.total_amount) for row in sales), 2)
+
+        if not frappe.db.exists("DocType", "Ledgix Payment"):
+            self.cash_sales = 0
+            self.non_cash_sales = 0
+            return
+
+        payments = frappe.db.sql(
+            """
+            SELECT
+                p.amount,
+                p.reversal_of,
+                pm.method_type
+            FROM `tabLedgix Payment` p
+            LEFT JOIN `tabLedgix Payment Method` pm ON pm.name = p.payment_method
+            WHERE p.docstatus = 1
+              AND p.pos_shift = %s
+            ORDER BY p.creation ASC
+            """,
+            (self.name,),
+            as_dict=True,
+        )
+
+        cash_sales = 0.0
+        non_cash_sales = 0.0
+        for payment in payments:
+            sign = -1 if payment.reversal_of else 1
+            net_amount = sign * flt(payment.amount)
+            if payment.method_type == "Cash":
+                cash_sales += net_amount
+            else:
+                non_cash_sales += net_amount
+
+        self.cash_sales = flt(cash_sales, 2)
+        self.non_cash_sales = flt(non_cash_sales, 2)
 
     # ============================================================
     # EXPECTED CASH
