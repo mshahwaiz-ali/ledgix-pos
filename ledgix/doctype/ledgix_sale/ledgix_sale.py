@@ -79,6 +79,25 @@ class LedgixSale(Document):
         refresh_customer_credit_summary(self.customer)
         self.queue_fbr_submission_after_sale_work()
 
+    def before_cancel(self):
+        payment_activity = frappe.db.sql(
+            """
+            SELECT pa.name
+            FROM `tabLedgix Payment Allocation` pa
+            INNER JOIN `tabLedgix Payment` p ON p.name = pa.parent
+            WHERE pa.reference_doctype = 'Ledgix Sale'
+              AND pa.reference_name = %s
+              AND p.docstatus = 1
+            LIMIT 1
+            """,
+            (self.name,),
+        )
+        if payment_activity:
+            frappe.throw(
+                "Sales with posted payment activity cannot be cancelled directly. "
+                "Use Sales Return/Credit for the sale correction and the Payment reversal/refund workflow for money corrections."
+            )
+
     def on_cancel(self):
         self.status = "Cancelled"
         self.db_set("status", "Cancelled", update_modified=False)
