@@ -20,12 +20,27 @@ class TestV2UIArchitecture(FrappeTestCase):
             "LedgixNavigator",
             "ledgix-page-no-frappe-head",
             'find(".page-head',
-            ".page-head,")
+            ".page-head,",
+        )
 
         for path in files:
             text = path.read_text(encoding="utf-8")
             for token in forbidden:
                 self.assertNotIn(token, text, f"{path.name} must preserve native Frappe page chrome: {token}")
+
+    def test_surviving_custom_pages_use_native_frappe_page_titles(self):
+        expected = {
+            APP_ROOT / "ledgix" / "page" / "ledgix_tax_center" / "ledgix_tax_center.js": 'title: "Tax & FBR Center"',
+            APP_ROOT / "ledgix" / "page" / "business_intelligence_center" / "business_intelligence_center.js": 'title: "Inventory Intelligence"',
+            APP_ROOT / "ledgix" / "page" / "ledgix_pos" / "ledgix_pos.js": 'title: "Ledgix POS"',
+        }
+        for path, token in expected.items():
+            self.assertIn(token, path.read_text(encoding="utf-8"), f"{path.name} must use the native Frappe page title")
+
+    def test_frappe_desk_entrypoint_is_not_shadowed(self):
+        www = APP_ROOT / "www"
+        self.assertFalse((www / "app.html").exists(), "Ledgix must not copy or replace Frappe's /app Desk template")
+        self.assertFalse((www / "app.py").exists(), "Ledgix must not shadow Frappe's /app Desk controller")
 
     def test_global_hooks_keep_workflow_css_route_scoped(self):
         hooks = (APP_ROOT / "hooks.py").read_text(encoding="utf-8")
