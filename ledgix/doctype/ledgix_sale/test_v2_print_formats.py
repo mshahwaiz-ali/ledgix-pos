@@ -81,8 +81,30 @@ class TestV2PrintFormats(FrappeTestCase):
         item = make_item(selling_price=100, cost_price=40, opening_stock=5)
         customer = make_customer(customer_type="B2B", credit_limit=5000)
         sale = make_sale(customer.name, item.name, rate=100, sale_channel="B2B", submit=True)
+        sale.reload()
+
+        self.assertEqual(sale.seller_name_snapshot, "Frozen Seller Ltd")
+        self.assertEqual(sale.seller_address_snapshot, "Frozen Address")
+        self.assertEqual(sale.seller_ntn_cnic_snapshot, "7654321")
+        self.assertEqual(sale.seller_strn_snapshot, "STRN-FROZEN")
 
         self._set_brand_identity("Changed Seller Ltd", "Changed Address", "9999999", "STRN-CHANGED")
+
+        persisted = frappe.db.get_value(
+            "Ledgix Sale",
+            sale.name,
+            [
+                "seller_name_snapshot",
+                "seller_address_snapshot",
+                "seller_ntn_cnic_snapshot",
+                "seller_strn_snapshot",
+            ],
+            as_dict=True,
+        )
+        self.assertEqual(persisted.seller_name_snapshot, "Frozen Seller Ltd")
+        self.assertEqual(persisted.seller_address_snapshot, "Frozen Address")
+        self.assertEqual(persisted.seller_ntn_cnic_snapshot, "7654321")
+        self.assertEqual(persisted.seller_strn_snapshot, "STRN-FROZEN")
 
         thermal = frappe.get_print("Ledgix Sale", sale.name, print_format="Ledgix Thermal Receipt")
         invoice = frappe.get_print("Ledgix Sale", sale.name, print_format="Ledgix B2B Invoice")
