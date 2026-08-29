@@ -1,4 +1,4 @@
-"""Sync Ledgix DocType permissions for business roles."""
+"""Sync Ledgix business permissions, Page roles, Workspace exposure and role homes."""
 
 from __future__ import annotations
 
@@ -15,7 +15,6 @@ BUSINESS_ROLES = (
 	"Ledgix Cashier",
 	"Ledgix Manager",
 	"Ledgix Admin",
-	"Ledgix Super Admin",
 )
 
 PERM_KEYS = (
@@ -42,18 +41,7 @@ def _perm(role, **values):
 
 
 def _full(role):
-	return _perm(
-		role,
-		read=1,
-		write=1,
-		create=1,
-		delete=1,
-		report=1,
-		export=1,
-		share=1,
-		print=1,
-		email=1,
-	)
+	return _perm(role, read=1, write=1, create=1, delete=1, report=1, export=1, share=1, print=1, email=1)
 
 
 def _full_submittable(role):
@@ -90,15 +78,15 @@ def _rows(*rows):
 	seen = set()
 	ordered = []
 	for row in rows:
-		role = row["role"]
-		if role in seen:
+		if row["role"] in seen:
 			continue
-		seen.add(role)
+		seen.add(row["role"])
 		ordered.append(row)
 	return ordered
 
 
-# fmt: off
+# Business roles are deliberately narrower than System Manager. UI visibility is
+# never treated as authorization; sensitive actions are also checked server-side.
 DOCTYPE_PERMISSIONS = {
 	"Ledgix Item": _rows(_full("System Manager"), _full("Ledgix Admin"), _rw("Ledgix Manager"), _read("Ledgix Cashier")),
 	"Ledgix Category": _rows(_full("System Manager"), _full("Ledgix Admin"), _rw("Ledgix Manager"), _read("Ledgix Cashier")),
@@ -131,13 +119,13 @@ DOCTYPE_PERMISSIONS = {
 	"Ledgix Return Tax Detail": _rows(_full("System Manager"), _full("Ledgix Admin"), _read("Ledgix Manager")),
 	"Ledgix User Profile": _rows(_full("System Manager"), _full("Ledgix Admin"), _read("Ledgix Manager")),
 	"Ledgix Brand Settings": _rows(_full("System Manager"), _full("Ledgix Admin")),
-	"Ledgix Maintenance Tool": _rows(_full("System Manager"), _full("Ledgix Super Admin")),
+	"Ledgix Maintenance Tool": _rows(_full("System Manager")),
 }
-# fmt: on
-
 
 REPORT_ROLES = ("System Manager", "Ledgix Admin", "Ledgix Manager")
 
+# Legacy Pages remain available to Manager/Admin during migration, but are no
+# longer the homepage/navigation shell. They can be removed only after parity.
 PAGE_ROLES = {
 	"ledgix-pos": ("System Manager", "Ledgix Admin", "Ledgix Manager", "Ledgix Cashier"),
 	"ledgix_operations": ("System Manager", "Ledgix Admin", "Ledgix Manager"),
@@ -149,11 +137,11 @@ PAGE_ROLES = {
 
 ROLE_HOME_PAGES = {
 	"Ledgix Cashier": "ledgix-pos",
-	"Ledgix Manager": "ledgix_operations",
+	"Ledgix Manager": "Ledgix",
 	"Ledgix Admin": "Ledgix",
 }
 
-WORKSPACE_ROLES = ("System Manager", "Ledgix Admin", "Ledgix Manager", "Ledgix Cashier")
+WORKSPACE_ROLES = ("System Manager", "Ledgix Admin", "Ledgix Manager")
 
 
 def _doctype_slug(doctype):
@@ -196,22 +184,19 @@ def sync_page_roles():
 			continue
 		frappe.db.delete("Has Role", {"parent": page_name, "parenttype": "Page"})
 		for role in roles:
-			frappe.get_doc(
-				{
-					"doctype": "Has Role",
-					"parent": page_name,
-					"parenttype": "Page",
-					"parentfield": "roles",
-					"role": role,
-				}
-			).insert(ignore_permissions=True)
+			frappe.get_doc({
+				"doctype": "Has Role",
+				"parent": page_name,
+				"parenttype": "Page",
+				"parentfield": "roles",
+				"role": role,
+			}).insert(ignore_permissions=True)
 
 
 def sync_role_home_pages():
 	for role_name, home_page in ROLE_HOME_PAGES.items():
-		if not frappe.db.exists("Role", role_name):
-			continue
-		frappe.db.set_value("Role", role_name, "home_page", home_page)
+		if frappe.db.exists("Role", role_name):
+			frappe.db.set_value("Role", role_name, "home_page", home_page)
 
 
 def sync_workspace_roles():
@@ -219,22 +204,19 @@ def sync_workspace_roles():
 		return
 	frappe.db.delete("Has Role", {"parent": "Ledgix", "parenttype": "Workspace"})
 	for role in WORKSPACE_ROLES:
-		frappe.get_doc(
-			{
-				"doctype": "Has Role",
-				"parent": "Ledgix",
-				"parenttype": "Workspace",
-				"parentfield": "roles",
-				"role": role,
-			}
-		).insert(ignore_permissions=True)
+		frappe.get_doc({
+			"doctype": "Has Role",
+			"parent": "Ledgix",
+			"parenttype": "Workspace",
+			"parentfield": "roles",
+			"role": role,
+		}).insert(ignore_permissions=True)
 
 
 def sync_report_roles():
 	report_root = APP_ROOT / "ledgix" / "report"
 	if not report_root.exists():
 		return
-
 	for report_dir in report_root.iterdir():
 		if not report_dir.is_dir():
 			continue
@@ -246,32 +228,16 @@ def sync_report_roles():
 			continue
 		frappe.db.delete("Has Role", {"parent": report_name, "parenttype": "Report"})
 		for role in REPORT_ROLES:
-			frappe.get_doc(
-				{
-					"doctype": "Has Role",
-					"parent": report_name,
-					"parenttype": "Report",
-					"parentfield": "roles",
-					"role": role,
-				}
-			).insert(ignore_permissions=True)
-
-
-def ensure_super_admin_role():
-	if frappe.db.exists("Role", "Ledgix Super Admin"):
-		return
-	frappe.get_doc(
-		{
-			"doctype": "Role",
-			"role_name": "Ledgix Super Admin",
-			"desk_access": 1,
-			"is_custom": 0,
-		}
-	).insert(ignore_permissions=True)
+			frappe.get_doc({
+				"doctype": "Has Role",
+				"parent": report_name,
+				"parenttype": "Report",
+				"parentfield": "roles",
+				"role": role,
+			}).insert(ignore_permissions=True)
 
 
 def sync_all():
-	ensure_super_admin_role()
 	sync_doctype_permissions()
 	sync_page_roles()
 	sync_role_home_pages()
