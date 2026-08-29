@@ -18,7 +18,7 @@ from ledgix_saas.services.receivables import get_customer_receivables
 class TestLedgixSalesReturn(FrappeTestCase):
 	def setUp(self):
 		super().setUp()
-		configure_v2_test_environment("Strict Inventory")
+		configure_v2_test_environment()
 
 	def _make_stock_sale(self):
 		item = make_item(selling_price=100, cost_price=40, opening_stock=5)
