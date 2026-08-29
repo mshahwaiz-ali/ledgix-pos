@@ -10,10 +10,10 @@ def unique_name(prefix: str) -> str:
 	return f"TEST-{prefix}-{uuid4().hex[:10]}"
 
 
-def configure_v2_test_environment() -> None:
+def configure_v2_test_environment(stock_mode: str = "Billing Only") -> None:
 	"""Keep integration tests local, deterministic, and free of external FBR calls."""
 	frappe.set_user("Administrator")
-	frappe.db.set_single_value("Ledgix Mode Settings", "stock_control_mode", "Billing Only")
+	frappe.db.set_single_value("Ledgix Mode Settings", "stock_control_mode", stock_mode)
 	frappe.db.set_single_value("Ledgix FBR Settings", "enabled", 0)
 	frappe.db.set_single_value("Ledgix FBR Settings", "mode", "Disabled")
 	frappe.db.set_single_value("Ledgix FBR Settings", "submit_trigger", "Manual")
@@ -97,6 +97,19 @@ def make_customer(
 	return doc
 
 
+def make_supplier():
+	name = unique_name("SUPPLIER")
+	doc = frappe.get_doc({
+		"doctype": "Ledgix Supplier",
+		"supplier_name": name,
+		"company_name": name,
+		"supplier_type": "Local",
+		"is_active": 1,
+	})
+	doc.insert(ignore_permissions=True)
+	return doc
+
+
 def ensure_cash_payment_method() -> str:
 	if not frappe.db.exists("Ledgix Payment Method", "Cash"):
 		doc = frappe.get_doc({
@@ -136,6 +149,44 @@ def make_sale(
 	})
 	for payment in payments or []:
 		doc.append("payments", payment)
+	doc.insert(ignore_permissions=True)
+	if submit:
+		doc.submit()
+	return doc
+
+
+def make_purchase(supplier, item, *, quantity: float = 1, rate: float = 50, submit: bool = False):
+	doc = frappe.get_doc({
+		"doctype": "Ledgix Purchase",
+		"supplier": supplier,
+		"purchase_date": today(),
+	})
+	doc.append("items", {
+		"item": item,
+		"quantity": quantity,
+		"rate": rate,
+		"unit": "Piece",
+	})
+	doc.insert(ignore_permissions=True)
+	if submit:
+		doc.submit()
+	return doc
+
+
+def make_sales_return(sale, *, quantity: float = 1, include_row_reference: bool = True, submit: bool = False):
+	sale_doc = frappe.get_doc("Ledgix Sale", sale) if isinstance(sale, str) else sale
+	original_row = sale_doc.items[0]
+	doc = frappe.get_doc({
+		"doctype": "Ledgix Sales Return",
+		"original_sale": sale_doc.name,
+	})
+	doc.append("items", {
+		"item": original_row.item,
+		"original_sale_item_row": original_row.name if include_row_reference else None,
+		"quantity": quantity,
+		"rate": 0,
+		"cost_price": 0,
+	})
 	doc.insert(ignore_permissions=True)
 	if submit:
 		doc.submit()
