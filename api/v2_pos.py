@@ -5,7 +5,6 @@ from frappe import _
 from frappe.utils import flt, today
 
 from ledgix_saas.api.security import require_ledgix_cashier_or_above
-from ledgix_saas.api.settings import get_stock_control_mode, is_strict_inventory_mode
 from ledgix_saas.services.pricing import resolve_item_price, resolve_price_list
 from ledgix_saas.services.receivables import get_customer_receivables
 from ledgix_saas.services.sales import infer_sale_channel
@@ -126,7 +125,6 @@ def get_pos_v2_boot(customer=None, sale_channel="Retail"):
 		"payment_methods": _payment_methods(),
 		"categories": _categories(),
 		"active_shift": _open_shift(),
-		"stock_control_mode": get_stock_control_mode(),
 		"can_b2b": _manager_or_above(),
 		"can_discount": _manager_or_above(),
 		"can_override_price": _manager_or_above(),
@@ -192,7 +190,7 @@ def _prepare_lines(cart_items, customer, sale_channel, price_list, discount_type
 		item = frappe.db.get_value(
 			"Ledgix Item", item_name, ["item_name", "cost_price", "current_stock"], as_dict=True
 		)
-		if is_strict_inventory_mode() and flt(item.current_stock) < qty:
+		if flt(item.current_stock) < qty:
 			frappe.throw(_("Not enough stock for {0}.").format(item.item_name))
 		subtotal += qty * flt(price["rate"])
 		prepared.append({"item": item_name, "qty": qty, "item_meta": item, **price, "serial_numbers": row.get("serial_numbers") or ""})
@@ -313,12 +311,20 @@ def complete_pos_v2_sale(
 		method = tender.get("payment_method")
 		if amount <= 0 or not method:
 			continue
-		if not frappe.db.exists("Ledgix Payment Method", method):
+		method_meta = frappe.db.get_value(
+			"Ledgix Payment Method",
+			method,
+			["method_type", "enabled"],
+			as_dict=True,
+		)
+		if not method_meta:
 			frappe.throw(_("Payment Method {0} is not configured.").format(method))
+		if not method_meta.enabled:
+			frappe.throw(_("Payment Method {0} is disabled.").format(method))
 		sale.append("payments", {
 			"payment_method": method,
 			"amount": amount,
-			"is_cash_payment": 1 if method == "Cash" else 0,
+			"is_cash_payment": 1 if method_meta.method_type == "Cash" else 0,
 			"reference_no": tender.get("reference_number") or tender.get("reference_no") or "",
 			"notes": tender.get("notes") or "",
 		})
