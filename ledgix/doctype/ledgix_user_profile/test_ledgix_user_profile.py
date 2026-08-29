@@ -91,13 +91,18 @@ class TestLedgixUserProfile(FrappeTestCase):
 		self.assertEqual(frappe.db.get_value("Role", "Ledgix Manager", "home_page"), "Ledgix")
 		self.assertEqual(frappe.db.get_value("Role", "Ledgix Admin", "home_page"), "Ledgix")
 
-	def test_retired_global_mode_and_theme_settings_are_absent(self):
-		self.assertFalse(frappe.db.exists("DocType", "Ledgix Mode Settings"))
-		self.assertFalse(frappe.db.exists("DocType", "Ledgix POS Theme Settings"))
+	def test_retired_product_settings_and_maintenance_tool_are_absent(self):
+		for doctype in (
+			"Ledgix Mode Settings",
+			"Ledgix POS Theme Settings",
+			"Ledgix Maintenance Tool",
+		):
+			self.assertFalse(frappe.db.exists("DocType", doctype))
 
 		workspace = frappe.get_doc("Workspace", "Ledgix")
 		labels = {row.label for row in workspace.shortcuts}
 		self.assertNotIn("POS Settings", labels)
+		self.assertNotIn("Maintenance Tool", labels)
 		self.assertIn("Brand Settings", labels)
 
 	def test_stock_movement_is_a_read_only_business_ledger(self):
