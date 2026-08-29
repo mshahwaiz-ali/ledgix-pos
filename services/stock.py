@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import frappe
+from frappe.utils import flt
 
 
-def _post_movement(*, item, quantity, movement_type, reference_doctype, reference_name, source, rate=0, note=None):
+def _post_movement(*, item, quantity, movement_type, reference_doctype, reference_name, source, rate=0, note=None, movement_date=None):
 	existing = frappe.db.exists(
 		"Ledgix Stock Movement",
 		{
@@ -25,7 +26,10 @@ def _post_movement(*, item, quantity, movement_type, reference_doctype, referenc
 	movement.movement_type = movement_type
 	movement.reference_doctype = reference_doctype
 	movement.reference_name = reference_name
-	if note and frappe.get_meta("Ledgix Stock Movement").has_field("reference_note"):
+	meta = frappe.get_meta("Ledgix Stock Movement")
+	if movement_date and meta.has_field("movement_date"):
+		movement.movement_date = movement_date
+	if note and meta.has_field("reference_note"):
 		movement.reference_note = note
 	from ledgix_saas.api.stock_ops import apply_movement_source
 	apply_movement_source(movement, source)
@@ -45,6 +49,37 @@ def post_sale_movements(sale):
 			reference_name=sale.name,
 			source="Sale",
 		)
+
+
+def post_purchase_movements(purchase):
+	"""Post purchase stock through the same authoritative movement boundary."""
+	for row in purchase.items:
+		_post_movement(
+			item=row.item,
+			quantity=row.quantity,
+			rate=row.rate,
+			movement_type="IN",
+			reference_doctype="Ledgix Purchase",
+			reference_name=purchase.name,
+			source="Purchase",
+			movement_date=getattr(purchase, "purchase_date", None),
+		)
+
+
+def update_purchase_average_costs(purchase):
+	"""Update moving average cost after movement posting without owning stock qty."""
+	for row in purchase.items:
+		item_doc = frappe.get_doc("Ledgix Item", row.item)
+		old_qty = flt(item_doc.current_stock) - flt(row.quantity)
+		old_cost = flt(item_doc.cost_price)
+		new_qty = flt(row.quantity)
+		new_rate = flt(row.rate)
+		if old_qty <= 0:
+			average_cost = new_rate
+		else:
+			average_cost = ((old_qty * old_cost) + (new_qty * new_rate)) / (old_qty + new_qty)
+		item_doc.cost_price = average_cost
+		item_doc.save(ignore_permissions=True)
 
 
 def post_sales_return_movements(sales_return):
