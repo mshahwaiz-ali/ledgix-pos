@@ -37,8 +37,7 @@ class TestLedgixFBRSettings(FrappeTestCase):
 			"submit_trigger": "Manual",
 			"seller_business_name": "Test Seller",
 		})
-		self.assertTrue(result["success"])
-		settings = get_fbr_settings()
-		self.assertEqual(settings["mode"], "Manual Only")
-		self.assertNotIn("sandbox_token", settings)
-		self.assertNotIn("production_token", settings)
+		self.assertEqual(result["mode"], "Manual Only")
+		self.assertEqual(result["seller_business_name"], "Test Seller")
+		self.assertNotIn("sandbox_token", result)
+		self.assertNotIn("production_token", result)
