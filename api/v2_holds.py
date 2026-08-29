@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import frappe
-from frappe.utils import flt
+from frappe.utils import cint, flt
 
 from ledgix_saas.api.security import has_any_role, require_ledgix_cashier_or_above
 from ledgix_saas.api.shifts import _get_open_shift_for_user
+from ledgix_saas.api.stock_identity import parse_serial_numbers
 
 
 PRIVILEGED_HOLD_ROLES = ("System Manager", "Ledgix Admin", "Ledgix Manager")
@@ -20,6 +21,41 @@ def _normalize_channel(value):
     if channel not in {"Retail", "B2B"}:
         frappe.throw("Sale channel must be Retail or B2B.")
     return channel
+
+
+def _normalize_serial_selection(item, tracking_type, qty, serial_numbers):
+    if tracking_type != "Serial Based":
+        return ""
+
+    qty = flt(qty)
+    if qty != cint(qty):
+        frappe.throw(f"Serial Based item {item} quantity must be a whole number.")
+
+    serials = parse_serial_numbers(serial_numbers)
+    if cint(qty) != len(serials):
+        frappe.throw(
+            f"Serial Based item {item} requires {cint(qty)} serial number(s), "
+            f"but {len(serials)} provided."
+        )
+
+    for serial_no in serials:
+        serial = frappe.db.get_value(
+            "Ledgix Stock Serial",
+            {"serial_no": serial_no},
+            ["item", "status"],
+            as_dict=True,
+        )
+        if not serial:
+            frappe.throw(f"Serial number {serial_no} does not exist for item {item}.")
+        if serial.item != item:
+            frappe.throw(f"Serial number {serial_no} belongs to item {serial.item}, not {item}.")
+        if serial.status != "Available":
+            frappe.throw(
+                f"Serial number {serial_no} for item {item} is not available. "
+                f"Current status: {serial.status}."
+            )
+
+    return "\n".join(serials)
 
 
 def _prepare_hold_rows(cart_items):
@@ -39,11 +75,19 @@ def _prepare_hold_rows(cart_items):
         item = frappe.db.get_value(
             "Ledgix Item",
             item_name,
-            ["name", "item_name", "active"],
+            ["name", "item_name", "active", "tracking_type"],
             as_dict=True,
         )
         if not item or not item.active:
             frappe.throw(f"Active item not found: {item_name}")
+
+        tracking_type = item.tracking_type or "Normal"
+        serial_numbers = _normalize_serial_selection(
+            item.name,
+            tracking_type,
+            qty,
+            row.get("serial_numbers") or "",
+        )
 
         # Held rates are display context only. Resume/checkout always re-prices on
         # the authoritative V2 pricing service before a Sale can be submitted.
@@ -52,6 +96,8 @@ def _prepare_hold_rows(cart_items):
         prepared.append({
             "item": item.name,
             "item_name": item.item_name or item.name,
+            "tracking_type": tracking_type,
+            "serial_numbers": serial_numbers,
             "quantity": qty,
             "rate": max(rate, 0),
             "amount": amount,
@@ -116,6 +162,32 @@ def _assert_resume_context(hold):
             frappe.throw("Open a POS shift before resuming this Retail sale.")
         if hold.shift and hold.shift != active_shift:
             frappe.throw("This held Retail sale belongs to a different POS shift.")
+
+
+def _resume_cart_rows(hold):
+    cart_items = []
+    for row in hold.items:
+        tracking_type = row.tracking_type or frappe.db.get_value(
+            "Ledgix Item", row.item, "tracking_type"
+        ) or "Normal"
+        serial_numbers = _normalize_serial_selection(
+            row.item,
+            tracking_type,
+            row.quantity,
+            row.serial_numbers or "",
+        )
+        cart_items.append({
+            "item": row.item,
+            "item_name": row.item_name,
+            "tracking_type": tracking_type,
+            "serial_numbers": serial_numbers,
+            "qty": flt(row.quantity),
+            "rate": flt(row.rate),
+            "current_stock": flt(
+                frappe.db.get_value("Ledgix Item", row.item, "current_stock") or 0
+            ),
+        })
+    return cart_items
 
 
 @frappe.whitelist()
@@ -239,18 +311,9 @@ def resume_pos_v2_hold(hold_id=None):
         frappe.throw("Only active held sales can be resumed.")
     _assert_resume_context(hold)
 
-    cart_items = [
-        {
-            "item": row.item,
-            "item_name": row.item_name,
-            "qty": flt(row.quantity),
-            "rate": flt(row.rate),
-            "current_stock": flt(
-                frappe.db.get_value("Ledgix Item", row.item, "current_stock") or 0
-            ),
-        }
-        for row in hold.items
-    ]
+    # Revalidate serialized identity before consuming the hold. A serial may have
+    # been sold or adjusted while the cart was parked.
+    cart_items = _resume_cart_rows(hold)
 
     # A resumed hold is consumed. If the cashier needs to defer it again, the
     # current cart can be held as a fresh snapshot with current pricing context.
