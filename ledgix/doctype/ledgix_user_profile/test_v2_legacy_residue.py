@@ -19,6 +19,7 @@ class TestV2LegacyResidue(FrappeTestCase):
             "Billing Only",
             "Ledgix POS Theme Settings",
             "Ledgix Mode Settings",
+            "Ledgix Super Admin",
         )
 
         violations = []
@@ -45,7 +46,14 @@ class TestV2LegacyResidue(FrappeTestCase):
         ):
             self.assertFalse((page_root / slug).exists(), f"Retired Page source still exists: {slug}")
 
-    def test_retired_setting_doctype_source_directories_are_absent(self):
+    def test_retired_product_doctype_source_directories_are_absent(self):
         doctype_root = APP_ROOT / "ledgix" / "doctype"
-        self.assertFalse((doctype_root / "ledgix_mode_settings").exists())
-        self.assertFalse((doctype_root / "ledgix_pos_theme_settings").exists())
+        for slug in (
+            "ledgix_mode_settings",
+            "ledgix_pos_theme_settings",
+            "ledgix_maintenance_tool",
+        ):
+            self.assertFalse((doctype_root / slug).exists(), f"Retired DocType source still exists: {slug}")
+
+    def test_destructive_maintenance_api_is_not_part_of_product_runtime(self):
+        self.assertFalse((APP_ROOT / "api" / "maintenance.py").exists())
