@@ -10,20 +10,14 @@ from ledgix_saas.api.settings import (
     sale_matches_current_stock_mode,
 )
 
-from ledgix_saas.api.dashboard import (
-    normalize_date_range,
-    get_sales_last_7_days,
-    get_profit_last_7_days,
-    get_sales_insight,
-    get_profit_margin_insight,
-)
-
 from ledgix_saas.api.shifts import (
     get_active_shift_info,
     open_pos_shift,
     close_pos_shift,
 )
 
+# Legacy POS wrappers remain temporarily for held-sale and return compatibility
+# while the main checkout flow is served by ledgix_saas.api.v2_pos.
 from ledgix_saas.api.pos import (
     get_item_by_barcode_or_sku,
     get_pos_boot_data,
@@ -39,6 +33,8 @@ from ledgix_saas.api.pos import (
     get_pos_sale_receipt_data,
 )
 
+# Report API adapters are retained for external compatibility; the V2 manager UI
+# routes users to native Frappe reports rather than the retired Reports Center.
 from ledgix_saas.api.reports import (
     get_sales_report_data,
     get_purchase_report_data,
@@ -50,4 +46,3 @@ from ledgix_saas.api.reports import (
     search_report_parties,
     get_reports_boot_data,
 )
-
