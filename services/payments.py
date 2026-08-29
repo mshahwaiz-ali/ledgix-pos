@@ -17,6 +17,18 @@ def _validate_allocation_customer(customer, allocation):
 		frappe.throw(_("Payment cannot be allocated across different customers."))
 
 
+def refresh_pos_shift_summary(pos_shift):
+	if not pos_shift or not frappe.db.exists("Ledgix POS Shift", pos_shift):
+		return
+	shift = frappe.get_doc("Ledgix POS Shift", pos_shift)
+	if shift.docstatus != 0:
+		return
+	shift.calculate_shift_summary()
+	shift.calculate_expected_cash()
+	shift.calculate_variance()
+	shift.save(ignore_permissions=True)
+
+
 def post_payment(
 	*,
 	customer=None,
@@ -59,6 +71,7 @@ def post_payment(
 	payment.submit()
 	if customer:
 		refresh_customer_credit_summary(customer)
+	refresh_pos_shift_summary(pos_shift)
 	return payment
 
 
@@ -97,4 +110,5 @@ def reverse_payment(payment_name, reason):
 	original.db_set("status", "Reversed", update_modified=False)
 	if original.customer:
 		refresh_customer_credit_summary(original.customer)
+	refresh_pos_shift_summary(original.pos_shift)
 	return reversal
