@@ -93,6 +93,12 @@ def _payment_user(sale_owner):
 	return "Administrator"
 
 
+def _payment_method_type(method):
+	if not method or not frappe.db.exists("Ledgix Payment Method", method):
+		return "Other"
+	return frappe.db.get_value("Ledgix Payment Method", method, "method_type") or "Other"
+
+
 def _create_legacy_payment(sale, tender, amount, legacy_key):
 	method = tender.payment_method or "Other"
 	if method == "Credit":
@@ -100,12 +106,13 @@ def _create_legacy_payment(sale, tender, amount, legacy_key):
 	if not frappe.db.exists("Ledgix Payment Method", method):
 		method = "Other"
 
+	method_type = _payment_method_type(method)
 	payment = frappe.new_doc("Ledgix Payment")
 	payment.payment_date = sale.sale_date
 	payment.customer = sale.customer
 	payment.payment_method = method
 	payment.amount = amount
-	payment.amount_tendered = flt(tender.amount) if method == "Cash" else amount
+	payment.amount_tendered = flt(tender.amount) if method_type == "Cash" else amount
 	payment.currency = "PKR"
 	payment.reference_number = tender.reference_no or ""
 	payment.cashier = _payment_user(sale.owner)
