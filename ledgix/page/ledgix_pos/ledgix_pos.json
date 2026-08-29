@@ -5,7 +5,7 @@
  "doctype": "Page",
  "icon": "fa fa-shopping-cart",
  "idx": 0,
- "modified": "2026-05-17 11:34:33.322682",
+ "modified": "2026-08-29 00:00:00.000000",
  "modified_by": "Administrator",
  "module": "Ledgix",
  "name": "ledgix-pos",
@@ -28,5 +28,6 @@
  "script": null,
  "standard": "Yes",
  "style": null,
- "system_page": 0
+ "system_page": 0,
+ "title": "Ledgix POS"
 }
