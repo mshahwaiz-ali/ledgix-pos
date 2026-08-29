@@ -6,33 +6,31 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "legix_items_section",
+  "item_identity_section",
   "item_code",
   "item_name",
   "category",
   "barcode",
   "sku",
   "unit",
+  "tracking_type",
+  "inventory_section",
   "opening_stock",
   "current_stock",
-  "stock_adjustment_section",
-  "stock_in_qty",
-  "stock_out_qty",
-  "stock_serial_numbers",
   "minimum_stock",
   "stock_status",
+  "pricing_section",
   "cost_price",
   "selling_price",
   "profit_amount",
   "profit_margin",
-  "active",
-  "tracking_type"
+  "active"
  ],
  "fields": [
   {
-   "fieldname": "legix_items_section",
+   "fieldname": "item_identity_section",
    "fieldtype": "Section Break",
-   "label": "Legix_items"
+   "label": "Item"
   },
   {
    "allow_in_quick_entry": 1,
@@ -52,6 +50,14 @@
    "reqd": 1
   },
   {
+   "fieldname": "category",
+   "fieldtype": "Link",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "label": "Category",
+   "options": "Ledgix Category"
+  },
+  {
    "fieldname": "barcode",
    "fieldtype": "Data",
    "in_list_view": 1,
@@ -59,12 +65,11 @@
    "unique": 1
   },
   {
-   "fieldname": "category",
-   "fieldtype": "Link",
-   "in_filter": 1,
+   "fieldname": "sku",
+   "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "Category",
-   "options": "Ledgix Category"
+   "label": "SKU",
+   "unique": 1
   },
   {
    "default": "Piece",
@@ -74,57 +79,24 @@
    "options": "Piece\nKg\nGram\nLiter\nPack"
   },
   {
-   "default": "0",
-   "fieldname": "cost_price",
-   "fieldtype": "Currency",
-   "label": "Cost Price",
-   "permlevel": 1
+   "default": "Normal",
+   "fieldname": "tracking_type",
+   "fieldtype": "Select",
+   "in_filter": 1,
+   "label": "Tracking Type",
+   "options": "Normal\nLot Based\nSerial Based"
+  },
+  {
+   "fieldname": "inventory_section",
+   "fieldtype": "Section Break",
+   "label": "Inventory"
   },
   {
    "default": "0",
-   "fieldname": "selling_price",
-   "fieldtype": "Currency",
-   "label": "Selling Price"
-  },
-  {
-   "fieldname": "profit_amount",
-   "fieldtype": "Currency",
-   "label": "Profit Amount",
-   "permlevel": 1,
-   "read_only": 1
-  },
-  {
-   "fieldname": "profit_margin",
-   "fieldtype": "Percent",
-   "label": "Profit Margin",
-   "permlevel": 1,
-   "read_only": 1
-  },
-  {
-   "default": "0",
+   "description": "Create-time opening quantity only. After creation use Adjust Stock so every change has a submitted Stock Movement.",
    "fieldname": "opening_stock",
    "fieldtype": "Float",
    "label": "Opening Stock"
-  },
-  {
-   "default": "10",
-   "fieldname": "minimum_stock",
-   "fieldtype": "Float",
-   "label": "Minimum Stock"
-  },
-  {
-   "default": "1",
-   "fieldname": "active",
-   "fieldtype": "Check",
-   "in_list_view": 1,
-   "label": "Active"
-  },
-  {
-   "fieldname": "sku",
-   "fieldtype": "Data",
-   "in_list_view": 1,
-   "label": "SKU",
-   "unique": 1
   },
   {
    "default": "0",
@@ -135,30 +107,10 @@
    "read_only": 1
   },
   {
-   "fieldname": "stock_adjustment_section",
-   "fieldtype": "Section Break",
-   "label": "Stock Adjustment"
-  },
-  {
-   "default": "0",
-   "description": "Creates a Manual IN stock movement on save.",
-   "fieldname": "stock_in_qty",
+   "default": "10",
+   "fieldname": "minimum_stock",
    "fieldtype": "Float",
-   "label": "Add Stock (+)"
-  },
-  {
-   "default": "0",
-   "description": "Creates a Manual OUT stock movement on save. Not available for Serial Based items.",
-   "fieldname": "stock_out_qty",
-   "fieldtype": "Float",
-   "label": "Remove Stock (-)"
-  },
-  {
-   "depends_on": "eval:doc.tracking_type=='Serial Based' && doc.stock_in_qty > 0",
-   "description": "One per line or comma-separated. Leave empty to auto-generate.",
-   "fieldname": "stock_serial_numbers",
-   "fieldtype": "Small Text",
-   "label": "Serial Numbers"
+   "label": "Minimum Stock"
   },
   {
    "fieldname": "stock_status",
@@ -170,18 +122,48 @@
    "read_only": 1
   },
   {
-   "default": "Normal",
-   "fieldname": "tracking_type",
-   "fieldtype": "Select",
-   "in_filter": 1,
-   "label": "Tracking Type",
-   "options": "Normal\nLot Based\nSerial Based"
+   "fieldname": "pricing_section",
+   "fieldtype": "Section Break",
+   "label": "Valuation & Fallback Pricing"
+  },
+  {
+   "default": "0",
+   "description": "Opening valuation on a new item. Existing-item cost is maintained by purchase moving-average valuation.",
+   "fieldname": "cost_price",
+   "fieldtype": "Currency",
+   "label": "Average Cost"
+  },
+  {
+   "default": "0",
+   "description": "Fallback selling price when no effective Ledgix Item Price exists. Prefer Price Lists and Item Prices for normal selling.",
+   "fieldname": "selling_price",
+   "fieldtype": "Currency",
+   "label": "Fallback Selling Price"
+  },
+  {
+   "fieldname": "profit_amount",
+   "fieldtype": "Currency",
+   "label": "Fallback Gross Profit",
+   "read_only": 1
+  },
+  {
+   "fieldname": "profit_margin",
+   "fieldtype": "Percent",
+   "label": "Fallback Margin",
+   "read_only": 1
+  },
+  {
+   "default": "1",
+   "fieldname": "active",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Active"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-05-22 20:15:12.816023",
+ "modified": "2026-08-29 00:00:00.000000",
  "modified_by": "Administrator",
  "module": "Ledgix",
  "name": "Ledgix Item",
