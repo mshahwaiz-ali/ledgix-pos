@@ -56,6 +56,24 @@ def _payment_allocations(sale_names):
 	return allocated
 
 
+def _unallocated_payment_credit(customer):
+	"""Return net unapplied customer cash from posted payments and reversals."""
+	if not frappe.db.exists("DocType", "Ledgix Payment"):
+		return 0.0
+
+	rows = frappe.get_all(
+		"Ledgix Payment",
+		filters={"customer": customer, "docstatus": 1},
+		fields=["amount", "allocated_amount", "reversal_of"],
+	)
+	credit = 0.0
+	for row in rows:
+		unallocated = max(flt(row.amount) - flt(row.allocated_amount), 0)
+		sign = -1 if row.reversal_of else 1
+		credit += sign * unallocated
+	return max(flt(credit), 0)
+
+
 def get_customer_receivables(customer, as_of=None):
 	if not frappe.db.exists("Ledgix Customer", customer):
 		frappe.throw(f"Customer not found: {customer}")
@@ -87,13 +105,19 @@ def get_customer_receivables(customer, as_of=None):
 			"due_date": due_date,
 		})
 
+	unallocated_credit = _unallocated_payment_credit(customer)
+	net_balance = flt(outstanding - unallocated_credit, 2)
+	credit_balance = max(-net_balance, 0)
 	credit_limit = flt(frappe.db.get_value("Ledgix Customer", customer, "credit_limit"))
 	return {
 		"customer": customer,
 		"credit_limit": credit_limit,
-		"outstanding": outstanding,
-		"available_credit": max(credit_limit - outstanding, 0),
-		"overdue": overdue,
+		"outstanding": flt(outstanding, 2),
+		"unallocated_credit": flt(unallocated_credit, 2),
+		"net_balance": net_balance,
+		"credit_balance": flt(credit_balance, 2),
+		"available_credit": max(flt(credit_limit - net_balance, 2), 0),
+		"overdue": flt(overdue, 2),
 		"oldest_due_date": oldest_due_date,
 		"invoices": invoice_rows,
 	}
@@ -103,6 +127,8 @@ def refresh_customer_credit_summary(customer):
 	result = get_customer_receivables(customer)
 	values = {
 		"outstanding_amount": result["outstanding"],
+		"unallocated_credit": result["unallocated_credit"],
+		"credit_balance": result["credit_balance"],
 		"available_credit": result["available_credit"],
 		"overdue_amount": result["overdue"],
 		"oldest_due_date": result["oldest_due_date"],
