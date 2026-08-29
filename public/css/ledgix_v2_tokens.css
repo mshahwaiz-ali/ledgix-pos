@@ -1,0 +1,23 @@
+:root {
+	--lx-v2-surface: #ffffff;
+	--lx-v2-surface-muted: #f8fafc;
+	--lx-v2-border: #e2e8f0;
+	--lx-v2-text: #0f172a;
+	--lx-v2-text-muted: #64748b;
+	--lx-v2-primary: #0f766e;
+	--lx-v2-success: #15803d;
+	--lx-v2-warning: #b45309;
+	--lx-v2-danger: #b91c1c;
+	--lx-v2-radius: 8px;
+	--lx-v2-space-1: 4px;
+	--lx-v2-space-2: 8px;
+	--lx-v2-space-3: 12px;
+	--lx-v2-space-4: 16px;
+	--lx-v2-space-5: 24px;
+}
+
+/* Keep global styling token-only. Page layout belongs to route-scoped CSS. */
+.lx-v2-status-success { color: var(--lx-v2-success); }
+.lx-v2-status-warning { color: var(--lx-v2-warning); }
+.lx-v2-status-danger { color: var(--lx-v2-danger); }
+.lx-v2-text-muted { color: var(--lx-v2-text-muted); }
