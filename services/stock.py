@@ -189,10 +189,9 @@ def _legacy_reference_rate(row):
 def rebuild_item_average_cost(item, exclude_movement=None):
 	"""Replay submitted inventory events to rebuild moving-average valuation.
 
-	This is primarily used after cancellation, where simply reversing the last
-	average is unsafe if later receipts/returns occurred. Historical IN movements
-	without any recoverable valuation snapshot cause a safe no-op instead of an
-	invented cost.
+	The live average is updated when movements are actually posted, so replay uses
+	immutable creation/posting order. `movement_date` remains the business date for
+	reporting and may legitimately be backdated.
 	"""
 	rows = frappe.get_all(
 		"Ledgix Stock Movement",
@@ -209,7 +208,7 @@ def rebuild_item_average_cost(item, exclude_movement=None):
 			"movement_date",
 			"creation",
 		],
-		order_by="movement_date asc, creation asc, name asc",
+		order_by="creation asc, name asc",
 		limit_page_length=0,
 	)
 
