@@ -16,7 +16,7 @@ from ledgix_saas.services.stock import post_purchase_movements
 class TestLedgixPurchase(FrappeTestCase):
 	def setUp(self):
 		super().setUp()
-		configure_v2_test_environment("Strict Inventory")
+		configure_v2_test_environment()
 
 	def test_purchase_submit_posts_stock_and_average_cost(self):
 		item = make_item(cost_price=10, opening_stock=0)
