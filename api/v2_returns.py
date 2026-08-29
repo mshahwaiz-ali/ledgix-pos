@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import frappe
 from frappe import _
-from frappe.utils import flt
+from frappe.utils import cint, flt
 
 from ledgix_saas.api.security import require_ledgix_cashier_or_above
 from ledgix_saas.api.settings import get_stock_control_mode, sale_matches_current_stock_mode
+from ledgix_saas.api.stock_identity import is_serial_based_item, parse_serial_numbers
 
 
 def _return_item_has_original_row():
@@ -76,7 +77,98 @@ def _requested_return_qty_by_item(return_items):
     return requested
 
 
-def _return_allocation_from_sale_item(sale_item, qty):
+def _returnable_serial_numbers(sale, sale_item):
+    """Return the exact original serial identities that are still in Sold state."""
+    if not is_serial_based_item(sale_item.item):
+        return ""
+
+    original_serials = parse_serial_numbers(getattr(sale_item, "serial_numbers", None))
+    if not original_serials:
+        original_serials = frappe.get_all(
+            "Ledgix Stock Serial",
+            filters={"item": sale_item.item, "sale": sale.name, "status": "Sold"},
+            pluck="serial_no",
+            order_by="sold_date asc, creation asc",
+        )
+
+    available = []
+    for serial_no in original_serials:
+        serial = frappe.db.get_value(
+            "Ledgix Stock Serial",
+            {"serial_no": serial_no},
+            ["item", "status", "sale", "sale_item_row"],
+            as_dict=True,
+        )
+        if not serial:
+            continue
+        if serial.item != sale_item.item or serial.sale != sale.name or serial.status != "Sold":
+            continue
+        if serial.sale_item_row and serial.sale_item_row != sale_item.name:
+            continue
+        available.append(serial_no)
+
+    return "\n".join(available)
+
+
+def _validate_requested_serials(sale, sale_item, qty, serial_numbers):
+    """Validate an explicit POS return serial selection against the original Sale."""
+    if not is_serial_based_item(sale_item.item):
+        return ""
+
+    value = str(serial_numbers or "").strip()
+    if not value:
+        return ""
+
+    serials = parse_serial_numbers(value)
+    qty = flt(qty)
+    if qty != cint(qty) or cint(qty) != len(serials):
+        frappe.throw(
+            _("Serial Based item {0} requires {1} serial number(s) for this return.").format(
+                sale_item.item,
+                cint(qty),
+            )
+        )
+
+    for serial_no in serials:
+        serial = frappe.db.get_value(
+            "Ledgix Stock Serial",
+            {"serial_no": serial_no},
+            ["item", "status", "sale", "sale_item_row"],
+            as_dict=True,
+        )
+        if not serial:
+            frappe.throw(_("Serial number {0} does not exist.").format(serial_no))
+        if serial.item != sale_item.item:
+            frappe.throw(
+                _("Serial number {0} belongs to item {1}, not {2}.").format(
+                    serial_no,
+                    serial.item,
+                    sale_item.item,
+                )
+            )
+        if serial.sale != sale.name:
+            frappe.throw(
+                _("Serial number {0} was not sold on original Sale {1}.").format(
+                    serial_no,
+                    sale.name,
+                )
+            )
+        if serial.sale_item_row and serial.sale_item_row != sale_item.name:
+            frappe.throw(
+                _("Serial number {0} belongs to a different original Sale row.").format(serial_no)
+            )
+        if serial.status != "Sold":
+            frappe.throw(
+                _("Serial number {0} is not returnable. Current status: {1}.").format(
+                    serial_no,
+                    serial.status,
+                )
+            )
+
+    return "\n".join(serials)
+
+
+def _return_allocation_from_sale_item(sale_item, qty, serial_numbers=""):
     return {
         "item": sale_item.item,
         "quantity": qty,
@@ -86,6 +178,7 @@ def _return_allocation_from_sale_item(sale_item, qty):
         "profit_per_unit": flt(sale_item.profit_per_unit),
         "item_total_profit": flt(qty) * flt(sale_item.profit_per_unit),
         "original_sale_item_row": sale_item.name,
+        "serial_numbers": serial_numbers or "",
     }
 
 
@@ -132,7 +225,13 @@ def _allocate_return_items_from_sale(sale, return_items):
                 )
             )
 
-        allocations.append(_return_allocation_from_sale_item(sale_item, requested_qty))
+        serial_numbers = _validate_requested_serials(
+            sale,
+            sale_item,
+            requested_qty,
+            requested_row.get("serial_numbers"),
+        )
+        allocations.append(_return_allocation_from_sale_item(sale_item, requested_qty, serial_numbers))
         returned_by_row[sale_item.name] = flt(returned_by_row.get(sale_item.name)) + requested_qty
 
     requested_by_item = _requested_return_qty_by_item(legacy_return_items)
@@ -209,6 +308,8 @@ def get_pos_v2_return_context(sale_id=None):
             "item": row.item,
             "original_sale_item_row": row.name,
             "item_name": frappe.db.get_value("Ledgix Item", row.item, "item_name") or row.item,
+            "tracking_type": frappe.db.get_value("Ledgix Item", row.item, "tracking_type") or "Normal",
+            "serial_numbers": _returnable_serial_numbers(sale, row),
             "sold_qty": flt(row.quantity),
             "already_returned_qty": already_returned_qty,
             "returnable_qty": returnable_qty,
