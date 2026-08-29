@@ -1,9 +1,81 @@
 # Copyright (c) 2026, Ali and Contributors
 # See license.txt
 
-# import frappe
+import frappe
 from frappe.tests.utils import FrappeTestCase
+
+from ledgix.doctype.v2_test_utils import (
+	configure_v2_test_environment,
+	make_customer,
+	make_item,
+	make_sale,
+	make_sales_return,
+)
+from ledgix_saas.services.receivables import get_customer_receivables
 
 
 class TestLedgixSalesReturn(FrappeTestCase):
-	pass
+	def setUp(self):
+		super().setUp()
+		configure_v2_test_environment("Strict Inventory")
+
+	def _make_stock_sale(self):
+		item = make_item(selling_price=100, cost_price=40, opening_stock=5)
+		customer = make_customer(customer_type="B2B", credit_limit=1000)
+		sale = make_sale(
+			customer.name,
+			item.name,
+			quantity=2,
+			rate=100,
+			sale_channel="B2B",
+			submit=True,
+		)
+		return item, customer, sale
+
+	def test_return_derives_customer_financials_and_stock_from_original_sale(self):
+		item, customer, sale = self._make_stock_sale()
+		self.assertEqual(frappe.db.get_value("Ledgix Item", item.name, "current_stock"), 3)
+
+		return_doc = make_sales_return(
+			sale,
+			quantity=1,
+			include_row_reference=False,
+			submit=True,
+		)
+
+		self.assertEqual(return_doc.customer, customer.name)
+		self.assertEqual(return_doc.items[0].original_sale_item_row, sale.items[0].name)
+		self.assertAlmostEqual(return_doc.items[0].rate, 100, places=2)
+		self.assertAlmostEqual(return_doc.items[0].cost_price, 40, places=2)
+		self.assertAlmostEqual(return_doc.total_amount, 100, places=2)
+		self.assertAlmostEqual(return_doc.grand_total, 100, places=2)
+		self.assertEqual(frappe.db.get_value("Ledgix Item", item.name, "current_stock"), 4)
+
+		credit = get_customer_receivables(customer.name)
+		self.assertAlmostEqual(credit["outstanding"], 100, places=2)
+
+	def test_return_cannot_exceed_remaining_original_quantity(self):
+		_item, _customer, sale = self._make_stock_sale()
+		make_sales_return(sale, quantity=1, include_row_reference=False, submit=True)
+
+		with self.assertRaises(frappe.ValidationError):
+			make_sales_return(sale, quantity=2, include_row_reference=False, submit=False)
+
+	def test_return_cancel_restores_stock_and_receivable(self):
+		item, customer, sale = self._make_stock_sale()
+		return_doc = make_sales_return(sale, quantity=1, include_row_reference=True, submit=True)
+
+		self.assertEqual(frappe.db.get_value("Ledgix Item", item.name, "current_stock"), 4)
+		self.assertAlmostEqual(get_customer_receivables(customer.name)["outstanding"], 100, places=2)
+
+		return_doc.cancel()
+
+		self.assertEqual(frappe.db.get_value("Ledgix Item", item.name, "current_stock"), 3)
+		self.assertAlmostEqual(get_customer_receivables(customer.name)["outstanding"], 200, places=2)
+		self.assertEqual(
+			frappe.db.count(
+				"Ledgix Stock Movement",
+				filters={"reference_doctype": "Ledgix Sales Return", "reference_name": return_doc.name, "docstatus": 2},
+			),
+			1,
+		)
