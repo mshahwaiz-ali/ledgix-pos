@@ -10,10 +10,14 @@ def unique_name(prefix: str) -> str:
 	return f"TEST-{prefix}-{uuid4().hex[:10]}"
 
 
-def configure_v2_test_environment(stock_mode: str = "Billing Only") -> None:
-	"""Keep integration tests local, deterministic, and free of external FBR calls."""
+def configure_v2_test_environment(stock_mode: str = "Strict Inventory") -> None:
+	"""Keep integration tests local, deterministic, and free of external FBR calls.
+
+	`stock_mode` is retained in the helper signature for older tests, but Ledgix V2
+	has one inventory-authoritative transaction model and ignores the retired site
+	Billing Only setting.
+	"""
 	frappe.set_user("Administrator")
-	frappe.db.set_single_value("Ledgix Mode Settings", "stock_control_mode", stock_mode)
 	frappe.db.set_single_value("Ledgix FBR Settings", "enabled", 0)
 	frappe.db.set_single_value("Ledgix FBR Settings", "mode", "Disabled")
 	frappe.db.set_single_value("Ledgix FBR Settings", "submit_trigger", "Manual")
@@ -29,7 +33,6 @@ def configure_v2_test_environment(stock_mode: str = "Billing Only") -> None:
 	frappe.db.set_single_value("Ledgix Tax Profile", "default_buyer_type", "Unregistered")
 	frappe.db.set_single_value("Ledgix Tax Profile", "province", "Punjab")
 	frappe.db.set_single_value("Ledgix Tax Profile", "outlet_address", "Test Outlet")
-	frappe.clear_cache(doctype="Ledgix Mode Settings")
 	frappe.clear_cache(doctype="Ledgix FBR Settings")
 	frappe.clear_cache(doctype="Ledgix Tax Profile")
 
@@ -64,7 +67,7 @@ def make_price_list(*, default_retail: bool = False, priority: int = 10):
 	return doc
 
 
-def make_item(*, selling_price: float = 100, cost_price: float = 40, opening_stock: float = 0):
+def make_item(*, selling_price: float = 100, cost_price: float = 40, opening_stock: float = 100):
 	name = unique_name("ITEM")
 	doc = frappe.get_doc({
 		"doctype": "Ledgix Item",
