@@ -2,6 +2,11 @@
 	"use strict";
 
 	const FRAPPE_DEFAULT_LOGO = "/assets/frappe/images/frappe-framework-logo.svg";
+	const CUSTOM_PAGE_TITLES = {
+		"ledgix-pos": "Ledgix POS",
+		"ledgix-tax-center": "Tax & FBR Center",
+		"business-intelligence-center": "Inventory Intelligence",
+	};
 
 	function getBrand() {
 		const boot = (window.frappe && frappe.boot) || {};
@@ -59,6 +64,35 @@
 		document.documentElement.style.setProperty("--lx-v2-primary", brand.primaryColor);
 	}
 
+	function restoreNativeDeskChrome() {
+		const route = currentRouteName().toLowerCase();
+		const title = CUSTOM_PAGE_TITLES[route];
+		if (!title) return;
+
+		const activePage = window.frappe?.container?.page;
+		if (activePage?.set_title) {
+			activePage.set_title(title);
+		}
+
+		document.querySelectorAll(".page-container").forEach((container) => {
+			if (!container.offsetParent && container.getAttribute("aria-hidden") === "true") return;
+			container.classList.remove("ledgix-page-no-frappe-head");
+			container.querySelectorAll(".page-head, .page-head-content, .page-title, .title-area, .page-actions").forEach((element) => {
+				element.style.removeProperty("display");
+				element.removeAttribute("hidden");
+			});
+		});
+
+		const titleNodes = document.querySelectorAll(
+			".page-container .page-title .title-text, .page-container .page-title h3, .page-container .title-area .title-text"
+		);
+		titleNodes.forEach((node) => {
+			if (node.offsetParent !== null && !String(node.textContent || "").trim()) {
+				node.textContent = title;
+			}
+		});
+	}
+
 	function applyDeskBrand() {
 		if (!isLedgixDeskRoute()) return;
 		const brand = getBrand();
@@ -70,6 +104,7 @@
 			img.style.objectFit = "contain";
 		});
 		setFavicon(brand.faviconUrl || logoUrl);
+		restoreNativeDeskChrome();
 	}
 
 	function applyLoginBrand() {
@@ -92,6 +127,7 @@
 	window.LedgixBrand = {
 		get: getBrand,
 		apply: applyAll,
+		restoreNativeDeskChrome,
 	};
 
 	function scheduleApply() {
