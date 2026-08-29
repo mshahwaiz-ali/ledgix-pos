@@ -1,0 +1,29 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "field:price_list_name",
+ "creation": "2026-08-29 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": ["price_list_name", "enabled", "is_default_retail", "currency", "priority", "notes"],
+ "fields": [
+  {"fieldname":"price_list_name","fieldtype":"Data","label":"Price List Name","reqd":1,"unique":1},
+  {"default":"1","fieldname":"enabled","fieldtype":"Check","label":"Enabled"},
+  {"default":"0","fieldname":"is_default_retail","fieldtype":"Check","label":"Default Retail Price List"},
+  {"default":"PKR","fieldname":"currency","fieldtype":"Data","label":"Currency","reqd":1},
+  {"default":"10","fieldname":"priority","fieldtype":"Int","label":"Priority"},
+  {"fieldname":"notes","fieldtype":"Small Text","label":"Notes"}
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-08-29 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Ledgix",
+ "name": "Ledgix Price List",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}
