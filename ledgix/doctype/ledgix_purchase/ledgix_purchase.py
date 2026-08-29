@@ -8,7 +8,7 @@ from frappe.utils import flt
 from ledgix_saas.services.stock import (
     cancel_reference_movements,
     post_purchase_movements,
-    update_purchase_average_costs,
+    rebuild_item_average_cost,
 )
 
 
@@ -27,7 +27,6 @@ class LedgixPurchase(Document):
         self.status = "Submitted"
         self.db_set("status", "Submitted", update_modified=False)
         post_purchase_movements(self)
-        update_purchase_average_costs(self)
 
         from ledgix_saas.api.stock_identity import create_stock_lots_for_purchase, create_stock_serials_for_purchase
         create_stock_lots_for_purchase(self)
@@ -41,8 +40,9 @@ class LedgixPurchase(Document):
         reverse_purchase_lots(self)
         reverse_purchase_serials(self)
 
+        # Cancelling each submitted Stock Movement reverses quantity and rebuilds
+        # moving-average valuation from the remaining movement ledger.
         cancel_reference_movements("Ledgix Purchase", self.name)
-        self.recalculate_item_average_costs()
 
     def calculate_totals(self):
         total_amount = 0
@@ -58,33 +58,11 @@ class LedgixPurchase(Document):
     def create_stock_movements(self):
         # Compatibility wrapper for existing callers; authority lives in services.stock.
         post_purchase_movements(self)
-        update_purchase_average_costs(self)
 
     def cancel_stock_movements(self):
         cancel_reference_movements("Ledgix Purchase", self.name)
 
     def recalculate_item_average_costs(self):
-        item_names = sorted({row.item for row in self.items if row.item})
-        for item_name in item_names:
-            rows = frappe.db.sql("""
-                SELECT
-                    COALESCE(SUM(pi.quantity), 0) AS total_qty,
-                    COALESCE(SUM(pi.quantity * pi.rate), 0) AS total_cost
-                FROM `tabLedgix Purchase Item` pi
-                INNER JOIN `tabLedgix Purchase` p ON p.name = pi.parent
-                WHERE p.docstatus = 1 AND pi.item = %s
-            """, (item_name,), as_dict=True)[0]
-
-            total_qty = flt(rows.total_qty)
-            item_doc = frappe.get_doc("Ledgix Item", item_name)
-            if total_qty > 0:
-                item_doc.cost_price = flt(rows.total_cost) / total_qty
-            elif flt(item_doc.current_stock) <= 0:
-                item_doc.cost_price = 0
-            else:
-                frappe.logger("ledgix").info(
-                    "Skipped resetting cost_price for %s because current stock remains after purchase cancellation.",
-                    item_name,
-                )
-                continue
-            item_doc.save(ignore_permissions=True)
+        """Compatibility wrapper around the authoritative stock-ledger replay."""
+        for item_name in sorted({row.item for row in self.items if row.item}):
+            rebuild_item_average_cost(item_name)
