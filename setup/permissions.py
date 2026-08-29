@@ -43,6 +43,10 @@ def _read(role):
 	return _perm(role, read=1, print=1)
 
 
+def _audit_read(role):
+	return _perm(role, read=1, report=1, export=1, print=1)
+
+
 def _rw(role):
 	return _perm(role, read=1, write=1, create=1, print=1, email=1)
 
@@ -77,7 +81,7 @@ DOCTYPE_PERMISSIONS = {
 	"Ledgix POS Shift": _rows(_full_submittable("System Manager"), _full_submittable("Ledgix Admin"), _rw("Ledgix Manager"), _rw("Ledgix Cashier")),
 	"Ledgix POS Hold": _rows(_full("System Manager"), _full("Ledgix Admin"), _rw("Ledgix Manager"), _rw("Ledgix Cashier")),
 	"Ledgix POS Hold Item": _rows(_full("System Manager"), _full("Ledgix Admin"), _read("Ledgix Manager"), _read("Ledgix Cashier")),
-	"Ledgix Stock Movement": _rows(_full_submittable("System Manager"), _full_submittable("Ledgix Admin"), _read("Ledgix Manager")),
+	"Ledgix Stock Movement": _rows(_full_submittable("System Manager"), _audit_read("Ledgix Admin"), _audit_read("Ledgix Manager")),
 	"Ledgix Stock Serial": _rows(_full("System Manager"), _full("Ledgix Admin"), _read("Ledgix Manager"), _read("Ledgix Cashier")),
 	"Ledgix Stock Lot": _rows(_full("System Manager"), _full("Ledgix Admin"), _read("Ledgix Manager")),
 	"Ledgix Stock Lot Allocation": _rows(_full("System Manager"), _full("Ledgix Admin"), _read("Ledgix Manager")),
