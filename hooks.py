@@ -5,12 +5,11 @@ app_description = "POS and inventory platform for retail shops"
 app_email = "alishahwaiz96@gmail.com"
 app_license = "mit"
 
-# Keep the global Desk layer deliberately small. Workflow-specific CSS/JS belongs
-# to its Page so native Frappe Lists, Forms and Workspaces retain normal behavior.
+# Keep the global Desk layer deliberately small. Workflow-specific styling belongs
+# to its Page so native Frappe Lists, Forms, Workspaces and dialogs retain normal behavior.
 app_include_css = [
 	"/assets/ledgix_saas/css/ledgix_brand.css",
 	"/assets/ledgix_saas/css/ledgix_v2_tokens.css",
-	"/assets/ledgix_saas/css/ledgix_modal_forms.css",
 ]
 
 app_include_js = [
