@@ -10,13 +10,8 @@ def unique_name(prefix: str) -> str:
 	return f"TEST-{prefix}-{uuid4().hex[:10]}"
 
 
-def configure_v2_test_environment(stock_mode: str = "Strict Inventory") -> None:
-	"""Keep integration tests local, deterministic, and free of external FBR calls.
-
-	`stock_mode` is retained in the helper signature for older tests, but Ledgix V2
-	has one inventory-authoritative transaction model and ignores the retired site
-	Billing Only setting.
-	"""
+def configure_v2_test_environment() -> None:
+	"""Keep integration tests local, deterministic, and free of external FBR calls."""
 	frappe.set_user("Administrator")
 	frappe.db.set_single_value("Ledgix FBR Settings", "enabled", 0)
 	frappe.db.set_single_value("Ledgix FBR Settings", "mode", "Disabled")
