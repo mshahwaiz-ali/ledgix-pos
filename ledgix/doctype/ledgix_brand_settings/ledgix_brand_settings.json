@@ -27,11 +27,11 @@
   {"fieldname":"brand_identity_section","fieldtype":"Section Break","label":"Brand Identity"},
   {"default":"Ledgix","fieldname":"brand_name","fieldtype":"Data","in_list_view":1,"label":"Brand Name","reqd":1},
   {"default":"Retail operations","fieldname":"brand_tagline","fieldtype":"Data","label":"Brand Tagline"},
-  {"fieldname":"legal_business_name","fieldtype":"Data","label":"Legal Business Name"},
-  {"fieldname":"business_address","fieldtype":"Small Text","label":"Business Address"},
+  {"description":"Fallback legal seller name for new sales when FBR Settings does not provide Seller Business Name.","fieldname":"legal_business_name","fieldtype":"Data","label":"Legal Business Name"},
+  {"description":"Fallback legal seller address for new sales when FBR Settings does not provide Seller Address.","fieldname":"business_address","fieldtype":"Small Text","label":"Business Address"},
   {"fieldname":"business_phone","fieldtype":"Data","label":"Business Phone"},
   {"fieldname":"business_email","fieldtype":"Data","label":"Business Email"},
-  {"fieldname":"ntn","fieldtype":"Data","label":"NTN"},
+  {"description":"Fallback seller NTN for new sales when FBR Settings does not provide Seller NTN/CNIC.","fieldname":"ntn","fieldtype":"Data","label":"NTN"},
   {"fieldname":"strn","fieldtype":"Data","label":"STRN"},
   {"fieldname":"logo_assets_section","fieldtype":"Section Break","label":"Logo Assets"},
   {"description":"Square mark for navbar, desk header, favicon, and compact product surfaces.","fieldname":"symbol_logo","fieldtype":"Attach Image","label":"Symbol Logo"},
@@ -40,7 +40,7 @@
   {"fieldname":"brand_color_section","fieldtype":"Section Break","label":"Brand Color"},
   {"default":"#8C2031","fieldname":"primary_brand_color","fieldtype":"Color","label":"Primary Brand Color"},
   {"fieldname":"usage_notes_section","fieldtype":"Section Break","label":"Usage"},
-  {"fieldname":"usage_notes","fieldtype":"HTML","label":"Usage Notes","options":"<div class=\"text-muted\">Configure customer/site identity once. Ledgix receipts and invoices use these values instead of hard-coded store details.</div>"}
+  {"fieldname":"usage_notes","fieldtype":"HTML","label":"Usage Notes","options":"<div class=\"text-muted\">Configure visual branding and seller contact details here. For new finalized sales, populated Seller Identity fields in FBR Settings override the matching legal name, address and NTN values. Ledgix freezes the resolved seller identity on each finalized Sale, so later settings edits do not rewrite historical receipts or invoices.</div>"}
  ],
  "grid_page_length":50,
  "index_web_pages_for_search":1,
