@@ -53,6 +53,12 @@
 		link.href = url;
 	}
 
+	function applyBrandTokens() {
+		const brand = getBrand();
+		if (!brand.primaryColor || !document.documentElement) return;
+		document.documentElement.style.setProperty("--lx-v2-primary", brand.primaryColor);
+	}
+
 	function applyDeskBrand() {
 		if (!isLedgixDeskRoute()) return;
 		const brand = getBrand();
@@ -78,6 +84,7 @@
 	}
 
 	function applyAll() {
+		applyBrandTokens();
 		applyDeskBrand();
 		applyLoginBrand();
 	}
