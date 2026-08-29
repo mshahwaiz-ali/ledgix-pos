@@ -12,6 +12,7 @@ from ledgix.doctype.v2_test_utils import (
 	make_item,
 	make_price_list,
 	make_sale,
+	unique_name,
 )
 from ledgix_saas.services.receivables import get_customer_receivables
 
@@ -93,6 +94,29 @@ class TestLedgixSale(FrappeTestCase):
 				item.name,
 				rate=100,
 				sale_channel="B2B",
+			)
+
+	def test_b2b_non_cash_overpayment_is_rejected(self):
+		method_name = unique_name("CARD")
+		frappe.get_doc({
+			"doctype": "Ledgix Payment Method",
+			"payment_method_name": method_name,
+			"method_type": "Card",
+			"enabled": 1,
+			"requires_reference": 0,
+			"allow_change": 0,
+			"sort_order": 20,
+		}).insert(ignore_permissions=True)
+		item = make_item(selling_price=100)
+		customer = make_customer(customer_type="B2B", credit_limit=500)
+
+		with self.assertRaises(frappe.ValidationError):
+			make_sale(
+				customer.name,
+				item.name,
+				rate=100,
+				sale_channel="B2B",
+				payments=[{"payment_method": method_name, "amount": 120}],
 			)
 
 	def test_legacy_tender_posts_authoritative_payment_allocation(self):
