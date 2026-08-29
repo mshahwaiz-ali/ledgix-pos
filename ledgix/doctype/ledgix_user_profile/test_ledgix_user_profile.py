@@ -91,13 +91,14 @@ class TestLedgixUserProfile(FrappeTestCase):
 		self.assertEqual(frappe.db.get_value("Role", "Ledgix Manager", "home_page"), "Ledgix")
 		self.assertEqual(frappe.db.get_value("Role", "Ledgix Admin", "home_page"), "Ledgix")
 
-	def test_retired_product_settings_and_maintenance_tool_are_absent(self):
+	def test_retired_product_settings_maintenance_and_role_are_absent(self):
 		for doctype in (
 			"Ledgix Mode Settings",
 			"Ledgix POS Theme Settings",
 			"Ledgix Maintenance Tool",
 		):
 			self.assertFalse(frappe.db.exists("DocType", doctype))
+		self.assertFalse(frappe.db.exists("Role", "Ledgix Super Admin"))
 
 		workspace = frappe.get_doc("Workspace", "Ledgix")
 		labels = {row.label for row in workspace.shortcuts}
