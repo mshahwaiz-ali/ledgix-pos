@@ -8,6 +8,8 @@
   "hold_items_section",
   "item",
   "item_name",
+  "tracking_type",
+  "serial_numbers",
   "quantity",
   "rate",
   "amount"
@@ -31,6 +33,18 @@
    "fieldtype": "Data",
    "in_list_view": 1,
    "label": "Item Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "tracking_type",
+   "fieldtype": "Data",
+   "label": "Tracking Type",
+   "read_only": 1
+  },
+  {
+   "fieldname": "serial_numbers",
+   "fieldtype": "Small Text",
+   "label": "Serial Numbers",
    "read_only": 1
   },
   {
@@ -58,7 +72,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-05-16 15:54:45.308503",
+ "modified": "2026-08-29 00:00:00.000000",
  "modified_by": "Administrator",
  "module": "Ledgix",
  "name": "Ledgix POS Hold Item",
