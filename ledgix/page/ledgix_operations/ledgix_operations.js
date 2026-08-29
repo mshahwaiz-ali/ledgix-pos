@@ -1328,16 +1328,14 @@ class LedgixOperationsCenter {
 
 		if (!mod.child_doctype) return rows;
 
-		await this.ensure_meta(mod.child_doctype);
 		return Promise.all(rows.map(async (row) => {
 			try {
-				row._items_count = await frappe.db.count(mod.child_doctype, { filters: { parent: row.name } });
+				const parent_doc = await frappe.db.get_doc(mod.doctype, row.name);
+				const child_rows = parent_doc.items || [];
+
+				row._items_count = child_rows.length;
 
 				if (module_key === "purchases") {
-					const purchase_doc = await frappe.db.get_doc(mod.doctype, row.name);
-					const child_rows = purchase_doc.items || [];
-
-					row._items_count = child_rows.length;
 
 					row._total_qty = child_rows.reduce((sum, item) => {
 						return sum + this.to_number(item.quantity);
