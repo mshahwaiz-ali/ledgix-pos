@@ -10,8 +10,8 @@ class LedgixPOSV2 {
 		this.state = {
 			sale_channel: "Retail", customer: "", customer_context: null, price_list: "",
 			categories: [], category: "All", items: [], cart: [], payment_methods: [], tenders: [],
-			active_shift: null, stock_control_mode: "", can_b2b: false, can_discount: false,
-			can_override_price: false, discount_type: "Amount", discount_value: 0, preview: null, loading: false,
+			active_shift: null, can_b2b: false, can_discount: false, can_override_price: false,
+			discount_type: "Amount", discount_value: 0, preview: null, loading: false,
 			client_sale_id: "",
 		};
 		this.search_timer = null;
@@ -55,7 +55,7 @@ class LedgixPOSV2 {
 			</section>
 			<div class="lx-pos-grid">
 				<section class="lx-catalog-panel">
-					<div class="lx-search-row"><div class="lx-search-box"><span class="lx-search-icon">⌕</span><input class="lx-search-input" placeholder="Scan barcode or search item…" autocomplete="off"><kbd>Enter</kbd></div><div class="lx-stock-mode"></div></div>
+					<div class="lx-search-row"><div class="lx-search-box"><span class="lx-search-icon">⌕</span><input class="lx-search-input" placeholder="Scan barcode or search item…" autocomplete="off"><kbd>Enter</kbd></div><div class="lx-stock-mode">Live Inventory</div></div>
 					<div class="lx-categories"></div><div class="lx-products"></div>
 				</section>
 				<aside class="lx-cart-panel">
@@ -109,7 +109,7 @@ class LedgixPOSV2 {
 	}
 
 	apply_boot(boot) {
-		Object.assign(this.state, { categories: boot.categories || [], payment_methods: boot.payment_methods || [], active_shift: boot.active_shift || null, stock_control_mode: boot.stock_control_mode || "", can_b2b: !!boot.can_b2b, can_discount: !!boot.can_discount, can_override_price: !!boot.can_override_price, price_list: boot.price_list || "", customer_context: boot.customer || null, customer: boot.customer?.name || "" });
+		Object.assign(this.state, { categories: boot.categories || [], payment_methods: boot.payment_methods || [], active_shift: boot.active_shift || null, can_b2b: !!boot.can_b2b, can_discount: !!boot.can_discount, can_override_price: !!boot.can_override_price, price_list: boot.price_list || "", customer_context: boot.customer || null, customer: boot.customer?.name || "" });
 		if (this.state.customer) this.customer_control.set_value(this.state.customer);
 		this.$root.find('.lx-channel[data-channel="B2B"]').toggleClass("hidden", !this.state.can_b2b);
 		this.render_context(); this.render_categories(); this.render_cart();
@@ -120,7 +120,6 @@ class LedgixPOSV2 {
 		this.$root.find(".lx-channel").removeClass("active"); this.$root.find(`.lx-channel[data-channel="${this.state.sale_channel}"]`).addClass("active");
 		this.$root.find(".lx-price-list").text(this.state.price_list || "Select customer");
 		this.$root.find(".lx-credit-fact").toggleClass("hidden", retail); this.$root.find(".lx-credit-value").text(this.money(this.state.customer_context?.available_credit || 0));
-		this.$root.find(".lx-stock-mode").text(this.state.stock_control_mode || "Inventory");
 		const open = !!this.state.active_shift; this.$root.find(".lx-pos-shift-pill").toggleClass("open", open); this.$root.find(".lx-shift-text").text(open ? `Shift ${this.state.active_shift}` : "No open shift"); this.$root.find(".lx-shift-action").text(open ? "Close Shift" : "Open Shift");
 		this.$root.find(".lx-complete-sale").text(retail ? "Complete Sale" : "Post B2B Sale");
 	}
@@ -242,8 +241,51 @@ class LedgixPOSV2 {
 	start_return(){frappe.prompt([{fieldname:"sale_id",fieldtype:"Data",label:"Sale / Invoice",reqd:1},{fieldname:"reason",fieldtype:"Small Text",label:"Return Reason",reqd:1}],async v=>{try{const sale=await this.call("ledgix_saas.api.v2_returns.get_pos_v2_return_context",{sale_id:v.sale_id});this.show_return_dialog(sale,v.reason);}catch(e){this.handle_error(e);}},"Return / Refund","Load Sale");}
 	show_return_dialog(sale,reason){const rows=sale.items||[];const dialog=new frappe.ui.Dialog({title:`Return ${this.escape(sale.invoice_number||sale.sale_id)}`,size:"large",fields:[{fieldname:"items_html",fieldtype:"HTML"}]});dialog.fields_dict.items_html.$wrapper.html(`<div class="lx-return-list">${rows.map((row,i)=>`<div class="lx-return-row"><div><strong>${this.escape(row.item_name||row.item)}</strong><small>Sold ${row.sold_qty} · Already returned ${row.already_returned_qty||0} · Available ${row.returnable_qty||0}</small></div><input type="number" min="0" max="${Number(row.returnable_qty||0)}" step="0.001" value="0" data-return-index="${i}"></div>`).join("")}</div>`);dialog.set_primary_action("Create Return",async()=>{const items=[];dialog.$wrapper.find("[data-return-index]").each((_,el)=>{const i=Number($(el).data("return-index"));const qty=Number($(el).val()||0);if(qty>0)items.push({item:rows[i].item,original_sale_item_row:rows[i].original_sale_item_row,qty});});if(!items.length)return frappe.msgprint("Enter at least one return quantity.");try{const result=await this.call("ledgix_saas.api.v2_returns.create_pos_v2_return",{original_sale:sale.sale_id,return_items:items,reason});dialog.hide();frappe.show_alert({message:`Return ${result.return_id} posted`,indicator:"green"},5);await this.refresh_context();await this.load_items();}catch(e){this.handle_error(e);}});dialog.show();}
 
-	async hold_sale(){if(!this.state.cart.length)return;try{const rows=this.state.cart.map(r=>({item:r.item,qty:r.qty,rate:r.override_rate??r.rate}));const result=await this.call("ledgix_saas.api.pos.hold_pos_sale",{cart_items:rows,discount_type:this.state.discount_type,discount_value:this.state.discount_value});frappe.show_alert({message:`Sale held: ${result.hold_id}`,indicator:"blue"});this.clear_cart();}catch(e){this.handle_error(e);}}
-	async show_held_sales(){try{const result=await this.call("ledgix_saas.api.pos.get_held_pos_sales");const rows=result.holds||result.sales||[];const d=new frappe.ui.Dialog({title:"Held Sales",fields:[{fieldname:"list",fieldtype:"HTML"}]});d.fields_dict.list.$wrapper.html(`<div class="lx-held-list">${rows.length?rows.map(r=>`<button class="lx-held-row" data-hold="${this.escape(r.name)}"><strong>${this.escape(r.name)}</strong><span>${this.money(r.total||0)}</span></button>`).join(""):'<div class="lx-empty">No held sales</div>'}</div>`);d.fields_dict.list.$wrapper.on("click",".lx-held-row",async e=>{try{const resumed=await this.call("ledgix_saas.api.pos.resume_held_pos_sale",{hold_id:$(e.currentTarget).data("hold")});const items=resumed.items||resumed.cart_items||[];this.state.cart=items.map(x=>({item:x.item,name:x.item_name||x.item,qty:Number(x.quantity||x.qty||1),rate:Number(x.rate||0),list_rate:Number(x.rate||0),override_rate:null,override_reason:""}));this.state.discount_type=resumed.discount_type||"Amount";this.state.discount_value=Number(resumed.discount_value||0);this.state.tenders=[];this.state.client_sale_id="";d.hide();this.schedule_preview();this.render_cart();}catch(err){this.handle_error(err);}});d.show();}catch(e){this.handle_error(e);}}
+	async hold_sale(){
+		if(!this.state.cart.length)return;
+		try{
+			const rows=this.state.cart.map(r=>({item:r.item,qty:r.qty,rate:r.override_rate??r.rate}));
+			const result=await this.call("ledgix_saas.api.v2_holds.hold_pos_v2_sale",{cart_items:rows,sale_channel:this.state.sale_channel,customer:this.state.customer,price_list:this.state.price_list,discount_type:this.state.discount_type,discount_value:this.state.discount_value});
+			frappe.show_alert({message:`Sale held: ${result.hold_id}`,indicator:"blue"});
+			this.clear_cart();
+		}catch(e){this.handle_error(e);}
+	}
+
+	async restore_hold(resumed,dialog){
+		const channel=resumed.sale_channel||"Retail";
+		const customer=resumed.customer||"";
+		const boot=await this.call("ledgix_saas.api.v2_pos.get_pos_v2_boot",{sale_channel:channel,customer});
+		this.state.sale_channel=channel;
+		this.apply_boot(boot);
+		this.state.sale_channel=channel;
+		this.state.customer=customer;
+		this.state.price_list=resumed.price_list||boot.price_list||"";
+		await this.customer_control.set_value(customer);
+		const items=resumed.cart_items||[];
+		this.state.cart=items.map(x=>({item:x.item,name:x.item_name||x.item,qty:Number(x.qty||1),rate:Number(x.rate||0),list_rate:Number(x.rate||0),override_rate:null,override_reason:""}));
+		this.state.discount_type=resumed.discount_type||"Amount";
+		this.state.discount_value=Number(resumed.discount_value||0);
+		this.state.tenders=[];
+		this.state.client_sale_id="";
+		this.state.preview=null;
+		dialog?.hide();
+		this.render_context();
+		await this.load_items();
+		this.schedule_preview();
+		this.render_cart();
+	}
+
+	async show_held_sales(){
+		try{
+			const result=await this.call("ledgix_saas.api.v2_holds.get_pos_v2_holds");
+			const rows=result.holds||[];
+			const d=new frappe.ui.Dialog({title:"Held Sales",size:"large",fields:[{fieldname:"list",fieldtype:"HTML"}]});
+			d.fields_dict.list.$wrapper.html(`<div class="lx-held-list">${rows.length?rows.map(r=>`<div class="lx-held-row"><div><strong>${this.escape(r.name)}</strong><small>${this.escape(r.sale_channel||"Retail")}${r.customer?` · ${this.escape(r.customer)}`:""}${r.items_preview?` · ${this.escape(r.items_preview)}`:""}</small></div><span>${this.money(r.total||0)}</span><div class="lx-held-actions"><button class="btn btn-xs btn-primary" data-resume-hold="${this.escape(r.name)}">Resume</button><button class="btn btn-xs btn-default" data-cancel-hold="${this.escape(r.name)}">Cancel</button></div></div>`).join(""):'<div class="lx-empty">No held sales</div>'}</div>`);
+			d.fields_dict.list.$wrapper.on("click","[data-resume-hold]",async e=>{try{const resumed=await this.call("ledgix_saas.api.v2_holds.resume_pos_v2_hold",{hold_id:$(e.currentTarget).data("resume-hold")});await this.restore_hold(resumed,d);}catch(err){this.handle_error(err);}});
+			d.fields_dict.list.$wrapper.on("click","[data-cancel-hold]",async e=>{try{await this.call("ledgix_saas.api.v2_holds.cancel_pos_v2_hold",{hold_id:$(e.currentTarget).data("cancel-hold")});frappe.show_alert({message:"Held sale cancelled",indicator:"blue"});d.hide();await this.show_held_sales();}catch(err){this.handle_error(err);}});
+			d.show();
+		}catch(e){this.handle_error(e);}
+	}
 
 	set_loading(loading){this.state.loading=!!loading;this.$root.toggleClass("is-loading",!!loading);this.$root.find("button,input").prop("disabled",!!loading);if(!loading){this.$root.find("button,input").prop("disabled",false);this.$root.find('.lx-channel[data-channel="B2B"]').prop("disabled",!this.state.can_b2b);this.render_cart();}}
 	handle_error(error){console.error(error);frappe.msgprint({title:"Ledgix POS",message:error?.message||error?.exc||"Ledgix POS request failed.",indicator:"red"});}
