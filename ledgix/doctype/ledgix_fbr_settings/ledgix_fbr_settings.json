@@ -93,26 +93,31 @@
    "label": "Offline Upload Window (Hours)"
   },
   {
+   "description": "Canonical FBR/legal seller identity for new Sale snapshots and FBR payloads. Populated values here override matching Ledgix Brand Settings legal identity; leave a field blank to use its Brand Settings fallback.",
    "fieldname": "seller_identity_section",
    "fieldtype": "Section Break",
    "label": "Seller Identity"
   },
   {
+   "description": "Overrides Brand Settings NTN for new finalized Sale snapshots and FBR payloads when populated.",
    "fieldname": "seller_ntn_cnic",
    "fieldtype": "Data",
    "label": "Seller NTN/CNIC"
   },
   {
+   "description": "Overrides Brand Settings Legal Business Name for new finalized Sale snapshots and FBR payloads when populated.",
    "fieldname": "seller_business_name",
    "fieldtype": "Data",
    "label": "Seller Business Name"
   },
   {
+   "description": "Seller province used by new finalized Sale snapshots and FBR payloads.",
    "fieldname": "seller_province",
    "fieldtype": "Data",
    "label": "Seller Province"
   },
   {
+   "description": "Overrides Brand Settings Business Address for new finalized Sale snapshots and FBR payloads when populated.",
    "fieldname": "seller_address",
    "fieldtype": "Small Text",
    "label": "Seller Address"
