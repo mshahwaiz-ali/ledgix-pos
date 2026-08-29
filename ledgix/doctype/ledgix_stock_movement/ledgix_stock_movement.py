@@ -86,6 +86,6 @@ class LedgixStockMovement(Document):
                     item_doc.cost_price = max(flt(self.valuation_rate), 0)
 
         item_doc.update_stock_status()
+        item_doc.flags.allow_stock_update = True
         item_doc.flags.allow_cost_update = True
-        item_doc.flags.ignore_validate = True
         item_doc.save(ignore_permissions=True)
