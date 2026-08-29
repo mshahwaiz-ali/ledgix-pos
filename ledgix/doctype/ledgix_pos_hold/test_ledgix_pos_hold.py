@@ -9,6 +9,7 @@ from ledgix.doctype.v2_test_utils import (
 	make_customer,
 	make_item,
 	make_price_list,
+	make_user_with_roles,
 )
 from ledgix_saas.api.v2_holds import (
 	get_pos_v2_holds,
@@ -63,10 +64,21 @@ class TestLedgixPOSHold(FrappeTestCase):
 	def test_retail_hold_requires_open_shift(self):
 		item = make_item(selling_price=100)
 		customer = make_customer(customer_type="Retail", credit_limit=0)
+		cashier = make_user_with_roles("Ledgix Cashier")
 
-		with self.assertRaises(frappe.ValidationError):
-			hold_pos_v2_sale(
-				cart_items=[{"item": item.name, "qty": 1, "rate": 100}],
-				sale_channel="Retail",
-				customer=customer.name,
+		frappe.set_user(cashier.name)
+		try:
+			self.assertFalse(
+				frappe.db.exists(
+					"Ledgix POS Shift",
+					{"opened_by": cashier.name, "status": "Open", "docstatus": 0},
+				)
 			)
+			with self.assertRaises(frappe.ValidationError):
+				hold_pos_v2_sale(
+					cart_items=[{"item": item.name, "qty": 1, "rate": 100}],
+					sale_channel="Retail",
+					customer=customer.name,
+				)
+		finally:
+			frappe.set_user("Administrator")
