@@ -29,6 +29,67 @@ def refresh_pos_shift_summary(pos_shift):
 	shift.save(ignore_permissions=True)
 
 
+def refresh_sale_payment_summary(sale_name):
+	if not sale_name or not frappe.db.exists("Ledgix Sale", sale_name):
+		return
+
+	sale = frappe.db.get_value(
+		"Ledgix Sale",
+		sale_name,
+		["grand_total", "total_amount", "docstatus"],
+		as_dict=True,
+	)
+	if not sale or sale.docstatus != 1:
+		return
+
+	paid_amount = frappe.db.sql(
+		"""
+		SELECT COALESCE(SUM(
+			CASE WHEN COALESCE(p.reversal_of, '') != ''
+				THEN -pa.allocated_amount
+				ELSE pa.allocated_amount
+			END
+		), 0)
+		FROM `tabLedgix Payment Allocation` pa
+		INNER JOIN `tabLedgix Payment` p ON p.name = pa.parent
+		WHERE pa.reference_doctype = 'Ledgix Sale'
+		  AND pa.reference_name = %s
+		  AND p.docstatus = 1
+		""",
+		(sale_name,),
+	)[0][0]
+	paid_amount = max(flt(paid_amount, 2), 0)
+	payable_total = flt(sale.grand_total or sale.total_amount, 2)
+	remaining_amount = max(payable_total - paid_amount, 0)
+	if payable_total > 0 and remaining_amount <= 0.005:
+		payment_status = "Paid"
+	elif paid_amount > 0.005:
+		payment_status = "Partial"
+	else:
+		payment_status = "Unpaid"
+
+	frappe.db.set_value(
+		"Ledgix Sale",
+		sale_name,
+		{
+			"paid_amount": paid_amount,
+			"remaining_amount": remaining_amount,
+			"payment_status": payment_status,
+		},
+		update_modified=False,
+	)
+
+
+def refresh_payment_references(payment):
+	sale_names = {
+		row.reference_name
+		for row in payment.allocations
+		if row.reference_doctype == "Ledgix Sale" and row.reference_name
+	}
+	for sale_name in sale_names:
+		refresh_sale_payment_summary(sale_name)
+
+
 def post_payment(
 	*,
 	customer=None,
@@ -69,6 +130,7 @@ def post_payment(
 		})
 	payment.insert(ignore_permissions=True)
 	payment.submit()
+	refresh_payment_references(payment)
 	if customer:
 		refresh_customer_credit_summary(customer)
 	refresh_pos_shift_summary(pos_shift)
@@ -108,6 +170,7 @@ def reverse_payment(payment_name, reason):
 	reversal.insert(ignore_permissions=True)
 	reversal.submit()
 	original.db_set("status", "Reversed", update_modified=False)
+	refresh_payment_references(reversal)
 	if original.customer:
 		refresh_customer_credit_summary(original.customer)
 	refresh_pos_shift_summary(original.pos_shift)
