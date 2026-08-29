@@ -14,7 +14,17 @@ class TestV2PrintFormats(FrappeTestCase):
         super().setUp()
         configure_v2_test_environment()
 
+    def _set_brand_identity(self, name, address, ntn, strn="STRN-PRINT"):
+        frappe.db.set_single_value("Ledgix Brand Settings", "legal_business_name", name)
+        frappe.db.set_single_value("Ledgix Brand Settings", "business_address", address)
+        frappe.db.set_single_value("Ledgix Brand Settings", "business_phone", "+92-300-0000000")
+        frappe.db.set_single_value("Ledgix Brand Settings", "business_email", "billing@example.com")
+        frappe.db.set_single_value("Ledgix Brand Settings", "ntn", ntn)
+        frappe.db.set_single_value("Ledgix Brand Settings", "strn", strn)
+        frappe.clear_cache(doctype="Ledgix Brand Settings")
+
     def test_thermal_and_b2b_print_formats_render_from_submitted_sale(self):
+        self._set_brand_identity("Original Seller Pvt Ltd", "Original Seller Address", "1234567")
         item = make_item(selling_price=125, cost_price=50, opening_stock=10)
         customer = make_customer(customer_type="B2B", credit_limit=5000)
         sale = make_sale(
@@ -25,6 +35,11 @@ class TestV2PrintFormats(FrappeTestCase):
             sale_channel="B2B",
             submit=True,
         )
+        sale.reload()
+
+        self.assertEqual(sale.seller_name_snapshot, "Original Seller Pvt Ltd")
+        self.assertEqual(sale.seller_address_snapshot, "Original Seller Address")
+        self.assertEqual(sale.seller_ntn_cnic_snapshot, "1234567")
 
         thermal = frappe.get_print(
             "Ledgix Sale",
@@ -39,6 +54,27 @@ class TestV2PrintFormats(FrappeTestCase):
 
         self.assertIn(sale.invoice_number, thermal)
         self.assertIn(item.item_name, thermal)
+        self.assertIn("Original Seller Pvt Ltd", thermal)
+        self.assertIn("Original Seller Address", thermal)
         self.assertIn(sale.invoice_number, invoice)
         self.assertIn(customer.customer_name, invoice)
+        self.assertIn("Original Seller Pvt Ltd", invoice)
         self.assertIn("Total", invoice)
+
+    def test_reprint_keeps_original_seller_legal_identity_after_brand_edit(self):
+        self._set_brand_identity("Frozen Seller Ltd", "Frozen Address", "7654321", "STRN-FROZEN")
+        item = make_item(selling_price=100, cost_price=40, opening_stock=5)
+        customer = make_customer(customer_type="B2B", credit_limit=5000)
+        sale = make_sale(customer.name, item.name, rate=100, sale_channel="B2B", submit=True)
+
+        self._set_brand_identity("Changed Seller Ltd", "Changed Address", "9999999", "STRN-CHANGED")
+
+        thermal = frappe.get_print("Ledgix Sale", sale.name, print_format="Ledgix Thermal Receipt")
+        invoice = frappe.get_print("Ledgix Sale", sale.name, print_format="Ledgix B2B Invoice")
+
+        for rendered in (thermal, invoice):
+            self.assertIn("Frozen Seller Ltd", rendered)
+            self.assertIn("Frozen Address", rendered)
+            self.assertIn("7654321", rendered)
+            self.assertNotIn("Changed Seller Ltd", rendered)
+            self.assertNotIn("Changed Address", rendered)
