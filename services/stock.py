@@ -79,6 +79,7 @@ def update_purchase_average_costs(purchase):
 		else:
 			average_cost = ((old_qty * old_cost) + (new_qty * new_rate)) / (old_qty + new_qty)
 		item_doc.cost_price = average_cost
+		item_doc.flags.allow_cost_update = True
 		item_doc.save(ignore_permissions=True)
 
 
