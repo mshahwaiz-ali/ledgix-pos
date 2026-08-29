@@ -11,6 +11,9 @@
   "status",
   "shift",
   "cashier",
+  "sale_channel",
+  "customer",
+  "price_list",
   "items",
   "subtotal",
   "discount_type",
@@ -23,7 +26,7 @@
   {
    "fieldname": "held_items_section",
    "fieldtype": "Section Break",
-   "label": "Held Items"
+   "label": "Held Sale"
   },
   {
    "fieldname": "hold_id",
@@ -53,6 +56,28 @@
    "fieldtype": "Link",
    "label": "Cashier",
    "options": "User",
+   "read_only": 1
+  },
+  {
+   "default": "Retail",
+   "fieldname": "sale_channel",
+   "fieldtype": "Select",
+   "label": "Sale Channel",
+   "options": "Retail\nB2B",
+   "read_only": 1
+  },
+  {
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "label": "Customer",
+   "options": "Ledgix Customer",
+   "read_only": 1
+  },
+  {
+   "fieldname": "price_list",
+   "fieldtype": "Link",
+   "label": "Price List",
+   "options": "Ledgix Price List",
    "read_only": 1
   },
   {
@@ -102,7 +127,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-05-16 15:56:23.480276",
+ "modified": "2026-08-29 00:00:00.000000",
  "modified_by": "Administrator",
  "module": "Ledgix",
  "name": "Ledgix POS Hold",
