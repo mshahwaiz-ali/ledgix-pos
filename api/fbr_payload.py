@@ -229,12 +229,49 @@ def _return_summary(return_doc=None, return_name=None):
 # -----------------------------------------------------------------------------
 
 def build_fbr_seller_block():
+    """Compatibility seller builder for historical records without snapshots."""
     settings = get_fbr_settings_internal()
     return {
         "seller_ntn_cnic": settings.get("seller_ntn_cnic") or "",
+        "seller_strn": "",
         "seller_business_name": settings.get("seller_business_name") or "",
         "seller_province": settings.get("seller_province") or "",
         "seller_address": settings.get("seller_address") or "",
+        "seller_phone": "",
+        "seller_email": "",
+    }
+
+
+def build_fbr_seller_block_from_sale(sale_doc):
+    """Build seller legal identity from the finalized Sale snapshot.
+
+    Existing historical sales without seller snapshot fields fall back to live FBR
+    settings for compatibility only. New V2 sales are independent of future seller
+    settings/brand edits.
+    """
+    if not sale_doc:
+        return build_fbr_seller_block()
+
+    snapshot_fields = (
+        "seller_name_snapshot",
+        "seller_address_snapshot",
+        "seller_province_snapshot",
+        "seller_ntn_cnic_snapshot",
+        "seller_strn_snapshot",
+        "seller_phone_snapshot",
+        "seller_email_snapshot",
+    )
+    if not any(_clean_text(sale_doc.get(fieldname)) for fieldname in snapshot_fields):
+        return build_fbr_seller_block()
+
+    return {
+        "seller_ntn_cnic": sale_doc.get("seller_ntn_cnic_snapshot") or "",
+        "seller_strn": sale_doc.get("seller_strn_snapshot") or "",
+        "seller_business_name": sale_doc.get("seller_name_snapshot") or "",
+        "seller_province": sale_doc.get("seller_province_snapshot") or "",
+        "seller_address": sale_doc.get("seller_address_snapshot") or "",
+        "seller_phone": sale_doc.get("seller_phone_snapshot") or "",
+        "seller_email": sale_doc.get("seller_email_snapshot") or "",
     }
 
 
@@ -264,11 +301,7 @@ def build_fbr_buyer_block(customer_doc):
 
 
 def build_fbr_buyer_block_from_sale(sale_doc):
-    """Build buyer data from immutable finalized Sale snapshots.
-
-    Old historical records that pre-date snapshot fields fall back to Customer master
-    data for compatibility only. New V2 sales never depend on future Customer edits.
-    """
+    """Build buyer data from immutable finalized Sale snapshots."""
     defaults = _get_tax_profile_defaults()
     if not sale_doc:
         return build_fbr_buyer_block(None)
@@ -346,6 +379,22 @@ def _validate_tax_rows(rows, errors, warnings, mode, prefix_label="Tax row"):
         _validate_sro_fields(row, prefix, errors, warnings)
 
 
+def _validate_seller_block(seller, errors, warnings, production_mode=False):
+    _validate_ntn_cnic(
+        seller.get("seller_ntn_cnic"),
+        "Seller NTN/CNIC",
+        errors,
+        warnings,
+        required=True,
+        production=production_mode,
+    )
+    if not _clean_text(seller.get("seller_business_name")):
+        _add_required_error(errors, "Seller business name")
+    _validate_province(seller.get("seller_province"), "Seller province", errors)
+    if not _clean_text(seller.get("seller_address")):
+        _add_required_error(errors, "Seller address")
+
+
 def _validate_buyer_block(buyer, errors, warnings, production_mode=False):
     registration_type = _normalize_buyer_registration_type(buyer.get("buyer_registration_type"))
     if not registration_type:
@@ -353,8 +402,7 @@ def _validate_buyer_block(buyer, errors, warnings, production_mode=False):
     if not _clean_text(buyer.get("buyer_business_name")):
         _add_required_error(errors, "Buyer business name")
     _validate_province(buyer.get("buyer_province"), "Buyer province", errors)
-    address = _clean_text(buyer.get("buyer_fbr_address"))
-    if not address:
+    if not _clean_text(buyer.get("buyer_fbr_address")):
         _add_required_error(errors, "Buyer FBR address")
     if registration_type == "Registered":
         _validate_ntn_cnic(
@@ -392,14 +440,8 @@ def _validate_sale_fbr_readiness_internal(sale_name):
 
     mode = settings.get("mode") or "Disabled"
     production_mode = mode == "Production"
-    _validate_ntn_cnic(
-        settings.get("seller_ntn_cnic"), "Seller NTN/CNIC", errors, warnings, required=True, production=production_mode
-    )
-    if not _clean_text(settings.get("seller_business_name")):
-        _add_required_error(errors, "Seller business name")
-    _validate_province(settings.get("seller_province"), "Seller province", errors)
-    if not _clean_text(settings.get("seller_address")):
-        _add_required_error(errors, "Seller address")
+    seller = build_fbr_seller_block_from_sale(sale_doc)
+    _validate_seller_block(seller, errors, warnings, production_mode=production_mode)
 
     if mode in {"Sandbox", "Production"} and settings.get("enabled"):
         token_key = "sandbox_token_configured" if mode == "Sandbox" else "production_token_configured"
@@ -517,7 +559,7 @@ def build_internal_fbr_payload(sale_doc):
             "tax_amount": flt(sale_doc.get("tax_amount"), 2) if sale_doc else 0,
             "grand_total": flt(sale_doc.get("grand_total"), 2) if sale_doc else 0,
         },
-        "seller": build_fbr_seller_block(),
+        "seller": build_fbr_seller_block_from_sale(sale_doc),
         "buyer": build_fbr_buyer_block_from_sale(sale_doc),
         "items": item_rows,
         "totals": _payload_totals(item_rows, sale_doc),
@@ -528,7 +570,7 @@ def build_official_sale_invoice_payload(sale_doc):
     if not sale_doc:
         return {}
     settings = get_fbr_settings_internal()
-    seller = build_fbr_seller_block()
+    seller = build_fbr_seller_block_from_sale(sale_doc)
     buyer = build_fbr_buyer_block_from_sale(sale_doc)
     items = []
     for row in get_invoice_tax_rows_for_fbr(sale_doc):
@@ -652,7 +694,7 @@ def build_official_return_invoice_payload(return_doc):
         return {}
     settings = get_fbr_settings_internal()
     original_sale = get_sale_for_fbr(return_doc.get("original_sale"))
-    seller = build_fbr_seller_block()
+    seller = build_fbr_seller_block_from_sale(original_sale)
     buyer = build_fbr_buyer_block_from_sale(original_sale)
     items = []
     for row in get_return_tax_rows_for_fbr(return_doc):
