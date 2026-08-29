@@ -3,7 +3,7 @@
 
 import frappe
 from frappe.model.document import Document
-from frappe.utils import flt
+from frappe.utils import cint, flt
 
 from ledgix_saas.api.settings import is_strict_inventory_mode
 from ledgix_saas.services.receivables import get_customer_receivables, refresh_customer_credit_summary
@@ -31,6 +31,7 @@ class LedgixSale(Document):
         for message in (tax_result.get("validation") or {}).get("warnings") or []:
             frappe.msgprint(message, indicator="orange", title="Tax Mapping")
 
+        self.validate_tender_methods()
         self.calculate_payments()
         self.validate_payments()
         self.validate_credit()
@@ -120,6 +121,32 @@ class LedgixSale(Document):
         payable_total = flt(self.grand_total)
         return payable_total if payable_total > 0 else flt(self.total_amount)
 
+    def get_payment_method_meta(self, method):
+        row = frappe.db.get_value(
+            "Ledgix Payment Method",
+            method,
+            ["method_type", "enabled", "requires_reference", "allow_change"],
+            as_dict=True,
+        )
+        if not row:
+            frappe.throw(
+                f"Payment Method {method or ''} is not configured. Run migrate or configure Payment Methods before checkout."
+            )
+        return row
+
+    def validate_tender_methods(self):
+        for tender in self.payments:
+            if flt(tender.amount) <= 0:
+                frappe.throw("Tender amount must be greater than zero.")
+
+            method = self.get_payment_method_meta(tender.payment_method)
+            if not cint(method.enabled):
+                frappe.throw(f"Payment Method {tender.payment_method} is disabled.")
+            if cint(method.requires_reference) and not (tender.reference_no or "").strip():
+                frappe.throw(f"Reference number is required for Payment Method {tender.payment_method}.")
+
+            tender.is_cash_payment = 1 if method.method_type == "Cash" else 0
+
     def calculate_payments(self):
         paid_amount = sum(flt(payment.amount) for payment in self.payments)
         payable_total = self.get_payable_total()
@@ -144,12 +171,25 @@ class LedgixSale(Document):
                 frappe.throw("Paid amount is required for a retail sale.")
             if paid_amount < payable_total and not flt(getattr(self, "allow_partial_payment", 0)):
                 frappe.throw("Paid amount is less than payable total. Partial payment is not enabled for this sale.")
+
+        if paid_amount <= payable_total + 0.005:
             return
 
-        # B2B may be unpaid or partially paid. Any remainder becomes receivable,
-        # subject to the customer's credit limit.
-        if paid_amount > payable_total + 0.005:
-            frappe.throw("B2B payment cannot exceed the payable total.")
+        cash_tenders = []
+        non_cash_paid = 0.0
+        for tender in self.payments:
+            method = self.get_payment_method_meta(tender.payment_method)
+            if method.method_type == "Cash":
+                cash_tenders.append((tender, method))
+            else:
+                non_cash_paid += flt(tender.amount)
+
+        if non_cash_paid - payable_total > 0.005:
+            frappe.throw("Non-cash tender cannot exceed the payable total.")
+        if not cash_tenders:
+            frappe.throw("Only cash payment methods can tender more than the payable total and return change.")
+        if any(not cint(method.allow_change) for _tender, method in cash_tenders):
+            frappe.throw("The selected cash payment method does not allow cash change.")
 
     def validate_credit(self):
         if self.sale_channel != "B2B" or flt(self.remaining_amount) <= 0:
@@ -164,7 +204,7 @@ class LedgixSale(Document):
             )
 
     def post_legacy_tenders_to_payment_ledger(self):
-        """Bridge existing POS tender rows into the V2 authoritative payment ledger."""
+        """Bridge POS tender rows into the V2 authoritative payment ledger."""
         if not self.payments or not frappe.db.exists("DocType", "Ledgix Payment"):
             return
 
@@ -176,18 +216,13 @@ class LedgixSale(Document):
             if tendered <= 0 or remaining_to_allocate <= 0:
                 continue
 
-            method = tender.payment_method
-            if not frappe.db.exists("Ledgix Payment Method", method):
-                frappe.throw(
-                    f"Payment Method {method} is not configured. Run migrate or configure Payment Methods before checkout."
-                )
-
+            method = self.get_payment_method_meta(tender.payment_method)
             payment_amount = min(tendered, remaining_to_allocate)
             post_payment(
                 customer=self.customer,
-                payment_method=method,
+                payment_method=tender.payment_method,
                 amount=payment_amount,
-                amount_tendered=tendered if method == "Cash" else payment_amount,
+                amount_tendered=tendered if method.method_type == "Cash" else payment_amount,
                 reference_number=getattr(tender, "reference_no", None),
                 pos_shift=self.pos_shift,
                 allocations=[{
@@ -210,6 +245,7 @@ class LedgixSale(Document):
         if shift.docstatus != 0:
             return
 
+        shift.calculate_shift_summary()
         shift.calculate_expected_cash()
         shift.calculate_variance()
         shift.save(ignore_permissions=True)
