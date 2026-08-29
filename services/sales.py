@@ -26,6 +26,61 @@ def _buyer_defaults():
 	}
 
 
+def _brand_identity():
+	if not frappe.db.exists("DocType", "Ledgix Brand Settings"):
+		return {}
+	return frappe.db.get_value(
+		"Ledgix Brand Settings",
+		"Ledgix Brand Settings",
+		[
+			"brand_name",
+			"legal_business_name",
+			"business_address",
+			"business_phone",
+			"business_email",
+			"ntn",
+			"strn",
+		],
+		as_dict=True,
+	) or {}
+
+
+def _seller_identity():
+	from ledgix_saas.api.fbr_settings import get_fbr_settings_internal
+
+	brand = _brand_identity()
+	fbr = get_fbr_settings_internal() or {}
+	province = fbr.get("seller_province") or ""
+	if not province and frappe.db.exists("DocType", "Ledgix Tax Profile"):
+		province = frappe.db.get_single_value("Ledgix Tax Profile", "province") or ""
+
+	return {
+		"name": fbr.get("seller_business_name") or brand.get("legal_business_name") or brand.get("brand_name") or "Ledgix",
+		"address": fbr.get("seller_address") or brand.get("business_address") or "",
+		"province": province,
+		"ntn_cnic": fbr.get("seller_ntn_cnic") or brand.get("ntn") or "",
+		"strn": brand.get("strn") or "",
+		"phone": brand.get("business_phone") or "",
+		"email": brand.get("business_email") or "",
+	}
+
+
+def apply_seller_snapshot(sale):
+	"""Freeze legal seller identity used by invoices and FBR payloads.
+
+	Presentation assets such as logo and colors remain live branding. Legal/tax
+	identity is historical transaction data and must not change on reprint/retry.
+	"""
+	identity = _seller_identity()
+	sale.seller_name_snapshot = identity["name"]
+	sale.seller_address_snapshot = identity["address"]
+	sale.seller_province_snapshot = identity["province"]
+	sale.seller_ntn_cnic_snapshot = identity["ntn_cnic"]
+	sale.seller_strn_snapshot = identity["strn"]
+	sale.seller_phone_snapshot = identity["phone"]
+	sale.seller_email_snapshot = identity["email"]
+
+
 def apply_customer_snapshot(sale):
 	if not sale.customer:
 		return
