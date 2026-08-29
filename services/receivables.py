@@ -84,14 +84,18 @@ def get_customer_receivables(customer, as_of=None):
 	payments = _payment_allocations([row.name for row in sales])
 
 	outstanding = 0.0
+	invoice_credit = 0.0
 	overdue = 0.0
 	oldest_due_date = None
 	invoice_rows = []
 	for sale in sales:
 		gross = flt(sale.grand_total or sale.total_amount)
-		balance = max(gross - returns[sale.name] - payments[sale.name], 0)
+		net_invoice_balance = flt(gross - returns[sale.name] - payments[sale.name], 2)
+		balance = max(net_invoice_balance, 0)
+		credit = max(-net_invoice_balance, 0)
 		due_date = getdate(sale.due_date) if sale.due_date else getdate(sale.sale_date)
 		outstanding += balance
+		invoice_credit += credit
 		if balance > 0 and due_date < as_of:
 			overdue += balance
 			if oldest_due_date is None or due_date < oldest_due_date:
@@ -102,17 +106,21 @@ def get_customer_receivables(customer, as_of=None):
 			"returns": returns[sale.name],
 			"payments": payments[sale.name],
 			"outstanding": balance,
+			"credit": credit,
+			"net_balance": net_invoice_balance,
 			"due_date": due_date,
 		})
 
 	unallocated_credit = _unallocated_payment_credit(customer)
-	net_balance = flt(outstanding - unallocated_credit, 2)
+	total_credit = flt(invoice_credit + unallocated_credit, 2)
+	net_balance = flt(outstanding - total_credit, 2)
 	credit_balance = max(-net_balance, 0)
 	credit_limit = flt(frappe.db.get_value("Ledgix Customer", customer, "credit_limit"))
 	return {
 		"customer": customer,
 		"credit_limit": credit_limit,
 		"outstanding": flt(outstanding, 2),
+		"invoice_credit": flt(invoice_credit, 2),
 		"unallocated_credit": flt(unallocated_credit, 2),
 		"net_balance": net_balance,
 		"credit_balance": flt(credit_balance, 2),
