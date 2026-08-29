@@ -12,6 +12,7 @@ from ledgix_saas.services.stock import cancel_reference_movements, post_sales_re
 class LedgixSalesReturn(Document):
 
     def validate(self):
+        self.validate_return_reason()
         self.apply_original_sale_context()
         self.resolve_original_sale_item_rows()
         self.validate_return_quantities()
@@ -46,6 +47,12 @@ class LedgixSalesReturn(Document):
 
         if self.customer:
             refresh_customer_credit_summary(self.customer)
+
+    def validate_return_reason(self):
+        reason = str(getattr(self, "return_reason", "") or "").strip()
+        if not reason:
+            frappe.throw("Return Reason is required.")
+        self.return_reason = reason
 
     def apply_original_sale_context(self):
         """Derive immutable return ownership from the submitted original sale."""
