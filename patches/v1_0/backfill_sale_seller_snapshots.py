@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import frappe
 
-from ledgix_saas.services.sales import _seller_identity
+from ledgix_saas.services.sales import get_seller_identity
 
 
 SNAPSHOT_FIELDS = {
@@ -24,7 +24,7 @@ def execute():
     if not all(meta.has_field(fieldname) for fieldname in SNAPSHOT_FIELDS):
         return
 
-    identity = _seller_identity()
+    identity = get_seller_identity()
     for sale in frappe.get_all("Ledgix Sale", fields=["name", *SNAPSHOT_FIELDS.keys()]):
         # Existing V2 records that already carry any seller snapshot are historical
         # truth and must not be overwritten by a later migration.
