@@ -30,14 +30,13 @@ class LedgixItem(Document):
                 as_dict=True,
             ) or {}
 
-            # Inventory quantity belongs to submitted Stock Movements. Opening
-            # quantity is a create-time seed and cannot be replayed by editing an
-            # existing Item master.
-            self.current_stock = flt(previous.get("current_stock"))
+            # Quantity is owned by the stock ledger. Opening quantity is a
+            # create-time seed and cannot be replayed by editing the Item master.
+            if not getattr(self.flags, "allow_stock_update", False):
+                self.current_stock = flt(previous.get("current_stock"))
             self.opening_stock = flt(previous.get("opening_stock"))
 
-            # Moving-average cost is owned by purchase/valuation services after
-            # creation. Explicit service updates set this internal flag.
+            # Moving-average cost is also stock-ledger owned after creation.
             if not getattr(self.flags, "allow_cost_update", False):
                 self.cost_price = flt(previous.get("cost_price"))
 
