@@ -4,7 +4,7 @@
 import frappe
 from frappe.tests.utils import FrappeTestCase
 
-from ledgix_saas.ledgix.doctype.v2_test_utils import (
+from ledgix.doctype.v2_test_utils import (
 	configure_v2_test_environment,
 	make_item,
 	make_purchase,
@@ -15,6 +15,7 @@ from ledgix_saas.services.stock import post_purchase_movements
 
 class TestLedgixPurchase(FrappeTestCase):
 	def setUp(self):
+		super().setUp()
 		configure_v2_test_environment("Strict Inventory")
 
 	def test_purchase_submit_posts_stock_and_average_cost(self):
