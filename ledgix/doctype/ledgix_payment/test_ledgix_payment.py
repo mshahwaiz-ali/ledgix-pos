@@ -8,6 +8,7 @@ from ledgix.doctype.v2_test_utils import (
 	make_item,
 	make_sale,
 )
+from ledgix.report.ledgix_customer_statement.ledgix_customer_statement import get_data as get_statement_data
 from ledgix_saas.services.payments import post_payment, reverse_payment
 from ledgix_saas.services.receivables import get_customer_receivables
 
@@ -33,14 +34,50 @@ class TestLedgixPayment(FrappeTestCase):
 			payment.validate()
 
 	def test_allocations_cannot_exceed_payment_amount(self):
+		item = make_item(selling_price=200)
+		customer = make_customer(customer_type="B2B", credit_limit=500)
+		sale = make_sale(customer.name, item.name, rate=200, sale_channel="B2B", submit=True)
+
 		payment = frappe.new_doc("Ledgix Payment")
+		payment.customer = customer.name
 		payment.payment_method = "Cash"
 		payment.amount = 100
 		payment.amount_tendered = 100
 		payment.append("allocations", {
 			"reference_doctype": "Ledgix Sale",
-			"reference_name": "SAL-NOT-USED",
+			"reference_name": sale.name,
 			"allocated_amount": 100.01,
+		})
+
+		with self.assertRaises(frappe.ValidationError):
+			payment.validate()
+
+	def test_allocation_cannot_exceed_invoice_outstanding(self):
+		item = make_item(selling_price=100)
+		customer = make_customer(customer_type="B2B", credit_limit=500)
+		sale = make_sale(customer.name, item.name, rate=100, sale_channel="B2B", submit=True)
+
+		with self.assertRaises(frappe.ValidationError):
+			post_payment(
+				customer=customer.name,
+				payment_method="Cash",
+				amount=120,
+				allocations=[{
+					"reference_doctype": "Ledgix Sale",
+					"reference_name": sale.name,
+					"allocated_amount": 120,
+				}],
+			)
+
+	def test_payment_allocation_reference_is_limited_to_sales(self):
+		payment = frappe.new_doc("Ledgix Payment")
+		payment.payment_method = "Cash"
+		payment.amount = 10
+		payment.amount_tendered = 10
+		payment.append("allocations", {
+			"reference_doctype": "Ledgix Customer",
+			"reference_name": "Customer",
+			"allocated_amount": 10,
 		})
 
 		with self.assertRaises(frappe.ValidationError):
@@ -54,6 +91,61 @@ class TestLedgixPayment(FrappeTestCase):
 
 		with self.assertRaises(frappe.ValidationError):
 			payment.validate()
+
+	def test_cash_change_is_not_customer_credit(self):
+		item = make_item(selling_price=100)
+		customer = make_customer(customer_type="B2B", credit_limit=500)
+		sale = make_sale(customer.name, item.name, rate=100, sale_channel="B2B", submit=True)
+
+		payment = post_payment(
+			customer=customer.name,
+			payment_method="Cash",
+			amount=100,
+			amount_tendered=120,
+			allocations=[{
+				"reference_doctype": "Ledgix Sale",
+				"reference_name": sale.name,
+				"allocated_amount": 100,
+			}],
+		)
+		self.assertAlmostEqual(payment.change_amount, 20, places=2)
+		self.assertAlmostEqual(payment.unallocated_amount, 0, places=2)
+		credit = get_customer_receivables(customer.name)
+		self.assertAlmostEqual(credit["unallocated_credit"], 0, places=2)
+		self.assertAlmostEqual(credit["credit_balance"], 0, places=2)
+
+	def test_unallocated_payment_credit_updates_exposure_and_statement(self):
+		item = make_item(selling_price=100)
+		customer = make_customer(customer_type="B2B", credit_limit=500)
+		sale = make_sale(customer.name, item.name, rate=100, sale_channel="B2B", submit=True)
+
+		payment = post_payment(
+			customer=customer.name,
+			payment_method="Cash",
+			amount=150,
+			amount_tendered=150,
+			allocations=[{
+				"reference_doctype": "Ledgix Sale",
+				"reference_name": sale.name,
+				"allocated_amount": 100,
+			}],
+		)
+		self.assertAlmostEqual(payment.unallocated_amount, 50, places=2)
+
+		credit = get_customer_receivables(customer.name)
+		self.assertAlmostEqual(credit["outstanding"], 0, places=2)
+		self.assertAlmostEqual(credit["unallocated_credit"], 50, places=2)
+		self.assertAlmostEqual(credit["net_balance"], -50, places=2)
+		self.assertAlmostEqual(credit["credit_balance"], 50, places=2)
+		self.assertAlmostEqual(credit["available_credit"], 550, places=2)
+
+		customer.reload()
+		self.assertAlmostEqual(customer.unallocated_credit, 50, places=2)
+		self.assertAlmostEqual(customer.credit_balance, 50, places=2)
+		self.assertAlmostEqual(customer.available_credit, 550, places=2)
+
+		statement = get_statement_data({"customer": customer.name})
+		self.assertAlmostEqual(statement[-1]["balance"], -50, places=2)
 
 	def test_payment_and_reversal_update_customer_receivable(self):
 		item = make_item(selling_price=100)
