@@ -79,6 +79,30 @@ def apply_seller_snapshot(sale):
 	sale.seller_email_snapshot = identity["email"]
 
 
+def apply_item_snapshots(sale):
+	"""Freeze customer-facing item identity on Sale rows.
+
+	Item names, codes and UOMs are master data and may be edited or renamed later.
+	Receipts and invoices must continue to describe the item as it was sold.
+	"""
+	for row in sale.get("items") or []:
+		if not row.item:
+			continue
+		item = frappe.db.get_value(
+			"Ledgix Item",
+			row.item,
+			["item_code", "item_name", "unit"],
+			as_dict=True,
+		)
+		if not item:
+			row.item_code_snapshot = row.item_code_snapshot or row.item
+			row.item_name_snapshot = row.item_name_snapshot or row.item
+			continue
+		row.item_code_snapshot = item.item_code or row.item
+		row.item_name_snapshot = item.item_name or item.item_code or row.item
+		row.unit_snapshot = item.unit or ""
+
+
 def apply_customer_snapshot(sale):
 	if not sale.customer:
 		return
