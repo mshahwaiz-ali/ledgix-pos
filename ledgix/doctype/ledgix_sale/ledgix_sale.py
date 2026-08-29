@@ -6,7 +6,7 @@ from frappe.model.document import Document
 from frappe.utils import cint, flt
 
 from ledgix_saas.services.receivables import get_customer_receivables, refresh_customer_credit_summary
-from ledgix_saas.services.sales import apply_customer_snapshot
+from ledgix_saas.services.sales import apply_customer_snapshot, apply_seller_snapshot
 from ledgix_saas.services.stock import cancel_reference_movements, post_sale_movements
 from ledgix_saas.services.tax import apply_sale_tax_snapshot
 
@@ -20,6 +20,7 @@ class LedgixSale(Document):
         if self.docstatus == 0:
             self.status = "Draft"
             apply_customer_snapshot(self)
+            apply_seller_snapshot(self)
 
         self.validate_channel_requirements()
         self.validate_stock()
