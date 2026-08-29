@@ -117,9 +117,6 @@ PAGE_ROLES = {
 	"business-intelligence-center": ("System Manager", "Ledgix Admin", "Ledgix Manager"),
 }
 
-# Old custom shells were removed from source, but Frappe does not automatically
-# delete their Page records from existing sites. Keep this cleanup explicit and
-# idempotent so upgraded sites match the V2 page footprint.
 RETIRED_PAGES = (
 	"ledgix-dashboard",
 	"ledgix_operations",
@@ -127,13 +124,15 @@ RETIRED_PAGES = (
 	"quick-item-scan",
 )
 
-# These legacy product surfaces are not part of V2. Existing sites may still
-# contain their DocType metadata, so cleanup remains explicit and idempotent.
 RETIRED_DOCTYPES = (
 	"Ledgix Mode Settings",
 	"Ledgix POS Theme Settings",
 	"Ledgix Maintenance Tool",
 )
+
+RETIRED_ROLE_MAP = {
+	"Ledgix Super Admin": "Ledgix Admin",
+}
 
 ROLE_HOME_PAGES = {
 	"Ledgix Cashier": "ledgix-pos",
@@ -184,13 +183,7 @@ def cleanup_retired_pages():
 			continue
 		if frappe.db.get_value("Page", page_name, "module") != "Ledgix":
 			continue
-		frappe.delete_doc(
-			"Page",
-			page_name,
-			force=True,
-			ignore_permissions=True,
-			ignore_missing=True,
-		)
+		frappe.delete_doc("Page", page_name, force=True, ignore_permissions=True, ignore_missing=True)
 
 
 def _migrate_legacy_pos_color():
@@ -202,9 +195,6 @@ def _migrate_legacy_pos_color():
 	enabled = cint(frappe.db.get_single_value("Ledgix POS Theme Settings", "enable_custom_accent"))
 	accent = str(frappe.db.get_single_value("Ledgix POS Theme Settings", "primary_accent_color") or "").strip()
 	brand_color = str(frappe.db.get_single_value("Ledgix Brand Settings", "primary_brand_color") or "").strip()
-
-	# Preserve an old configured accent only when the consolidated Brand Settings
-	# color is still blank/default. Never overwrite an explicitly branded site.
 	if enabled and accent and (not brand_color or brand_color.lower() == "#8c2031"):
 		frappe.db.set_single_value("Ledgix Brand Settings", "primary_brand_color", accent)
 
@@ -216,13 +206,38 @@ def cleanup_retired_doctypes():
 			continue
 		if frappe.db.get_value("DocType", doctype, "module") != "Ledgix":
 			continue
-		frappe.delete_doc(
-			"DocType",
-			doctype,
-			force=True,
-			ignore_permissions=True,
-			ignore_missing=True,
-		)
+		frappe.delete_doc("DocType", doctype, force=True, ignore_permissions=True, ignore_missing=True)
+
+
+def cleanup_retired_roles():
+	for old_role, replacement_role in RETIRED_ROLE_MAP.items():
+		if not frappe.db.exists("Role", old_role):
+			continue
+
+		if frappe.db.exists("Role", replacement_role):
+			users = frappe.get_all(
+				"Has Role",
+				filters={"role": old_role, "parenttype": "User"},
+				pluck="parent",
+			)
+			for user in users:
+				if not frappe.db.exists(
+					"Has Role",
+					{"parent": user, "parenttype": "User", "parentfield": "roles", "role": replacement_role},
+				):
+					frappe.get_doc({
+						"doctype": "Has Role",
+						"parent": user,
+						"parenttype": "User",
+						"parentfield": "roles",
+						"role": replacement_role,
+					}).insert(ignore_permissions=True)
+
+		frappe.db.delete("Has Role", {"role": old_role})
+		if frappe.db.exists("DocType", "Custom DocPerm"):
+			frappe.db.delete("Custom DocPerm", {"role": old_role})
+		frappe.db.delete("DocPerm", {"role": old_role})
+		frappe.delete_doc("Role", old_role, force=True, ignore_permissions=True, ignore_missing=True)
 
 
 def sync_page_roles():
@@ -268,6 +283,7 @@ def sync_report_roles():
 
 def sync_all():
 	cleanup_retired_doctypes()
+	cleanup_retired_roles()
 	sync_doctype_permissions()
 	cleanup_retired_pages()
 	sync_page_roles()
