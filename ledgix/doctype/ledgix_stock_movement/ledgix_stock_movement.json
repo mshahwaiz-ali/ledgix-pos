@@ -1,29 +1,37 @@
 {
  "actions": [],
- "allow_rename": 1,
+ "allow_rename": 0,
  "autoname": "format:STK-{#####}",
  "creation": "2026-05-14 10:46:54.565131",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "section_break_up2j",
+  "movement_section",
   "item",
   "movement_type",
   "movement_source",
   "quantity",
-  "amended_from",
-  "reference_note",
+  "valuation_rate",
   "movement_date",
-  "naming_series",
   "reference_doctype",
-  "reference_name"
+  "reference_name",
+  "reference_note",
+  "amended_from"
  ],
  "fields": [
   {
-   "fieldname": "section_break_up2j",
+   "fieldname": "movement_section",
    "fieldtype": "Section Break",
-   "label": "Ledgix Stock Movement",
-   "print_hide": 1
+   "label": "Stock Movement"
+  },
+  {
+   "fieldname": "item",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Item",
+   "options": "Ledgix Item",
+   "reqd": 1
   },
   {
    "fieldname": "movement_type",
@@ -49,6 +57,38 @@
    "reqd": 1
   },
   {
+   "description": "Cost/valuation snapshot carried by this inventory event. Read-only after posting.",
+   "fieldname": "valuation_rate",
+   "fieldtype": "Currency",
+   "label": "Valuation Rate",
+   "precision": "2",
+   "read_only": 1
+  },
+  {
+   "fieldname": "movement_date",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "label": "Movement Date"
+  },
+  {
+   "fieldname": "reference_doctype",
+   "fieldtype": "Data",
+   "label": "Reference DocType",
+   "read_only": 1
+  },
+  {
+   "fieldname": "reference_name",
+   "fieldtype": "Data",
+   "label": "Reference Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "reference_note",
+   "fieldtype": "Small Text",
+   "label": "Reference Note",
+   "read_only": 1
+  },
+  {
    "fieldname": "amended_from",
    "fieldtype": "Link",
    "label": "Amended From",
@@ -57,50 +97,13 @@
    "print_hide": 1,
    "read_only": 1,
    "search_index": 1
-  },
-  {
-   "fieldname": "reference_note",
-   "fieldtype": "Small Text",
-   "label": "Reference Note"
-  },
-  {
-   "fieldname": "movement_date",
-   "fieldtype": "Datetime",
-   "label": "Movement Date"
-  },
-  {
-   "fieldname": "naming_series",
-   "fieldtype": "Select",
-   "hidden": 1,
-   "label": "Series",
-   "options": "STK-.YYYY.-.#####",
-   "set_only_once": 1
-  },
-  {
-   "fieldname": "reference_doctype",
-   "fieldtype": "Data",
-   "label": "Reference Doctype"
-  },
-  {
-   "fieldname": "reference_name",
-   "fieldtype": "Data",
-   "label": "Reference Name"
-  },
-  {
-   "fieldname": "item",
-   "fieldtype": "Link",
-   "in_list_view": 1,
-   "in_standard_filter": 1,
-   "label": "Item",
-   "options": "Ledgix Item",
-   "reqd": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-05-17 12:32:07.303451",
+ "modified": "2026-08-29 00:00:00.000000",
  "modified_by": "Administrator",
  "module": "Ledgix",
  "name": "Ledgix Stock Movement",
@@ -155,7 +158,7 @@
  ],
  "row_format": "Dynamic",
  "rows_threshold_for_grid_search": 20,
- "sort_field": "modified",
+ "sort_field": "movement_date",
  "sort_order": "DESC",
  "states": [],
  "track_changes": 1
