@@ -192,7 +192,7 @@ class LedgixPOSV2 {
 			fields: [
 				{ fieldname: "payment_method", fieldtype: "Select", label: "Payment Method", options, default: this.state.payment_methods[0]?.name || "", reqd: 1 },
 				{ fieldname: "amount", fieldtype: "Currency", label: "Amount", default: due, reqd: 1 },
-				{ fieldname: "reference_number", fieldtype: "Data", label: "Reference Number" },
+				{ fieldname: "reference_number", fieldtype: "Data", label: "Transaction Reference" },
 				{ fieldname: "payment_hint", fieldtype: "HTML" },
 			],
 		});
@@ -202,9 +202,23 @@ class LedgixPOSV2 {
 			const is_cash = method?.method_type === "Cash";
 			const can_change = this.state.sale_channel === "Retail" && is_cash && !!method?.allow_change;
 			const change = can_change ? Math.max(amount - due, 0) : 0;
-			const reference = method?.requires_reference ? "Reference required" : "Reference optional";
-			const policy = can_change ? `Cash change allowed · Change ${this.money(change)}` : `Maximum ${this.money(due)}`;
-			dialog.fields_dict.payment_hint.$wrapper.html(`<div class="text-muted small">${this.escape(reference)} · ${this.escape(policy)}</div>`);
+			const reference_field = dialog.fields_dict.reference_number;
+			const show_reference = !!method && !is_cash;
+			const reference_required = show_reference && !!method?.requires_reference;
+			reference_field.df.reqd = reference_required ? 1 : 0;
+			reference_field.$wrapper.toggle(show_reference);
+			reference_field.$input.attr("placeholder", "Bank / terminal / wallet transaction ID");
+			if (!show_reference && dialog.get_value("reference_number")) dialog.set_value("reference_number", "");
+			let policy;
+			if (is_cash) {
+				policy = can_change
+					? `Cash payment · Change ${this.money(change)}`
+					: `Cash payment · Maximum ${this.money(due)}`;
+			} else {
+				const reference = reference_required ? "Transaction reference required" : "Reference optional";
+				policy = `${reference} · Maximum ${this.money(due)}`;
+			}
+			dialog.fields_dict.payment_hint.$wrapper.html(`<div class="text-muted small">${this.escape(policy)}</div>`);
 		};
 		dialog.fields_dict.payment_method.$input.on("change", refresh_hint);
 		dialog.fields_dict.amount.$input.on("input", refresh_hint);
@@ -216,7 +230,7 @@ class LedgixPOSV2 {
 			const reference = String(values.reference_number || "").trim();
 			if (!method) return frappe.msgprint("Select a configured payment method.");
 			if (amount <= 0) return frappe.msgprint("Payment amount must be greater than zero.");
-			if (method.requires_reference && !reference) return frappe.msgprint(`${this.escape(method.name)} requires a reference number.`);
+			if (method.requires_reference && !reference) return frappe.msgprint(`${this.escape(method.name)} requires a transaction reference.`);
 			const can_change = this.state.sale_channel === "Retail" && method.method_type === "Cash" && !!method.allow_change;
 			if (amount - due > 0.005 && !can_change) return frappe.msgprint(`Payment cannot exceed the remaining amount of ${this.money(due)}.`);
 			this.state.tenders.push({ payment_method: values.payment_method, amount, reference_number: reference });
@@ -237,7 +251,6 @@ class LedgixPOSV2 {
 
 	async toggle_shift(){if(this.state.active_shift){frappe.prompt([{fieldname:"actual_cash",fieldtype:"Currency",label:"Actual Closing Cash",reqd:1}],async v=>{try{await this.call("ledgix_saas.api.api.close_pos_shift",{actual_cash:v.actual_cash,shift_name:this.state.active_shift});await this.refresh_context();}catch(e){this.handle_error(e);}},"Close Shift","Close");return;}frappe.prompt([{fieldname:"opening_cash",fieldtype:"Currency",label:"Opening Cash",default:0,reqd:1}],async v=>{try{await this.call("ledgix_saas.api.api.open_pos_shift",{opening_cash:v.opening_cash});await this.refresh_context();}catch(e){this.handle_error(e);}},"Open Shift","Open");}
 	async refresh_context(){const boot=await this.call("ledgix_saas.api.v2_pos.get_pos_v2_boot",{customer:this.state.customer,sale_channel:this.state.sale_channel});this.apply_boot(boot);}
-
 	start_return(){frappe.prompt([{fieldname:"sale_id",fieldtype:"Data",label:"Sale / Invoice",reqd:1},{fieldname:"reason",fieldtype:"Small Text",label:"Return Reason",reqd:1}],async v=>{try{const sale=await this.call("ledgix_saas.api.v2_returns.get_pos_v2_return_context",{sale_id:v.sale_id});this.show_return_dialog(sale,v.reason);}catch(e){this.handle_error(e);}},"Return / Refund","Load Sale");}
 	show_return_dialog(sale,reason){const rows=sale.items||[];const dialog=new frappe.ui.Dialog({title:`Return ${this.escape(sale.invoice_number||sale.sale_id)}`,size:"large",fields:[{fieldname:"items_html",fieldtype:"HTML"}]});dialog.fields_dict.items_html.$wrapper.html(`<div class="lx-return-list">${rows.map((row,i)=>`<div class="lx-return-row"><div><strong>${this.escape(row.item_name||row.item)}</strong><small>Sold ${row.sold_qty} · Already returned ${row.already_returned_qty||0} · Available ${row.returnable_qty||0}</small></div><input type="number" min="0" max="${Number(row.returnable_qty||0)}" step="0.001" value="0" data-return-index="${i}"></div>`).join("")}</div>`);dialog.set_primary_action("Create Return",async()=>{const items=[];dialog.$wrapper.find("[data-return-index]").each((_,el)=>{const i=Number($(el).data("return-index"));const qty=Number($(el).val()||0);if(qty>0)items.push({item:rows[i].item,original_sale_item_row:rows[i].original_sale_item_row,qty});});if(!items.length)return frappe.msgprint("Enter at least one return quantity.");try{const result=await this.call("ledgix_saas.api.v2_returns.create_pos_v2_return",{original_sale:sale.sale_id,return_items:items,reason});dialog.hide();frappe.show_alert({message:`Return ${result.return_id} posted`,indicator:"green"},5);await this.refresh_context();await this.load_items();}catch(e){this.handle_error(e);}});dialog.show();}
 
