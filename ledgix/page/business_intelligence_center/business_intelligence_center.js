@@ -13,7 +13,11 @@ class LedgixInventoryIntelligence {
 			single_column: true,
 		});
 		this.page.clear_actions_menu();
-		this.method = "ledgix_saas.api.business_intelligence.get_business_intelligence_data";
+		this.method = "ledgix_saas.api.inventory_intelligence.get_inventory_intelligence_data";
+		this.riskPreviewLimit = 8;
+		this.timelinePageSize = 150;
+		this.requestSerial = 0;
+		this.suppressControlReload = false;
 		this.state = {
 			item: "",
 			tracking_type: "All",
@@ -22,6 +26,8 @@ class LedgixInventoryIntelligence {
 			search: "",
 			loading: false,
 			data: null,
+			risks_expanded: false,
+			timeline_limit: this.timelinePageSize,
 		};
 		this.searchTimer = null;
 		this.render_shell();
@@ -107,24 +113,55 @@ class LedgixInventoryIntelligence {
 	bind_events() {
 		this.$root.on("click", ".lx-ii-refresh", () => this.load_data());
 		this.$root.on("click", ".lx-ii-reset", () => this.reset_filters());
-		this.$root.on("keydown", ".lx-ii-search", (event) => { if (event.key === "Enter") { event.preventDefault(); this.load_data(); } });
+		this.$root.on("keydown", ".lx-ii-search", (event) => {
+			if (event.key === "Enter") {
+				event.preventDefault();
+				clearTimeout(this.searchTimer);
+				this.load_data();
+			}
+		});
 		this.$root.on("input", ".lx-ii-search", (event) => {
 			this.state.search = event.currentTarget.value || "";
 			clearTimeout(this.searchTimer);
 			this.searchTimer = setTimeout(() => this.load_data(), 350);
 		});
+		this.$root.on("click", ".lx-ii-risk-toggle", () => {
+			this.state.risks_expanded = !this.state.risks_expanded;
+			this.render_data();
+		});
+		this.$root.on("click", ".lx-ii-timeline-more", () => {
+			const rows = this.current_timeline();
+			this.state.timeline_limit = Math.min(this.state.timeline_limit + this.timelinePageSize, rows.length);
+			this.render_data();
+		});
+		this.$root.on("click", ".lx-ii-timeline-less", () => {
+			this.state.timeline_limit = this.timelinePageSize;
+			this.render_data();
+		});
 		this.$root.on("click", "[data-route-list]", (event) => frappe.set_route("List", $(event.currentTarget).data("route-list"), "List"));
 		this.$root.on("click", "[data-route-report]", (event) => frappe.set_route("query-report", $(event.currentTarget).data("route-report")));
 		this.$root.on("click", "[data-route-doc]", (event) => this.open_reference($(event.currentTarget)));
-		this.itemControl?.$input?.on("change", () => this.load_data());
-		this.trackingControl?.$input?.on("change", () => this.load_data());
+
+		const reloadFromControl = () => {
+			if (!this.suppressControlReload) this.load_data();
+		};
+		this.itemControl?.$input?.on("change", reloadFromControl);
+		this.trackingControl?.$input?.on("change", reloadFromControl);
+		this.fromControl?.$input?.on("change", reloadFromControl);
+		this.toControl?.$input?.on("change", reloadFromControl);
 	}
 
 	async reset_filters() {
-		await this.itemControl.set_value("");
-		await this.trackingControl.set_value("All");
-		await this.fromControl.set_value("");
-		await this.toControl.set_value("");
+		clearTimeout(this.searchTimer);
+		this.suppressControlReload = true;
+		try {
+			await this.itemControl.set_value("");
+			await this.trackingControl.set_value("All");
+			await this.fromControl.set_value("");
+			await this.toControl.set_value("");
+		} finally {
+			this.suppressControlReload = false;
+		}
 		this.$root.find(".lx-ii-search").val("");
 		this.state.search = "";
 		await this.load_data();
@@ -142,18 +179,23 @@ class LedgixInventoryIntelligence {
 	}
 
 	async load_data() {
-		if (this.state.loading) return;
+		const requestId = ++this.requestSerial;
+		const filters = this.get_filters();
+		Object.assign(this.state, filters);
+		this.set_loading(true);
 		try {
-			this.set_loading(true);
-			const filters = this.get_filters();
-			Object.assign(this.state, filters);
-			this.state.data = await this.call(this.method, filters);
+			const data = await this.call(this.method, filters);
+			if (requestId !== this.requestSerial) return;
+			this.state.data = data;
+			this.state.risks_expanded = false;
+			this.state.timeline_limit = this.timelinePageSize;
 			this.render_data();
 		} catch (error) {
+			if (requestId !== this.requestSerial) return;
 			console.error("Inventory Intelligence load failed", error);
 			this.render_error("Inventory Intelligence could not load. Check manager permissions and try again.");
 		} finally {
-			this.set_loading(false);
+			if (requestId === this.requestSerial) this.set_loading(false);
 		}
 	}
 
@@ -163,12 +205,17 @@ class LedgixInventoryIntelligence {
 		this.$root.find(".lx-ii-refresh").prop("disabled", !!value).text(value ? "Loading…" : "Refresh");
 	}
 
+	current_timeline() {
+		const data = this.state.data || {};
+		return data.cycle_rows || data.timeline || [];
+	}
+
 	render_data() {
 		const data = this.state.data || {};
 		const summary = data.summary || {};
 		const story = data.story || {};
 		const risks = data.risks || [];
-		const timeline = data.cycle_rows || data.timeline || [];
+		const timeline = this.current_timeline();
 		const identities = data.lots || [];
 		const meta = data.meta || {};
 		this.$root.find(".lx-ii-content").html(`
@@ -193,8 +240,8 @@ class LedgixInventoryIntelligence {
 				</div>
 			</section>
 			<section class="lx-ii-card">
-				<div class="lx-ii-card-head"><div><h3>Transaction timeline</h3><p>Submitted purchase, sale and return events in one traceable view.</p></div><span class="lx-ii-meta">${this.escape(meta.cycle_row_count ?? timeline.length)} events</span></div>
-				${this.timeline_html(timeline)}
+				<div class="lx-ii-card-head"><div><h3>Transaction timeline</h3><p>Submitted purchase, sale and return events in one traceable view.</p></div><span class="lx-ii-meta">${this.timeline_meta_label(timeline, meta)}</span></div>
+				${this.timeline_html(timeline, meta)}
 			</section>
 			${identities.length ? `<section class="lx-ii-card"><div class="lx-ii-card-head"><div><h3>Lot performance</h3><p>Lot-level sell-through, margin and return behavior.</p></div><button class="btn btn-default btn-xs" data-route-list="Ledgix Stock Lot">Open Stock Lots</button></div>${this.identities_html(identities)}</section>` : ""}
 		`);
@@ -214,25 +261,60 @@ class LedgixInventoryIntelligence {
 
 	risks_html(risks) {
 		if (!risks.length) return '<div class="lx-ii-empty lx-ii-empty-small">No current risk signals.</div>';
-		return `<div class="lx-ii-risk-list">${risks.slice(0, 8).map(risk => `<div class="lx-ii-risk"><span class="lx-ii-risk-level is-${this.escape(String(risk.severity || "Info").toLowerCase())}">${this.escape(risk.severity || "Info")}</span><div><strong>${this.escape(risk.title || "Risk")}</strong><p>${this.escape(risk.message || "")}</p>${risk.reference ? `<small>${this.escape(risk.reference)}</small>` : ""}</div></div>`).join("")}${risks.length > 8 ? `<div class="lx-ii-more">+${risks.length - 8} more signal(s)</div>` : ""}</div>`;
+		const expanded = this.state.risks_expanded;
+		const visible = expanded ? risks : risks.slice(0, this.riskPreviewLimit);
+		const cards = visible.map(risk => `<div class="lx-ii-risk"><span class="lx-ii-risk-level is-${this.escape(String(risk.severity || "Info").toLowerCase())}">${this.escape(risk.severity || "Info")}</span><div><strong>${this.escape(risk.title || "Risk")}</strong><p>${this.escape(risk.message || "")}</p>${risk.reference ? `<small>${this.escape(risk.reference)}</small>` : ""}</div></div>`).join("");
+		let toggle = "";
+		if (risks.length > this.riskPreviewLimit) {
+			const remaining = risks.length - this.riskPreviewLimit;
+			const label = expanded ? "Show less" : `Show all ${risks.length} · ${remaining} more`;
+			toggle = `<div class="lx-ii-more"><button class="btn btn-default btn-xs lx-ii-risk-toggle" type="button">${this.escape(label)}</button></div>`;
+		}
+		return `<div class="lx-ii-risk-list">${cards}${toggle}</div>`;
 	}
 
-	timeline_html(rows) {
+	timeline_meta_label(rows, meta) {
+		const loaded = Number(meta.timeline_loaded_count ?? rows.length);
+		return this.escape(`${loaded} loaded event${loaded === 1 ? "" : "s"}`);
+	}
+
+	timeline_html(rows, meta = {}) {
 		if (!rows.length) return '<div class="lx-ii-empty">No inventory activity matched the current filters.</div>';
-		return `<div class="lx-ii-table-wrap"><table class="lx-ii-table"><thead><tr><th>Date</th><th>Event</th><th>Item / Identity</th><th>Reference</th><th>Party</th><th>Qty</th><th>Running Qty</th><th>Rate</th><th>Profit</th></tr></thead><tbody>${rows.slice(0, 150).map(row => {
-			const event = row.cycle_status || row.event_type || "Activity";
-			const identity = row.serial_no || row.lot_number || "";
-			const isReturn = ["Return", "Partial Return"].includes(event);
-			const reference = isReturn ? (row.sales_return || row.reference || row.sale || "") : (row.reference || row.sale || row.purchase || row.sales_return || "");
-			let qty = Number(row.qty || 0);
-			if (event === "Sale") qty = -Number(row.sale_qty || row.qty || 0);
-			else if (isReturn) qty = Number(row.return_qty || row.qty || 0);
-			else if (event === "Purchase") qty = Number(row.purchased_qty || row.qty || 0);
-			else if (event === "Cancel") qty = Number(row.return_qty || 0);
-			const rate = Number(row.sale_rate || 0) || Number(row.cost_rate || row.unit_cost || 0);
-			const profit = Number(row.profit || row.profit_impact || 0) - Number(row.loss || 0);
-			return `<tr><td>${this.escape(row.date || row.purchase_date || row.sale_date || row.return_date || "—")}</td><td><span class="lx-ii-event is-${this.escape(String(event).toLowerCase().replace(/\s+/g, "-"))}">${this.escape(event)}</span></td><td><strong>${this.escape(row.item_name || row.item || "—")}</strong><small>${this.escape(identity)}</small></td><td>${this.reference_button(event, reference)}</td><td>${this.escape(row.customer || row.supplier || "—")}</td><td>${this.number(qty, 2)}</td><td>${this.number(row.current_lot_qty ?? row.running_qty ?? 0, 2)}</td><td>${this.money(rate)}</td><td class="${profit < 0 ? "is-negative" : profit > 0 ? "is-positive" : ""}">${this.money(profit)}</td></tr>`;
-		}).join("")}</tbody></table>${rows.length > 150 ? `<div class="lx-ii-table-note">Showing the first 150 of ${rows.length} events. Narrow the filters for a focused investigation.</div>` : ""}</div>`;
+		const visibleCount = Math.min(Math.max(this.state.timeline_limit, this.timelinePageSize), rows.length);
+		const visibleRows = rows.slice(0, visibleCount);
+		const body = visibleRows.map(row => this.timeline_row_html(row)).join("");
+		const remaining = rows.length - visibleCount;
+		const actions = [];
+		if (remaining > 0) {
+			const nextCount = Math.min(this.timelinePageSize, remaining);
+			actions.push(`<button class="btn btn-default btn-xs lx-ii-timeline-more" type="button">Load ${nextCount} more</button>`);
+		}
+		if (visibleCount > this.timelinePageSize) {
+			actions.push(`<button class="btn btn-default btn-xs lx-ii-timeline-less" type="button">Show first ${this.timelinePageSize}</button>`);
+		}
+		const cap = Number(meta.timeline_result_cap || 500);
+		const capNote = meta.timeline_cap_reached
+			? ` Result cap reached at ${cap} loaded events; narrow the filters to investigate older or more specific activity.`
+			: "";
+		const note = (rows.length > this.timelinePageSize || meta.timeline_cap_reached)
+			? `<div class="lx-ii-table-note"><span>Showing ${visibleCount} of ${rows.length} loaded events.${this.escape(capNote)}</span>${actions.length ? `<span class="lx-ii-table-note-actions">${actions.join("")}</span>` : ""}</div>`
+			: "";
+		return `<div class="lx-ii-table-wrap"><table class="lx-ii-table"><thead><tr><th>Date</th><th>Event</th><th>Item / Identity</th><th>Reference</th><th>Party</th><th>Qty</th><th>Running Qty</th><th>Rate</th><th>Profit</th></tr></thead><tbody>${body}</tbody></table>${note}</div>`;
+	}
+
+	timeline_row_html(row) {
+		const event = row.cycle_status || row.event_type || "Activity";
+		const identity = row.serial_no || row.lot_number || "";
+		const isReturn = ["Return", "Partial Return"].includes(event);
+		const reference = isReturn ? (row.sales_return || row.reference || row.sale || "") : (row.reference || row.sale || row.purchase || row.sales_return || "");
+		let qty = Number(row.qty || 0);
+		if (event === "Sale") qty = -Number(row.sale_qty || row.qty || 0);
+		else if (isReturn) qty = Number(row.return_qty || row.qty || 0);
+		else if (event === "Purchase") qty = Number(row.purchased_qty || row.qty || 0);
+		else if (event === "Cancel") qty = Number(row.return_qty || 0);
+		const rate = Number(row.sale_rate || 0) || Number(row.cost_rate || row.unit_cost || 0);
+		const profit = Number(row.profit || row.profit_impact || 0) - Number(row.loss || 0);
+		return `<tr><td>${this.escape(row.date || row.purchase_date || row.sale_date || row.return_date || "—")}</td><td><span class="lx-ii-event is-${this.escape(String(event).toLowerCase().replace(/\s+/g, "-"))}">${this.escape(event)}</span></td><td><strong>${this.escape(row.item_name || row.item || "—")}</strong><small>${this.escape(identity)}</small></td><td>${this.reference_button(event, reference)}</td><td>${this.escape(row.customer || row.supplier || "—")}</td><td>${this.number(qty, 2)}</td><td>${this.number(row.current_lot_qty ?? row.running_qty ?? 0, 2)}</td><td>${this.money(rate)}</td><td class="${profit < 0 ? "is-negative" : profit > 0 ? "is-positive" : ""}">${this.money(profit)}</td></tr>`;
 	}
 
 	reference_button(event, reference) {
