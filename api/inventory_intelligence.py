@@ -5,6 +5,7 @@ from ledgix_saas.api.security import require_ledgix_manager_or_above
 
 
 TIMELINE_RESULT_CAP = 500
+LOT_RESULT_CAP = 500
 
 
 @frappe.whitelist()
@@ -39,18 +40,18 @@ def get_inventory_intelligence_data(
 
 	try:
 		if core.should_use_serial_intelligence(filters):
-			return add_timeline_meta(core.build_serial_data_response(filters))
+			return add_scope_meta(core.build_serial_data_response(filters))
 
 		if core.should_use_normal_stock_intelligence(filters):
-			return add_timeline_meta(build_normal_stock_data_response(filters))
+			return add_scope_meta(build_normal_stock_data_response(filters))
 
 		if core.should_use_mixed_intelligence(filters):
 			return build_mixed_data_response(filters)
 
-		return add_timeline_meta(build_lot_data_response(filters))
+		return add_scope_meta(build_lot_data_response(filters))
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "Inventory Intelligence API")
-		return add_timeline_meta(core.empty_response(filters))
+		return error_response(filters)
 
 
 def build_normal_stock_data_response(filters):
@@ -315,16 +316,28 @@ def empty_lot_response(filters, search_miss=False):
 	return response
 
 
+def error_response(filters):
+	response = core.empty_response(filters)
+	response["story"] = {
+		"title": "Inventory Intelligence could not load",
+		"text": "The server could not calculate this inventory view. Try again, then check the Error Log if the problem continues.",
+		"tone": "critical",
+		"signals": [],
+	}
+	response["meta"]["load_error"] = True
+	return add_scope_meta(response)
+
+
 def build_mixed_data_response(filters):
-	lot_response = add_timeline_meta(build_lot_data_response(dict(filters)))
+	lot_response = add_scope_meta(build_lot_data_response(dict(filters)))
 
 	normal_filters = dict(filters)
 	normal_filters["tracking_type"] = "Normal Stock"
-	normal_response = add_timeline_meta(build_normal_stock_data_response(normal_filters))
+	normal_response = add_scope_meta(build_normal_stock_data_response(normal_filters))
 
 	serial_filters = dict(filters)
 	serial_filters["tracking_type"] = "Serial Based"
-	serial_response = add_timeline_meta(core.build_serial_data_response(serial_filters))
+	serial_response = add_scope_meta(core.build_serial_data_response(serial_filters))
 
 	responses = [normal_response, lot_response, serial_response]
 	timeline = []
@@ -347,6 +360,7 @@ def build_mixed_data_response(filters):
 		(response.get("meta") or {}).get("timeline_cap_reached")
 		for response in responses
 	)
+	lot_meta = lot_response.get("meta") or {}
 	return {
 		"filters": filters,
 		"summary": summary,
@@ -362,13 +376,17 @@ def build_mixed_data_response(filters):
 			"timeline_loaded_count": len(loaded_timeline),
 			"timeline_result_cap": TIMELINE_RESULT_CAP,
 			"timeline_cap_reached": bool(cap_reached),
+			"lot_loaded_count": lot_meta.get("lot_loaded_count", len(lot_response.get("lots") or [])),
+			"lot_result_cap": LOT_RESULT_CAP,
+			"lot_cap_reached": bool(lot_meta.get("lot_cap_reached")),
 		},
 	}
 
 
-def add_timeline_meta(response):
+def add_scope_meta(response):
 	response = response or {}
 	rows = response.get("cycle_rows") or response.get("timeline") or []
+	lots = response.get("lots") or []
 	meta = response.setdefault("meta", {})
 	meta["timeline_loaded_count"] = len(rows)
 	meta["timeline_result_cap"] = TIMELINE_RESULT_CAP
@@ -376,4 +394,9 @@ def add_timeline_meta(response):
 	# cap we cannot prove whether older matching activity exists, so expose this as
 	# a conservative cap-reached signal rather than pretending it is a lifetime total.
 	meta["timeline_cap_reached"] = len(rows) >= TIMELINE_RESULT_CAP
+	meta["lot_loaded_count"] = len(lots)
+	meta["lot_result_cap"] = LOT_RESULT_CAP
+	# Core lot retrieval is capped at 500 records, so an exact 500 must be treated
+	# as potentially incomplete unless the user narrows the investigation filters.
+	meta["lot_cap_reached"] = len(lots) >= LOT_RESULT_CAP
 	return response
