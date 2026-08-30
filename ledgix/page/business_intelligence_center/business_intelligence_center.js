@@ -240,6 +240,10 @@ class LedgixInventoryIntelligence {
 		const timeline = this.current_timeline();
 		const identities = data.lots || [];
 		const meta = data.meta || {};
+		if (meta.load_error) {
+			this.render_error(story.text || "Inventory Intelligence could not calculate this view. Try again or check the Error Log.");
+			return;
+		}
 		this.$root.find(".lx-ii-content").html(`
 			<section class="lx-ii-summary-grid">
 				${this.metric("Current Qty", summary.current_qty, "qty")}
@@ -261,7 +265,7 @@ class LedgixInventoryIntelligence {
 					${this.risks_html(risks)}
 				</div>
 			</section>
-			${identities.length ? `<section class="lx-ii-card"><div class="lx-ii-card-head"><div><h3>Lot performance</h3><p>Lot-level sell-through, margin and return behavior.</p></div><button class="btn btn-default btn-xs" data-route-list="Ledgix Stock Lot">Open Stock Lots</button></div>${this.identities_html(identities)}</section>` : ""}
+			${identities.length ? `<section class="lx-ii-card"><div class="lx-ii-card-head"><div><h3>Lot performance</h3><p>Lot-level sell-through, margin and return behavior.</p></div><div class="lx-ii-native-actions"><span class="lx-ii-meta">${this.lot_meta_label(identities, meta)}</span><button class="btn btn-default btn-xs" data-route-list="Ledgix Stock Lot">Open Stock Lots</button></div></div>${this.identities_html(identities, meta)}</section>` : ""}
 			<section class="lx-ii-card">
 				<div class="lx-ii-card-head"><div><h3>Transaction timeline</h3><p>Submitted purchase, sale and return events in one traceable view.</p></div><span class="lx-ii-meta">${this.timeline_meta_label(timeline, meta)}</span></div>
 				${this.timeline_html(timeline, meta)}
@@ -293,6 +297,11 @@ class LedgixInventoryIntelligence {
 			toggle = `<div class="lx-ii-more"><button class="btn btn-default btn-xs lx-ii-risk-toggle" type="button">${this.escape(label)}</button></div>`;
 		}
 		return `<div class="lx-ii-risk-list">${cards}${toggle}</div>`;
+	}
+
+	lot_meta_label(rows, meta) {
+		const loaded = Number(meta.lot_loaded_count ?? rows.length);
+		return this.escape(`${loaded} loaded lot${loaded === 1 ? "" : "s"}`);
 	}
 
 	timeline_meta_label(rows, meta) {
@@ -354,7 +363,7 @@ class LedgixInventoryIntelligence {
 		if (doctype && name) frappe.set_route("Form", doctype, name);
 	}
 
-	identities_html(rows) {
+	identities_html(rows, meta = {}) {
 		if (!rows.length) return '<div class="lx-ii-empty">No lot performance matched the current filters.</div>';
 		const pageCount = Math.max(1, Math.ceil(rows.length / this.lotPageSize));
 		const page = Math.min(Math.max(1, Number(this.state.lot_page || 1)), pageCount);
@@ -362,8 +371,12 @@ class LedgixInventoryIntelligence {
 		const start = (page - 1) * this.lotPageSize;
 		const end = Math.min(start + this.lotPageSize, rows.length);
 		const body = rows.slice(start, end).map(row => `<tr><td><strong>${this.escape(row.lot_number || "—")}</strong><small>${this.escape(row.purchase_date || "")}</small></td><td>${this.escape(row.item_name || row.item || "—")}</td><td>${this.escape(row.supplier || "—")}</td><td>${this.number(row.purchased_qty, 2)}</td><td>${this.number(row.remaining_qty, 2)}</td><td>${this.percent(row.sell_through_percent)}</td><td>${this.percent(row.return_rate_percent)}</td><td class="${Number(row.profit || 0) < 0 ? "is-negative" : Number(row.profit || 0) > 0 ? "is-positive" : ""}">${this.money(row.profit)}</td><td><span class="lx-ii-lot-status">${this.escape(row.lot_status || row.source_status || "Open")}</span></td></tr>`).join("");
-		const pagination = `<div class="lx-ii-pagination"><span>Showing ${start + 1}–${end} of ${rows.length} lots</span><span class="lx-ii-pagination-actions"><button class="btn btn-default btn-xs lx-ii-lot-prev" type="button" ${page <= 1 ? "disabled" : ""}>Previous</button><span>Page ${page} of ${pageCount}</span><button class="btn btn-default btn-xs lx-ii-lot-next" type="button" ${page >= pageCount ? "disabled" : ""}>Next</button></span></div>`;
-		return `<div class="lx-ii-table-wrap"><table class="lx-ii-table"><thead><tr><th>Lot</th><th>Item</th><th>Supplier</th><th>Purchased</th><th>Remaining</th><th>Sell-through</th><th>Return Rate</th><th>Profit</th><th>Status</th></tr></thead><tbody>${body}</tbody></table>${pagination}</div>`;
+		const pagination = `<div class="lx-ii-pagination"><span>Showing ${start + 1}–${end} of ${rows.length} loaded lots</span><span class="lx-ii-pagination-actions"><button class="btn btn-default btn-xs lx-ii-lot-prev" type="button" ${page <= 1 ? "disabled" : ""}>Previous</button><span>Page ${page} of ${pageCount}</span><button class="btn btn-default btn-xs lx-ii-lot-next" type="button" ${page >= pageCount ? "disabled" : ""}>Next</button></span></div>`;
+		const cap = Number(meta.lot_result_cap || 500);
+		const capNote = meta.lot_cap_reached
+			? `<div class="lx-ii-cap-note">Lot result cap reached at ${this.escape(cap)} loaded lots. Narrow filters to investigate older or more specific lots.</div>`
+			: "";
+		return `<div class="lx-ii-table-wrap"><table class="lx-ii-table"><thead><tr><th>Lot</th><th>Item</th><th>Supplier</th><th>Purchased</th><th>Remaining</th><th>Sell-through</th><th>Return Rate</th><th>Profit</th><th>Status</th></tr></thead><tbody>${body}</tbody></table>${pagination}${capNote}</div>`;
 	}
 
 	render_error(message) {
