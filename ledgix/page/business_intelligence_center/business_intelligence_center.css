@@ -253,11 +253,22 @@
 }
 
 .lx-ii-table-note {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	flex-wrap: wrap;
 	padding: 8px 10px;
 	border-top: 1px solid var(--lx-border);
 	background: var(--lx-subtle);
 	color: var(--lx-muted);
 	font-size: 10.5px;
+}
+.lx-ii-table-note-actions {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	flex-wrap: wrap;
 }
 
 .lx-ii-empty {
@@ -300,4 +311,5 @@
 	.lx-ii-filter-actions { justify-content: stretch; }
 	.lx-ii-filter-actions .btn { flex: 1; }
 	.lx-ii-card-head { align-items: flex-start; flex-direction: column; }
+	.lx-ii-table-note { align-items: flex-start; flex-direction: column; }
 }
