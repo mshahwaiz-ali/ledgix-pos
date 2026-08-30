@@ -2,7 +2,8 @@ import frappe
 from frappe.tests.utils import FrappeTestCase
 
 from ledgix.doctype.v2_test_utils import configure_v2_test_environment, make_user_with_roles
-from ledgix_saas.api.fbr_settings import get_fbr_settings, save_fbr_settings
+from ledgix_saas.api import fbr_client
+from ledgix_saas.api.fbr_settings import get_fbr_settings, save_fbr_settings, should_submit_on_sale_submit
 
 
 class TestLedgixFBRSettings(FrappeTestCase):
@@ -41,3 +42,33 @@ class TestLedgixFBRSettings(FrappeTestCase):
 		self.assertEqual(result["seller_business_name"], "Test Seller")
 		self.assertNotIn("sandbox_token", result)
 		self.assertNotIn("production_token", result)
+
+	def test_production_post_is_blocked_until_explicitly_armed(self):
+		admin = make_user_with_roles("Ledgix Admin")
+		frappe.set_user(admin.name)
+		save_fbr_settings({
+			"enabled": 1,
+			"mode": "Production",
+			"submit_trigger": "On Submit",
+			"production_post_armed": 0,
+		})
+
+		self.assertFalse(should_submit_on_sale_submit())
+		result = fbr_client.post_invoice({"invoiceType": "Sale Invoice"}, mode="Production")
+		self.assertFalse(result.get("network_call"))
+		self.assertEqual(result.get("status"), "Not Ready")
+		self.assertIn("not armed", (result.get("error") or "").lower())
+
+	def test_leaving_production_automatically_disarms_posting(self):
+		admin = make_user_with_roles("Ledgix Admin")
+		frappe.set_user(admin.name)
+		armed = save_fbr_settings({
+			"enabled": 1,
+			"mode": "Production",
+			"submit_trigger": "Manual",
+			"production_post_armed": 1,
+		})
+		self.assertTrue(armed["production_post_armed"])
+
+		disarmed = save_fbr_settings({"mode": "Sandbox"})
+		self.assertFalse(disarmed["production_post_armed"])
