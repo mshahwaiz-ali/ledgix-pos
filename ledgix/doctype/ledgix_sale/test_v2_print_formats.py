@@ -57,6 +57,8 @@ class TestV2PrintFormats(FrappeTestCase):
         self.assertIn(item.item_name, thermal)
         self.assertIn("Original Seller Pvt Ltd", thermal)
         self.assertIn("Original Seller Address", thermal)
+        self.assertIn('<div class="shop-name">', thermal)
+        self.assertNotIn("<divclass=", thermal)
         self.assertIn(sale.invoice_number, invoice)
         self.assertIn(customer.customer_name, invoice)
         self.assertIn("Original Seller Pvt Ltd", invoice)
