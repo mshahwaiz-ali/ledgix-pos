@@ -110,7 +110,7 @@
   {"fieldname":"fbr_invoice_number","fieldtype":"Data","in_list_view":1,"label":"FBR Invoice Number","read_only":1},
   {"fieldname":"fbr_qr_code","fieldtype":"Small Text","label":"FBR QR Code","read_only":1},
   {"fieldname":"fbr_submitted_at","fieldtype":"Datetime","label":"FBR Submitted At","read_only":1},
-  {"fieldname":"fbr_upload_due_at","fieldtype":"Datetime","label":"FBR Upload Due At","read_only":1},
+  {"description":"Legacy recovery metadata. Hidden until Ledgix can anchor the Rule 150XC upload window to confirmed connectivity restoration rather than the initial failure time.","fieldname":"fbr_upload_due_at","fieldtype":"Datetime","hidden":1,"label":"FBR Upload Due At","read_only":1},
   {"fieldname":"fbr_error_code","fieldtype":"Data","label":"FBR Error Code","read_only":1},
   {"fieldname":"fbr_error_message","fieldtype":"Small Text","label":"FBR Error Message","read_only":1},
   {"fieldname":"fbr_submission_log","fieldtype":"Link","label":"FBR Submission Log","options":"Ledgix FBR Submission Log","read_only":1}
