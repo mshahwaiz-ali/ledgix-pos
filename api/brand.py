@@ -69,6 +69,11 @@ def get_login_logo_url() -> str:
 	return get_brand_settings()["full_logo_url"]
 
 
+def get_print_logo_url() -> str:
+	"""Return the configured full logo with the bundled Ledgix lockup fallback."""
+	return get_brand_settings()["full_logo_url"]
+
+
 def get_desk_logo_url() -> str:
 	return get_brand_settings()["symbol_logo_url"]
 

@@ -98,15 +98,16 @@
 	}
 
 	function applyDeskBrand() {
-		if (!isLedgixDeskRoute()) return;
 		const brand = getBrand();
+		// The favicon represents the Ledgix product, not an individual Desk route.
+		// Keep navbar/logo DOM changes scoped so native Frappe screens stay native.
+		setFavicon(brand.faviconUrl || brand.symbolUrl);
+		if (!isLedgixDeskRoute()) return;
 
 		document.querySelectorAll(".navbar-brand, .navbar-home").forEach((home) => {
 			if (!home) return;
 			ensureBrandImage(home, brand);
 		});
-
-		setFavicon(brand.faviconUrl || brand.symbolUrl);
 	}
 
 	function applyLoginBrand() {

@@ -7,6 +7,7 @@ from ledgix.doctype.v2_test_utils import (
     make_item,
     make_sale,
 )
+from ledgix_saas.api import brand as brand_api
 from ledgix_saas.api.printing import get_fbr_qr_data_uri
 
 
@@ -176,3 +177,19 @@ class TestV2PrintFormats(FrappeTestCase):
             self.assertIn(fbr_invoice_number, rendered)
             self.assertIn(expected_qr, rendered)
             self.assertIn("FBR Digital Invoicing System", rendered)
+
+    def test_empty_logo_fields_use_bundled_ledgix_lockup_in_prints(self):
+        self._set_brand_identity("Fallback Logo Seller", "Fallback Address", "1234567")
+        for fieldname in ("symbol_logo", "full_logo", "favicon"):
+            frappe.db.set_single_value("Ledgix Brand Settings", fieldname, "")
+        frappe.clear_cache(doctype="Ledgix Brand Settings")
+
+        item = make_item(selling_price=100, cost_price=40, opening_stock=5)
+        customer = make_customer(customer_type="B2B", credit_limit=5000)
+        sale = make_sale(customer.name, item.name, rate=100, sale_channel="B2B", submit=True)
+
+        thermal = frappe.get_print("Ledgix Sale", sale.name, print_format="Ledgix Thermal Receipt")
+        invoice = frappe.get_print("Ledgix Sale", sale.name, print_format="Ledgix B2B Invoice")
+
+        for rendered in (thermal, invoice):
+            self.assertIn(brand_api.DEFAULT_FULL_LOGO, rendered)

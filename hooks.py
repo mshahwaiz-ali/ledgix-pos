@@ -34,6 +34,7 @@ role_home_page = {
 jinja = {
 	"methods": [
 		"ledgix_saas.api.brand.get_splash_logo_url",
+		"ledgix_saas.api.brand.get_print_logo_url",
 		"ledgix_saas.api.printing.get_fbr_qr_data_uri",
 	],
 }
