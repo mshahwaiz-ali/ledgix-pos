@@ -5,162 +5,48 @@
  "creation": "2026-05-14 14:15:03.098697",
  "doctype": "DocType",
  "engine": "InnoDB",
- "field_order": [
-  "financial_information_section",
-  "supplier_name",
-  "mobile_number",
-  "email_address",
-  "company_name",
-  "is_active",
-  "opening_balance",
-  "current_balance",
-  "supplier_type",
-  "address_and_notes_section",
-  "address",
-  "city",
-  "notes"
- ],
+ "field_order": ["supplier_information_section","supplier_name","company_name","supplier_type","supplier_information_column","mobile_number","email_address","is_active","financial_information_section","opening_balance","financial_information_column","current_balance","address_and_notes_section","address","address_column","city","notes"],
  "fields": [
-  {
-   "fieldname": "financial_information_section",
-   "fieldtype": "Section Break",
-   "label": "Financial Information"
-  },
-  {
-   "fieldname": "supplier_name",
-   "fieldtype": "Data",
-   "in_filter": 1,
-   "in_list_view": 1,
-   "label": "Supplier Name",
-   "reqd": 1,
-   "unique": 1
-  },
-  {
-   "fieldname": "mobile_number",
-   "fieldtype": "Data",
-   "in_list_view": 1,
-   "label": "Mobile Number"
-  },
-  {
-   "fieldname": "email_address",
-   "fieldtype": "Data",
-   "label": "Email Address"
-  },
-  {
-   "fieldname": "company_name",
-   "fieldtype": "Data",
-   "label": "Company Name"
-  },
-  {
-   "default": "Checked",
-   "fieldname": "is_active",
-   "fieldtype": "Check",
-   "in_list_view": 1,
-   "label": "Is Active"
-  },
-  {
-   "default": "0",
-   "fieldname": "opening_balance",
-   "fieldtype": "Currency",
-   "label": "Opening Balance"
-  },
-  {
-   "fieldname": "current_balance",
-   "fieldtype": "Currency",
-   "label": "Current Balance",
-   "read_only": 1
-  },
-  {
-   "default": "Local",
-   "fieldname": "supplier_type",
-   "fieldtype": "Select",
-   "in_filter": 1,
-   "label": "Supplier Type",
-   "options": "Local\nDistributor\nManufacturer"
-  },
-  {
-   "fieldname": "address_and_notes_section",
-   "fieldtype": "Section Break",
-   "label": "Address and Notes"
-  },
-  {
-   "fieldname": "address",
-   "fieldtype": "Small Text",
-   "label": "Address"
-  },
-  {
-   "fieldname": "city",
-   "fieldtype": "Data",
-   "in_filter": 1,
-   "label": "City"
-  },
-  {
-   "fieldname": "notes",
-   "fieldtype": "Data",
-   "label": "Notes"
-  }
+  {"fieldname":"supplier_information_section","fieldtype":"Section Break","label":"Supplier Information"},
+  {"fieldname":"supplier_name","fieldtype":"Data","in_filter":1,"in_list_view":1,"in_standard_filter":1,"label":"Supplier Name","reqd":1,"unique":1},
+  {"fieldname":"company_name","fieldtype":"Data","label":"Company Name"},
+  {"default":"Local","fieldname":"supplier_type","fieldtype":"Select","in_filter":1,"in_list_view":1,"in_standard_filter":1,"label":"Supplier Type","options":"Local\nDistributor\nManufacturer"},
+  {"fieldname":"supplier_information_column","fieldtype":"Column Break"},
+  {"fieldname":"mobile_number","fieldtype":"Data","in_list_view":1,"label":"Mobile Number"},
+  {"fieldname":"email_address","fieldtype":"Data","label":"Email Address","options":"Email"},
+  {"default":"Checked","fieldname":"is_active","fieldtype":"Check","in_list_view":1,"in_standard_filter":1,"label":"Active"},
+  {"fieldname":"financial_information_section","fieldtype":"Section Break","label":"Financial Summary"},
+  {"default":"0","fieldname":"opening_balance","fieldtype":"Currency","label":"Opening Balance"},
+  {"fieldname":"financial_information_column","fieldtype":"Column Break"},
+  {"fieldname":"current_balance","fieldtype":"Currency","label":"Current Balance","read_only":1},
+  {"fieldname":"address_and_notes_section","fieldtype":"Section Break","label":"Address & Notes"},
+  {"fieldname":"address","fieldtype":"Small Text","label":"Address"},
+  {"fieldname":"address_column","fieldtype":"Column Break"},
+  {"fieldname":"city","fieldtype":"Data","in_filter":1,"label":"City"},
+  {"fieldname":"notes","fieldtype":"Small Text","label":"Notes"}
  ],
- "grid_page_length": 50,
- "index_web_pages_for_search": 1,
- "links": [],
- "modified": "2026-05-14 16:24:36.160922",
- "modified_by": "Administrator",
- "module": "Ledgix",
- "name": "Ledgix Supplier",
- "naming_rule": "By fieldname",
- "owner": "alishahwaiz96@gmail.com",
- "permissions": [
-  {
-   "read": 1,
-   "write": 1,
-   "create": 1,
-   "delete": 1,
-   "submit": 0,
-   "cancel": 0,
-   "amend": 0,
-   "report": 1,
-   "export": 1,
-   "share": 1,
-   "print": 1,
-   "email": 1,
-   "role": "System Manager"
-  },
-  {
-   "read": 1,
-   "write": 1,
-   "create": 1,
-   "delete": 1,
-   "submit": 0,
-   "cancel": 0,
-   "amend": 0,
-   "report": 1,
-   "export": 1,
-   "share": 1,
-   "print": 1,
-   "email": 1,
-   "role": "Ledgix Admin"
-  },
-  {
-   "read": 1,
-   "write": 1,
-   "create": 1,
-   "delete": 0,
-   "submit": 0,
-   "cancel": 0,
-   "amend": 0,
-   "report": 0,
-   "export": 0,
-   "share": 0,
-   "print": 1,
-   "email": 1,
-   "role": "Ledgix Manager"
-  }
+ "grid_page_length":50,
+ "index_web_pages_for_search":1,
+ "links":[],
+ "modified":"2026-08-30 09:35:00.000000",
+ "modified_by":"Administrator",
+ "module":"Ledgix",
+ "name":"Ledgix Supplier",
+ "naming_rule":"By fieldname",
+ "owner":"alishahwaiz96@gmail.com",
+ "permissions":[
+  {"read":1,"write":1,"create":1,"delete":1,"submit":0,"cancel":0,"amend":0,"report":1,"export":1,"share":1,"print":1,"email":1,"role":"System Manager"},
+  {"read":1,"write":1,"create":1,"delete":1,"submit":0,"cancel":0,"amend":0,"report":1,"export":1,"share":1,"print":1,"email":1,"role":"Ledgix Admin"},
+  {"read":1,"write":1,"create":1,"delete":0,"submit":0,"cancel":0,"amend":0,"report":0,"export":0,"share":0,"print":1,"email":1,"role":"Ledgix Manager"}
  ],
- "quick_entry": 1,
- "row_format": "Dynamic",
- "rows_threshold_for_grid_search": 20,
- "sort_field": "modified",
- "sort_order": "DESC",
- "states": [],
- "track_changes": 1
+ "quick_entry":1,
+ "row_format":"Dynamic",
+ "rows_threshold_for_grid_search":20,
+ "search_fields":"supplier_name,company_name,mobile_number,email_address",
+ "show_title_field_in_link":1,
+ "sort_field":"supplier_name",
+ "sort_order":"ASC",
+ "states":[],
+ "title_field":"supplier_name",
+ "track_changes":1
 }

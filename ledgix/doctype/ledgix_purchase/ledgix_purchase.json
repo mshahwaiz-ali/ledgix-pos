@@ -5,150 +5,43 @@
  "creation": "2026-05-14 14:53:08.470005",
  "doctype": "DocType",
  "engine": "InnoDB",
- "field_order": [
-  "section_break_qszp",
-  "items",
-  "supplier",
-  "purchase_date",
-  "invoice_number",
-  "status",
-  "total_amount",
-  "total_profit",
-  "amended_from",
-  "tab_2_tab"
- ],
+ "field_order": ["purchase_overview_section","supplier","purchase_date","purchase_overview_column","invoice_number","status","totals_section","total_amount","totals_column","total_profit","items_section","items","audit_section","amended_from"],
  "fields": [
-  {
-   "fieldname": "section_break_qszp",
-   "fieldtype": "Section Break",
-   "label": "Purchase Information"
-  },
-  {
-   "fieldname": "items",
-   "fieldtype": "Table",
-   "label": "Items",
-   "options": "Ledgix Purchase Item"
-  },
-  {
-   "fieldname": "supplier",
-   "fieldtype": "Link",
-   "in_filter": 1,
-   "in_list_view": 1,
-   "label": "Supplier",
-   "options": "Ledgix Supplier",
-   "reqd": 1
-  },
-  {
-   "default": "Today",
-   "fieldname": "purchase_date",
-   "fieldtype": "Date",
-   "in_list_view": 1,
-   "label": "Purchase Date"
-  },
-  {
-   "fieldname": "invoice_number",
-   "fieldtype": "Data",
-   "in_filter": 1,
-   "label": "Invoice Number"
-  },
-  {
-   "fieldname": "status",
-   "fieldtype": "Select",
-   "in_list_view": 1,
-   "label": "Status",
-   "options": "Draft\nSubmitted\nCancelled",
-   "read_only": 1
-  },
-  {
-   "fieldname": "total_amount",
-   "fieldtype": "Currency",
-   "in_list_view": 1,
-   "label": "Total Amount",
-   "read_only": 1
-  },
-  {
-   "fieldname": "total_profit",
-   "fieldtype": "Currency",
-   "label": "Total Profit",
-   "read_only": 1
-  },
-  {
-   "fieldname": "amended_from",
-   "fieldtype": "Link",
-   "label": "Amended From",
-   "no_copy": 1,
-   "options": "Ledgix Purchase",
-   "print_hide": 1,
-   "read_only": 1,
-   "search_index": 1
-  },
-  {
-   "fieldname": "tab_2_tab",
-   "fieldtype": "Tab Break",
-   "label": "Tab 2"
-  }
+  {"fieldname":"purchase_overview_section","fieldtype":"Section Break","label":"Purchase Information"},
+  {"fieldname":"supplier","fieldtype":"Link","in_filter":1,"in_list_view":1,"in_standard_filter":1,"label":"Supplier","options":"Ledgix Supplier","reqd":1},
+  {"default":"Today","fieldname":"purchase_date","fieldtype":"Date","in_list_view":1,"in_standard_filter":1,"label":"Purchase Date"},
+  {"fieldname":"purchase_overview_column","fieldtype":"Column Break"},
+  {"fieldname":"invoice_number","fieldtype":"Data","in_filter":1,"label":"Supplier Invoice Number"},
+  {"fieldname":"status","fieldtype":"Select","in_list_view":1,"in_standard_filter":1,"label":"Status","options":"Draft\nSubmitted\nCancelled","read_only":1},
+  {"fieldname":"totals_section","fieldtype":"Section Break","label":"Totals"},
+  {"fieldname":"total_amount","fieldtype":"Currency","in_list_view":1,"label":"Total Amount","read_only":1},
+  {"fieldname":"totals_column","fieldtype":"Column Break"},
+  {"fieldname":"total_profit","fieldtype":"Currency","label":"Total Profit","read_only":1},
+  {"fieldname":"items_section","fieldtype":"Section Break","label":"Items"},
+  {"fieldname":"items","fieldtype":"Table","label":"Items","options":"Ledgix Purchase Item"},
+  {"collapsible":1,"fieldname":"audit_section","fieldtype":"Section Break","label":"Audit"},
+  {"fieldname":"amended_from","fieldtype":"Link","label":"Amended From","no_copy":1,"options":"Ledgix Purchase","print_hide":1,"read_only":1,"search_index":1}
  ],
- "grid_page_length": 50,
- "index_web_pages_for_search": 1,
- "is_submittable": 1,
- "links": [],
- "modified": "2026-05-16 15:50:18.449317",
- "modified_by": "Administrator",
- "module": "Ledgix",
- "name": "Ledgix Purchase",
- "naming_rule": "Expression (old style)",
- "owner": "alishahwaiz96@gmail.com",
- "permissions": [
-  {
-   "read": 1,
-   "write": 1,
-   "create": 1,
-   "delete": 1,
-   "submit": 1,
-   "cancel": 1,
-   "amend": 1,
-   "report": 1,
-   "export": 1,
-   "share": 1,
-   "print": 1,
-   "email": 1,
-   "role": "System Manager"
-  },
-  {
-   "read": 1,
-   "write": 1,
-   "create": 1,
-   "delete": 1,
-   "submit": 1,
-   "cancel": 1,
-   "amend": 1,
-   "report": 1,
-   "export": 1,
-   "share": 1,
-   "print": 1,
-   "email": 1,
-   "role": "Ledgix Admin"
-  },
-  {
-   "read": 1,
-   "write": 1,
-   "create": 1,
-   "delete": 0,
-   "submit": 1,
-   "cancel": 0,
-   "amend": 0,
-   "report": 0,
-   "export": 0,
-   "share": 0,
-   "print": 1,
-   "email": 1,
-   "role": "Ledgix Manager"
-  }
+ "grid_page_length":50,
+ "index_web_pages_for_search":1,
+ "is_submittable":1,
+ "links":[],
+ "modified":"2026-08-30 09:35:00.000000",
+ "modified_by":"Administrator",
+ "module":"Ledgix",
+ "name":"Ledgix Purchase",
+ "naming_rule":"Expression (old style)",
+ "owner":"alishahwaiz96@gmail.com",
+ "permissions":[
+  {"read":1,"write":1,"create":1,"delete":1,"submit":1,"cancel":1,"amend":1,"report":1,"export":1,"share":1,"print":1,"email":1,"role":"System Manager"},
+  {"read":1,"write":1,"create":1,"delete":1,"submit":1,"cancel":1,"amend":1,"report":1,"export":1,"share":1,"print":1,"email":1,"role":"Ledgix Admin"},
+  {"read":1,"write":1,"create":1,"delete":0,"submit":1,"cancel":0,"amend":0,"report":0,"export":0,"share":0,"print":1,"email":1,"role":"Ledgix Manager"}
  ],
- "row_format": "Dynamic",
- "rows_threshold_for_grid_search": 20,
- "sort_field": "modified",
- "sort_order": "DESC",
- "states": [],
- "track_changes": 1
+ "row_format":"Dynamic",
+ "rows_threshold_for_grid_search":20,
+ "search_fields":"supplier,invoice_number",
+ "sort_field":"purchase_date",
+ "sort_order":"DESC",
+ "states":[],
+ "track_changes":1
 }
