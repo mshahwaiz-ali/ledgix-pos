@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import frappe
 
-FRAPPE_DEFAULT_LOGO = "/assets/frappe/images/frappe-framework-logo.svg"
-FRAPPE_DEFAULT_SPLASH_LOGO = "/assets/frappe/images/frappe-framework-logo.png"
 SETTINGS_DOCTYPE = "Ledgix Brand Settings"
+DEFAULT_PRIMARY_COLOR = "#8C2031"
+DEFAULT_SYMBOL_LOGO = "/assets/ledgix_saas/images/brand/ledgix-symbol.svg"
+DEFAULT_FULL_LOGO = "/assets/ledgix_saas/images/brand/ledgix-lockup.svg"
+DEFAULT_SPLASH_LOGO = "/assets/ledgix_saas/images/brand/ledgix-symbol.png"
 
 
 def _asset_url(path: str | None) -> str:
@@ -34,19 +36,21 @@ def get_brand_settings():
 	doc = _get_settings_doc()
 	brand_name = (doc and doc.brand_name) or "Ledgix"
 	brand_tagline = (doc and doc.brand_tagline) or "Retail operations"
-	primary_color = (doc and doc.primary_brand_color) or "#8C2031"
+	primary_color = (doc and doc.primary_brand_color) or DEFAULT_PRIMARY_COLOR
 
 	has_custom_symbol = bool(doc and doc.symbol_logo)
 	has_custom_full = bool(doc and doc.full_logo)
 	has_custom_favicon = bool(doc and doc.favicon)
 
-	symbol_logo_url = _asset_url(doc.symbol_logo) if has_custom_symbol else FRAPPE_DEFAULT_LOGO
-	full_logo_url = _asset_url(doc.full_logo) if has_custom_full else FRAPPE_DEFAULT_LOGO
-	favicon_url = (
-		_asset_url(doc.favicon)
-		if has_custom_favicon
-		else (_asset_url(doc.symbol_logo) if has_custom_symbol else FRAPPE_DEFAULT_LOGO)
-	)
+	custom_symbol = _asset_url(doc.symbol_logo) if has_custom_symbol else ""
+	custom_full = _asset_url(doc.full_logo) if has_custom_full else ""
+	custom_favicon = _asset_url(doc.favicon) if has_custom_favicon else ""
+
+	# Ledgix owns its default identity. Brand Settings may override these assets,
+	# but an empty setting must never fall back to Frappe's framework logo.
+	symbol_logo_url = custom_symbol or DEFAULT_SYMBOL_LOGO
+	full_logo_url = custom_full or custom_symbol or DEFAULT_FULL_LOGO
+	favicon_url = custom_favicon or custom_symbol or DEFAULT_SYMBOL_LOGO
 
 	return {
 		"brand_name": brand_name,
@@ -75,16 +79,16 @@ def get_splash_logo_url() -> str:
 		return brand["symbol_logo_url"]
 	if brand.get("has_custom_full"):
 		return brand["full_logo_url"]
-	return FRAPPE_DEFAULT_SPLASH_LOGO
+	return DEFAULT_SPLASH_LOGO
 
 
 def extend_bootinfo(bootinfo):
 	brand = get_brand_settings()
 	bootinfo.ledgix_brand = brand
-	if brand.get("has_custom_symbol"):
-		bootinfo.app_logo_url = brand["symbol_logo_url"]
-	if brand.get("brand_name"):
-		bootinfo.app_name = brand["brand_name"]
+	# Always publish a Ledgix desk logo, including the bundled default. This makes
+	# Brand Settings authoritative while preserving a deterministic fallback.
+	bootinfo.app_logo_url = brand["symbol_logo_url"]
+	bootinfo.app_name = brand["brand_name"]
 
 
 def update_website_context(context):
@@ -96,6 +100,7 @@ def update_website_context(context):
 	context["ledgix_brand"] = brand
 
 
-@frappe.whitelist()
+@frappe.whitelist(allow_guest=True)
 def get_public_brand_settings():
+	"""Return only public visual identity fields for Desk/login live branding."""
 	return get_brand_settings()

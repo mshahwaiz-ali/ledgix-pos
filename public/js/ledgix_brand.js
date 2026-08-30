@@ -1,25 +1,30 @@
 (function () {
 	"use strict";
 
-	const FRAPPE_DEFAULT_LOGO = "/assets/frappe/images/frappe-framework-logo.svg";
+	const DEFAULT_SYMBOL_LOGO = "/assets/ledgix_saas/images/brand/ledgix-symbol.svg";
+	const DEFAULT_FULL_LOGO = "/assets/ledgix_saas/images/brand/ledgix-lockup.svg";
+	const DEFAULT_PRIMARY = "#8C2031";
+	let refreshPromise = null;
+
+	function bootState() {
+		return (window.frappe && frappe.boot) || {};
+	}
 
 	function getBrand() {
-		const boot = (window.frappe && frappe.boot) || {};
+		const boot = bootState();
 		const brand = boot.ledgix_brand || {};
-		const deskLogo = boot.app_logo_url || FRAPPE_DEFAULT_LOGO;
 
 		return {
 			name: brand.brand_name || boot.app_name || "Ledgix",
 			tagline: brand.brand_tagline || "Retail operations",
-			symbolUrl: brand.has_custom_symbol ? brand.symbol_logo_url : deskLogo,
-			fullUrl: brand.has_custom_full ? brand.full_logo_url : (brand.has_custom_symbol ? brand.symbol_logo_url : deskLogo),
-			faviconUrl: brand.has_custom_favicon
-				? brand.favicon_url
-				: (brand.has_custom_symbol ? brand.symbol_logo_url : deskLogo),
-			primaryColor: brand.primary_brand_color || "#8C2031",
+			symbolUrl: brand.symbol_logo_url || boot.app_logo_url || DEFAULT_SYMBOL_LOGO,
+			fullUrl: brand.full_logo_url || brand.symbol_logo_url || DEFAULT_FULL_LOGO,
+			faviconUrl: brand.favicon_url || brand.symbol_logo_url || DEFAULT_SYMBOL_LOGO,
+			primaryColor: brand.primary_brand_color || DEFAULT_PRIMARY,
 			hasCustomSymbol: !!brand.has_custom_symbol,
 			hasCustomFull: !!brand.has_custom_full,
 			hasCustomFavicon: !!brand.has_custom_favicon,
+			fromBoot: !!boot.ledgix_brand,
 		};
 	}
 
@@ -54,57 +59,69 @@
 		link.href = url;
 	}
 
+	function contrastText(color) {
+		const value = String(color || "").trim();
+		const match = value.match(/^#([0-9a-f]{6})$/i);
+		if (!match) return "#ffffff";
+
+		const hex = match[1];
+		const channels = [0, 2, 4].map((index) => parseInt(hex.slice(index, index + 2), 16) / 255);
+		const linear = channels.map((channel) => channel <= 0.03928
+			? channel / 12.92
+			: Math.pow((channel + 0.055) / 1.055, 2.4));
+		const luminance = (0.2126 * linear[0]) + (0.7152 * linear[1]) + (0.0722 * linear[2]);
+		return luminance > 0.5 ? "#111827" : "#ffffff";
+	}
+
 	function applyBrandTokens() {
 		const brand = getBrand();
-		if (!brand.primaryColor || !document.documentElement) return;
-		document.documentElement.style.setProperty("--lx-v2-primary", brand.primaryColor);
+		if (!document.documentElement) return;
+		document.documentElement.style.setProperty("--lx-v2-primary", brand.primaryColor || DEFAULT_PRIMARY);
+		document.documentElement.style.setProperty("--lx-v2-primary-contrast", contrastText(brand.primaryColor));
+	}
+
+	function ensureBrandImage(home, brand) {
+		let img = home.querySelector("img.app-logo, img.lx-brand-image, img");
+		let fallback = home.querySelector(".lx-brand-fallback");
+
+		if (!img) {
+			img = document.createElement("img");
+			img.className = "app-logo lx-brand-image";
+			home.appendChild(img);
+		}
+
+		if (fallback) fallback.remove();
+		img.style.display = "";
+		img.src = brand.symbolUrl || DEFAULT_SYMBOL_LOGO;
+		img.alt = brand.name;
+		img.style.objectFit = "contain";
 	}
 
 	function applyDeskBrand() {
 		if (!isLedgixDeskRoute()) return;
 		const brand = getBrand();
-		const logoUrl = brand.symbolUrl || FRAPPE_DEFAULT_LOGO;
 
 		document.querySelectorAll(".navbar-brand, .navbar-home").forEach((home) => {
 			if (!home) return;
-			const img = home.querySelector("img.app-logo, img");
-			let fallback = home.querySelector(".lx-brand-fallback");
-
-			if (brand.hasCustomSymbol && logoUrl) {
-				if (fallback) fallback.remove();
-				if (img) {
-					img.style.display = "";
-					img.src = logoUrl;
-					img.alt = brand.name;
-					img.style.objectFit = "contain";
-				}
-				return;
-			}
-
-			if (img) img.style.display = "none";
-			if (!fallback) {
-				fallback = document.createElement("span");
-				fallback.className = "lx-brand-fallback";
-				home.appendChild(fallback);
-			}
-			fallback.textContent = String(brand.name || "Ledgix").trim().charAt(0).toUpperCase() || "L";
-			fallback.title = brand.name;
+			ensureBrandImage(home, brand);
 		});
 
-		if (brand.hasCustomFavicon || brand.hasCustomSymbol) {
-			setFavicon(brand.faviconUrl || logoUrl);
-		}
+		setFavicon(brand.faviconUrl || brand.symbolUrl);
 	}
 
 	function applyLoginBrand() {
 		if (!document.body || !document.body.classList.contains("website-login")) return;
 		const brand = getBrand();
-		const logoUrl = brand.fullUrl || brand.symbolUrl || FRAPPE_DEFAULT_LOGO;
-		document.querySelectorAll(".app-logo").forEach((img) => {
-			img.src = logoUrl;
-			img.alt = brand.name;
-		});
-		setFavicon(brand.faviconUrl || logoUrl);
+
+		// Website context already renders the configured logo server-side. Only
+		// replace it when fresh Brand Settings are available in client state.
+		if (brand.fromBoot) {
+			document.querySelectorAll(".app-logo").forEach((img) => {
+				img.src = brand.fullUrl || brand.symbolUrl || DEFAULT_FULL_LOGO;
+				img.alt = brand.name;
+			});
+			setFavicon(brand.faviconUrl || brand.symbolUrl);
+		}
 	}
 
 	function applyAll() {
@@ -113,15 +130,51 @@
 		applyLoginBrand();
 	}
 
+	function installBrandInBoot(brand) {
+		if (!window.frappe) return;
+		frappe.boot = frappe.boot || {};
+		frappe.boot.ledgix_brand = brand || {};
+		frappe.boot.app_logo_url = brand?.symbol_logo_url || DEFAULT_SYMBOL_LOGO;
+		frappe.boot.app_name = brand?.brand_name || "Ledgix";
+	}
+
+	function refreshBrand() {
+		if (refreshPromise) return refreshPromise;
+		if (!(window.frappe && frappe.call)) {
+			applyAll();
+			return Promise.resolve(getBrand());
+		}
+
+		refreshPromise = frappe.call({
+			method: "ledgix_saas.api.brand.get_public_brand_settings",
+			freeze: false,
+		}).then((response) => {
+			installBrandInBoot(response.message || {});
+			applyAll();
+			return getBrand();
+		}).finally(() => {
+			refreshPromise = null;
+		});
+
+		return refreshPromise;
+	}
+
 	window.LedgixBrand = {
 		get: getBrand,
 		apply: applyAll,
+		refresh: refreshBrand,
 	};
 
 	function scheduleApply() {
 		window.setTimeout(applyAll, 0);
 		window.setTimeout(applyAll, 120);
 		window.setTimeout(applyAll, 400);
+
+		// Login pages do not always expose Desk bootinfo. Fetch only public visual
+		// identity fields so custom logos/colors still resolve without a reload.
+		if (document.body?.classList.contains("website-login") && !getBrand().fromBoot) {
+			window.setTimeout(() => refreshBrand().catch(() => {}), 60);
+		}
 	}
 
 	if (window.frappe && frappe.ready) {

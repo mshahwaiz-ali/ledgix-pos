@@ -19,11 +19,11 @@ def execute(filters=None):
 
 def get_columns():
 	return [
-		{"label":"Date","fieldname":"posting_date","fieldtype":"Date","width":105},
+		{"label":"Date","fieldname":"posting_date","fieldtype":"Date","width":120},
 		{"label":"Type","fieldname":"reference_doctype","fieldtype":"Data","width":150},
 		{"label":"Reference","fieldname":"reference_name","fieldtype":"Dynamic Link","options":"reference_doctype","width":145},
 		{"label":"Invoice No","fieldname":"invoice_number","fieldtype":"Data","width":125},
-		{"label":"Details","fieldname":"details","fieldtype":"Data","width":230},
+		{"label":"Details","fieldname":"details","fieldtype":"Data","width":215},
 		{"label":"Debit","fieldname":"debit","fieldtype":"Currency","width":120},
 		{"label":"Credit","fieldname":"credit","fieldtype":"Currency","width":120},
 		{"label":"Balance","fieldname":"balance","fieldtype":"Currency","width":125},
