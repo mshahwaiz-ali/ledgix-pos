@@ -55,6 +55,16 @@ def _safe_error(exc):
     return text or "FBR request failed."
 
 
+def _network_error_message(url, exc):
+    message = _safe_error(exc)
+    if url == PRODUCTION_POST_URL:
+        message = (
+            f"{message} Production POST outcome may be ambiguous. "
+            "Reconcile the invoice with FBR/PRAL before any retransmission; automatic recovery is intentionally disabled."
+        )
+    return message
+
+
 def _fbr_body_is_valid(response):
     if not isinstance(response, dict):
         return False
@@ -162,7 +172,7 @@ def _send_fbr_request(url, payload, token):
             "http_status": None,
             "status": "Network Error",
             "response": None,
-            "error": _safe_error(exc),
+            "error": _network_error_message(url, exc),
         })
 
 
