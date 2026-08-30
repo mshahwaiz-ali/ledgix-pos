@@ -10,7 +10,7 @@ from ledgix.doctype.v2_test_utils import configure_v2_test_environment, make_cus
 from ledgix_saas.api.fbr_submission import create_submission_log
 
 
-CORRECTION_MODULE = "ledgix_saas.ledgix.doctype.ledgix_fbr_correction_request.ledgix_fbr_correction_request"
+CORRECTION_MODULE = "ledgix.doctype.ledgix_fbr_correction_request.ledgix_fbr_correction_request"
 
 
 class TestLedgixFBRCorrectionRequest(FrappeTestCase):
