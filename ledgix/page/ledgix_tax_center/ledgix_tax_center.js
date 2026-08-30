@@ -29,6 +29,8 @@ class LedgixTaxCenter {
 			fbrValidateProduction: "ledgix_saas.api.fbr_submission.validate_sale_with_fbr_production",
 			fbrSubmitProduction: "ledgix_saas.api.fbr_submission.submit_sale_to_fbr",
 			fbrLogs: "ledgix_saas.api.tax_center.get_fbr_submission_logs",
+			fbrRegistrationStatus: "ledgix_saas.api.fbr_reference.get_sales_tax_registration_status",
+			fbrRegistrationType: "ledgix_saas.api.fbr_reference.get_registration_type",
 		};
 		this.areas = [
 			{ key: "overview", label: "Overview" },
@@ -50,7 +52,19 @@ class LedgixTaxCenter {
 			auditPage: 1,
 			auditSearch: "",
 			audit: { rows: [], total: 0 },
-			fbr: { settings: {}, control: {}, readiness: {}, preview: null, sale: "", logs: { rows: [], total: 0 }, logPage: 1 },
+			fbr: {
+				settings: {},
+				control: {},
+				readiness: {},
+				preview: null,
+				sale: "",
+				logs: { rows: [], total: 0 },
+				logPage: 1,
+				registrationNo: "",
+				registrationDate: frappe.datetime.get_today(),
+				registrationStatus: null,
+				registrationType: null,
+			},
 		};
 		this.pageSize = 15;
 		this.searchTimer = null;
@@ -139,6 +153,10 @@ class LedgixTaxCenter {
 		this.$root.on("click", ".lx-fbr-validate-sandbox", () => this.validate_fbr("sandbox"));
 		this.$root.on("click", ".lx-fbr-validate-production", () => this.validate_fbr("production"));
 		this.$root.on("click", ".lx-fbr-submit-production", () => this.submit_fbr());
+		this.$root.on("input", ".lx-fbr-reg-no", (event) => { this.state.fbr.registrationNo = event.currentTarget.value || ""; });
+		this.$root.on("change", ".lx-fbr-reg-date", (event) => { this.state.fbr.registrationDate = event.currentTarget.value || ""; });
+		this.$root.on("click", ".lx-fbr-check-status", () => this.check_fbr_registration("status"));
+		this.$root.on("click", ".lx-fbr-check-type", () => this.check_fbr_registration("type"));
 		this.$root.on("click", "[data-fbr-log-page]", (event) => { this.state.fbr.logPage += $(event.currentTarget).data("fbr-log-page") === "next" ? 1 : -1; this.state.fbr.logPage = Math.max(this.state.fbr.logPage, 1); this.load_fbr_logs(); });
 	}
 
@@ -378,6 +396,7 @@ class LedgixTaxCenter {
 		const readiness = fbr.readiness || {};
 		const preview = fbr.preview || null;
 		const previewReady = !!preview?.readiness?.ready;
+		const referenceReady = !!control.enabled && ["Sandbox", "Production"].includes(control.mode || settings.mode);
 		this.$root.find(".lx-tax-content").html(`
 			<section class="lx-tax-section">
 				<div class="lx-tax-section-head"><div><h3>FBR operations</h3><p>Preview and validate from frozen sale snapshots; live production submission remains explicitly gated.</p></div><div class="lx-tax-actions"><button class="btn btn-default btn-sm" data-native-single="Ledgix FBR Settings">FBR Settings</button><button class="btn btn-default btn-sm" data-native-list="Ledgix FBR Submission Log">All logs</button></div></div>
@@ -385,6 +404,19 @@ class LedgixTaxCenter {
 					${this.metric("Mode", control.mode || settings.mode || "Disabled")}${this.metric("Enabled", control.enabled ? "Yes" : "No", control.enabled ? "good" : "muted")}${this.metric("Submit trigger", control.submit_trigger || settings.submit_trigger || "Manual")}${this.metric("Readiness", `${readiness.ready_score || 0}%`, Number(readiness.ready_score || 0) >= 100 ? "good" : "warn")}
 				</div>
 				${this.readiness_html(readiness)}
+			</section>
+			<section class="lx-tax-section">
+				<div class="lx-tax-section-head"><div><h3>Official registration check</h3><p>Read-only FBR STATL and Get_Reg_Type lookups. The raw FBR response is shown without client-side reinterpretation.</p></div></div>
+				<div class="lx-tax-toolbar">
+					<input class="form-control lx-fbr-reg-no" value="${this.escape(fbr.registrationNo || "")}" placeholder="NTN / registration number">
+					<input type="date" class="form-control lx-fbr-reg-date" value="${this.escape(fbr.registrationDate || frappe.datetime.get_today())}">
+				</div>
+				<div class="lx-fbr-actions">
+					<button class="btn btn-default lx-fbr-check-status" ${referenceReady ? "" : "disabled"}>Check STATL Status</button>
+					<button class="btn btn-default lx-fbr-check-type" ${referenceReady ? "" : "disabled"}>Check Registration Type</button>
+				</div>
+				${referenceReady ? "" : '<div class="lx-callout is-warning"><strong>Reference API unavailable</strong><p>Enable FBR in Sandbox or Production mode and configure the active token first.</p></div>'}
+				${this.fbr_reference_results_html(fbr.registrationStatus, fbr.registrationType)}
 			</section>
 			<section class="lx-tax-section">
 				<div class="lx-tax-section-head"><div><h3>Sale payload</h3><p>Select a submitted sale, inspect the frozen payload, then validate or submit only when the configured mode permits it.</p></div></div>
@@ -428,6 +460,36 @@ class LedgixTaxCenter {
 			render_input: true,
 		});
 		control.set_value(this.state.fbr.sale || "");
+	}
+
+	fbr_reference_results_html(statusResult, typeResult) {
+		const blocks = [];
+		if (statusResult) blocks.push(this.fbr_reference_result_html("STATL status response", statusResult));
+		if (typeResult) blocks.push(this.fbr_reference_result_html("Registration type response", typeResult));
+		return blocks.length ? blocks.join("") : this.empty("No official registration lookup performed yet.");
+	}
+
+	fbr_reference_result_html(title, result) {
+		const payload = JSON.stringify(result?.data ?? result ?? {}, null, 2);
+		return `<div class="lx-fbr-preview-card"><details class="lx-payload" open><summary>${this.escape(title)}</summary><pre>${this.escape(payload)}</pre></details></div>`;
+	}
+
+	async check_fbr_registration(kind) {
+		const registrationNo = (this.state.fbr.registrationNo || "").trim();
+		const postingDate = (this.state.fbr.registrationDate || "").trim();
+		if (!registrationNo) return frappe.msgprint("Enter an NTN / registration number first.");
+		if (kind === "status" && !postingDate) return frappe.msgprint("Select the STATL lookup date first.");
+		try {
+			const method = kind === "status" ? this.methods.fbrRegistrationStatus : this.methods.fbrRegistrationType;
+			const args = kind === "status" ? { registration_no: registrationNo, posting_date: postingDate } : { registration_no: registrationNo };
+			const result = await this.call(method, args);
+			if (kind === "status") this.state.fbr.registrationStatus = result;
+			else this.state.fbr.registrationType = result;
+			this.render_fbr();
+			frappe.show_alert({ message: "Official FBR registration lookup completed", indicator: "green" }, 4);
+		} catch (error) {
+			this.show_error("FBR registration lookup failed.", error);
+		}
 	}
 
 	fbr_preview_html(preview) {
