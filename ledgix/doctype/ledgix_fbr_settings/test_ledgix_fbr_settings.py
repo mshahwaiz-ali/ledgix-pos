@@ -4,7 +4,7 @@ import frappe
 from frappe.tests.utils import FrappeTestCase
 
 from ledgix.doctype.v2_test_utils import configure_v2_test_environment, make_user_with_roles
-from ledgix_saas.api import fbr_client
+from ledgix_saas.api import fbr_client, fbr_reference
 from ledgix_saas.api.fbr_settings import (
 	get_fbr_control_state_internal,
 	get_fbr_settings,
@@ -112,3 +112,31 @@ class TestLedgixFBRSettings(FrappeTestCase):
 		self.assertIn("ambiguous", result["error"].lower())
 		self.assertIn("reconcile", result["error"].lower())
 		self.assertIn("automatic recovery", result["error"].lower())
+
+	def test_registration_reference_checks_use_official_request_contracts(self):
+		fake_response = Mock()
+		fake_response.status_code = 200
+		fake_response.json.side_effect = [
+			{"status code": "00", "status": "Active"},
+			{"statuscode": "00", "REGISTRATION_NO": "0788762", "REGISTRATION_TYPE": "Registered"},
+		]
+		fake_requests = Mock()
+		fake_requests.get.return_value = fake_response
+
+		with (
+			patch.object(fbr_client, "requests", fake_requests),
+			patch.object(fbr_reference, "_active_mode_and_token", return_value=("Sandbox", "test-token")),
+		):
+			statl = fbr_reference.get_sales_tax_registration_status("0788762", "2025-05-18")
+			reg_type = fbr_reference.get_registration_type("0788762")
+
+		self.assertEqual(statl["data"]["status"], "Active")
+		self.assertEqual(reg_type["data"]["REGISTRATION_TYPE"], "Registered")
+		self.assertEqual(fake_requests.get.call_count, 2)
+
+		statl_call, reg_type_call = fake_requests.get.call_args_list
+		self.assertEqual(statl_call.args[0], fbr_reference.STATL_URL)
+		self.assertEqual(statl_call.kwargs["params"], {"regno": "0788762", "date": "2025-05-18"})
+		self.assertEqual(statl_call.kwargs["headers"]["Authorization"], "Bearer test-token")
+		self.assertEqual(reg_type_call.args[0], fbr_reference.REGISTRATION_TYPE_URL)
+		self.assertEqual(reg_type_call.kwargs["params"], {"Registration_No": "0788762"})
