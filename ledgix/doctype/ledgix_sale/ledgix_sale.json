@@ -134,6 +134,7 @@
  ],
  "row_format": "Dynamic",
  "rows_threshold_for_grid_search": 20,
+ "show_title_field_in_link": 1,
  "sort_field": "sale_date",
  "sort_order": "DESC",
  "states": [],
