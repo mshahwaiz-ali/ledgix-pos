@@ -5,235 +5,52 @@
  "creation": "2026-05-07 07:18:07.475910",
  "doctype": "DocType",
  "engine": "InnoDB",
- "field_order": [
-  "item_identity_section",
-  "item_code",
-  "item_name",
-  "category",
-  "barcode",
-  "sku",
-  "unit",
-  "tracking_type",
-  "inventory_section",
-  "opening_stock",
-  "current_stock",
-  "minimum_stock",
-  "stock_status",
-  "pricing_section",
-  "cost_price",
-  "selling_price",
-  "profit_amount",
-  "profit_margin",
-  "active"
- ],
+ "field_order": ["item_identity_section","item_code","item_name","category","item_identity_column","barcode","sku","unit","tracking_type","active","inventory_section","opening_stock","minimum_stock","inventory_column","current_stock","stock_status","pricing_section","cost_price","selling_price","pricing_column","profit_amount","profit_margin"],
  "fields": [
-  {
-   "fieldname": "item_identity_section",
-   "fieldtype": "Section Break",
-   "label": "Item"
-  },
-  {
-   "allow_in_quick_entry": 1,
-   "fieldname": "item_code",
-   "fieldtype": "Data",
-   "in_list_view": 1,
-   "label": "Item Code",
-   "reqd": 1,
-   "unique": 1
-  },
-  {
-   "allow_in_quick_entry": 1,
-   "fieldname": "item_name",
-   "fieldtype": "Data",
-   "in_list_view": 1,
-   "label": "Item Name",
-   "reqd": 1
-  },
-  {
-   "fieldname": "category",
-   "fieldtype": "Link",
-   "in_filter": 1,
-   "in_list_view": 1,
-   "label": "Category",
-   "options": "Ledgix Category"
-  },
-  {
-   "fieldname": "barcode",
-   "fieldtype": "Data",
-   "in_list_view": 1,
-   "label": "Barcode",
-   "unique": 1
-  },
-  {
-   "fieldname": "sku",
-   "fieldtype": "Data",
-   "in_list_view": 1,
-   "label": "SKU",
-   "unique": 1
-  },
-  {
-   "default": "Piece",
-   "fieldname": "unit",
-   "fieldtype": "Select",
-   "label": "Unit",
-   "options": "Piece\nKg\nGram\nLiter\nPack"
-  },
-  {
-   "default": "Normal",
-   "fieldname": "tracking_type",
-   "fieldtype": "Select",
-   "in_filter": 1,
-   "label": "Tracking Type",
-   "options": "Normal\nLot Based\nSerial Based"
-  },
-  {
-   "fieldname": "inventory_section",
-   "fieldtype": "Section Break",
-   "label": "Inventory"
-  },
-  {
-   "default": "0",
-   "description": "Create-time opening quantity only. After creation use Adjust Stock so every change has a submitted Stock Movement.",
-   "fieldname": "opening_stock",
-   "fieldtype": "Float",
-   "label": "Opening Stock"
-  },
-  {
-   "default": "0",
-   "fieldname": "current_stock",
-   "fieldtype": "Float",
-   "in_list_view": 1,
-   "label": "Current Stock",
-   "read_only": 1
-  },
-  {
-   "default": "10",
-   "fieldname": "minimum_stock",
-   "fieldtype": "Float",
-   "label": "Minimum Stock"
-  },
-  {
-   "fieldname": "stock_status",
-   "fieldtype": "Select",
-   "in_list_view": 1,
-   "in_standard_filter": 1,
-   "label": "Stock Status",
-   "options": "In Stock\nLow Stock\nOut of Stock",
-   "read_only": 1
-  },
-  {
-   "fieldname": "pricing_section",
-   "fieldtype": "Section Break",
-   "label": "Valuation & Fallback Pricing"
-  },
-  {
-   "default": "0",
-   "description": "Opening valuation on a new item. Existing-item cost is maintained by purchase moving-average valuation.",
-   "fieldname": "cost_price",
-   "fieldtype": "Currency",
-   "label": "Average Cost"
-  },
-  {
-   "default": "0",
-   "description": "Fallback selling price when no effective Ledgix Item Price exists. Prefer Price Lists and Item Prices for normal selling.",
-   "fieldname": "selling_price",
-   "fieldtype": "Currency",
-   "label": "Fallback Selling Price"
-  },
-  {
-   "fieldname": "profit_amount",
-   "fieldtype": "Currency",
-   "label": "Fallback Gross Profit",
-   "read_only": 1
-  },
-  {
-   "fieldname": "profit_margin",
-   "fieldtype": "Percent",
-   "label": "Fallback Margin",
-   "read_only": 1
-  },
-  {
-   "default": "1",
-   "fieldname": "active",
-   "fieldtype": "Check",
-   "in_list_view": 1,
-   "label": "Active"
-  }
+  {"fieldname":"item_identity_section","fieldtype":"Section Break","label":"Item Information"},
+  {"allow_in_quick_entry":1,"fieldname":"item_code","fieldtype":"Data","in_list_view":1,"in_standard_filter":1,"label":"Item Code","reqd":1,"unique":1},
+  {"allow_in_quick_entry":1,"fieldname":"item_name","fieldtype":"Data","in_list_view":1,"in_standard_filter":1,"label":"Item Name","reqd":1},
+  {"fieldname":"category","fieldtype":"Link","in_filter":1,"in_list_view":1,"in_standard_filter":1,"label":"Category","options":"Ledgix Category"},
+  {"fieldname":"item_identity_column","fieldtype":"Column Break"},
+  {"fieldname":"barcode","fieldtype":"Data","label":"Barcode","unique":1},
+  {"fieldname":"sku","fieldtype":"Data","label":"SKU","unique":1},
+  {"default":"Piece","fieldname":"unit","fieldtype":"Select","label":"Unit","options":"Piece\nKg\nGram\nLiter\nPack"},
+  {"default":"Normal","fieldname":"tracking_type","fieldtype":"Select","in_filter":1,"in_standard_filter":1,"label":"Tracking Type","options":"Normal\nLot Based\nSerial Based"},
+  {"default":"1","fieldname":"active","fieldtype":"Check","in_list_view":1,"in_standard_filter":1,"label":"Active"},
+  {"fieldname":"inventory_section","fieldtype":"Section Break","label":"Inventory"},
+  {"default":"0","description":"Create-time opening quantity only. After creation use Adjust Stock so every change has a submitted Stock Movement.","fieldname":"opening_stock","fieldtype":"Float","label":"Opening Stock"},
+  {"default":"10","fieldname":"minimum_stock","fieldtype":"Float","label":"Minimum Stock"},
+  {"fieldname":"inventory_column","fieldtype":"Column Break"},
+  {"default":"0","fieldname":"current_stock","fieldtype":"Float","in_list_view":1,"label":"Current Stock","read_only":1},
+  {"fieldname":"stock_status","fieldtype":"Select","in_list_view":1,"in_standard_filter":1,"label":"Stock Status","options":"In Stock\nLow Stock\nOut of Stock","read_only":1},
+  {"fieldname":"pricing_section","fieldtype":"Section Break","label":"Valuation & Fallback Pricing","collapsible":1},
+  {"default":"0","description":"Opening valuation on a new item. Existing-item cost is maintained by purchase moving-average valuation.","fieldname":"cost_price","fieldtype":"Currency","label":"Average Cost"},
+  {"default":"0","description":"Fallback selling price when no effective Ledgix Item Price exists. Prefer Price Lists and Item Prices for normal selling.","fieldname":"selling_price","fieldtype":"Currency","label":"Fallback Selling Price"},
+  {"fieldname":"pricing_column","fieldtype":"Column Break"},
+  {"fieldname":"profit_amount","fieldtype":"Currency","label":"Fallback Gross Profit","read_only":1},
+  {"fieldname":"profit_margin","fieldtype":"Percent","label":"Fallback Margin","read_only":1}
  ],
- "grid_page_length": 50,
- "index_web_pages_for_search": 1,
- "links": [],
- "modified": "2026-08-29 00:00:00.000000",
- "modified_by": "Administrator",
- "module": "Ledgix",
- "name": "Ledgix Item",
- "naming_rule": "By fieldname",
- "owner": "alishahwaiz96@gmail.com",
- "permissions": [
-  {
-   "read": 1,
-   "write": 1,
-   "create": 1,
-   "delete": 1,
-   "submit": 0,
-   "cancel": 0,
-   "amend": 0,
-   "report": 1,
-   "export": 1,
-   "share": 1,
-   "print": 1,
-   "email": 1,
-   "role": "System Manager"
-  },
-  {
-   "read": 1,
-   "write": 1,
-   "create": 1,
-   "delete": 1,
-   "submit": 0,
-   "cancel": 0,
-   "amend": 0,
-   "report": 1,
-   "export": 1,
-   "share": 1,
-   "print": 1,
-   "email": 1,
-   "role": "Ledgix Admin"
-  },
-  {
-   "read": 1,
-   "write": 1,
-   "create": 1,
-   "delete": 0,
-   "submit": 0,
-   "cancel": 0,
-   "amend": 0,
-   "report": 0,
-   "export": 0,
-   "share": 0,
-   "print": 1,
-   "email": 1,
-   "role": "Ledgix Manager"
-  },
-  {
-   "read": 1,
-   "write": 0,
-   "create": 0,
-   "delete": 0,
-   "submit": 0,
-   "cancel": 0,
-   "amend": 0,
-   "report": 0,
-   "export": 0,
-   "share": 0,
-   "print": 1,
-   "email": 0,
-   "role": "Ledgix Cashier"
-  }
+ "grid_page_length":50,
+ "index_web_pages_for_search":1,
+ "links":[],
+ "modified":"2026-08-30 09:40:00.000000",
+ "modified_by":"Administrator",
+ "module":"Ledgix",
+ "name":"Ledgix Item",
+ "naming_rule":"By fieldname",
+ "owner":"alishahwaiz96@gmail.com",
+ "permissions":[
+  {"read":1,"write":1,"create":1,"delete":1,"submit":0,"cancel":0,"amend":0,"report":1,"export":1,"share":1,"print":1,"email":1,"role":"System Manager"},
+  {"read":1,"write":1,"create":1,"delete":1,"submit":0,"cancel":0,"amend":0,"report":1,"export":1,"share":1,"print":1,"email":1,"role":"Ledgix Admin"},
+  {"read":1,"write":1,"create":1,"delete":0,"submit":0,"cancel":0,"amend":0,"report":0,"export":0,"share":0,"print":1,"email":1,"role":"Ledgix Manager"},
+  {"read":1,"write":0,"create":0,"delete":0,"submit":0,"cancel":0,"amend":0,"report":0,"export":0,"share":0,"print":1,"email":0,"role":"Ledgix Cashier"}
  ],
- "row_format": "Dynamic",
- "rows_threshold_for_grid_search": 20,
- "sort_field": "modified",
- "sort_order": "DESC",
- "states": []
+ "row_format":"Dynamic",
+ "rows_threshold_for_grid_search":20,
+ "search_fields":"item_code,item_name,barcode,sku",
+ "show_title_field_in_link":1,
+ "sort_field":"item_name",
+ "sort_order":"ASC",
+ "states":[],
+ "title_field":"item_name"
 }

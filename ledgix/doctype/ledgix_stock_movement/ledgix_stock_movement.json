@@ -5,161 +5,43 @@
  "creation": "2026-05-14 10:46:54.565131",
  "doctype": "DocType",
  "engine": "InnoDB",
- "field_order": [
-  "movement_section",
-  "item",
-  "movement_type",
-  "movement_source",
-  "quantity",
-  "valuation_rate",
-  "movement_date",
-  "reference_doctype",
-  "reference_name",
-  "reference_note",
-  "amended_from"
- ],
+ "field_order": ["movement_section","item","movement_type","movement_source","movement_column","quantity","valuation_rate","movement_date","reference_section","reference_doctype","reference_name","reference_column","reference_note","amended_from"],
  "fields": [
-  {
-   "fieldname": "movement_section",
-   "fieldtype": "Section Break",
-   "label": "Stock Movement"
-  },
-  {
-   "fieldname": "item",
-   "fieldtype": "Link",
-   "in_list_view": 1,
-   "in_standard_filter": 1,
-   "label": "Item",
-   "options": "Ledgix Item",
-   "reqd": 1
-  },
-  {
-   "fieldname": "movement_type",
-   "fieldtype": "Select",
-   "in_list_view": 1,
-   "in_standard_filter": 1,
-   "label": "Movement Type",
-   "options": "IN\nOUT\nADJUSTMENT",
-   "reqd": 1
-  },
-  {
-   "fieldname": "movement_source",
-   "fieldtype": "Select",
-   "in_standard_filter": 1,
-   "label": "Movement Source",
-   "options": "Purchase\nSale\nReturn\nOpening\nManual IN\nManual OUT\nAdjustment"
-  },
-  {
-   "fieldname": "quantity",
-   "fieldtype": "Float",
-   "in_list_view": 1,
-   "label": "Quantity",
-   "reqd": 1
-  },
-  {
-   "description": "Cost/valuation snapshot carried by this inventory event. Read-only after posting.",
-   "fieldname": "valuation_rate",
-   "fieldtype": "Currency",
-   "label": "Valuation Rate",
-   "precision": "2",
-   "read_only": 1
-  },
-  {
-   "fieldname": "movement_date",
-   "fieldtype": "Datetime",
-   "in_list_view": 1,
-   "label": "Movement Date"
-  },
-  {
-   "fieldname": "reference_doctype",
-   "fieldtype": "Data",
-   "label": "Reference DocType",
-   "read_only": 1
-  },
-  {
-   "fieldname": "reference_name",
-   "fieldtype": "Data",
-   "label": "Reference Name",
-   "read_only": 1
-  },
-  {
-   "fieldname": "reference_note",
-   "fieldtype": "Small Text",
-   "label": "Reference Note",
-   "read_only": 1
-  },
-  {
-   "fieldname": "amended_from",
-   "fieldtype": "Link",
-   "label": "Amended From",
-   "no_copy": 1,
-   "options": "Ledgix Stock Movement",
-   "print_hide": 1,
-   "read_only": 1,
-   "search_index": 1
-  }
+  {"fieldname":"movement_section","fieldtype":"Section Break","label":"Stock Movement"},
+  {"fieldname":"item","fieldtype":"Link","in_list_view":1,"in_standard_filter":1,"label":"Item","options":"Ledgix Item","reqd":1},
+  {"fieldname":"movement_type","fieldtype":"Select","in_list_view":1,"in_standard_filter":1,"label":"Movement Type","options":"IN\nOUT\nADJUSTMENT","reqd":1},
+  {"fieldname":"movement_source","fieldtype":"Select","in_standard_filter":1,"label":"Movement Source","options":"Purchase\nSale\nReturn\nOpening\nManual IN\nManual OUT\nAdjustment"},
+  {"fieldname":"movement_column","fieldtype":"Column Break"},
+  {"fieldname":"quantity","fieldtype":"Float","in_list_view":1,"label":"Quantity","reqd":1},
+  {"description":"Cost/valuation snapshot carried by this inventory event. Read-only after posting.","fieldname":"valuation_rate","fieldtype":"Currency","label":"Valuation Rate","precision":"2","read_only":1},
+  {"fieldname":"movement_date","fieldtype":"Datetime","in_list_view":1,"in_standard_filter":1,"label":"Movement Date"},
+  {"collapsible":1,"fieldname":"reference_section","fieldtype":"Section Break","label":"Reference & Audit"},
+  {"fieldname":"reference_doctype","fieldtype":"Data","label":"Reference DocType","read_only":1},
+  {"fieldname":"reference_name","fieldtype":"Data","label":"Reference Name","read_only":1},
+  {"fieldname":"reference_column","fieldtype":"Column Break"},
+  {"fieldname":"reference_note","fieldtype":"Small Text","label":"Reference Note","read_only":1},
+  {"fieldname":"amended_from","fieldtype":"Link","label":"Amended From","no_copy":1,"options":"Ledgix Stock Movement","print_hide":1,"read_only":1,"search_index":1}
  ],
- "grid_page_length": 50,
- "index_web_pages_for_search": 1,
- "is_submittable": 1,
- "links": [],
- "modified": "2026-08-29 00:00:00.000000",
- "modified_by": "Administrator",
- "module": "Ledgix",
- "name": "Ledgix Stock Movement",
- "naming_rule": "Expression (old style)",
- "owner": "alishahwaiz96@gmail.com",
- "permissions": [
-  {
-   "read": 1,
-   "write": 1,
-   "create": 1,
-   "delete": 1,
-   "submit": 1,
-   "cancel": 1,
-   "amend": 1,
-   "report": 1,
-   "export": 1,
-   "share": 1,
-   "print": 1,
-   "email": 1,
-   "role": "System Manager"
-  },
-  {
-   "read": 1,
-   "write": 0,
-   "create": 0,
-   "delete": 0,
-   "submit": 0,
-   "cancel": 0,
-   "amend": 0,
-   "report": 1,
-   "export": 1,
-   "share": 0,
-   "print": 1,
-   "email": 0,
-   "role": "Ledgix Admin"
-  },
-  {
-   "read": 1,
-   "write": 0,
-   "create": 0,
-   "delete": 0,
-   "submit": 0,
-   "cancel": 0,
-   "amend": 0,
-   "report": 1,
-   "export": 1,
-   "share": 0,
-   "print": 1,
-   "email": 0,
-   "role": "Ledgix Manager"
-  }
+ "grid_page_length":50,
+ "index_web_pages_for_search":1,
+ "is_submittable":1,
+ "links":[],
+ "modified":"2026-08-30 09:40:00.000000",
+ "modified_by":"Administrator",
+ "module":"Ledgix",
+ "name":"Ledgix Stock Movement",
+ "naming_rule":"Expression (old style)",
+ "owner":"alishahwaiz96@gmail.com",
+ "permissions":[
+  {"read":1,"write":1,"create":1,"delete":1,"submit":1,"cancel":1,"amend":1,"report":1,"export":1,"share":1,"print":1,"email":1,"role":"System Manager"},
+  {"read":1,"write":0,"create":0,"delete":0,"submit":0,"cancel":0,"amend":0,"report":1,"export":1,"share":0,"print":1,"email":0,"role":"Ledgix Admin"},
+  {"read":1,"write":0,"create":0,"delete":0,"submit":0,"cancel":0,"amend":0,"report":1,"export":1,"share":0,"print":1,"email":0,"role":"Ledgix Manager"}
  ],
- "row_format": "Dynamic",
- "rows_threshold_for_grid_search": 20,
- "sort_field": "movement_date",
- "sort_order": "DESC",
- "states": [],
- "track_changes": 1
+ "row_format":"Dynamic",
+ "rows_threshold_for_grid_search":20,
+ "search_fields":"item,reference_name,reference_note",
+ "sort_field":"movement_date",
+ "sort_order":"DESC",
+ "states":[],
+ "track_changes":1
 }
