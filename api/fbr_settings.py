@@ -319,7 +319,11 @@ def get_fbr_control_state_internal():
     production_post_connected = bool(enabled and mode == "Production" and settings.get("production_token_configured"))
     production_post_ready = bool(production_post_connected and production_post_armed)
     auto_submit_active = bool(production_post_ready and submit_trigger == "On Submit")
-    retry_worker_active = bool(production_post_ready and settings.get("retry_enabled"))
+    # Recovery/retransmission workers are deliberately disabled until Ledgix has
+    # a reconciliation-safe way to establish that FBR did not receive an
+    # ambiguous Production POST. Normal explicitly armed On Submit posting is
+    # unaffected.
+    retry_worker_active = False
     offline_worker_active = False
     can_manual_validate = bool(enabled and token_configured and mode in ACTIVE_MODES)
     can_manual_submit = bool(production_post_ready)
