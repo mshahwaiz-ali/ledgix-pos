@@ -51,7 +51,13 @@ class TestV2UIArchitecture(FrappeTestCase):
 
     def test_permissions_have_one_after_migrate_authority(self):
         hooks = (APP_ROOT / "hooks.py").read_text(encoding="utf-8")
-        self.assertIn("ledgix_saas.setup.permissions.after_migrate", hooks)
+        fast_permissions = (APP_ROOT / "setup" / "fast_permissions.py").read_text(encoding="utf-8")
+
+        # permissions.py remains the policy source of truth, while fast_permissions.py
+        # is the single idempotent after-migrate executor for that policy.
+        self.assertEqual(hooks.count("ledgix_saas.setup.fast_permissions.after_migrate"), 1)
+        self.assertNotIn("ledgix_saas.setup.permissions.after_migrate", hooks)
+        self.assertIn("from ledgix_saas.setup import permissions as policy", fast_permissions)
         self.assertNotIn("v2_permissions", hooks)
         self.assertFalse((APP_ROOT / "setup" / "v2_permissions.py").exists())
 
