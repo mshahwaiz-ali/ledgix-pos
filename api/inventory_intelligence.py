@@ -18,12 +18,11 @@ def get_inventory_intelligence_data(
 	entity_type=None,
 	entity_value=None,
 ):
-	"""Inventory Intelligence endpoint with global Normal Stock activity search.
+	"""Inventory Intelligence endpoint with activity-wide search semantics.
 
-	The original engine remains authoritative for stock math, lot/serial lifecycle,
-	story generation, and risk rules. This wrapper fixes Normal Stock search so a
-	transaction/customer/supplier query is not discarded by the item master
-	prefilter before transaction rows are inspected.
+	The original engine remains authoritative for stock math and lifecycle rules.
+	This wrapper prevents Normal Stock and Lot Based activity searches from being
+	discarded by item/lot master prefilters before transaction rows are inspected.
 	"""
 	require_ledgix_manager_or_above()
 
@@ -48,16 +47,14 @@ def get_inventory_intelligence_data(
 		if core.should_use_mixed_intelligence(filters):
 			return build_mixed_data_response(filters)
 
-		return add_timeline_meta(core.build_lot_data_response(filters))
+		return add_timeline_meta(build_lot_data_response(filters))
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "Inventory Intelligence API")
 		return add_timeline_meta(core.empty_response(filters))
 
 
 def build_normal_stock_data_response(filters):
-	base_filters = dict(filters)
-	base_filters["search"] = None
-
+	base_filters = without_search(filters)
 	items = core.get_normal_stock_item_map(base_filters)
 	if not items:
 		return empty_normal_response(filters)
@@ -112,7 +109,7 @@ def build_normal_stock_data_response(filters):
 
 def filter_normal_stock_search(items, purchases, sales, returns, filters):
 	"""Apply one search term across item identity and Normal Stock activity."""
-	search = str(filters.get("search") or "").strip().lower()
+	search = normalized_search(filters)
 	entity_type = filters.get("entity_type")
 	if not search or entity_type not in (None, "item"):
 		return items, purchases, sales, returns
@@ -160,6 +157,112 @@ def filter_normal_stock_search(items, purchases, sales, returns, filters):
 	return items, purchases, sales, returns
 
 
+def build_lot_data_response(filters):
+	search = normalized_search(filters)
+	entity_type = filters.get("entity_type")
+	if not search or entity_type in ("lot", "purchase", "sale"):
+		return core.build_lot_data_response(filters)
+
+	base_filters = without_search(filters)
+	lots = core.get_lots(base_filters)
+	if not lots:
+		return empty_lot_response(filters, search_miss=bool(search))
+
+	allocations = core.get_allocations(lots)
+	submitted = core.get_submitted_reference_maps(lots, allocations)
+	items = core.get_item_map(lots, allocations)
+	base_lot_rows = core.build_lot_rows(lots, allocations, submitted, items, base_filters)
+
+	# Search cycle rows before narrowing lots. Cycle rows carry sale, return,
+	# customer and supplier references that do not exist on the stock-lot master.
+	matching_cycle_rows = core.build_cycle_rows(lots, allocations, submitted, items, filters)
+	matched_lot_names = {
+		row.get("lot_number")
+		for row in matching_cycle_rows
+		if row.get("lot_number")
+	}
+
+	lot_row_fields = (
+		"lot_number",
+		"item",
+		"item_name",
+		"supplier",
+		"purchase",
+		"lot_status",
+		"source_status",
+	)
+	matched_lot_names.update(
+		row.get("lot_number")
+		for row in base_lot_rows
+		if row.get("lot_number") and row_matches_search(row, lot_row_fields, search)
+	)
+
+	item_fields = ("name", "item_code", "item_name", "sku", "barcode", "category", "stock_status")
+	matched_items = {
+		name
+		for name, row in items.items()
+		if row_matches_search(row, item_fields, search)
+	}
+	matched_lot_names.update(lot.name for lot in lots if lot.item in matched_items)
+
+	matched_lot_names.discard(None)
+	if not matched_lot_names:
+		return empty_lot_response(filters, search_miss=True)
+
+	matched_lots = [lot for lot in lots if lot.name in matched_lot_names]
+	matched_allocations = [row for row in allocations if row.stock_lot in matched_lot_names]
+	matched_submitted = core.get_submitted_reference_maps(matched_lots, matched_allocations)
+	matched_items_map = core.get_item_map(matched_lots, matched_allocations)
+
+	# Once an activity match identifies a lot, show its complete submitted
+	# lifecycle instead of only the one row that happened to contain the term.
+	lot_rows = core.build_lot_rows(
+		matched_lots,
+		matched_allocations,
+		matched_submitted,
+		matched_items_map,
+		base_filters,
+	)
+	timeline = core.build_timeline(
+		matched_lots,
+		matched_allocations,
+		matched_submitted,
+		matched_items_map,
+		base_filters,
+	)
+	cycle_rows = core.build_cycle_rows(
+		matched_lots,
+		matched_allocations,
+		matched_submitted,
+		matched_items_map,
+		base_filters,
+	)
+	risks = core.build_risks(
+		matched_lots,
+		matched_allocations,
+		matched_submitted,
+		matched_items_map,
+		lot_rows,
+	)
+	summary = core.build_summary(lot_rows, matched_items_map, filters)
+	story = core.build_story(summary, lot_rows, filters)
+
+	return {
+		"filters": filters,
+		"summary": summary,
+		"story": story,
+		"lots": lot_rows,
+		"timeline": timeline,
+		"cycle_rows": cycle_rows,
+		"risks": risks,
+		"meta": {
+			"generated_at": str(core.now_datetime()),
+			"row_count": len(lot_rows),
+			"cycle_row_count": len(cycle_rows),
+		},
+	}
+
+
 def filter_activity_rows(rows, fields, search, item_matches):
 	return [
 		row
@@ -170,6 +273,16 @@ def filter_activity_rows(rows, fields, search, item_matches):
 
 def row_matches_search(row, fields, search):
 	return search in " ".join(str(row.get(field) or "") for field in fields).lower()
+
+
+def normalized_search(filters):
+	return str(filters.get("search") or "").strip().lower()
+
+
+def without_search(filters):
+	base_filters = dict(filters)
+	base_filters["search"] = None
+	return base_filters
 
 
 def empty_normal_response(filters, search_miss=False):
@@ -187,8 +300,23 @@ def empty_normal_response(filters, search_miss=False):
 	return response
 
 
+def empty_lot_response(filters, search_miss=False):
+	response = core.empty_response(filters)
+	response["story"] = {
+		"title": "No lot activity found" if search_miss else "No lot stock found",
+		"text": (
+			"No Lot Based item, lot, submitted transaction, customer, or supplier activity matched the current search."
+			if search_miss
+			else "No Lot Based stock activity matched the current filters."
+		),
+		"tone": "neutral",
+		"signals": [],
+	}
+	return response
+
+
 def build_mixed_data_response(filters):
-	lot_response = add_timeline_meta(core.build_lot_data_response(dict(filters)))
+	lot_response = add_timeline_meta(build_lot_data_response(dict(filters)))
 
 	normal_filters = dict(filters)
 	normal_filters["tracking_type"] = "Normal Stock"
@@ -215,6 +343,10 @@ def build_mixed_data_response(filters):
 		risks.extend(response.get("risks") or [])
 
 	loaded_timeline = timeline[:TIMELINE_RESULT_CAP]
+	cap_reached = len(timeline) > TIMELINE_RESULT_CAP or any(
+		(response.get("meta") or {}).get("timeline_cap_reached")
+		for response in responses
+	)
 	return {
 		"filters": filters,
 		"summary": summary,
@@ -229,7 +361,7 @@ def build_mixed_data_response(filters):
 			"cycle_row_count": len(loaded_timeline),
 			"timeline_loaded_count": len(loaded_timeline),
 			"timeline_result_cap": TIMELINE_RESULT_CAP,
-			"timeline_cap_reached": len(timeline) > TIMELINE_RESULT_CAP,
+			"timeline_cap_reached": bool(cap_reached),
 		},
 	}
 
