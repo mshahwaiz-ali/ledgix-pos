@@ -54,17 +54,19 @@ class LedgixFBRCorrectionRequest(Document):
 		self.correction_deadline = add_to_date(self.fbr_generated_at, hours=72, as_datetime=True)
 
 	def _apply_correction_window(self):
-		if self.status in FINAL_STATUSES:
-			if self.status == "Completed" and not self.completed_at:
-				self.completed_at = now_datetime()
+		deadline = get_datetime(self.correction_deadline)
+		decision_time = get_datetime(self.completed_at) if self.status == "Completed" and self.completed_at else now_datetime()
+		within_window = decision_time <= deadline
+		self.correction_path = "Within 72 Hours" if within_window else "Commissioner Approval Required"
+
+		if self.status == "Completed":
+			if not self.completed_at:
+				self.completed_at = decision_time
+			return
+		if self.status == "Rejected":
 			return
 
-		if now_datetime() <= get_datetime(self.correction_deadline):
-			self.correction_path = "Within 72 Hours"
-			self.status = "Board Action Pending"
-		else:
-			self.correction_path = "Commissioner Approval Required"
-			self.status = "Commissioner Approval Pending"
+		self.status = "Board Action Pending" if within_window else "Commissioner Approval Pending"
 		self.completed_at = None
 
 	def _validate_duplicate_open_request(self):
