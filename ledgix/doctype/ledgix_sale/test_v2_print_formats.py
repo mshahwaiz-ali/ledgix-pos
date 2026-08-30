@@ -173,4 +173,4 @@ class TestV2PrintFormats(FrappeTestCase):
         for rendered in (thermal, invoice):
             self.assertIn(fbr_invoice_number, rendered)
             self.assertIn(expected_qr, rendered)
-            self.assertIn("FBR Digital Invoice", rendered)
+            self.assertIn("FBR Digital Invoicing System", rendered)
