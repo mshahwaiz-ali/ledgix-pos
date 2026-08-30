@@ -21,6 +21,8 @@ SRO_SCHEDULE_URL = "https://gw.fbr.gov.pk/pdi/v1/SroSchedule"
 RATE_URL = "https://gw.fbr.gov.pk/pdi/v2/SaleTypeToRate"
 HS_UOM_URL = "https://gw.fbr.gov.pk/pdi/v2/HS_UOM"
 SRO_ITEM_URL = "https://gw.fbr.gov.pk/pdi/v2/SROItem"
+STATL_URL = "https://gw.fbr.gov.pk/dist/v1/statl"
+REGISTRATION_TYPE_URL = "https://gw.fbr.gov.pk/dist/v1/Get_Reg_Type"
 
 
 def _safe_error(exc):
@@ -74,6 +76,13 @@ def _get_reference(url, params=None):
         raise
     except Exception as exc:
         frappe.throw(_safe_error(exc))
+
+
+def _required_text(value, label):
+    text = str(value or "").strip()
+    if not text:
+        frappe.throw(f"{label} is required.")
+    return text
 
 
 @frappe.whitelist()
@@ -147,3 +156,27 @@ def get_sro_items(posting_date, sro_id):
     if not posting_date or not sro_id:
         frappe.throw("posting_date and sro_id are required.")
     return _get_reference(SRO_ITEM_URL, {"date": posting_date, "sro_id": sro_id})
+
+
+@frappe.whitelist()
+def get_sales_tax_registration_status(registration_no, posting_date):
+    """Check FBR STATL status using the v1.12 regno/date request contract."""
+    registration_no = _required_text(registration_no, "registration_no")
+    posting_date = _required_text(posting_date, "posting_date")
+    return _get_reference(
+        STATL_URL,
+        {
+            "regno": registration_no,
+            "date": posting_date,
+        },
+    )
+
+
+@frappe.whitelist()
+def get_registration_type(registration_no):
+    """Resolve Registered/unregistered using FBR Get_Reg_Type (spec section 5.12)."""
+    registration_no = _required_text(registration_no, "registration_no")
+    return _get_reference(
+        REGISTRATION_TYPE_URL,
+        {"Registration_No": registration_no},
+    )
