@@ -3,7 +3,7 @@ from pathlib import Path
 
 from frappe.tests.utils import FrappeTestCase
 
-from ledgix_saas.api.inventory_intelligence import filter_normal_stock_search
+from ledgix_saas.api.inventory_intelligence import add_scope_meta, filter_normal_stock_search
 
 
 APP_ROOT = Path(__file__).resolve().parents[3]
@@ -67,7 +67,10 @@ class TestV2WorkspaceAndIntelligence(FrappeTestCase):
         self.assertIn("lx-ii-lot-prev", text)
         self.assertIn("lx-ii-lot-next", text)
         self.assertIn("loaded events", text)
+        self.assertIn("loaded lots", text)
         self.assertIn("timeline_cap_reached", text)
+        self.assertIn("lot_cap_reached", text)
+        self.assertIn("meta.load_error", text)
         self.assertIn("requestId !== this.requestSerial", text)
         self.assertIn('this.fromControl?.$input?.on("change", reloadFromControl);', text)
         self.assertIn('this.toControl?.$input?.on("change", reloadFromControl);', text)
@@ -160,3 +163,20 @@ class TestV2WorkspaceAndIntelligence(FrappeTestCase):
         self.assertIn("matched_lot_names", text)
         self.assertIn("matched_allocations", text)
         self.assertIn("show its complete submitted", text.lower())
+        self.assertIn('response["meta"]["load_error"] = True', text)
+
+    def test_inventory_scope_meta_discloses_result_caps(self):
+        response = {
+            "cycle_rows": [{} for _ in range(500)],
+            "lots": [{} for _ in range(500)],
+            "meta": {},
+        }
+
+        meta = add_scope_meta(response)["meta"]
+
+        self.assertEqual(meta["timeline_loaded_count"], 500)
+        self.assertEqual(meta["timeline_result_cap"], 500)
+        self.assertTrue(meta["timeline_cap_reached"])
+        self.assertEqual(meta["lot_loaded_count"], 500)
+        self.assertEqual(meta["lot_result_cap"], 500)
+        self.assertTrue(meta["lot_cap_reached"])
