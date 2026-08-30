@@ -50,7 +50,7 @@ class TestV2WorkspaceAndIntelligence(FrappeTestCase):
         self.assertIn('["Return", "Partial Return"].includes(event)) doctype = "Ledgix Sales Return";', text)
         self.assertIn('style="align-items: start;"', text)
 
-    def test_inventory_page_has_interactive_risk_and_timeline_controls(self):
+    def test_inventory_page_has_bounded_pagination_and_interactive_risks(self):
         path = APP_ROOT / "ledgix" / "page" / "business_intelligence_center" / "business_intelligence_center.js"
         text = path.read_text(encoding="utf-8")
 
@@ -58,15 +58,23 @@ class TestV2WorkspaceAndIntelligence(FrappeTestCase):
             'this.method = "ledgix_saas.api.inventory_intelligence.get_inventory_intelligence_data";',
             text,
         )
+        self.assertIn("this.timelinePageSize = 25;", text)
+        self.assertIn("this.lotPageSize = 20;", text)
         self.assertIn("lx-ii-risk-toggle", text)
-        self.assertIn("lx-ii-timeline-more", text)
-        self.assertIn("lx-ii-timeline-less", text)
+        self.assertIn("lx-ii-timeline-prev", text)
+        self.assertIn("lx-ii-timeline-next", text)
+        self.assertIn("lx-ii-timeline-page-size", text)
+        self.assertIn("lx-ii-lot-prev", text)
+        self.assertIn("lx-ii-lot-next", text)
         self.assertIn("loaded events", text)
         self.assertIn("timeline_cap_reached", text)
         self.assertIn("requestId !== this.requestSerial", text)
         self.assertIn('this.fromControl?.$input?.on("change", reloadFromControl);', text)
         self.assertIn('this.toControl?.$input?.on("change", reloadFromControl);', text)
+        self.assertNotIn("lx-ii-timeline-more", text)
+        self.assertNotIn("lx-ii-timeline-less", text)
         self.assertNotIn('+${risks.length - 8} more signal(s)', text)
+        self.assertLess(text.index("<h3>Lot performance</h3>"), text.index("<h3>Transaction timeline</h3>"))
 
     def test_normal_stock_search_matches_activity_not_only_item_text(self):
         items = {
