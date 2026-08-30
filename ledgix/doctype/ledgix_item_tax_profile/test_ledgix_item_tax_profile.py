@@ -1,5 +1,6 @@
 import frappe
 from frappe.tests.utils import FrappeTestCase
+from frappe.utils import today
 
 from ledgix.doctype.v2_test_utils import (
 	configure_tax_profile,
@@ -117,6 +118,65 @@ class TestLedgixItemTaxProfile(FrappeTestCase):
 			original_payload["items"][0]["fixedNotifiedValueOrRetailPrice"],
 		)
 
+	def test_fbr_rate_description_and_special_tax_components_are_frozen(self):
+		tax_category = make_tax_category(rate=18)
+		make_tax_rate(tax_category.name, rate=18)
+		configure_tax_profile(tax_category.name, price_includes_tax=False)
+		item = make_item(selling_price=100, cost_price=50)
+		mapping = make_item_tax_profile(
+			item.name,
+			tax_category.name,
+			fbr_rate_description="18% along with rupees 60 per kilogram",
+			sales_tax_withheld_at_source_per_unit=2,
+			extra_tax_per_unit=3,
+			further_tax_per_unit=4,
+			fed_payable_per_unit=5,
+		)
+		customer = make_customer(customer_type="B2B", credit_limit=5000)
+		sale = make_sale(
+			customer.name,
+			item.name,
+			quantity=2,
+			rate=100,
+			sale_channel="B2B",
+			submit=True,
+		)
+		sale.reload()
+
+		row = sale.tax_details[0]
+		self.assertEqual(row.fbr_rate_description, "18% along with rupees 60 per kilogram")
+		self.assertAlmostEqual(row.tax_amount, 36, places=2)
+		self.assertAlmostEqual(row.sales_tax_withheld_at_source, 4, places=2)
+		self.assertAlmostEqual(row.extra_tax, 6, places=2)
+		self.assertAlmostEqual(row.further_tax, 8, places=2)
+		self.assertAlmostEqual(row.fed_payable, 10, places=2)
+		self.assertAlmostEqual(sale.tax_amount, 60, places=2)
+		self.assertAlmostEqual(sale.grand_total, 260, places=2)
+
+		before = build_official_sale_invoice_payload(sale)["items"][0]
+		self.assertEqual(before["rate"], "18% along with rupees 60 per kilogram")
+		self.assertAlmostEqual(before["salesTaxApplicable"], 36, places=2)
+		self.assertAlmostEqual(before["salesTaxWithheldAtSource"], 4, places=2)
+		self.assertAlmostEqual(before["extraTax"], 6, places=2)
+		self.assertAlmostEqual(before["furtherTax"], 8, places=2)
+		self.assertAlmostEqual(before["fedPayable"], 10, places=2)
+		self.assertAlmostEqual(before["totalValues"], 260, places=2)
+
+		frappe.db.set_value(
+			"Ledgix Item Tax Profile",
+			mapping.name,
+			{
+				"fbr_rate_description": "Changed",
+				"sales_tax_withheld_at_source_per_unit": 99,
+				"extra_tax_per_unit": 99,
+				"further_tax_per_unit": 99,
+				"fed_payable_per_unit": 99,
+			},
+			update_modified=False,
+		)
+		after = build_official_sale_invoice_payload(frappe.get_doc("Ledgix Sale", sale.name))["items"][0]
+		self.assertEqual(after, before)
+
 	def test_buyer_snapshot_uses_tax_profile_fallbacks(self):
 		tax_category = make_tax_category(rate=18)
 		make_tax_rate(tax_category.name, rate=18)
@@ -182,3 +242,41 @@ class TestLedgixItemTaxProfile(FrappeTestCase):
 		sale, _customer, _mapping, _tax_category = self._third_schedule_sale()
 		readiness = _validate_sale_fbr_readiness_internal(sale.name)
 		self.assertTrue(readiness["valid"], readiness.get("errors"))
+
+	def test_sandbox_rejects_invoice_with_mixed_scenario_ids(self):
+		tax_category = make_tax_category(rate=18)
+		make_tax_rate(tax_category.name, rate=18)
+		configure_tax_profile(tax_category.name)
+		item_one = make_item(selling_price=100)
+		item_two = make_item(selling_price=100)
+		make_item_tax_profile(item_one.name, tax_category.name, scenario_id="SN001")
+		make_item_tax_profile(item_two.name, tax_category.name, scenario_id="SN002")
+		customer = make_customer(customer_type="B2B", credit_limit=5000)
+
+		sale = frappe.get_doc({
+			"doctype": "Ledgix Sale",
+			"customer": customer.name,
+			"sale_channel": "B2B",
+			"sale_date": today(),
+		})
+		for item in (item_one, item_two):
+			sale.append("items", {
+				"item": item.name,
+				"quantity": 1,
+				"list_rate": 100,
+				"rate": 100,
+				"cost_price": item.cost_price,
+			})
+		sale.insert(ignore_permissions=True)
+		sale.submit()
+
+		frappe.db.set_single_value("Ledgix FBR Settings", "mode", "Sandbox")
+		frappe.db.set_single_value("Ledgix FBR Settings", "enabled", 0)
+		frappe.clear_cache(doctype="Ledgix FBR Settings")
+		readiness = _validate_sale_fbr_readiness_internal(sale.name)
+
+		self.assertFalse(readiness["valid"])
+		self.assertTrue(
+			any("multiple scenario ids" in message.lower() for message in readiness.get("errors") or []),
+			readiness.get("errors"),
+		)
