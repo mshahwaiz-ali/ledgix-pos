@@ -15,7 +15,8 @@ class LedgixInventoryIntelligence {
 		this.page.clear_actions_menu();
 		this.method = "ledgix_saas.api.inventory_intelligence.get_inventory_intelligence_data";
 		this.riskPreviewLimit = 8;
-		this.timelinePageSize = 150;
+		this.timelinePageSize = 25;
+		this.lotPageSize = 20;
 		this.requestSerial = 0;
 		this.suppressControlReload = false;
 		this.state = {
@@ -27,7 +28,9 @@ class LedgixInventoryIntelligence {
 			loading: false,
 			data: null,
 			risks_expanded: false,
-			timeline_limit: this.timelinePageSize,
+			timeline_page: 1,
+			timeline_page_size: this.timelinePageSize,
+			lot_page: 1,
 		};
 		this.searchTimer = null;
 		this.render_shell();
@@ -129,13 +132,31 @@ class LedgixInventoryIntelligence {
 			this.state.risks_expanded = !this.state.risks_expanded;
 			this.render_data();
 		});
-		this.$root.on("click", ".lx-ii-timeline-more", () => {
-			const rows = this.current_timeline();
-			this.state.timeline_limit = Math.min(this.state.timeline_limit + this.timelinePageSize, rows.length);
+		this.$root.on("click", ".lx-ii-timeline-prev", () => {
+			this.state.timeline_page = Math.max(1, Number(this.state.timeline_page || 1) - 1);
 			this.render_data();
 		});
-		this.$root.on("click", ".lx-ii-timeline-less", () => {
-			this.state.timeline_limit = this.timelinePageSize;
+		this.$root.on("click", ".lx-ii-timeline-next", () => {
+			const rows = this.current_timeline();
+			const pageSize = Number(this.state.timeline_page_size || this.timelinePageSize);
+			const pageCount = Math.max(1, Math.ceil(rows.length / pageSize));
+			this.state.timeline_page = Math.min(pageCount, Number(this.state.timeline_page || 1) + 1);
+			this.render_data();
+		});
+		this.$root.on("change", ".lx-ii-timeline-page-size", (event) => {
+			const requested = Number(event.currentTarget.value || this.timelinePageSize);
+			this.state.timeline_page_size = [25, 50, 100].includes(requested) ? requested : this.timelinePageSize;
+			this.state.timeline_page = 1;
+			this.render_data();
+		});
+		this.$root.on("click", ".lx-ii-lot-prev", () => {
+			this.state.lot_page = Math.max(1, Number(this.state.lot_page || 1) - 1);
+			this.render_data();
+		});
+		this.$root.on("click", ".lx-ii-lot-next", () => {
+			const rows = (this.state.data || {}).lots || [];
+			const pageCount = Math.max(1, Math.ceil(rows.length / this.lotPageSize));
+			this.state.lot_page = Math.min(pageCount, Number(this.state.lot_page || 1) + 1);
 			this.render_data();
 		});
 		this.$root.on("click", "[data-route-list]", (event) => frappe.set_route("List", $(event.currentTarget).data("route-list"), "List"));
@@ -188,7 +209,8 @@ class LedgixInventoryIntelligence {
 			if (requestId !== this.requestSerial) return;
 			this.state.data = data;
 			this.state.risks_expanded = false;
-			this.state.timeline_limit = this.timelinePageSize;
+			this.state.timeline_page = 1;
+			this.state.lot_page = 1;
 			this.render_data();
 		} catch (error) {
 			if (requestId !== this.requestSerial) return;
@@ -239,11 +261,11 @@ class LedgixInventoryIntelligence {
 					${this.risks_html(risks)}
 				</div>
 			</section>
+			${identities.length ? `<section class="lx-ii-card"><div class="lx-ii-card-head"><div><h3>Lot performance</h3><p>Lot-level sell-through, margin and return behavior.</p></div><button class="btn btn-default btn-xs" data-route-list="Ledgix Stock Lot">Open Stock Lots</button></div>${this.identities_html(identities)}</section>` : ""}
 			<section class="lx-ii-card">
 				<div class="lx-ii-card-head"><div><h3>Transaction timeline</h3><p>Submitted purchase, sale and return events in one traceable view.</p></div><span class="lx-ii-meta">${this.timeline_meta_label(timeline, meta)}</span></div>
 				${this.timeline_html(timeline, meta)}
 			</section>
-			${identities.length ? `<section class="lx-ii-card"><div class="lx-ii-card-head"><div><h3>Lot performance</h3><p>Lot-level sell-through, margin and return behavior.</p></div><button class="btn btn-default btn-xs" data-route-list="Ledgix Stock Lot">Open Stock Lots</button></div>${this.identities_html(identities)}</section>` : ""}
 		`);
 	}
 
@@ -280,26 +302,24 @@ class LedgixInventoryIntelligence {
 
 	timeline_html(rows, meta = {}) {
 		if (!rows.length) return '<div class="lx-ii-empty">No inventory activity matched the current filters.</div>';
-		const visibleCount = Math.min(Math.max(this.state.timeline_limit, this.timelinePageSize), rows.length);
-		const visibleRows = rows.slice(0, visibleCount);
-		const body = visibleRows.map(row => this.timeline_row_html(row)).join("");
-		const remaining = rows.length - visibleCount;
-		const actions = [];
-		if (remaining > 0) {
-			const nextCount = Math.min(this.timelinePageSize, remaining);
-			actions.push(`<button class="btn btn-default btn-xs lx-ii-timeline-more" type="button">Load ${nextCount} more</button>`);
-		}
-		if (visibleCount > this.timelinePageSize) {
-			actions.push(`<button class="btn btn-default btn-xs lx-ii-timeline-less" type="button">Show first ${this.timelinePageSize}</button>`);
-		}
+		const pageSize = Number(this.state.timeline_page_size || this.timelinePageSize);
+		const pageCount = Math.max(1, Math.ceil(rows.length / pageSize));
+		const page = Math.min(Math.max(1, Number(this.state.timeline_page || 1)), pageCount);
+		this.state.timeline_page = page;
+		const start = (page - 1) * pageSize;
+		const end = Math.min(start + pageSize, rows.length);
+		const body = rows.slice(start, end).map(row => this.timeline_row_html(row)).join("");
 		const cap = Number(meta.timeline_result_cap || 500);
 		const capNote = meta.timeline_cap_reached
-			? ` Result cap reached at ${cap} loaded events; narrow the filters to investigate older or more specific activity.`
+			? `<div class="lx-ii-cap-note">Result cap reached at ${this.escape(cap)} loaded events. Narrow filters to investigate older activity.</div>`
 			: "";
-		const note = (rows.length > this.timelinePageSize || meta.timeline_cap_reached)
-			? `<div class="lx-ii-table-note"><span>Showing ${visibleCount} of ${rows.length} loaded events.${this.escape(capNote)}</span>${actions.length ? `<span class="lx-ii-table-note-actions">${actions.join("")}</span>` : ""}</div>`
-			: "";
-		return `<div class="lx-ii-table-wrap"><table class="lx-ii-table"><thead><tr><th>Date</th><th>Event</th><th>Item / Identity</th><th>Reference</th><th>Party</th><th>Qty</th><th>Running Qty</th><th>Rate</th><th>Profit</th></tr></thead><tbody>${body}</tbody></table>${note}</div>`;
+		const controls = this.timeline_pagination_html(page, pageCount, pageSize, start, end, rows.length);
+		return `<div class="lx-ii-table-wrap"><table class="lx-ii-table"><thead><tr><th>Date</th><th>Event</th><th>Item / Identity</th><th>Reference</th><th>Party</th><th>Qty</th><th>Running Qty</th><th>Rate</th><th>Profit</th></tr></thead><tbody>${body}</tbody></table>${controls}${capNote}</div>`;
+	}
+
+	timeline_pagination_html(page, pageCount, pageSize, start, end, total) {
+		const options = [25, 50, 100].map(size => `<option value="${size}" ${size === pageSize ? "selected" : ""}>${size}</option>`).join("");
+		return `<div class="lx-ii-pagination"><span>Showing ${start + 1}–${end} of ${total} loaded events</span><span class="lx-ii-pagination-actions"><label>Rows <select class="form-control input-xs lx-ii-timeline-page-size">${options}</select></label><button class="btn btn-default btn-xs lx-ii-timeline-prev" type="button" ${page <= 1 ? "disabled" : ""}>Previous</button><span>Page ${page} of ${pageCount}</span><button class="btn btn-default btn-xs lx-ii-timeline-next" type="button" ${page >= pageCount ? "disabled" : ""}>Next</button></span></div>`;
 	}
 
 	timeline_row_html(row) {
@@ -335,7 +355,15 @@ class LedgixInventoryIntelligence {
 	}
 
 	identities_html(rows) {
-		return `<div class="lx-ii-table-wrap"><table class="lx-ii-table"><thead><tr><th>Lot</th><th>Item</th><th>Supplier</th><th>Purchased</th><th>Remaining</th><th>Sell-through</th><th>Return Rate</th><th>Profit</th><th>Status</th></tr></thead><tbody>${rows.slice(0, 100).map(row => `<tr><td><strong>${this.escape(row.lot_number || "—")}</strong><small>${this.escape(row.purchase_date || "")}</small></td><td>${this.escape(row.item_name || row.item || "—")}</td><td>${this.escape(row.supplier || "—")}</td><td>${this.number(row.purchased_qty, 2)}</td><td>${this.number(row.remaining_qty, 2)}</td><td>${this.percent(row.sell_through_percent)}</td><td>${this.percent(row.return_rate_percent)}</td><td class="${Number(row.profit || 0) < 0 ? "is-negative" : Number(row.profit || 0) > 0 ? "is-positive" : ""}">${this.money(row.profit)}</td><td><span class="lx-ii-lot-status">${this.escape(row.lot_status || row.source_status || "Open")}</span></td></tr>`).join("")}</tbody></table></div>`;
+		if (!rows.length) return '<div class="lx-ii-empty">No lot performance matched the current filters.</div>';
+		const pageCount = Math.max(1, Math.ceil(rows.length / this.lotPageSize));
+		const page = Math.min(Math.max(1, Number(this.state.lot_page || 1)), pageCount);
+		this.state.lot_page = page;
+		const start = (page - 1) * this.lotPageSize;
+		const end = Math.min(start + this.lotPageSize, rows.length);
+		const body = rows.slice(start, end).map(row => `<tr><td><strong>${this.escape(row.lot_number || "—")}</strong><small>${this.escape(row.purchase_date || "")}</small></td><td>${this.escape(row.item_name || row.item || "—")}</td><td>${this.escape(row.supplier || "—")}</td><td>${this.number(row.purchased_qty, 2)}</td><td>${this.number(row.remaining_qty, 2)}</td><td>${this.percent(row.sell_through_percent)}</td><td>${this.percent(row.return_rate_percent)}</td><td class="${Number(row.profit || 0) < 0 ? "is-negative" : Number(row.profit || 0) > 0 ? "is-positive" : ""}">${this.money(row.profit)}</td><td><span class="lx-ii-lot-status">${this.escape(row.lot_status || row.source_status || "Open")}</span></td></tr>`).join("");
+		const pagination = `<div class="lx-ii-pagination"><span>Showing ${start + 1}–${end} of ${rows.length} lots</span><span class="lx-ii-pagination-actions"><button class="btn btn-default btn-xs lx-ii-lot-prev" type="button" ${page <= 1 ? "disabled" : ""}>Previous</button><span>Page ${page} of ${pageCount}</span><button class="btn btn-default btn-xs lx-ii-lot-next" type="button" ${page >= pageCount ? "disabled" : ""}>Next</button></span></div>`;
+		return `<div class="lx-ii-table-wrap"><table class="lx-ii-table"><thead><tr><th>Lot</th><th>Item</th><th>Supplier</th><th>Purchased</th><th>Remaining</th><th>Sell-through</th><th>Return Rate</th><th>Profit</th><th>Status</th></tr></thead><tbody>${body}</tbody></table>${pagination}</div>`;
 	}
 
 	render_error(message) {
