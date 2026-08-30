@@ -23,6 +23,8 @@ SETTINGS_WRITE_FIELDS = {
     "seller_business_name",
     "seller_province",
     "seller_address",
+    "software_registration_number",
+    "digital_invoicing_logo",
     "pause_reason",
 }
 PASSWORD_FIELDS = {"sandbox_token", "production_token"}
@@ -57,6 +59,8 @@ DISABLED_DEFAULTS = {
     "seller_business_name": "",
     "seller_province": "",
     "seller_address": "",
+    "software_registration_number": "",
+    "digital_invoicing_logo": "",
     "paused_at": None,
     "pause_reason": "",
     "paused_by": "",
@@ -119,6 +123,8 @@ def _settings_dict():
         "seller_business_name": doc.get("seller_business_name") or "",
         "seller_province": doc.get("seller_province") or "",
         "seller_address": doc.get("seller_address") or "",
+        "software_registration_number": doc.get("software_registration_number") or "",
+        "digital_invoicing_logo": doc.get("digital_invoicing_logo") or "",
         "paused_at": doc.get("paused_at"),
         "pause_reason": doc.get("pause_reason") or "",
         "paused_by": doc.get("paused_by") or "",
