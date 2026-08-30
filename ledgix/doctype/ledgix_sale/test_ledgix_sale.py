@@ -1,6 +1,8 @@
 # Copyright (c) 2026, Ali and Contributors
 # See license.txt
 
+from unittest.mock import patch
+
 import frappe
 from frappe.tests.utils import FrappeTestCase
 from frappe.utils import add_days, getdate, today
@@ -14,6 +16,7 @@ from ledgix.doctype.v2_test_utils import (
 	make_sale,
 	unique_name,
 )
+from ledgix_saas.api import fbr_submission
 from ledgix_saas.services.receivables import get_customer_receivables
 
 
@@ -216,3 +219,71 @@ class TestLedgixSale(FrappeTestCase):
 			),
 			1,
 		)
+
+	def test_ambiguous_production_post_requires_reconciliation_and_blocks_resend(self):
+		item = make_item(selling_price=100)
+		customer = make_customer(customer_type="B2B", credit_limit=500)
+		sale = make_sale(customer.name, item.name, rate=100, sale_channel="B2B", submit=True)
+
+		settings = {
+			"enabled": True,
+			"mode": "Production",
+			"submit_trigger": "Manual",
+			"production_token_configured": True,
+			"production_post_armed": True,
+			"sandbox_token_configured": False,
+		}
+		client_result = {
+			"success": False,
+			"network_call": True,
+			"http_status": None,
+			"status": "Network Error",
+			"response": None,
+			"error": "timeout. Production POST outcome may be ambiguous. Reconcile with FBR/PRAL before retransmission.",
+			"fbr_operation": "post",
+			"fbr_mode": "Production",
+		}
+		with patch.object(fbr_submission, "get_fbr_settings_internal", return_value=settings), \
+			patch.object(fbr_submission, "_build_ready_payload", return_value=({"invoiceType": "Sale Invoice"}, {"valid": True, "errors": [], "warnings": []}, "")), \
+			patch.object(fbr_submission.fbr_client, "post_invoice", return_value=client_result) as post_mock:
+			result = fbr_submission._submit_sale_to_fbr_internal(sale.name)
+			self.assertEqual(result["status"], fbr_submission.RECONCILIATION_REQUIRED)
+			sale.reload()
+			self.assertEqual(sale.fbr_status, fbr_submission.RECONCILIATION_REQUIRED)
+			self.assertFalse(sale.fbr_upload_due_at)
+
+			second = fbr_submission._submit_sale_to_fbr_internal(sale.name)
+			self.assertEqual(second["status"], fbr_submission.RECONCILIATION_REQUIRED)
+			self.assertFalse(second["network_call"])
+			post_mock.assert_called_once()
+
+		with self.assertRaises(frappe.ValidationError):
+			fbr_submission.release_sale_after_fbr_reconciliation(sale.name, "yes")
+
+		released = fbr_submission.release_sale_after_fbr_reconciliation(
+			sale.name,
+			fbr_submission.RECONCILIATION_CONFIRMATION,
+		)
+		self.assertTrue(released["released"])
+		self.assertEqual(released["status"], "Pending")
+
+	def test_fbr_print_formats_render_relevant_statuses_only(self):
+		item = make_item(selling_price=100)
+		customer = make_customer(customer_type="B2B", credit_limit=500)
+		sale = make_sale(customer.name, item.name, rate=100, sale_channel="B2B", submit=True)
+
+		thermal = frappe.get_print("Ledgix Sale", sale.name, print_format="Ledgix Thermal Receipt")
+		b2b = frappe.get_print("Ledgix Sale", sale.name, print_format="Ledgix B2B Invoice")
+		self.assertNotIn("FBR Digital Invoicing System", thermal)
+		self.assertNotIn("FBR Digital Invoicing System", b2b)
+
+		frappe.db.set_value("Ledgix Sale", sale.name, "fbr_status", "Reconciliation Required", update_modified=False)
+		thermal = frappe.get_print("Ledgix Sale", sale.name, print_format="Ledgix Thermal Receipt")
+		b2b = frappe.get_print("Ledgix Sale", sale.name, print_format="Ledgix B2B Invoice")
+		self.assertIn("FBR RECONCILIATION REQUIRED", thermal)
+		self.assertIn("FBR RECONCILIATION REQUIRED", b2b)
+		self.assertNotIn("OFFLINE MODE", thermal)
+
+		frappe.db.set_value("Ledgix Sale", sale.name, "fbr_status", "Offline Pending", update_modified=False)
+		thermal = frappe.get_print("Ledgix Sale", sale.name, print_format="Ledgix Thermal Receipt")
+		self.assertIn("OFFLINE MODE", thermal)
