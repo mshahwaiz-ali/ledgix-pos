@@ -3,13 +3,22 @@
 
 import frappe
 from frappe.tests.utils import FrappeTestCase
+from frappe.utils import add_days
 
 from ledgix.doctype.v2_test_utils import (
+	configure_tax_profile,
 	configure_v2_test_environment,
 	make_customer,
 	make_item,
+	make_item_tax_profile,
 	make_sale,
 	make_sales_return,
+	make_tax_category,
+	make_tax_rate,
+)
+from ledgix_saas.api.fbr_payload import (
+	_validate_return_fbr_readiness_internal,
+	build_official_return_invoice_payload,
 )
 from ledgix_saas.api.v2_returns import create_pos_v2_return, get_pos_v2_return_context
 from ledgix_saas.services.receivables import get_customer_receivables
@@ -31,6 +40,33 @@ class TestLedgixSalesReturn(FrappeTestCase):
 			sale_channel="B2B",
 			submit=True,
 		)
+		return item, customer, sale
+
+	def _make_fbr_taxed_sale(self):
+		tax_category = make_tax_category(rate=18)
+		make_tax_rate(tax_category.name, rate=18)
+		configure_tax_profile(tax_category.name, price_includes_tax=False)
+		item = make_item(selling_price=100, cost_price=40, opening_stock=5)
+		make_item_tax_profile(
+			item.name,
+			tax_category.name,
+			fbr_rate_description="18% along with rupees 60 per kilogram",
+			sales_tax_withheld_at_source_per_unit=2,
+			extra_tax_per_unit=3,
+			further_tax_per_unit=4,
+			fed_payable_per_unit=5,
+		)
+		customer = make_customer(customer_type="B2B", credit_limit=5000)
+		sale = make_sale(
+			customer.name,
+			item.name,
+			quantity=2,
+			rate=100,
+			sale_channel="B2B",
+			submit=True,
+		)
+		frappe.db.set_value("Ledgix Sale", sale.name, "fbr_invoice_number", "FBR-TEST-INV-001", update_modified=False)
+		sale.reload()
 		return item, customer, sale
 
 	def test_return_requires_reason(self):
@@ -116,4 +152,68 @@ class TestLedgixSalesReturn(FrappeTestCase):
 				filters={"reference_doctype": "Ledgix Sales Return", "reference_name": return_doc.name, "docstatus": 2},
 			),
 			1,
+		)
+
+	def test_fbr_return_payload_preserves_reference_reason_date_and_tax_snapshots(self):
+		_item, _customer, sale = self._make_fbr_taxed_sale()
+		return_doc = make_sales_return(
+			sale,
+			quantity=1,
+			return_reason="Damaged item",
+			submit=True,
+		)
+		return_doc.reload()
+
+		frappe.db.set_single_value("Ledgix FBR Settings", "mode", "Sandbox")
+		frappe.db.set_single_value("Ledgix FBR Settings", "enabled", 0)
+		frappe.clear_cache(doctype="Ledgix FBR Settings")
+
+		self.assertTrue(return_doc.return_date)
+		self.assertEqual(len(return_doc.tax_details), 1)
+		row = return_doc.tax_details[0]
+		self.assertEqual(row.fbr_rate_description, "18% along with rupees 60 per kilogram")
+		self.assertAlmostEqual(row.tax_amount, 18, places=2)
+		self.assertAlmostEqual(row.sales_tax_withheld_at_source, 2, places=2)
+		self.assertAlmostEqual(row.extra_tax, 3, places=2)
+		self.assertAlmostEqual(row.further_tax, 4, places=2)
+		self.assertAlmostEqual(row.fed_payable, 5, places=2)
+		self.assertAlmostEqual(return_doc.tax_amount, 30, places=2)
+		self.assertAlmostEqual(return_doc.grand_total, 130, places=2)
+
+		readiness = _validate_return_fbr_readiness_internal(return_doc.name)
+		self.assertTrue(readiness["valid"], readiness.get("errors"))
+
+		payload = build_official_return_invoice_payload(return_doc)
+		self.assertEqual(payload["invoiceRefNo"], "FBR-TEST-INV-001")
+		self.assertEqual(payload["reason"], "Damaged item")
+		self.assertEqual(payload["invoiceDate"], str(return_doc.return_date))
+		self.assertEqual(payload["scenarioId"], "SN001")
+		self.assertEqual(payload["items"][0]["rate"], "18% along with rupees 60 per kilogram")
+		self.assertAlmostEqual(payload["items"][0]["salesTaxApplicable"], 18, places=2)
+		self.assertAlmostEqual(payload["items"][0]["salesTaxWithheldAtSource"], 2, places=2)
+		self.assertAlmostEqual(payload["items"][0]["extraTax"], 3, places=2)
+		self.assertAlmostEqual(payload["items"][0]["furtherTax"], 4, places=2)
+		self.assertAlmostEqual(payload["items"][0]["fedPayable"], 5, places=2)
+
+	def test_fbr_return_readiness_rejects_note_after_180_days(self):
+		_item, _customer, sale = self._make_fbr_taxed_sale()
+		return_doc = make_sales_return(sale, quantity=1, return_reason="Late return", submit=True)
+		return_doc.reload()
+
+		frappe.db.set_value(
+			"Ledgix Sale",
+			sale.name,
+			"sale_date",
+			add_days(return_doc.return_date, -181),
+			update_modified=False,
+		)
+		frappe.db.set_single_value("Ledgix FBR Settings", "mode", "Sandbox")
+		frappe.db.set_single_value("Ledgix FBR Settings", "enabled", 0)
+		frappe.clear_cache(doctype="Ledgix FBR Settings")
+
+		readiness = _validate_return_fbr_readiness_internal(return_doc.name)
+		self.assertFalse(readiness["valid"])
+		self.assertTrue(
+			any("180 days" in message for message in readiness.get("errors") or []),
+			readiness.get("errors"),
 		)
