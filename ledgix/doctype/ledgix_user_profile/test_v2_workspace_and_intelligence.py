@@ -3,6 +3,8 @@ from pathlib import Path
 
 from frappe.tests.utils import FrappeTestCase
 
+from ledgix_saas.api.inventory_intelligence import filter_normal_stock_search
+
 
 APP_ROOT = Path(__file__).resolve().parents[3]
 
@@ -47,3 +49,106 @@ class TestV2WorkspaceAndIntelligence(FrappeTestCase):
         self.assertIn('row.sales_return || row.reference || row.sale', text)
         self.assertIn('["Return", "Partial Return"].includes(event)) doctype = "Ledgix Sales Return";', text)
         self.assertIn('style="align-items: start;"', text)
+
+    def test_inventory_page_has_interactive_risk_and_timeline_controls(self):
+        path = APP_ROOT / "ledgix" / "page" / "business_intelligence_center" / "business_intelligence_center.js"
+        text = path.read_text(encoding="utf-8")
+
+        self.assertIn(
+            'this.method = "ledgix_saas.api.inventory_intelligence.get_inventory_intelligence_data";',
+            text,
+        )
+        self.assertIn("lx-ii-risk-toggle", text)
+        self.assertIn("lx-ii-timeline-more", text)
+        self.assertIn("lx-ii-timeline-less", text)
+        self.assertIn("loaded events", text)
+        self.assertIn("timeline_cap_reached", text)
+        self.assertIn("requestId !== this.requestSerial", text)
+        self.assertIn('this.fromControl?.$input?.on("change", reloadFromControl);', text)
+        self.assertIn('this.toControl?.$input?.on("change", reloadFromControl);', text)
+        self.assertNotIn('+${risks.length - 8} more signal(s)', text)
+
+    def test_normal_stock_search_matches_activity_not_only_item_text(self):
+        items = {
+            "ITEM-A": {
+                "name": "ITEM-A",
+                "item_code": "A-001",
+                "item_name": "Cake Rusk",
+                "sku": "RUSK-001",
+                "barcode": "111",
+                "category": "Bakery",
+                "stock_status": "In Stock",
+            },
+            "ITEM-B": {
+                "name": "ITEM-B",
+                "item_code": "B-001",
+                "item_name": "Gulab Jamun",
+                "sku": "GJ-001",
+                "barcode": "222",
+                "category": "Sweets",
+                "stock_status": "In Stock",
+            },
+        }
+        purchases = [
+            {
+                "purchase": "PUR-TEST-001",
+                "supplier": "Heritage Sweets Production",
+                "purchase_invoice": "PI-001",
+                "item": "ITEM-A",
+                "row_name": "PUR-ROW-1",
+            }
+        ]
+        sales = [
+            {
+                "sale": "SAL-TEST-001",
+                "customer": "Noor Event Planners",
+                "sale_invoice": "INV-001",
+                "item": "ITEM-B",
+                "row_name": "SALE-ROW-1",
+            }
+        ]
+        returns = [
+            {
+                "sales_return": "RET-TEST-001",
+                "original_sale": "SAL-TEST-001",
+                "customer": "Noor Event Planners",
+                "item": "ITEM-B",
+                "row_name": "RET-ROW-1",
+            }
+        ]
+
+        matched_items, matched_purchases, matched_sales, matched_returns = filter_normal_stock_search(
+            items,
+            purchases,
+            sales,
+            returns,
+            {"search": "Noor Event Planners", "entity_type": None},
+        )
+
+        self.assertEqual(set(matched_items), {"ITEM-B"})
+        self.assertEqual(matched_purchases, [])
+        self.assertEqual([row["sale"] for row in matched_sales], ["SAL-TEST-001"])
+        self.assertEqual([row["sales_return"] for row in matched_returns], ["RET-TEST-001"])
+
+        matched_items, matched_purchases, matched_sales, matched_returns = filter_normal_stock_search(
+            items,
+            purchases,
+            sales,
+            returns,
+            {"search": "Heritage Sweets", "entity_type": None},
+        )
+
+        self.assertEqual(set(matched_items), {"ITEM-A"})
+        self.assertEqual([row["purchase"] for row in matched_purchases], ["PUR-TEST-001"])
+        self.assertEqual(matched_sales, [])
+        self.assertEqual(matched_returns, [])
+
+    def test_lot_search_narrows_after_activity_matching(self):
+        path = APP_ROOT / "api" / "inventory_intelligence.py"
+        text = path.read_text(encoding="utf-8")
+
+        self.assertIn("matching_cycle_rows = core.build_cycle_rows", text)
+        self.assertIn('row.get("lot_number")', text)
+        self.assertIn("matched_lot_names", text)
+        self.assertIn("matched_allocations", text)
+        self.assertIn("show its complete submitted", text.lower())
