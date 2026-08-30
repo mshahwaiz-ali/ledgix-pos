@@ -1,6 +1,8 @@
 # Copyright (c) 2026, Ali and Contributors
 # See license.txt
 
+from unittest.mock import patch
+
 import frappe
 from frappe.tests.utils import FrappeTestCase
 from frappe.utils import add_days
@@ -16,6 +18,7 @@ from ledgix.doctype.v2_test_utils import (
 	make_tax_category,
 	make_tax_rate,
 )
+from ledgix_saas.api import fbr_submission
 from ledgix_saas.api.fbr_payload import (
 	_validate_return_fbr_readiness_internal,
 	build_official_return_invoice_payload,
@@ -217,3 +220,74 @@ class TestLedgixSalesReturn(FrappeTestCase):
 			any("180 days" in message for message in readiness.get("errors") or []),
 			readiness.get("errors"),
 		)
+
+	def test_fbr_return_submission_persists_qr_code(self):
+		_item, _customer, sale = self._make_fbr_taxed_sale()
+		return_doc = make_sales_return(sale, quantity=1, return_reason="Damaged item", submit=True)
+
+		settings = {
+			"enabled": True,
+			"mode": "Production",
+			"submit_trigger": "Manual",
+			"production_token_configured": True,
+			"production_post_armed": True,
+			"sandbox_token_configured": False,
+		}
+		client_result = {
+			"success": True,
+			"network_call": True,
+			"http_status": 200,
+			"status": "HTTP OK",
+			"response": {
+				"invoiceNumber": "FBR-NOTE-001",
+				"QRCode": "QR-RETURN-001",
+				"validationResponse": {"status": "Valid", "statusCode": "00"},
+			},
+			"error": "",
+			"fbr_operation": "post",
+			"fbr_mode": "Production",
+		}
+		with patch.object(fbr_submission, "get_fbr_settings_internal", return_value=settings), \
+			patch.object(fbr_submission, "_build_ready_return_payload", return_value=({"invoiceType": "Credit Note"}, {"valid": True, "errors": [], "warnings": []}, "")), \
+			patch.object(fbr_submission.fbr_client, "post_invoice", return_value=client_result):
+			result = fbr_submission._submit_return_to_fbr_internal(return_doc.name)
+
+		self.assertEqual(result["status"], "Submitted")
+		self.assertEqual(result["fbr_qr_code"], "QR-RETURN-001")
+		return_doc.reload()
+		self.assertEqual(return_doc.fbr_invoice_number, "FBR-NOTE-001")
+		self.assertEqual(return_doc.fbr_qr_code, "QR-RETURN-001")
+
+	def test_ambiguous_return_post_requires_reconciliation_and_blocks_resend(self):
+		_item, _customer, sale = self._make_fbr_taxed_sale()
+		return_doc = make_sales_return(sale, quantity=1, return_reason="Damaged item", submit=True)
+		settings = {
+			"enabled": True,
+			"mode": "Production",
+			"submit_trigger": "Manual",
+			"production_token_configured": True,
+			"production_post_armed": True,
+			"sandbox_token_configured": False,
+		}
+		client_result = {
+			"success": False,
+			"network_call": True,
+			"http_status": None,
+			"status": "Network Error",
+			"response": None,
+			"error": "timeout. Production POST outcome may be ambiguous. Reconcile with FBR/PRAL before retransmission.",
+			"fbr_operation": "post",
+			"fbr_mode": "Production",
+		}
+		with patch.object(fbr_submission, "get_fbr_settings_internal", return_value=settings), \
+			patch.object(fbr_submission, "_build_ready_return_payload", return_value=({"invoiceType": "Credit Note"}, {"valid": True, "errors": [], "warnings": []}, "")), \
+			patch.object(fbr_submission.fbr_client, "post_invoice", return_value=client_result) as post_mock:
+			result = fbr_submission._submit_return_to_fbr_internal(return_doc.name)
+			self.assertEqual(result["status"], fbr_submission.RECONCILIATION_REQUIRED)
+			return_doc.reload()
+			self.assertEqual(return_doc.fbr_status, fbr_submission.RECONCILIATION_REQUIRED)
+
+			second = fbr_submission._submit_return_to_fbr_internal(return_doc.name)
+			self.assertEqual(second["status"], fbr_submission.RECONCILIATION_REQUIRED)
+			self.assertFalse(second["network_call"])
+			post_mock.assert_called_once()
