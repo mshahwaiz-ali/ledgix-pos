@@ -1,11 +1,16 @@
 from __future__ import annotations
 
+from unittest.mock import patch
+
 import frappe
 from frappe.tests.utils import FrappeTestCase
 from frappe.utils import add_to_date, get_datetime, now_datetime
 
 from ledgix.doctype.v2_test_utils import configure_v2_test_environment, make_customer, make_item, make_sale
 from ledgix_saas.api.fbr_submission import create_submission_log
+
+
+CORRECTION_MODULE = "ledgix_saas.ledgix.doctype.ledgix_fbr_correction_request.ledgix_fbr_correction_request"
 
 
 class TestLedgixFBRCorrectionRequest(FrappeTestCase):
@@ -93,6 +98,24 @@ class TestLedgixFBRCorrectionRequest(FrappeTestCase):
 		request.save(ignore_permissions=True)
 		self.assertEqual(request.status, "Completed")
 		self.assertTrue(request.completed_at)
+
+	def test_completion_after_deadline_reclassifies_earlier_open_request(self):
+		generated_at = now_datetime()
+		sale = self._make_fbr_sale(generated_at=generated_at)
+		request = self._make_request(sale)
+		self.assertEqual(request.correction_path, "Within 72 Hours")
+
+		after_deadline = add_to_date(generated_at, hours=73, as_datetime=True)
+		request.status = "Completed"
+		request.board_reference = "BOARD-REF-LATE"
+		with patch(f"{CORRECTION_MODULE}.now_datetime", return_value=after_deadline):
+			with self.assertRaises(frappe.ValidationError):
+				request.save(ignore_permissions=True)
+			request.commissioner_approval_reference = "CIR-APPROVAL-LATE"
+			request.save(ignore_permissions=True)
+
+		self.assertEqual(request.correction_path, "Commissioner Approval Required")
+		self.assertEqual(get_datetime(request.completed_at), get_datetime(after_deadline))
 
 	def test_duplicate_open_correction_request_is_blocked(self):
 		sale = self._make_fbr_sale(generated_at=add_to_date(now_datetime(), hours=-1, as_datetime=True))
