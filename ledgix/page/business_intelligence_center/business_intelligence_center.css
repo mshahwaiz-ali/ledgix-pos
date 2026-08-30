@@ -252,7 +252,8 @@
 	text-underline-offset: 2px;
 }
 
-.lx-ii-table-note {
+.lx-ii-table-note,
+.lx-ii-pagination {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
@@ -264,11 +265,34 @@
 	color: var(--lx-muted);
 	font-size: 10.5px;
 }
-.lx-ii-table-note-actions {
+.lx-ii-table-note-actions,
+.lx-ii-pagination-actions {
 	display: inline-flex;
 	align-items: center;
 	gap: 6px;
 	flex-wrap: wrap;
+}
+.lx-ii-pagination-actions label {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	margin: 0;
+	color: var(--lx-muted);
+	font-size: 10.5px;
+	font-weight: 500;
+}
+.lx-ii-pagination-actions select {
+	width: 66px;
+	min-height: 28px;
+	padding: 2px 20px 2px 7px;
+	font-size: 11px;
+}
+.lx-ii-cap-note {
+	padding: 6px 10px;
+	border-top: 1px solid var(--lx-border);
+	background: #fff7df;
+	color: #9a6700;
+	font-size: 10.5px;
 }
 
 .lx-ii-empty {
@@ -311,5 +335,6 @@
 	.lx-ii-filter-actions { justify-content: stretch; }
 	.lx-ii-filter-actions .btn { flex: 1; }
 	.lx-ii-card-head { align-items: flex-start; flex-direction: column; }
-	.lx-ii-table-note { align-items: flex-start; flex-direction: column; }
+	.lx-ii-table-note,
+	.lx-ii-pagination { align-items: flex-start; flex-direction: column; }
 }
