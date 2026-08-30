@@ -106,7 +106,7 @@
   {"default":"0","fieldname":"allow_partial_payment","fieldtype":"Check","hidden":1,"label":"Allow Partial Payment","print_hide":1},
   {"fieldname":"pos_shift","fieldtype":"Link","label":"POS Shift","options":"Ledgix POS Shift"},
   {"fieldname":"fbr_submission_section","fieldtype":"Section Break","label":"FBR Submission"},
-  {"default":"Not Required","fieldname":"fbr_status","fieldtype":"Select","in_list_view":1,"label":"FBR Status","options":"Not Required\nPending\nValidated\nSubmitted\nFailed\nOffline Pending\nSkipped\nPaused","read_only":1},
+  {"default":"Not Required","fieldname":"fbr_status","fieldtype":"Select","in_list_view":1,"label":"FBR Status","options":"Not Required\nPending\nValidated\nSubmitted\nFailed\nReconciliation Required\nOffline Pending\nSkipped\nPaused","read_only":1},
   {"fieldname":"fbr_invoice_number","fieldtype":"Data","in_list_view":1,"label":"FBR Invoice Number","read_only":1},
   {"fieldname":"fbr_qr_code","fieldtype":"Small Text","label":"FBR QR Code","read_only":1},
   {"fieldname":"fbr_submitted_at","fieldtype":"Datetime","label":"FBR Submitted At","read_only":1},
