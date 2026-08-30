@@ -15,6 +15,20 @@ NON_SCORING_KEYS = {
     "reference_api_sync",
 }
 
+PLACEHOLDER_EXACT = {
+    "ledgix",
+    "sweet bakery demo",
+    "ledgix test seller",
+    "test seller",
+    "test outlet",
+}
+PLACEHOLDER_FRAGMENTS = (
+    "demo data",
+    "configure real",
+    "test seller",
+    "test outlet",
+)
+
 
 def _check(key, label, ready, value, level=None):
     if level is None:
@@ -54,13 +68,38 @@ def _token_check(mode, target_mode, configured, label):
     )
 
 
+def _is_real_identity_value(value):
+    normalized = " ".join(str(value or "").split()).strip().casefold()
+    if not normalized:
+        return False
+    if normalized in PLACEHOLDER_EXACT:
+        return False
+    return not any(marker in normalized for marker in PLACEHOLDER_FRAGMENTS)
+
+
 def _seller_checks():
     seller = get_seller_identity() or {}
+    business_name = seller.get("name") or ""
+    address = seller.get("address") or ""
+    business_name_ready = _is_real_identity_value(business_name)
+    address_ready = _is_real_identity_value(address)
     return seller, [
         _check("seller_ntn_cnic", "Seller NTN/CNIC", bool(seller.get("ntn_cnic")), seller.get("ntn_cnic") or "Missing"),
-        _check("seller_business_name", "Seller Business Name", bool(seller.get("name")), seller.get("name") or "Missing"),
+        _check(
+            "seller_business_name",
+            "Seller Business Name",
+            business_name_ready,
+            business_name or "Missing",
+            "ready" if business_name_ready else "missing",
+        ),
         _check("seller_province", "Seller Province", bool(seller.get("province")), seller.get("province") or "Missing"),
-        _check("seller_address", "Seller Address", bool(seller.get("address")), seller.get("address") or "Missing"),
+        _check(
+            "seller_address",
+            "Seller Address",
+            address_ready,
+            address or "Missing",
+            "ready" if address_ready else "missing",
+        ),
     ]
 
 
