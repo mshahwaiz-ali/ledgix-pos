@@ -153,6 +153,7 @@ class LedgixTaxCenter {
 		this.$root.on("click", ".lx-fbr-validate-sandbox", () => this.validate_fbr("sandbox"));
 		this.$root.on("click", ".lx-fbr-validate-production", () => this.validate_fbr("production"));
 		this.$root.on("click", ".lx-fbr-submit-production", () => this.submit_fbr());
+		this.$root.on("click", ".lx-fbr-new-correction", () => this.start_fbr_correction());
 		this.$root.on("input", ".lx-fbr-reg-no", (event) => { this.state.fbr.registrationNo = event.currentTarget.value || ""; });
 		this.$root.on("change", ".lx-fbr-reg-date", (event) => { this.state.fbr.registrationDate = event.currentTarget.value || ""; });
 		this.$root.on("click", ".lx-fbr-check-status", () => this.check_fbr_registration("status"));
@@ -218,6 +219,7 @@ class LedgixTaxCenter {
 			["Item Tax Profiles", "Per-item FBR and tax mapping", "list", "Ledgix Item Tax Profile"],
 			["FBR Settings", "Credentials, mode and submission controls", "single", "Ledgix FBR Settings"],
 			["FBR Submission Logs", "Submission and retry audit trail", "list", "Ledgix FBR Submission Log"],
+			["FBR Correction Requests", "72-hour Board correction and Commissioner-approval tracking", "list", "Ledgix FBR Correction Request"],
 		];
 		this.$root.find(".lx-tax-content").html(`
 			<section class="lx-tax-section">
@@ -399,7 +401,7 @@ class LedgixTaxCenter {
 		const referenceReady = !!control.enabled && ["Sandbox", "Production"].includes(control.mode || settings.mode);
 		this.$root.find(".lx-tax-content").html(`
 			<section class="lx-tax-section">
-				<div class="lx-tax-section-head"><div><h3>FBR operations</h3><p>Preview and validate from frozen sale snapshots; live production submission remains explicitly gated.</p></div><div class="lx-tax-actions"><button class="btn btn-default btn-sm" data-native-single="Ledgix FBR Settings">FBR Settings</button><button class="btn btn-default btn-sm" data-native-list="Ledgix FBR Submission Log">All logs</button></div></div>
+				<div class="lx-tax-section-head"><div><h3>FBR operations</h3><p>Preview and validate from frozen sale snapshots; live production submission remains explicitly gated.</p></div><div class="lx-tax-actions"><button class="btn btn-default btn-sm" data-native-single="Ledgix FBR Settings">FBR Settings</button><button class="btn btn-default btn-sm" data-native-list="Ledgix FBR Submission Log">All logs</button><button class="btn btn-default btn-sm" data-native-list="Ledgix FBR Correction Request">Correction requests</button></div></div>
 				<div class="lx-tax-metrics lx-tax-metrics-compact">
 					${this.metric("Mode", control.mode || settings.mode || "Disabled")}${this.metric("Enabled", control.enabled ? "Yes" : "No", control.enabled ? "good" : "muted")}${this.metric("Submit trigger", control.submit_trigger || settings.submit_trigger || "Manual")}${this.metric("Readiness", `${readiness.ready_score || 0}%`, Number(readiness.ready_score || 0) >= 100 ? "good" : "warn")}
 				</div>
@@ -427,6 +429,10 @@ class LedgixTaxCenter {
 					<button class="btn btn-default lx-fbr-validate-production" ${previewReady && control.can_manual_validate && control.mode === "Production" ? "" : "disabled"}>Production Validate</button>
 					<button class="btn btn-danger lx-fbr-submit-production" ${preview?.can_submit_now ? "" : "disabled"}>Production Submit</button>
 				</div>
+			</section>
+			<section class="lx-tax-section">
+				<div class="lx-tax-section-head"><div><h3>Invoice correction tracking</h3><p>Track bona fide FBR invoice Cancel, Delete or Edit actions against the official 72-hour window.</p></div><div class="lx-tax-actions"><button class="btn btn-primary btn-sm lx-fbr-new-correction">New for selected sale</button><button class="btn btn-default btn-sm" data-native-list="Ledgix FBR Correction Request">Open requests</button></div></div>
+				<div class="lx-callout is-warning"><strong>Tracking only</strong><p>Ledgix does not call or imitate an undocumented FBR Board correction/cancellation API. Complete the actual action through the Board/PRAL process and record its reference here. After 72 hours, Commissioner approval must be tracked before completion.</p></div>
 			</section>
 			<section class="lx-tax-section">
 				<div class="lx-tax-section-head"><div><h3>Recent FBR activity</h3><p>Safe operational metadata; credentials are never displayed here.</p></div></div>
@@ -490,6 +496,12 @@ class LedgixTaxCenter {
 		} catch (error) {
 			this.show_error("FBR registration lookup failed.", error);
 		}
+	}
+
+	start_fbr_correction() {
+		const sale = (this.state.fbr.sale || "").trim();
+		if (!sale) return frappe.msgprint("Select a submitted FBR sale first.");
+		frappe.new_doc("Ledgix FBR Correction Request", { sale });
 	}
 
 	fbr_preview_html(preview) {
