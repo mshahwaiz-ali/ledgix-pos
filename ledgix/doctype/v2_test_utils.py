@@ -16,7 +16,10 @@ def configure_v2_test_environment() -> None:
 	frappe.db.set_single_value("Ledgix FBR Settings", "enabled", 0)
 	frappe.db.set_single_value("Ledgix FBR Settings", "mode", "Disabled")
 	frappe.db.set_single_value("Ledgix FBR Settings", "submit_trigger", "Manual")
+	frappe.db.set_single_value("Ledgix FBR Settings", "production_post_armed", 0)
 	frappe.db.set_single_value("Ledgix FBR Settings", "block_sale_if_fbr_fails", 0)
+	frappe.db.set_single_value("Ledgix FBR Settings", "sandbox_post_on_submit", 0)
+	frappe.db.set_single_value("Ledgix FBR Settings", "retry_enabled", 0)
 	frappe.db.set_single_value("Ledgix FBR Settings", "seller_ntn_cnic", "")
 	frappe.db.set_single_value("Ledgix FBR Settings", "seller_business_name", "")
 	frappe.db.set_single_value("Ledgix FBR Settings", "seller_province", "")
@@ -172,6 +175,11 @@ def make_item_tax_profile(
 	tax_basis: str = "Transaction Value",
 	notified_retail_price: float = 0,
 	scenario_id: str = "SN001",
+	fbr_rate_description: str = "",
+	sales_tax_withheld_at_source_per_unit: float = 0,
+	extra_tax_per_unit: float = 0,
+	further_tax_per_unit: float = 0,
+	fed_payable_per_unit: float = 0,
 ):
 	doc = frappe.get_doc({
 		"doctype": "Ledgix Item Tax Profile",
@@ -180,6 +188,11 @@ def make_item_tax_profile(
 		"tax_category": tax_category,
 		"tax_basis": tax_basis,
 		"notified_retail_price": notified_retail_price,
+		"fbr_rate_description": fbr_rate_description,
+		"sales_tax_withheld_at_source_per_unit": sales_tax_withheld_at_source_per_unit,
+		"extra_tax_per_unit": extra_tax_per_unit,
+		"further_tax_per_unit": further_tax_per_unit,
+		"fed_payable_per_unit": fed_payable_per_unit,
 		"hs_code": "2202.10",
 		"uom_for_fbr": "Numbers, pieces, units",
 		"sales_type": "Goods at standard rate",
