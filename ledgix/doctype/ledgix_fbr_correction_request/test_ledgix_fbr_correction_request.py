@@ -10,7 +10,7 @@ from ledgix.doctype.v2_test_utils import configure_v2_test_environment, make_cus
 from ledgix_saas.api.fbr_submission import create_submission_log
 
 
-CORRECTION_MODULE = "ledgix.doctype.ledgix_fbr_correction_request.ledgix_fbr_correction_request"
+CORRECTION_MODULE = "ledgix_saas.ledgix.doctype.ledgix_fbr_correction_request.ledgix_fbr_correction_request"
 
 
 class TestLedgixFBRCorrectionRequest(FrappeTestCase):
@@ -94,6 +94,11 @@ class TestLedgixFBRCorrectionRequest(FrappeTestCase):
 		with self.assertRaises(frappe.ValidationError):
 			request.save(ignore_permissions=True)
 
+		# A failed server-side save mutates the in-memory Document timestamp even
+		# though the transaction did not persist. Reload before the valid retry.
+		request.reload()
+		request.status = "Completed"
+		request.board_reference = "BOARD-REF-001"
 		request.commissioner_approval_reference = "CIR-APPROVAL-001"
 		request.save(ignore_permissions=True)
 		self.assertEqual(request.status, "Completed")
@@ -111,6 +116,10 @@ class TestLedgixFBRCorrectionRequest(FrappeTestCase):
 		with patch(f"{CORRECTION_MODULE}.now_datetime", return_value=after_deadline):
 			with self.assertRaises(frappe.ValidationError):
 				request.save(ignore_permissions=True)
+
+			request.reload()
+			request.status = "Completed"
+			request.board_reference = "BOARD-REF-LATE"
 			request.commissioner_approval_reference = "CIR-APPROVAL-LATE"
 			request.save(ignore_permissions=True)
 
