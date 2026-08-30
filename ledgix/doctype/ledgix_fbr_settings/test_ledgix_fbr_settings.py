@@ -225,3 +225,46 @@ class TestLedgixFBRSettings(FrappeTestCase):
 		self.assertTrue(checks["production_post"]["ready"])
 		self.assertEqual(checks["production_post"]["value"], "Not required in Sandbox")
 		self.assertTrue(checks["automatic_retransmission"]["ready"])
+
+	def test_preflight_rejects_default_demo_seller_identity(self):
+		settings = {
+			"enabled": False,
+			"mode": "Disabled",
+			"submit_trigger": "Manual",
+			"sandbox_token_configured": False,
+			"production_token_configured": False,
+			"software_registration_number": "",
+			"digital_invoicing_logo": "",
+			"production_post_armed": False,
+			"retry_enabled": False,
+		}
+		control = {
+			"enabled": False,
+			"mode": "Disabled",
+			"production_post_ready": False,
+			"auto_submit_active": False,
+			"retry_worker_active": False,
+			"offline_worker_active": False,
+		}
+		with (
+			patch.object(fbr_preflight, "get_fbr_settings", return_value=settings),
+			patch.object(fbr_preflight, "get_fbr_control_state", return_value=control),
+			patch.object(
+				fbr_preflight,
+				"get_seller_identity",
+				return_value={
+					"name": "Ledgix",
+					"province": "Punjab",
+					"ntn_cnic": "",
+					"address": "Demo data - configure real outlet details before go-live",
+				},
+			),
+		):
+			result = fbr_preflight.get_fbr_readiness()
+
+		checks = {row["key"]: row for row in result["checks"]}
+		self.assertFalse(checks["seller_business_name"]["ready"])
+		self.assertFalse(checks["seller_address"]["ready"])
+		self.assertTrue(checks["seller_province"]["ready"])
+		self.assertIn("Seller Business Name", result["blocking_gaps"])
+		self.assertIn("Seller Address", result["blocking_gaps"])
