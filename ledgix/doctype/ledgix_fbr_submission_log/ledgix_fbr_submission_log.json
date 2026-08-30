@@ -65,7 +65,7 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "FBR Status",
-   "options": "Pending\nValidated\nSubmitted\nFailed\nSkipped\nPaused\nNot Required",
+   "options": "Pending\nValidated\nSubmitted\nFailed\nReconciliation Required\nSkipped\nPaused\nNot Required",
    "reqd": 1
   },
   {
