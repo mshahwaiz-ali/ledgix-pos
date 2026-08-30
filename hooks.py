@@ -50,16 +50,11 @@ update_website_context = [
 	"ledgix_saas.api.brand.update_website_context",
 ]
 
-scheduler_events = {
-	"cron": {
-		"*/15 * * * *": [
-			"ledgix_saas.api.fbr_submission.process_fbr_retry_queue"
-		],
-		"0 * * * *": [
-			"ledgix_saas.api.fbr_submission.process_fbr_offline_upload_queue"
-		],
-	}
-}
+# Production FBR recovery is intentionally fail-closed. An ambiguous POST/HTTP
+# failure can mean FBR received the invoice even when Ledgix did not receive the
+# response, so automatic retransmission is disabled until reconciliation-safe
+# status checking is implemented and proven against the client Sandbox/PRAL flow.
+scheduler_events = {}
 
 # Export customizations, business roles, Workspace, and property metadata.
 fixtures = [
