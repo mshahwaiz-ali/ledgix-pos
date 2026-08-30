@@ -110,7 +110,7 @@ def apply_sale_tax_snapshot(doc):
 		line_invoice_tax = flt(sales_tax_applicable + charged_special_taxes, 2)
 		total_invoice_tax += line_invoice_tax
 
-		fbr_rate_description = str(mapping.fbr_rate_description if mapping else "" or "").strip()
+		fbr_rate_description = str((mapping.get("fbr_rate_description") if mapping else "") or "").strip()
 		if not fbr_rate_description:
 			fbr_rate_description = _format_tax_rate(tax_rate)
 
