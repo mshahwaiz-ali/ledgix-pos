@@ -3,6 +3,7 @@
 
 	const DEFAULT_SYMBOL_LOGO = "/assets/ledgix_saas/images/brand/ledgix-symbol.svg";
 	const DEFAULT_FULL_LOGO = "/assets/ledgix_saas/images/brand/ledgix-lockup.svg";
+	const DEFAULT_FAVICON_LOGO = "/assets/ledgix_saas/images/brand/ledgix-favicon.svg";
 	const DEFAULT_PRIMARY = "#8C2031";
 	let refreshPromise = null;
 
@@ -19,7 +20,7 @@
 			tagline: brand.brand_tagline || "Retail operations",
 			symbolUrl: brand.symbol_logo_url || boot.app_logo_url || DEFAULT_SYMBOL_LOGO,
 			fullUrl: brand.full_logo_url || brand.symbol_logo_url || DEFAULT_FULL_LOGO,
-			faviconUrl: brand.favicon_url || brand.symbol_logo_url || DEFAULT_SYMBOL_LOGO,
+			faviconUrl: brand.favicon_url || brand.symbol_logo_url || DEFAULT_FAVICON_LOGO,
 			primaryColor: brand.primary_brand_color || DEFAULT_PRIMARY,
 			hasCustomSymbol: !!brand.has_custom_symbol,
 			hasCustomFull: !!brand.has_custom_full,
@@ -81,20 +82,39 @@
 	}
 
 	function ensureBrandImage(home, brand) {
-		let img = home.querySelector("img.app-logo, img.lx-brand-image, img");
-		let fallback = home.querySelector(".lx-brand-fallback");
+		if (!home) return;
 
-		if (!img) {
-			img = document.createElement("img");
-			img.className = "app-logo lx-brand-image";
-			home.appendChild(img);
+		let img;
+
+		if (home.tagName === "IMG") {
+			img = home;
+		} else {
+			img = home.querySelector("img.lx-brand-image");
+
+			if (!img) {
+				img = document.createElement("img");
+			}
+
+			// Frappe may render its own framework/letter icon inside the home
+			// control. Ledgix owns this slot on Ledgix routes, so replace the
+			// visual contents while keeping the native clickable container.
+			home.replaceChildren(img);
+			home.classList.add("lx-brand-home");
 		}
 
-		if (fallback) fallback.remove();
+		img.className = "app-logo lx-brand-image";
 		img.style.display = "";
 		img.src = brand.symbolUrl || DEFAULT_SYMBOL_LOGO;
-		img.alt = brand.name;
+		img.alt = brand.name || "Ledgix";
+		img.setAttribute("aria-label", brand.name || "Ledgix");
 		img.style.objectFit = "contain";
+
+		// A broken client-uploaded logo must fall back to the bundled Ledgix
+		// symbol instead of exposing Frappe's framework icon.
+		img.onerror = () => {
+			img.onerror = null;
+			img.src = DEFAULT_SYMBOL_LOGO;
+		};
 	}
 
 	function applyDeskBrand() {
@@ -104,10 +124,14 @@
 		setFavicon(brand.faviconUrl || brand.symbolUrl);
 		if (!isLedgixDeskRoute()) return;
 
-		document.querySelectorAll(".navbar-brand, .navbar-home").forEach((home) => {
-			if (!home) return;
-			ensureBrandImage(home, brand);
-		});
+		// Prefer Frappe's dedicated home control. Older/newer Desk layouts may
+		// expose only navbar-brand, so retain that as a compatibility fallback.
+		const navbarHomes = document.querySelectorAll(".navbar-home");
+		const targets = navbarHomes.length
+			? navbarHomes
+			: document.querySelectorAll(".navbar-brand");
+
+		targets.forEach((home) => ensureBrandImage(home, brand));
 	}
 
 	function applyLoginBrand() {

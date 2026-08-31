@@ -17,9 +17,13 @@ class TestBrandWiring(FrappeTestCase):
 
 		self.assertEqual(settings["symbol_logo_url"], brand.DEFAULT_SYMBOL_LOGO)
 		self.assertEqual(settings["full_logo_url"], brand.DEFAULT_FULL_LOGO)
-		self.assertEqual(settings["favicon_url"], brand.DEFAULT_SYMBOL_LOGO)
+		self.assertEqual(settings["favicon_url"], brand.DEFAULT_FAVICON_LOGO)
+		self.assertEqual(brand.DEFAULT_SPLASH_LOGO, brand.DEFAULT_SYMBOL_LOGO)
 		self.assertEqual(settings["primary_brand_color"], brand.DEFAULT_PRIMARY_COLOR)
 		self.assertNotIn("/assets/frappe/", settings["symbol_logo_url"])
+		self.assertTrue(brand.DEFAULT_SYMBOL_LOGO.endswith("ledgix-symbol.svg"))
+		self.assertTrue(brand.DEFAULT_FULL_LOGO.endswith("ledgix-lockup.svg"))
+		self.assertTrue(brand.DEFAULT_FAVICON_LOGO.endswith("ledgix-favicon.svg"))
 
 	def test_boot_always_publishes_brand_identity(self):
 		bootinfo = frappe._dict()
@@ -40,10 +44,20 @@ class TestBrandWiring(FrappeTestCase):
 		self.assertIn("--lx-v2-primary", brand_js)
 		self.assertIn("refresh: refreshBrand", brand_js)
 		self.assertIn("ledgix_saas.api.brand.get_public_brand_settings", brand_js)
+		self.assertIn("ledgix-favicon.svg", brand_js)
+		self.assertIn("home.replaceChildren(img)", brand_js)
 		self.assertIn("LedgixBrand.refresh", settings_js)
 		self.assertIn("#page-ledgix-pos .lx-pos-v2 .btn-primary", brand_css)
 		self.assertIn("#page-ledgix-tax-center .lx-tax-v2", brand_css)
 		self.assertIn("#page-business-intelligence-center .lx-ii-v2 .btn-primary", brand_css)
+
+	def test_bundled_brand_assets_are_vector_only(self):
+		brand_dir = APP_ROOT / "public" / "images" / "brand"
+		self.assertTrue((brand_dir / "ledgix-symbol.svg").exists())
+		self.assertTrue((brand_dir / "ledgix-lockup.svg").exists())
+		self.assertTrue((brand_dir / "ledgix-favicon.svg").exists())
+		self.assertFalse((brand_dir / "ledgix-symbol.png").exists())
+		self.assertFalse((brand_dir / "ledgix-lockup.png").exists())
 
 	def test_list_polish_regressions_are_present(self):
 		payment_list = (

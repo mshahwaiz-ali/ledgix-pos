@@ -8,7 +8,8 @@ SETTINGS_DOCTYPE = "Ledgix Brand Settings"
 DEFAULT_PRIMARY_COLOR = "#8C2031"
 DEFAULT_SYMBOL_LOGO = "/assets/ledgix_saas/images/brand/ledgix-symbol.svg"
 DEFAULT_FULL_LOGO = "/assets/ledgix_saas/images/brand/ledgix-lockup.svg"
-DEFAULT_SPLASH_LOGO = "/assets/ledgix_saas/images/brand/ledgix-symbol.png"
+DEFAULT_SPLASH_LOGO = DEFAULT_SYMBOL_LOGO
+DEFAULT_FAVICON_LOGO = "/assets/ledgix_saas/images/brand/ledgix-favicon.svg"
 
 
 def _asset_url(path: str | None) -> str:
@@ -50,7 +51,7 @@ def get_brand_settings():
 	# but an empty setting must never fall back to Frappe's framework logo.
 	symbol_logo_url = custom_symbol or DEFAULT_SYMBOL_LOGO
 	full_logo_url = custom_full or custom_symbol or DEFAULT_FULL_LOGO
-	favicon_url = custom_favicon or custom_symbol or DEFAULT_SYMBOL_LOGO
+	favicon_url = custom_favicon or custom_symbol or DEFAULT_FAVICON_LOGO
 
 	return {
 		"brand_name": brand_name,
