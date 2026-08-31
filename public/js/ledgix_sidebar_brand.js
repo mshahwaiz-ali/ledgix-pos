@@ -36,6 +36,13 @@
 	function brandSidebarIcon(icon, brand) {
 		if (!icon) return;
 
+		// Reserve an explicit icon slot plus breathing room so the Ledgix mark
+		// never touches or overlaps the workspace label.
+		icon.style.width = "18px";
+		icon.style.minWidth = "18px";
+		icon.style.flex = "0 0 18px";
+		icon.style.marginRight = "7px";
+
 		let img = icon.querySelector(`img.${LOGO_CLASS}`);
 		if (!img) {
 			img = document.createElement("img");
@@ -86,16 +93,16 @@
 		if (!document.body || observer) return;
 
 		// Workspace.js builds and replaces .desk-sidebar asynchronously. Observe
-		// the Desk body rather than the unrelated .sidebar-header structure.
+		// the Desk body so a newly rendered workspace is branded immediately.
 		observer = new MutationObserver(scheduleApply);
 		observer.observe(document.body, { childList: true, subtree: true });
 	}
 
 	function start() {
 		installObserver();
-		scheduleApply();
-		window.setTimeout(scheduleApply, 120);
-		window.setTimeout(scheduleApply, 400);
+		// Apply synchronously when the sidebar already exists. If Frappe builds it
+		// later, the MutationObserver handles that render without artificial timers.
+		applySidebarBrand();
 	}
 
 	if (window.frappe?.ready) {
