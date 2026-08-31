@@ -2,19 +2,9 @@
 	"use strict";
 
 	const DEFAULT_SYMBOL_LOGO = "/assets/ledgix_saas/images/brand/ledgix-symbol.svg";
+	const LOGO_CLASS = "lx-workspace-sidebar-brand-image";
 	let scheduled = false;
-
-	function isLedgixRoute() {
-		const path = String(window.location?.pathname || "").toLowerCase();
-		if (path === "/app/ledgix" || path.startsWith("/app/ledgix-")) return true;
-		if (path.startsWith("/app/business-intelligence-center")) return true;
-
-		if (window.frappe?.get_route) {
-			const route = (frappe.get_route() || []).join("/").toLowerCase();
-			return route.includes("ledgix") || route.includes("business-intelligence-center");
-		}
-		return false;
-	}
+	let observer = null;
 
 	function currentBrand() {
 		try {
@@ -24,70 +14,81 @@
 		}
 	}
 
-	function removeSidebarLogo() {
-		document
-			.querySelectorAll(".sidebar-header img.lx-sidebar-brand-image")
-			.forEach((img) => img.remove());
+	function isLedgixSidebarItem(item) {
+		if (!item) return false;
+
+		const itemName = String(item.getAttribute("item-name") || "")
+			.trim()
+			.toLowerCase();
+		const label = String(item.querySelector(".sidebar-item-label")?.textContent || "")
+			.trim()
+			.toLowerCase();
+
+		return itemName === "ledgix" || label === "ledgix";
 	}
 
-	function ensureSidebarLogo() {
-		if (!isLedgixRoute()) {
-			removeSidebarLogo();
-			return;
+	function findLedgixSidebarItems() {
+		return Array.from(
+			document.querySelectorAll(".desk-sidebar .sidebar-item-container")
+		).filter(isLedgixSidebarItem);
+	}
+
+	function brandSidebarIcon(icon, brand) {
+		if (!icon) return;
+
+		let img = icon.querySelector(`img.${LOGO_CLASS}`);
+		if (!img) {
+			img = document.createElement("img");
+			img.className = LOGO_CLASS;
+			img.width = 18;
+			img.height = 18;
+			img.setAttribute("aria-hidden", "true");
+			img.alt = "";
+			img.style.width = "18px";
+			img.style.height = "18px";
+			img.style.display = "block";
+			img.style.objectFit = "contain";
+			img.style.flex = "0 0 18px";
+			icon.appendChild(img);
 		}
 
-		const brand = currentBrand();
+		// Frappe renders a framework/workspace SVG inside this exact slot.
+		// Keep the native node intact for Desk behavior, but hide its visual so
+		// asynchronous workspace rebuilds cannot bring the Frappe icon back.
+		Array.from(icon.children).forEach((child) => {
+			if (child !== img) child.style.display = "none";
+		});
+
 		const src = brand.symbolUrl || DEFAULT_SYMBOL_LOGO;
-		const label = brand.name || "Ledgix";
+		if (img.getAttribute("src") !== src) img.src = src;
+		img.style.display = "block";
+		img.onerror = () => {
+			img.onerror = null;
+			img.src = DEFAULT_SYMBOL_LOGO;
+		};
+	}
 
-		document.querySelectorAll(".sidebar-header").forEach((header) => {
-			const anchor = header.querySelector(".title-container") || header.querySelector(".header-title");
-			if (!anchor) return;
-
-			let img = header.querySelector("img.lx-sidebar-brand-image");
-			if (!img) {
-				img = document.createElement("img");
-				img.className = "lx-sidebar-brand-image";
-				img.width = 26;
-				img.height = 26;
-				img.style.width = "26px";
-				img.style.height = "26px";
-				img.style.objectFit = "contain";
-				img.style.flex = "0 0 26px";
-				img.style.marginRight = "8px";
-				img.style.borderRadius = "6px";
-
-				if (anchor.classList.contains("title-container")) {
-					header.insertBefore(img, anchor);
-				} else if (anchor.parentNode) {
-					anchor.parentNode.insertBefore(img, anchor);
-				}
-			}
-
-			img.src = src;
-			img.alt = label;
-			img.setAttribute("aria-label", label);
-			img.onerror = () => {
-				img.onerror = null;
-				img.src = DEFAULT_SYMBOL_LOGO;
-			};
+	function applySidebarBrand() {
+		scheduled = false;
+		const brand = currentBrand();
+		findLedgixSidebarItems().forEach((item) => {
+			brandSidebarIcon(item.querySelector(".sidebar-item-icon"), brand);
 		});
 	}
 
 	function scheduleApply() {
 		if (scheduled) return;
 		scheduled = true;
-		window.requestAnimationFrame(() => {
-			scheduled = false;
-			ensureSidebarLogo();
-		});
+		window.requestAnimationFrame(applySidebarBrand);
 	}
 
 	function installObserver() {
-		const root = document.querySelector(".body-sidebar") || document.body;
-		if (!root || root.dataset.ledgixBrandObserved === "1") return;
-		root.dataset.ledgixBrandObserved = "1";
-		new MutationObserver(scheduleApply).observe(root, { childList: true, subtree: true });
+		if (!document.body || observer) return;
+
+		// Workspace.js builds and replaces .desk-sidebar asynchronously. Observe
+		// the Desk body rather than the unrelated .sidebar-header structure.
+		observer = new MutationObserver(scheduleApply);
+		observer.observe(document.body, { childList: true, subtree: true });
 	}
 
 	function start() {
