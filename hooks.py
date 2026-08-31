@@ -20,6 +20,7 @@ app_include_css = [
 
 app_include_js = [
 	"/assets/ledgix_saas/js/ledgix_brand.js",
+	"/assets/ledgix_saas/js/ledgix_sidebar_brand.js",
 ]
 
 web_include_css = [
