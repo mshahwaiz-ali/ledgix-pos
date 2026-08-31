@@ -5,6 +5,12 @@ app_description = "POS and inventory platform for retail shops"
 app_email = "alishahwaiz96@gmail.com"
 app_license = "mit"
 
+# Modern Frappe Desk shells build app_data / dock branding from the app_logo_url
+# hook instead of the older top-level bootinfo.app_logo_url field. Keep the
+# bundled Ledgix symbol declared here so the app logo is correct from first
+# render; ledgix_brand.js can still apply a per-site Brand Settings override.
+app_logo_url = "/assets/ledgix_saas/images/brand/ledgix-symbol.svg"
+
 # Keep the global Desk layer deliberately small. Workflow-specific styling belongs
 # to its Page so native Frappe Lists, Forms, Workspaces and dialogs retain normal behavior.
 app_include_css = [
