@@ -269,10 +269,10 @@ def _buy(base_date):
 
 def _shift(date_value, seq, opening_cash):
     marker = f"{SEED}:SHIFT:{getdate(date_value)}"
-    name = frappe.db.get_value("Ledgix POS Shift", {"notes": ["like", f"%{marker}%"]}, "name")
+    name = frappe.db.get_value("Ledgix POS Shift", {"opening_notes": ["like", f"%{marker}%"]}, "name")
     if name: return frappe.get_doc("Ledgix POS Shift", name)
     doc = frappe.new_doc("Ledgix POS Shift"); doc.opening_time = _dt(date_value, 8, 45 + seq % 10)
-    doc.opened_by = "Administrator"; doc.opening_cash = opening_cash; doc.notes = f"Morning counter shift - {OUTLET}. {marker}"
+    doc.opened_by = "Administrator"; doc.opening_cash = opening_cash; doc.opening_notes = f"Morning counter shift - {OUTLET}. {marker}"
     doc.insert(ignore_permissions=True); return doc
 
 
