@@ -1,9 +1,79 @@
 from __future__ import annotations
 
 import frappe
-from frappe.utils import flt
+from frappe.utils import flt, nowdate
 
 from ledgix_saas.migration import erpnext_stock_purchase_behavioral_spike as base
+
+
+PO_MARKER_FIELD = "order_confirmation_no"
+REMARK_MARKER_DOCTYPES = ("Purchase Receipt", "Purchase Invoice", "Sales Invoice")
+
+
+def _assert_marker_schema() -> None:
+    """Fail clearly if the ERPNext v15 marker fields used by this spike drift."""
+
+    if not frappe.get_meta("Purchase Order").has_field(PO_MARKER_FIELD):
+        frappe.throw(
+            f"ERPNext Purchase Order no longer exposes {PO_MARKER_FIELD!r}; "
+            "update the behavioral spike marker before continuing."
+        )
+
+    for doctype in REMARK_MARKER_DOCTYPES:
+        if not frappe.get_meta(doctype).has_field("remarks"):
+            frappe.throw(
+                f"ERPNext {doctype} no longer exposes 'remarks'; "
+                "update the behavioral spike marker before continuing."
+            )
+
+
+def _ensure_purchase_order(supplier: str, item_code: str, warehouse: str):
+    """Create/reuse the spike PO without querying a non-existent `remarks` column.
+
+    ERPNext v15 Purchase Order has `order_confirmation_no` but no `remarks`
+    column. The original base helper used a generic remarks marker, which is
+    valid for the downstream Purchase Receipt, Purchase Invoice and Sales
+    Invoice documents but not for Purchase Order.
+    """
+
+    name = frappe.db.get_value(
+        "Purchase Order",
+        {
+            "company": base.TEST_COMPANY,
+            PO_MARKER_FIELD: base.PO_MARKER,
+            "docstatus": 1,
+        },
+        "name",
+    )
+    if name:
+        return frappe.get_doc("Purchase Order", name)
+
+    purchase_order = frappe.get_doc(
+        {
+            "doctype": "Purchase Order",
+            "company": base.TEST_COMPANY,
+            "supplier": supplier,
+            "transaction_date": nowdate(),
+            "schedule_date": nowdate(),
+            "currency": base.CURRENCY,
+            "buying_price_list": base.BUYING_PRICE_LIST,
+            "set_warehouse": warehouse,
+            PO_MARKER_FIELD: base.PO_MARKER,
+            "items": [
+                {
+                    "item_code": item_code,
+                    "qty": base.PURCHASE_QTY,
+                    "uom": "Nos",
+                    "rate": base.BUY_RATE,
+                    "schedule_date": nowdate(),
+                    "warehouse": warehouse,
+                }
+            ],
+        }
+    )
+    purchase_order.insert(ignore_permissions=True)
+    purchase_order.submit()
+    return purchase_order
 
 
 def run() -> dict:
@@ -15,6 +85,7 @@ def run() -> dict:
     """
 
     base._assert_safe_site()
+    _assert_marker_schema()
     ledgix_before = base._ledgix_counts()
 
     warehouse = base._leaf_warehouse()
@@ -25,7 +96,7 @@ def run() -> dict:
     selling_item_price = base._ensure_item_price(item_code, base.SELLING_PRICE_LIST, base.SELL_RATE)
     cash_account = base._ensure_cash_mode_account()
 
-    purchase_order = base._ensure_purchase_order(supplier, item_code, warehouse)
+    purchase_order = _ensure_purchase_order(supplier, item_code, warehouse)
     purchase_receipt = base._ensure_purchase_receipt(purchase_order, warehouse)
     purchase_invoice = base._ensure_purchase_invoice(purchase_receipt)
     supplier_payment = base._ensure_supplier_payment(purchase_invoice, cash_account)
@@ -49,6 +120,12 @@ def run() -> dict:
         "warehouse": warehouse,
         "supplier": supplier,
         "customer": customer,
+        "marker_schema": {
+            "Purchase Order": PO_MARKER_FIELD,
+            "Purchase Receipt": "remarks",
+            "Purchase Invoice": "remarks",
+            "Sales Invoice": "remarks",
+        },
         "item": {
             "name": item_code,
             "is_stock_item": bool(frappe.db.get_value("Item", item_code, "is_stock_item")),
@@ -59,6 +136,7 @@ def run() -> dict:
         "purchase_path": {
             "purchase_order": purchase_order.name,
             "purchase_order_docstatus": purchase_order.docstatus,
+            "purchase_order_marker": purchase_order.get(PO_MARKER_FIELD),
             "purchase_receipt": purchase_receipt.name,
             "purchase_receipt_docstatus": purchase_receipt.docstatus,
             "purchase_receipt_sle_qty": receipt_sle_qty,
@@ -92,6 +170,7 @@ def run() -> dict:
     checks = {
         "stock_item": evidence["item"]["is_stock_item"] is True,
         "purchase_order_submitted": purchase_order.docstatus == 1,
+        "purchase_order_marker_persisted": purchase_order.get(PO_MARKER_FIELD) == base.PO_MARKER,
         "purchase_receipt_submitted": purchase_receipt.docstatus == 1,
         "purchase_receipt_added_stock": abs(receipt_sle_qty - base.PURCHASE_QTY) < 0.005,
         "purchase_invoice_submitted": purchase_invoice.docstatus == 1,
