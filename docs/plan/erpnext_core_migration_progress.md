@@ -18,17 +18,17 @@ This log records implementation evidence against `erpnext_core_migration_plan.md
 - Pre-functional-change commit recorded: `148b35e63371cb0bd5bd5408df69f5262e64680e`.
 - Rollback tag `pre-erpnext-core-2026-09-16` created and pushed to origin.
 - Superseded `docs/plan/new_plan.md` removed from both `main` and the migration branch.
-- Repository syntax/package validation passed on the migration branch:
+- Full local CI passed on the migration branch after the secret-scan false-positive fix:
   - 20 shell files;
   - 192 Python files;
   - 54 JSON files;
   - 1 TOML file;
-  - Ledgix package validation.
-- ERPNext dependency-contract validation passed.
+  - Ledgix package validation;
+  - ERPNext v15 dependency-contract validation;
+  - committed-secret scan.
 
 ### Pending evidence
 
-- Re-run full `scripts/ci_local.sh` after the password-prompt secret-scan false-positive fix and confirm the complete suite is green.
 - Back up any meaningful Ledgix site/database before converting an existing site.
 - Inventory installed apps on staging/production before deployment cutover.
 
@@ -94,7 +94,6 @@ Frappe v15's `frappe.installer.install_app` checks `required_apps` and recursive
 
 ### Still pending for Phase 1 exit gate
 
-- Confirm full local CI is green after the secret-scan fix.
 - Create a fresh integration site with Frappe v15 + ERPNext v15 + Ledgix.
 - Confirm `bench --site <integration-site> list-apps` shows `frappe`, `erpnext`, and `ledgix_saas`.
 - Run `bench --site <integration-site> migrate`.
