@@ -26,15 +26,17 @@ This log records implementation evidence against `erpnext_core_migration_plan.md
   - Ledgix package validation;
   - ERPNext v15 dependency-contract validation;
   - committed-secret scan.
+- Local runtime directories, sites, databases, secrets and Python environments are excluded from Git through `.gitignore`.
+- Exact tested framework baseline is tracked in `config/framework.lock` instead of vendoring Frappe/ERPNext source code.
 
-### Pending evidence
+### Pending before production cutover
 
-- Back up any meaningful Ledgix site/database before converting an existing site.
-- Inventory installed apps on staging/production before deployment cutover.
+- Back up any meaningful Ledgix staging/production site/database before converting it.
+- Inventory installed apps and framework versions on staging/production before deployment cutover.
 
 ---
 
-## Phase 1 — ERPNext Dependency Plumbing
+## Phase 1 — ERPNext Dependency Plumbing — COMPLETE
 
 ### Implemented in code
 
@@ -43,7 +45,7 @@ This log records implementation evidence against `erpnext_core_migration_plan.md
   - Frappe v15 `install_app` recursively installs required apps before the dependent app.
 
 - `apps/ledgix_saas/pyproject.toml`
-  - Ledgix support policy is now explicitly Frappe v15 + ERPNext v15:
+  - Ledgix support policy is explicitly Frappe v15 + ERPNext v15:
     - `frappe = ">=15.0.0,<16.0.0"`
     - `erpnext = ">=15.0.0,<16.0.0"`
 
@@ -55,8 +57,7 @@ This log records implementation evidence against `erpnext_core_migration_plan.md
   - prints bench application versions.
 
 - `deploy/ensure_erpnext.sh`
-  - new production/local dependency helper.
-  - prepares ERPNext on the bench.
+  - prepares ERPNext on local/production benches.
   - enforces Frappe/ERPNext branch policy.
   - optionally installs ERPNext on an existing site before Ledgix migration.
 
@@ -64,55 +65,91 @@ This log records implementation evidence against `erpnext_core_migration_plan.md
   - prepares ERPNext before production app build/site install/full setup.
 
 - `deploy/deploy_update_safe.sh`
-  - during an existing production-site update, ERPNext is installed on the site before Ledgix migrate.
+  - installs ERPNext on an existing production site before Ledgix migrate when needed.
 
 - `scripts/validate_erpnext_dependency.sh`
-  - new static dependency-contract validation.
+  - validates the ERPNext dependency contract statically.
 
 - `scripts/ci_local.sh`
-  - now runs the ERPNext dependency-contract validation in addition to repository validation and secret checks.
+  - runs repository validation, ERPNext dependency validation and committed-secret checks.
 
 - `scripts/check_secrets.sh`
   - ignores interactive hidden-password prompt text so prompt labels are not misidentified as hard-coded password assignments.
 
+- `site_setup.sh`
+  - fresh-site flow proved compatible with recursive ERPNext dependency installation.
+  - repaired local secrets-index parsing for quoted `SITE_NAME` values.
+
+- `.gitignore`
+  - excludes generated Frappe/ERPNext bench, sites, logs, backups, databases, secrets, environments and local tooling state.
+
+- `config/framework.lock`
+  - records the exact framework baseline proven during this phase.
+
 ### Real bench evidence
 
-On the local Ledgix bench, `deploy/ensure_erpnext.sh` successfully fetched and prepared ERPNext on `version-15`.
+`deploy/ensure_erpnext.sh` successfully fetched and prepared ERPNext `version-15` on the local Ledgix bench.
 
-Observed versions during the first dependency-preparation run:
+Proven framework baseline:
 
-- ERPNext `15.121.3`, branch `version-15`, commit `26f0687`;
-- Frappe `15.113.4`, branch `version-15`, commit `588e443`.
+- ERPNext `15.121.3`, commit `26f06878346fb6861229ccb1fe3a53dc1bf5bad3`;
+- Frappe `15.113.4`, commit `588e443808206a7bfe87429c5a55e16016ec7840`.
 
-ERPNext assets built successfully and the helper completed with `ERPNext dependency is ready`.
-
-The `bench get-app` post-build restart attempted a Supervisor group named `frappe:` and reported that the group did not exist. This is expected on a development bench that is not managed by that production Supervisor group and did not prevent ERPNext preparation.
+ERPNext assets built successfully during dependency preparation. The post-install Supervisor restart warning on the local development bench did not affect installation or runtime readiness.
 
 ### Fresh integration-site evidence
 
-A new integration site, `ledgix-erpnext.local`, was created successfully through the Ledgix site setup flow after the old local site/data cleanup step.
+Fresh site: `ledgix-erpnext.local`
 
-The site completed migration and `after_migrate` hooks successfully. The site summary confirmed the following installed applications:
+The site was created from scratch after old local site/data cleanup. Ledgix installation recursively installed ERPNext first, then Ledgix. The site completed migration and `after_migrate` hooks successfully.
+
+Final installed applications were explicitly verified:
 
 - `frappe` `15.113.4` on `version-15`;
 - `erpnext` `15.121.3` on `version-15`;
 - `ledgix_saas` `0.0.1` from `erpnext-core-migration`.
 
-The Linux `/etc/hosts` entry for `ledgix-erpnext.local` was added by the site setup flow. This proves the Frappe -> ERPNext -> Ledgix dependency/install path works on a real fresh local site.
+Final Phase 1 smoke evidence:
 
-### Site-install ordering
+- `bench --site ledgix-erpnext.local list-apps` passed;
+- `bench --site ledgix-erpnext.local migrate` passed;
+- ERPNext assets had already built successfully during dependency preparation;
+- Ledgix assets built successfully in the final smoke run;
+- `sites/ledgix-erpnext.local/site_config.json` exists;
+- `frappe.get_installed_apps()` returned exactly `frappe`, `erpnext`, `ledgix_saas`;
+- local Git working tree was clean after runtime ignore rules were applied.
 
-Frappe v15's `frappe.installer.install_app` checks `required_apps` and recursively calls `install_app` for each prerequisite before installing the dependent app. Therefore, once ERPNext exists in the bench `apps.txt`, the existing Ledgix site-creation path can install `ledgix_saas` and Frappe will install ERPNext first. We intentionally avoid adding a second competing dependency-order implementation to `site_setup.sh`.
+### Phase 1 exit decision
 
-### Still pending for Phase 1 exit gate
+**PASS.** The Frappe v15 + ERPNext v15 + Ledgix installation model is proven on a real fresh local site. No production cutover has occurred.
 
-- Run a final explicit `bench --site ledgix-erpnext.local migrate` confirmation.
-- Run a full `bench build` after the fresh-site install.
-- Run smoke checks against the new site.
-- Confirm fresh-site setup is reproducible before any production deployment cutover.
+---
+
+## Phase 2 — ERPNext Native Capability / Gap Matrix — STARTED
+
+### Objective
+
+Prove, using the fresh integration site, which Ledgix business concepts can move directly to ERPNext native models and where Ledgix extensions are still required before any authority cutover.
+
+### First probe scope
+
+- Item / Item Group / UOM / barcode / serial / batch configuration;
+- Customer / Supplier / Address / Contact;
+- Price List / Item Price / Pricing Rule;
+- Sales Invoice / POS Invoice / returns;
+- Mode of Payment / Payment Entry / receivables;
+- Purchase Order / Purchase Receipt / Purchase Invoice;
+- Warehouse / Stock Entry / Stock Ledger;
+- Batch / Serial No / Serial and Batch Bundle;
+- POS Opening Entry / POS Closing Entry;
+- fields needed for Ledgix FBR relinking and future transaction snapshots.
+
+### Safety rule
+
+Phase 2 starts read-only. Existing Ledgix business DocTypes and services remain authoritative until each replacement path has explicit parity evidence.
 
 ---
 
 ## Safety Status
 
-No sales, stock, payment, tax, FBR, POS, purchase, receivable, or master-data authority has been cut over yet. Existing Ledgix business DocTypes and services remain untouched in this phase.
+No sales, stock, payment, tax, FBR, POS, purchase, receivable, or master-data authority has been cut over yet. Existing Ledgix business DocTypes and services remain untouched while ERPNext capabilities are proven module-by-module.
