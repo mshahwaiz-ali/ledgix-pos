@@ -7,8 +7,10 @@ import frappe
 from ledgix_saas.migration.erpnext_behavioral_preflight import run as run_preflight
 from ledgix_saas.migration.erpnext_integration_bootstrap import INTEGRATION_SITE
 from ledgix_saas.migration.erpnext_invoice_behavioral_spike import run as run_invoice_spike
-from ledgix_saas.migration.erpnext_pos_behavioral_spike import run as run_pos_spike
-from ledgix_saas.migration.erpnext_stock_purchase_behavioral_spike import run as run_stock_purchase_spike
+from ledgix_saas.migration.erpnext_pos_behavioral_spike_v2 import run as run_pos_spike
+from ledgix_saas.migration.erpnext_stock_purchase_behavioral_spike_v2 import (
+    run as run_stock_purchase_spike,
+)
 
 
 def _assert_safe_site() -> None:
@@ -42,9 +44,10 @@ def _run_step(name: str, fn) -> dict:
 def run() -> dict:
     """Run the Phase 2 core ERPNext behavioral batch on the isolated test site.
 
-    This batch is deliberately broad so the migration can be validated in one
-    pull/run cycle instead of drip-feeding one terminal command per capability.
-    It does not cut over Ledgix authority or delete any legacy DocType/service.
+    The batch proves native ERPNext paths for invoice-only sales, payments and
+    credit notes; purchase/inventory and supplier payment; stock sale/return;
+    and POS opening, split payment, closing and consolidation. It is designed
+    for reruns and never performs a Ledgix authority cutover.
     """
 
     _assert_safe_site()
@@ -86,7 +89,7 @@ def run() -> dict:
         "preflight": preflight,
         "schema_note": (
             "ERPNext 15.121.3 POS Invoice intentionally has no update_stock field; "
-            "POS stock behavior is validated by the behavioral POS spike instead."
+            "native POS stock/accounting is proven through closing consolidation into Sales Invoice."
         ),
         "steps": steps,
         "decisions": decisions,
