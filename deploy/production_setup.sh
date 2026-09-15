@@ -36,6 +36,14 @@ run_ec2() {
   bash "$SCRIPT_DIR/ec2_setup.sh" "$@"
 }
 
+ensure_erpnext_bench() {
+  [[ -f "$SCRIPT_DIR/ensure_erpnext.sh" ]] || {
+    printf '[ERROR] missing ERPNext dependency helper: %s\n' "$SCRIPT_DIR/ensure_erpnext.sh" >&2
+    return 1
+  }
+  bash "$SCRIPT_DIR/ensure_erpnext.sh"
+}
+
 start_temp_redis() {
   [[ -f "$SCRIPT_DIR/bench_redis.sh" ]] || return 0
   bash "$SCRIPT_DIR/bench_redis.sh" start
@@ -93,26 +101,28 @@ fi
 
 # Production updates need an exact app mirror because V2 intentionally deletes
 # legacy pages/assets. A plain cp-over-existing-tree would leave removed files
-# behind, so deploy-update uses the dedicated exact-sync helper.
+# behind, so deploy-update uses the dedicated exact-sync helper. The helper also
+# prepares/installs ERPNext before migrating an existing Ledgix site.
 if [[ "$ACTION" == "deploy-update" ]]; then
   run_safe_deploy_update
   exit $?
 fi
 
 # Site creation/install/migrate can need the bench Redis cache/queue even
-# before Supervisor has been configured. Start only the missing bench Redis
-# instances temporarily and stop only the processes that this helper started.
+# before Supervisor has been configured. Ensure ERPNext exists on the bench
+# first; Ledgix required_apps then installs ERPNext before Ledgix on a fresh site.
 if [[ "$ACTION" == "site" ]]; then
+  ensure_erpnext_bench
   trap stop_temp_redis EXIT
   start_temp_redis
   run_ec2 "$@"
   exit $?
 fi
 
-# App builds can produce new hashed Frappe assets. If production processes are
-# already running, refresh caches and restart web/workers so rendered HTML does
-# not keep referencing stale asset hashes.
+# App builds can produce new hashed Frappe assets. ERPNext is a first-class
+# Ledgix dependency, so make it available and branch-aligned before building.
 if [[ "$ACTION" == "apps" ]]; then
+  ensure_erpnext_bench
   run_ec2 "$@"
   post_build_refresh
   exit $?
@@ -127,8 +137,8 @@ if [[ "$ACTION" == "services" ]]; then
 fi
 
 # Keep the one-command full flow safe as well: run the phases in order, with
-# temporary bench Redis only around site creation. This avoids a later port
-# conflict when Supervisor takes ownership of the Redis processes.
+# temporary bench Redis only around site creation. ERPNext is fetched after the
+# bench exists and before Ledgix assets/site installation.
 if [[ "$ACTION" == "full" ]]; then
   original=("$@")
   base=()
@@ -143,6 +153,7 @@ if [[ "$ACTION" == "full" ]]; then
   run_ec2 "${base[@]}" --action preflight
   run_ec2 "${base[@]}" --action packages
   run_ec2 "${base[@]}" --action bench
+  ensure_erpnext_bench
   run_ec2 "${base[@]}" --action apps
   post_build_refresh
 
