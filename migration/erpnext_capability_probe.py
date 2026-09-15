@@ -264,7 +264,7 @@ def _doctype_probe(doctype: str, fields: list[str]) -> dict:
     return {
         "exists": True,
         "module": meta.module,
-        "is_submittable": bool(getattr(meta, "issubmittable", False)),
+        "is_submittable": bool(getattr(meta, "is_submittable", False)),
         "is_single": bool(getattr(meta, "issingle", False)),
         "custom_fields": custom_fields,
         "fields": {fieldname: _field_probe(meta, fieldname) for fieldname in fields},
