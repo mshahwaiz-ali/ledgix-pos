@@ -22,6 +22,8 @@ echo " Phase 2 ERPNext Core Batch"
 echo "=================================================="
 echo "Repo: $ROOT_DIR"
 echo "Site: $SITE"
+echo "Branch: $(git branch --show-current)"
+echo "Commit: $(git rev-parse --short=12 HEAD)"
 echo
 
 echo "===== LOCAL CI ====="
@@ -70,17 +72,26 @@ if payload is None:
 
 steps = payload.get("steps") or {}
 for name, result in steps.items():
-    status = "PASS" if result.get("passed") else "FAIL"
+    if result.get("passed"):
+        status = "PASS"
+    elif result.get("blocked"):
+        status = "BLOCKED"
+    else:
+        status = "FAIL"
+
     print(f"[{status}] {name}")
     if not result.get("passed") and result.get("error"):
-        print(f"       {result.get('error_type', 'Error')}: {result['error']}")
+        print(f"          {result.get('error_type', 'Error')}: {result['error']}")
 
 if payload.get("passed"):
     print("[PASS] ERPNext Phase 2 core behavioral batch passed.")
     raise SystemExit(0)
 
 failed = payload.get("failed_steps") or ["unknown"]
+blocked = payload.get("blocked_steps") or []
 print("[FAIL] ERPNext Phase 2 core behavioral batch failed: " + ", ".join(failed))
+if blocked:
+    print("[INFO] Dependency-blocked steps: " + ", ".join(blocked))
 raise SystemExit(1)
 PY
 
