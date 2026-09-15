@@ -1,5 +1,8 @@
-# Installed/generated Frappe bench. Recreated by install.sh or deploy scripts.
+# Installed/generated Frappe + ERPNext bench. Recreated by install/deploy scripts.
+# Do not vendor upstream Frappe/ERPNext or site runtime data into this repo.
 /frappe-bench/
+/frappe-bench.incomplete-*/
+/frappe-bench-*/
 
 # Runtime output and logs.
 logs/
@@ -26,17 +29,29 @@ deploy/backups-index.md
 *.tar
 *.tgz
 
+# Local generated secrets.
+.secrets/
+
 # Local editor/agent state.
 .codex/
 .agents/
+.vscode/
+.idea/
+.DS_Store
+*.swp
+*.swo
+*.tmp
+*.bak
 
-# Python/Node/build caches.
+# Python/Node/build/test caches.
 __pycache__/
 *.py[cod]
 *.pyo
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+.coverage
+htmlcov/
 node_modules/
 dist/
 build/
@@ -44,9 +59,7 @@ apps/*/build/
 apps/*.egg-info/
 apps/*/*.egg-info/
 
-
-# Local generated secrets.
-.secrets/
-
-# Local Python environments
-/env
+# Local Python environments.
+/env/
+/venv/
+/.venv/
