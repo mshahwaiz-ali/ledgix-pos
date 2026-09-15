@@ -13,6 +13,9 @@ from ledgix_saas.migration.erpnext_stock_purchase_behavioral_spike_v2 import (
 )
 
 
+BATCH_USER = "Administrator"
+
+
 def _assert_safe_site() -> None:
     if frappe.local.site != INTEGRATION_SITE:
         frappe.throw(
@@ -52,10 +55,17 @@ def run() -> dict:
 
     _assert_safe_site()
 
+    # `bench execute` initializes Frappe with Guest as the session user. Native
+    # POS closing validates that the POS Invoice owner matches the cashier, so
+    # the isolated integration batch explicitly runs its test documents as the
+    # Administrator cashier used by the POS profile/opening entry.
+    frappe.set_user(BATCH_USER)
+
     preflight = run_preflight()
     if not preflight.get("ready_for_sales_invoice_spike"):
         return {
             "site": frappe.local.site,
+            "run_as": frappe.session.user,
             "installed_apps": frappe.get_installed_apps(),
             "passed": False,
             "preflight": preflight,
@@ -85,6 +95,7 @@ def run() -> dict:
 
     return {
         "site": frappe.local.site,
+        "run_as": frappe.session.user,
         "installed_apps": frappe.get_installed_apps(),
         "preflight": preflight,
         "schema_note": (
