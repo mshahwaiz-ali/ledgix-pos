@@ -2,7 +2,8 @@
 
 **Started:** 2026-09-16  
 **Active implementation branch:** `erpnext-core-migration`  
-**Pre-functional-change main baseline:** `148b35e63371cb0bd5bd5408df69f5262e64680e`
+**Pre-functional-change main baseline:** `148b35e63371cb0bd5bd5408df69f5262e64680e`  
+**Rollback tag:** `pre-erpnext-core-2026-09-16`
 
 This log records implementation evidence against `erpnext_core_migration_plan.md`. A task is not considered fully complete until its code path has been exercised on a real bench/site where applicable.
 
@@ -15,12 +16,19 @@ This log records implementation evidence against `erpnext_core_migration_plan.md
 - Repository architecture audit completed.
 - ERPNext-core master plan locked.
 - Pre-functional-change commit recorded: `148b35e63371cb0bd5bd5408df69f5262e64680e`.
+- Rollback tag `pre-erpnext-core-2026-09-16` created and pushed to origin.
 - Superseded `docs/plan/new_plan.md` removed from both `main` and the migration branch.
+- Repository syntax/package validation passed on the migration branch:
+  - 20 shell files;
+  - 192 Python files;
+  - 54 JSON files;
+  - 1 TOML file;
+  - Ledgix package validation.
+- ERPNext dependency-contract validation passed.
 
 ### Pending evidence
 
-- Run `./scripts/ci_local.sh` on the known-good baseline/current branch.
-- Create a local named pre-ERPNext git tag pointing to `148b35e63371cb0bd5bd5408df69f5262e64680e`.
+- Re-run full `scripts/ci_local.sh` after the password-prompt secret-scan false-positive fix and confirm the complete suite is green.
 - Back up any meaningful Ledgix site/database before converting an existing site.
 - Inventory installed apps on staging/production before deployment cutover.
 
@@ -32,7 +40,7 @@ This log records implementation evidence against `erpnext_core_migration_plan.md
 
 - `apps/ledgix_saas/hooks.py`
   - declares `required_apps = ["erpnext"]`.
-  - Frappe will install required apps before installing Ledgix on a site.
+  - Frappe v15 `install_app` recursively installs required apps before the dependent app.
 
 - `apps/ledgix_saas/pyproject.toml`
   - Ledgix support policy is now explicitly Frappe v15 + ERPNext v15:
@@ -47,7 +55,7 @@ This log records implementation evidence against `erpnext_core_migration_plan.md
   - prints bench application versions.
 
 - `deploy/ensure_erpnext.sh`
-  - new production dependency helper.
+  - new production/local dependency helper.
   - prepares ERPNext on the bench.
   - enforces Frappe/ERPNext branch policy.
   - optionally installs ERPNext on an existing site before Ledgix migration.
@@ -64,14 +72,30 @@ This log records implementation evidence against `erpnext_core_migration_plan.md
 - `scripts/ci_local.sh`
   - now runs the ERPNext dependency-contract validation in addition to repository validation and secret checks.
 
-### Site-install ordering note
+- `scripts/check_secrets.sh`
+  - ignores interactive hidden-password prompt text so prompt labels are not misidentified as hard-coded password assignments.
 
-The existing `site_setup.sh` already installs selected apps through Frappe's `install-app` path. With Ledgix now declaring `required_apps = ["erpnext"]`, Frappe recursively installs ERPNext before Ledgix as long as ERPNext is available on the bench. The updated local installer prepares ERPNext before `site_setup.sh` is entered. A fresh-site test is still required before this is marked proven.
+### Real bench evidence
+
+On the local Ledgix bench, `deploy/ensure_erpnext.sh` successfully fetched and prepared ERPNext on `version-15`.
+
+Observed versions during the first dependency-preparation run:
+
+- ERPNext `15.121.3`, branch `version-15`, commit `26f0687`;
+- Frappe `15.113.4`, branch `version-15`, commit `588e443`.
+
+ERPNext assets built successfully and the helper completed with `ERPNext dependency is ready`.
+
+The `bench get-app` post-build restart attempted a Supervisor group named `frappe:` and reported that the group did not exist. This is expected on a development bench that is not managed by that production Supervisor group and did not prevent ERPNext preparation.
+
+### Site-install ordering
+
+Frappe v15's `frappe.installer.install_app` checks `required_apps` and recursively calls `install_app` for each prerequisite before installing the dependent app. Therefore, once ERPNext exists in the bench `apps.txt`, the existing Ledgix site-creation path can install `ledgix_saas` and Frappe will install ERPNext first. We intentionally avoid adding a second competing dependency-order implementation to `site_setup.sh`.
 
 ### Still pending for Phase 1 exit gate
 
-- Run the repository validation suite on the migration branch.
-- Prepare a fresh local bench/site with Frappe v15 + ERPNext v15 + Ledgix.
+- Confirm full local CI is green after the secret-scan fix.
+- Create a fresh integration site with Frappe v15 + ERPNext v15 + Ledgix.
 - Confirm `bench --site <integration-site> list-apps` shows `frappe`, `erpnext`, and `ledgix_saas`.
 - Run `bench --site <integration-site> migrate`.
 - Run `bench build` and smoke checks.
