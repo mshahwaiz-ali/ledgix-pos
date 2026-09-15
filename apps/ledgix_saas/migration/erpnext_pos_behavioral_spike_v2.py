@@ -25,13 +25,20 @@ def _payment_type(mode_name: str) -> str:
 
 
 def _ensure_pos_profile(customer: str, warehouse: str, cash_account: str) -> str:
-    """Create or repair the isolated POS profile so reruns survive partial failures."""
+    """Create or repair the isolated POS profile so reruns survive partial failures.
+
+    POS Profile uses Prompt autoname. A freshly constructed document may already
+    carry the requested name, so `is_new()` is not a reliable insert/update
+    discriminator here. Use database existence as the authority and call
+    `insert()` explicitly for a missing profile, matching ERPNext's own tests.
+    """
 
     secondary_account = base._secondary_payment_account(cash_account)
     base._ensure_mode_account(base.PRIMARY_MODE, cash_account)
     base._ensure_mode_account(base.SECONDARY_MODE, secondary_account)
 
-    if frappe.db.exists("POS Profile", base.TEST_POS_PROFILE):
+    exists = bool(frappe.db.exists("POS Profile", base.TEST_POS_PROFILE))
+    if exists:
         profile = frappe.get_doc("POS Profile", base.TEST_POS_PROFILE)
     else:
         profile = frappe.get_doc(
@@ -60,10 +67,38 @@ def _ensure_pos_profile(customer: str, warehouse: str, cash_account: str) -> str
     )
     profile.set("applicable_for_users", [{"user": base.POS_USER, "default": 1}])
 
-    if profile.is_new():
-        profile.insert(ignore_permissions=True)
-    else:
+    if exists:
         profile.save(ignore_permissions=True)
+    else:
+        profile.insert(ignore_permissions=True)
+
+    persisted_name = frappe.db.get_value(
+        "POS Profile",
+        {
+            "name": profile.name,
+            "company": base.TEST_COMPANY,
+            "warehouse": warehouse,
+            "disabled": 0,
+        },
+        "name",
+    )
+    if not persisted_name:
+        frappe.throw(
+            f"POS Profile {profile.name!r} did not persist with the expected company/warehouse state."
+        )
+
+    profile.reload()
+    configured_modes = {row.mode_of_payment for row in profile.payments}
+    expected_modes = {base.PRIMARY_MODE, base.SECONDARY_MODE}
+    if not expected_modes.issubset(configured_modes):
+        frappe.throw(
+            f"POS Profile {profile.name!r} is missing payment modes: "
+            f"{sorted(expected_modes - configured_modes)}"
+        )
+
+    configured_users = {row.user for row in profile.applicable_for_users}
+    if base.POS_USER not in configured_users:
+        frappe.throw(f"POS Profile {profile.name!r} is not assigned to cashier {base.POS_USER!r}.")
 
     return profile.name
 
@@ -217,6 +252,7 @@ def run() -> dict:
         "warehouse": warehouse,
         "customer": customer,
         "pos_profile": profile,
+        "pos_profile_exists": bool(frappe.db.exists("POS Profile", profile)),
         "opening_entry": opening.name,
         "opening_status": opening.status,
         "pos_invoice": {
@@ -252,7 +288,7 @@ def run() -> dict:
     }
 
     checks = {
-        "pos_profile_exists": bool(frappe.db.exists("POS Profile", profile)),
+        "pos_profile_exists": evidence["pos_profile_exists"],
         "opening_submitted": opening.docstatus == 1,
         "opening_closed": opening.status == "Closed",
         "pos_invoice_submitted": invoice.docstatus == 1,
