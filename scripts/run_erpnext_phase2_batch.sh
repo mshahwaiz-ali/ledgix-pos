@@ -82,6 +82,11 @@ for name, result in steps.items():
     print(f"[{status}] {name}")
     if not result.get("passed") and result.get("error"):
         print(f"          {result.get('error_type', 'Error')}: {result['error']}")
+        trace = result.get("traceback_tail") or []
+        if trace:
+            print("          traceback tail:")
+            for line in trace:
+                print(f"            {line}")
 
 if payload.get("passed"):
     print("[PASS] ERPNext Phase 2 core behavioral batch passed.")
