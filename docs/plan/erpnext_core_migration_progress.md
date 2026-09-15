@@ -125,30 +125,17 @@ Final Phase 1 smoke evidence:
 
 ---
 
-## Phase 2 — ERPNext Native Capability / Gap Matrix — STARTED
+## Phase 2 — ERPNext Native Capability / Gap Matrix — IN PROGRESS
 
 ### Objective
 
 Prove, using the fresh integration site, which Ledgix business concepts can move directly to ERPNext native models and where Ledgix extensions are still required before any authority cutover.
 
-### First probe scope
+### Schema capability evidence
 
-- Item / Item Group / UOM / barcode / serial / batch configuration;
-- Customer / Supplier / Address / Contact;
-- Price List / Item Price / Pricing Rule;
-- Sales Invoice / POS Invoice / returns;
-- Mode of Payment / Payment Entry / receivables;
-- Purchase Order / Purchase Receipt / Purchase Invoice;
-- Warehouse / Stock Entry / Stock Ledger;
-- Batch / Serial No / Serial and Batch Bundle;
-- POS Opening Entry / POS Closing Entry;
-- fields needed for Ledgix FBR relinking and future transaction snapshots.
+The read-only schema probe ran successfully on `ledgix-erpnext.local` after green local CI runs and confirmed ERPNext is installed and active alongside Ledgix.
 
-### First read-only probe evidence
-
-The first schema probe ran successfully on `ledgix-erpnext.local` after a green local CI run and confirmed ERPNext is installed and active alongside Ledgix.
-
-All targeted native DocTypes were present:
+All targeted native DocTypes are present:
 
 - masters: `Item`, `Item Group`, `UOM`, `Customer`, `Supplier`, `Address`, `Contact`;
 - pricing: `Price List`, `Item Price`, `Pricing Rule`;
@@ -158,19 +145,65 @@ All targeted native DocTypes were present:
 - stock: `Warehouse`, `Stock Entry`, `Stock Ledger Entry`, `Batch`, `Serial No`, `Serial and Batch Bundle`;
 - POS workflow: `POS Profile`, `POS Opening Entry`, `POS Closing Entry`.
 
-For the requested key-field probe, every tested field was present except `POS Invoice.update_stock` on the proven ERPNext `15.121.3` runtime schema. This is not yet classified as a Ledgix gap: the POS Invoice stock lifecycle must be validated behaviorally against this exact ERPNext baseline rather than inferred from a single field name.
+The initial probe incorrectly used `meta.issubmittable`; this was corrected to Frappe v15's `meta.is_submittable`. The authoritative second run confirmed the expected transaction models are submittable: `Sales Invoice`, `POS Invoice`, `Payment Entry`, `Purchase Order`, `Purchase Receipt`, `Purchase Invoice`, `Stock Entry`, `Serial and Batch Bundle`, `POS Opening Entry`, and `POS Closing Entry`.
 
-The initial probe incorrectly reported every DocType as non-submittable because it read `meta.issubmittable` instead of Frappe v15's `meta.is_submittable`. The probe implementation has been corrected; a second read-only run is required to capture authoritative submit/cancel capability flags.
+For the requested key-field probe, every tested field is present except `POS Invoice.update_stock`. Exact-source verification against the pinned ERPNext `15.121.3` commit confirmed that this field is not part of that POS Invoice schema; the POS stock lifecycle must therefore be evaluated through the native POS Profile/warehouse/POS transaction behavior rather than by adding a Ledgix compatibility field.
 
-The probe also surfaced existing framework/ERPNext fields that look custom by naming/metadata, including Address/Contact extensions and Payment Entry `custom_remarks`. These are not assumed to be Ledgix-owned; ownership will be distinguished from standard ERPNext installation behavior before adding any new customization.
+### ERPNext business bootstrap evidence
+
+The first behavioral preflight correctly found the fresh ERPNext site had no business setup: no Company, default Company, chart of accounts, warehouses, fiscal year or price lists.
+
+A guarded integration-only bootstrap was added that reuses ERPNext's official setup-wizard path instead of manually creating Ledgix-owned copies of accounting and stock masters. It is restricted to `ledgix-erpnext.local`.
+
+Bootstrap executed successfully with:
+
+- Company: `Ledgix ERPNext Integration` (`LEI`);
+- Country: Pakistan;
+- Currency: PKR;
+- Fiscal Year: 2026-07-01 through 2027-06-30;
+- Chart of Accounts: Standard.
+
+Post-bootstrap preflight evidence:
+
+- accounts: 82;
+- warehouses: 5;
+- fiscal years: 1;
+- price lists: 2;
+- modes of payment: 5;
+- item groups: 6;
+- customer groups: 5;
+- supplier groups: 8;
+- territories: 3;
+- UOMs: 239;
+- default Company: `Ledgix ERPNext Integration`;
+- `ready_for_sales_invoice_spike`: true;
+- behavioral blockers: none.
+
+### Invoice-only behavioral spike — READY TO RUN
+
+`erpnext_invoice_behavioral_spike.py` has been added for the first real transaction test. It is restricted to the integration site and deliberately uses a non-stock Item to validate the lightweight Ledgix Invoice+FBR product profile.
+
+The spike exercises native ERPNext:
+
+- Customer;
+- non-stock Item;
+- Item Price / Standard Selling;
+- submitted Sales Invoice;
+- GL entries;
+- submitted Payment Entry and outstanding settlement;
+- a second submitted Sales Invoice followed by a native linked return/credit note;
+- zero Stock Ledger Entries for the non-stock invoice/return path;
+- guard that no parallel `Ledgix Sale` is created.
+
+The spike is idempotent enough for investigation/re-run by using fixed test masters and transaction markers.
 
 ### Current Phase 2 conclusion
 
-Schema coverage is already broad enough that the migration should proceed as **ERPNext-native first**, not as a second custom business engine. Remaining work is behavioral parity: create/submit/return/payment/stock/POS flows, tax/accounting parity, FBR datasource adaptation, and UX decisions.
+Schema coverage and bootstrap evidence are strong enough that migration should continue **ERPNext-native first**, not as another custom business engine. The next gate is behavioral transaction evidence, beginning with the non-stock invoice-only profile, followed by stock, purchase and POS paths.
 
 ### Safety rule
 
-Phase 2 starts read-only. Existing Ledgix business DocTypes and services remain authoritative until each replacement path has explicit parity evidence.
+Existing Ledgix business DocTypes and services remain authoritative until each replacement path has explicit parity evidence. Test bootstrap and behavioral helpers are hard-guarded to the dedicated local integration site.
 
 ---
 
