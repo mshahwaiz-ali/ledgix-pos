@@ -44,6 +44,17 @@ def _run_step(name: str, fn) -> dict:
         }
 
 
+def _blocked_step(name: str, blocked_by: str) -> dict:
+    return {
+        "name": name,
+        "passed": False,
+        "blocked": True,
+        "blocked_by": blocked_by,
+        "error_type": "DependencyBlocked",
+        "error": f"Skipped because prerequisite step {blocked_by!r} did not pass.",
+    }
+
+
 def run() -> dict:
     """Run the Phase 2 core ERPNext behavioral batch on the isolated test site.
 
@@ -74,14 +85,22 @@ def run() -> dict:
         }
 
     steps = OrderedDict()
-    for name, fn in (
-        ("invoice_only", run_invoice_spike),
-        ("purchase_stock_sale_return", run_stock_purchase_spike),
-        ("pos_split_payment_open_close", run_pos_spike),
-    ):
-        steps[name] = _run_step(name, fn)
+    steps["invoice_only"] = _run_step("invoice_only", run_invoice_spike)
+    steps["purchase_stock_sale_return"] = _run_step(
+        "purchase_stock_sale_return", run_stock_purchase_spike
+    )
+
+    if steps["purchase_stock_sale_return"].get("passed"):
+        steps["pos_split_payment_open_close"] = _run_step(
+            "pos_split_payment_open_close", run_pos_spike
+        )
+    else:
+        steps["pos_split_payment_open_close"] = _blocked_step(
+            "pos_split_payment_open_close", "purchase_stock_sale_return"
+        )
 
     failed_steps = [name for name, step in steps.items() if not step.get("passed")]
+    blocked_steps = [name for name, step in steps.items() if step.get("blocked")]
 
     decisions = {
         "invoice_fbr_only_profile_native_candidate": steps["invoice_only"].get("passed", False),
@@ -105,5 +124,6 @@ def run() -> dict:
         "steps": steps,
         "decisions": decisions,
         "failed_steps": failed_steps,
+        "blocked_steps": blocked_steps,
         "passed": not failed_steps,
     }
