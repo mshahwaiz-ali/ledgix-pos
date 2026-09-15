@@ -5,6 +5,10 @@ app_description = "POS and inventory platform for retail shops"
 app_email = "alishahwaiz96@gmail.com"
 app_license = "mit"
 
+# Ledgix is an ERPNext extension product. Frappe installs required apps before
+# installing Ledgix on a site, so ERPNext must already be available on the bench.
+required_apps = ["erpnext"]
+
 # Modern Frappe Desk shells build app_data / dock branding from the app_logo_url
 # hook instead of the older top-level bootinfo.app_logo_url field. Keep the
 # bundled Ledgix symbol declared here so the app logo is correct from first
