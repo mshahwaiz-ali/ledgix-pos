@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import OrderedDict
+import traceback
 
 import frappe
 
@@ -14,6 +15,7 @@ from ledgix_saas.migration.erpnext_stock_purchase_behavioral_spike_v2 import (
 
 
 BATCH_USER = "Administrator"
+TRACEBACK_TAIL_LINES = 12
 
 
 def _assert_safe_site() -> None:
@@ -33,6 +35,7 @@ def _run_step(name: str, fn) -> dict:
             "result": result,
         }
     except Exception as exc:
+        trace_lines = traceback.format_exc().strip().splitlines()
         frappe.db.rollback()
         if hasattr(frappe.local, "message_log"):
             frappe.local.message_log = []
@@ -41,6 +44,7 @@ def _run_step(name: str, fn) -> dict:
             "passed": False,
             "error_type": type(exc).__name__,
             "error": str(exc),
+            "traceback_tail": trace_lines[-TRACEBACK_TAIL_LINES:],
         }
 
 
