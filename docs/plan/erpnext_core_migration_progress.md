@@ -88,17 +88,28 @@ ERPNext assets built successfully and the helper completed with `ERPNext depende
 
 The `bench get-app` post-build restart attempted a Supervisor group named `frappe:` and reported that the group did not exist. This is expected on a development bench that is not managed by that production Supervisor group and did not prevent ERPNext preparation.
 
+### Fresh integration-site evidence
+
+A new integration site, `ledgix-erpnext.local`, was created successfully through the Ledgix site setup flow after the old local site/data cleanup step.
+
+The site completed migration and `after_migrate` hooks successfully. The site summary confirmed the following installed applications:
+
+- `frappe` `15.113.4` on `version-15`;
+- `erpnext` `15.121.3` on `version-15`;
+- `ledgix_saas` `0.0.1` from `erpnext-core-migration`.
+
+The Linux `/etc/hosts` entry for `ledgix-erpnext.local` was added by the site setup flow. This proves the Frappe -> ERPNext -> Ledgix dependency/install path works on a real fresh local site.
+
 ### Site-install ordering
 
 Frappe v15's `frappe.installer.install_app` checks `required_apps` and recursively calls `install_app` for each prerequisite before installing the dependent app. Therefore, once ERPNext exists in the bench `apps.txt`, the existing Ledgix site-creation path can install `ledgix_saas` and Frappe will install ERPNext first. We intentionally avoid adding a second competing dependency-order implementation to `site_setup.sh`.
 
 ### Still pending for Phase 1 exit gate
 
-- Create a fresh integration site with Frappe v15 + ERPNext v15 + Ledgix.
-- Confirm `bench --site <integration-site> list-apps` shows `frappe`, `erpnext`, and `ledgix_saas`.
-- Run `bench --site <integration-site> migrate`.
-- Run `bench build` and smoke checks.
-- Confirm fresh-site creation is reproducible before touching an existing working Ledgix site's business data.
+- Run a final explicit `bench --site ledgix-erpnext.local migrate` confirmation.
+- Run a full `bench build` after the fresh-site install.
+- Run smoke checks against the new site.
+- Confirm fresh-site setup is reproducible before any production deployment cutover.
 
 ---
 
