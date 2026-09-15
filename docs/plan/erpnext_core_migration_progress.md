@@ -144,6 +144,30 @@ Prove, using the fresh integration site, which Ledgix business concepts can move
 - POS Opening Entry / POS Closing Entry;
 - fields needed for Ledgix FBR relinking and future transaction snapshots.
 
+### First read-only probe evidence
+
+The first schema probe ran successfully on `ledgix-erpnext.local` after a green local CI run and confirmed ERPNext is installed and active alongside Ledgix.
+
+All targeted native DocTypes were present:
+
+- masters: `Item`, `Item Group`, `UOM`, `Customer`, `Supplier`, `Address`, `Contact`;
+- pricing: `Price List`, `Item Price`, `Pricing Rule`;
+- sales: `Sales Invoice`, `POS Invoice`;
+- payments: `Mode of Payment`, `Payment Entry`;
+- buying: `Purchase Order`, `Purchase Receipt`, `Purchase Invoice`;
+- stock: `Warehouse`, `Stock Entry`, `Stock Ledger Entry`, `Batch`, `Serial No`, `Serial and Batch Bundle`;
+- POS workflow: `POS Profile`, `POS Opening Entry`, `POS Closing Entry`.
+
+For the requested key-field probe, every tested field was present except `POS Invoice.update_stock` on the proven ERPNext `15.121.3` runtime schema. This is not yet classified as a Ledgix gap: the POS Invoice stock lifecycle must be validated behaviorally against this exact ERPNext baseline rather than inferred from a single field name.
+
+The initial probe incorrectly reported every DocType as non-submittable because it read `meta.issubmittable` instead of Frappe v15's `meta.is_submittable`. The probe implementation has been corrected; a second read-only run is required to capture authoritative submit/cancel capability flags.
+
+The probe also surfaced existing framework/ERPNext fields that look custom by naming/metadata, including Address/Contact extensions and Payment Entry `custom_remarks`. These are not assumed to be Ledgix-owned; ownership will be distinguished from standard ERPNext installation behavior before adding any new customization.
+
+### Current Phase 2 conclusion
+
+Schema coverage is already broad enough that the migration should proceed as **ERPNext-native first**, not as a second custom business engine. Remaining work is behavioral parity: create/submit/return/payment/stock/POS flows, tax/accounting parity, FBR datasource adaptation, and UX decisions.
+
 ### Safety rule
 
 Phase 2 starts read-only. Existing Ledgix business DocTypes and services remain authoritative until each replacement path has explicit parity evidence.
