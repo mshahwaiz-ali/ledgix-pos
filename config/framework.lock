@@ -1,0 +1,16 @@
+# Ledgix tested framework baseline
+#
+# Frappe and ERPNext are upstream dependencies and are intentionally not
+# vendored inside this repository. The install/deploy scripts fetch them into
+# the ignored frappe-bench runtime. Update this lock only after the replacement
+# stack has been tested on a fresh Ledgix integration site.
+
+FRAPPE_REPO=https://github.com/frappe/frappe.git
+FRAPPE_BRANCH=version-15
+FRAPPE_VERSION=15.113.4
+FRAPPE_COMMIT=588e443808206a7bfe87429c5a55e16016ec7840
+
+ERPNEXT_REPO=https://github.com/frappe/erpnext.git
+ERPNEXT_BRANCH=version-15
+ERPNEXT_VERSION=15.121.3
+ERPNEXT_COMMIT=26f06878346fb6861229ccb1fe3a53dc1bf5bad3
