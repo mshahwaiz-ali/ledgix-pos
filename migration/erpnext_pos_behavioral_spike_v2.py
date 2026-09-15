@@ -17,6 +17,57 @@ def _payment_account(mode_name: str, company: str) -> str:
     return account
 
 
+def _payment_type(mode_name: str) -> str:
+    payment_type = frappe.db.get_value("Mode of Payment", mode_name, "type")
+    if not payment_type:
+        frappe.throw(f"Mode of Payment {mode_name!r} has no payment type.")
+    return payment_type
+
+
+def _ensure_pos_profile(customer: str, warehouse: str, cash_account: str) -> str:
+    """Create or repair the isolated POS profile so reruns survive partial failures."""
+
+    secondary_account = base._secondary_payment_account(cash_account)
+    base._ensure_mode_account(base.PRIMARY_MODE, cash_account)
+    base._ensure_mode_account(base.SECONDARY_MODE, secondary_account)
+
+    if frappe.db.exists("POS Profile", base.TEST_POS_PROFILE):
+        profile = frappe.get_doc("POS Profile", base.TEST_POS_PROFILE)
+    else:
+        profile = frappe.get_doc(
+            {
+                "doctype": "POS Profile",
+                "name": base.TEST_POS_PROFILE,
+            }
+        )
+
+    profile.company = base.TEST_COMPANY
+    profile.warehouse = warehouse
+    profile.customer = customer
+    profile.selling_price_list = "Standard Selling"
+    profile.currency = base.CURRENCY
+    profile.write_off_account = base._write_off_account()
+    profile.write_off_cost_center = base._leaf_cost_center()
+    profile.allow_partial_payment = 1
+    profile.validate_stock_on_save = 1
+    profile.disabled = 0
+    profile.set(
+        "payments",
+        [
+            {"mode_of_payment": base.PRIMARY_MODE, "default": 1},
+            {"mode_of_payment": base.SECONDARY_MODE, "default": 0},
+        ],
+    )
+    profile.set("applicable_for_users", [{"user": base.POS_USER, "default": 1}])
+
+    if profile.is_new():
+        profile.insert(ignore_permissions=True)
+    else:
+        profile.save(ignore_permissions=True)
+
+    return profile.name
+
+
 def _ensure_pos_invoice(customer: str, profile: str, warehouse: str):
     existing = base._existing_pos_invoice()
     if existing:
@@ -55,11 +106,15 @@ def _ensure_pos_invoice(customer: str, profile: str, warehouse: str):
                     "mode_of_payment": base.PRIMARY_MODE,
                     "amount": cash_amount,
                     "account": cash_account,
+                    "type": _payment_type(base.PRIMARY_MODE),
+                    "default": 1,
                 },
                 {
                     "mode_of_payment": base.SECONDARY_MODE,
                     "amount": secondary_amount,
                     "account": secondary_account,
+                    "type": _payment_type(base.SECONDARY_MODE),
+                    "default": 0,
                     "reference_no": "LEDGIX-SPLIT-SPIKE",
                 },
             ],
@@ -95,7 +150,7 @@ def run() -> dict:
     warehouse = base._leaf_warehouse()
     customer = base._ensure_customer()
     cash_account = base._ensure_cash_mode_account()
-    profile = base._ensure_pos_profile(customer, warehouse, cash_account)
+    profile = _ensure_pos_profile(customer, warehouse, cash_account)
 
     existing_invoice = base._existing_pos_invoice()
     if existing_invoice and existing_invoice.consolidated_invoice:
@@ -140,6 +195,11 @@ def run() -> dict:
         for row in invoice.payments
         if row.mode_of_payment in {base.PRIMARY_MODE, base.SECONDARY_MODE}
     }
+    payment_accounts = {
+        row.mode_of_payment: row.account
+        for row in invoice.payments
+        if row.mode_of_payment in {base.PRIMARY_MODE, base.SECONDARY_MODE}
+    }
     reconciliation_modes = {
         row.mode_of_payment: {
             "opening_amount": flt(row.opening_amount),
@@ -166,6 +226,7 @@ def run() -> dict:
             "paid_amount": flt(invoice.paid_amount),
             "outstanding_amount": flt(invoice.outstanding_amount),
             "payments": payment_rows,
+            "payment_accounts": payment_accounts,
             "direct_stock_ledger_qty": pos_invoice_sle_qty,
             "consolidated_invoice": consolidated_invoice,
         },
@@ -199,6 +260,7 @@ def run() -> dict:
         "split_payment_has_secondary": (
             base.SECONDARY_MODE in payment_rows and payment_rows[base.SECONDARY_MODE] > 0
         ),
+        "split_payment_accounts_populated": all(payment_accounts.values()),
         "split_payment_sums_to_total": abs(sum(payment_rows.values()) - flt(invoice.grand_total)) < 0.005,
         "pos_invoice_fully_paid": abs(flt(invoice.outstanding_amount)) < 0.005,
         "pos_invoice_does_not_double_post_stock": abs(pos_invoice_sle_qty) < 0.005,
