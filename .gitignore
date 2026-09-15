@@ -59,7 +59,7 @@ apps/*/build/
 apps/*.egg-info/
 apps/*/*.egg-info/
 
-# Local Python environments.
-/env/
-/venv/
-/.venv/
+# Local Python environments (directory, symlink, or file at repo root).
+/env
+/venv
+/.venv
