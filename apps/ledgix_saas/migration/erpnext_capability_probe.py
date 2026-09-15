@@ -256,7 +256,9 @@ def _doctype_probe(doctype: str, fields: list[str]) -> dict:
 
     meta = frappe.get_meta(doctype)
     custom_fields = sorted(
-        field.fieldname for field in meta.fields if getattr(field, "is_custom_field", False) or field.fieldname.startswith("custom_")
+        field.fieldname
+        for field in meta.fields
+        if getattr(field, "is_custom_field", False) or field.fieldname.startswith("custom_")
     )
 
     return {
@@ -288,3 +290,35 @@ def run() -> dict:
         )
 
     return result
+
+
+def run_summary() -> dict:
+    """Return the compact gap view used for the first Phase 2 terminal probe."""
+
+    full = run()
+    summary = OrderedDict(
+        {
+            "site": full["site"],
+            "installed_apps": full["installed_apps"],
+            "erpnext_installed": full["erpnext_installed"],
+            "domains": OrderedDict(),
+        }
+    )
+
+    for domain, doctypes in full["domains"].items():
+        domain_summary = OrderedDict()
+        for doctype, probe in doctypes.items():
+            missing_fields = [
+                fieldname
+                for fieldname, field_probe in probe.get("fields", {}).items()
+                if not field_probe.get("exists")
+            ]
+            domain_summary[doctype] = {
+                "exists": probe.get("exists", False),
+                "is_submittable": probe.get("is_submittable", False),
+                "missing_fields": missing_fields,
+                "custom_fields": probe.get("custom_fields", []),
+            }
+        summary["domains"][domain] = domain_summary
+
+    return summary
