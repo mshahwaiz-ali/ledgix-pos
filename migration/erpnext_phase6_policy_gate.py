@@ -201,6 +201,101 @@ def _invoice(client_id: str):
     )
 
 
+def _case_checkout_retry_recovery():
+    client_id = "LEDGIX-P6-V1-INTERRUPTED-CHECKOUT"
+    payment_id = f"{client_id}:PAY:1"
+    invoice = _invoice(client_id)
+    invoice.reload()
+    original_outstanding = _money(invoice.outstanding_amount)
+    preexisting = frappe.db.get_value(
+        "Payment Entry",
+        {
+            "company": TEST_COMPANY,
+            "custom_ledgix_client_payment_id": payment_id,
+            "docstatus": ["!=", 2],
+        },
+        "name",
+    )
+
+    tender = [{"payment_method": "Cash", "amount": 300}]
+    first_retry = selling_compat.complete_b2b_sale(
+        customer=CUSTOMER,
+        cart_items=[{"item": ITEM, "qty": 1}],
+        tenders=tender,
+        price_list=PRICE_LIST,
+        client_sale_id=client_id,
+    )
+    first_payment = frappe.db.get_value(
+        "Payment Entry",
+        {
+            "company": TEST_COMPANY,
+            "custom_ledgix_client_payment_id": payment_id,
+            "docstatus": ["!=", 2],
+        },
+        "name",
+    )
+    first_count = frappe.db.count(
+        "Payment Entry",
+        {
+            "company": TEST_COMPANY,
+            "custom_ledgix_client_payment_id": payment_id,
+            "docstatus": ["!=", 2],
+        },
+    )
+    invoice.reload()
+    outstanding_after_first = _money(invoice.outstanding_amount)
+
+    second_retry = selling_compat.complete_b2b_sale(
+        customer=CUSTOMER,
+        cart_items=[{"item": ITEM, "qty": 1}],
+        tenders=tender,
+        price_list=PRICE_LIST,
+        client_sale_id=client_id,
+    )
+    second_payment = frappe.db.get_value(
+        "Payment Entry",
+        {
+            "company": TEST_COMPANY,
+            "custom_ledgix_client_payment_id": payment_id,
+            "docstatus": ["!=", 2],
+        },
+        "name",
+    )
+    second_count = frappe.db.count(
+        "Payment Entry",
+        {
+            "company": TEST_COMPANY,
+            "custom_ledgix_client_payment_id": payment_id,
+            "docstatus": ["!=", 2],
+        },
+    )
+
+    evidence = {
+        "invoice": invoice.name,
+        "payment_client_id": payment_id,
+        "preexisting_payment": preexisting or "",
+        "first_retry_payment": first_payment or "",
+        "second_retry_payment": second_payment or "",
+        "first_retry_response_payments": first_retry.get("payments") or [],
+        "second_retry_response_payments": second_retry.get("payments") or [],
+        "original_outstanding": original_outstanding,
+        "outstanding_after_first": outstanding_after_first,
+        "active_payment_count_after_first": first_count,
+        "active_payment_count_after_second": second_count,
+    }
+    checks = {
+        "invoice_reused": selling_compat._invoice_from_result(first_retry) == invoice.name,
+        "missing_payment_recovered": bool(first_payment),
+        "outstanding_reduced": outstanding_after_first < original_outstanding or bool(preexisting),
+        "one_active_payment_after_first": first_count == 1,
+        "second_retry_reuses_same_payment": second_payment == first_payment,
+        "one_active_payment_after_second": second_count == 1,
+        "first_response_reports_payment": first_payment in (first_retry.get("payments") or []),
+        "second_response_reports_payment": second_payment in (second_retry.get("payments") or []),
+    }
+    return evidence, checks
+
+
 def _case_payment_reference_policy():
     mode = _ensure_reference_mode()
     negative_invoice = _invoice("LEDGIX-P6-V1-POLICY-NEGATIVE")
@@ -298,6 +393,9 @@ def run() -> dict:
     cases = {
         "manual_price_override_audit": _case(
             "manual_price_override_audit", _case_override_audit
+        ),
+        "interrupted_checkout_payment_recovery": _case(
+            "interrupted_checkout_payment_recovery", _case_checkout_retry_recovery
         ),
         "mode_of_payment_reference_policy": _case(
             "mode_of_payment_reference_policy", _case_payment_reference_policy
