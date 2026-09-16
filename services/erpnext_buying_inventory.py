@@ -85,8 +85,14 @@ def _resolve_warehouse(warehouse: str | None, company: str) -> str:
             frappe.throw(_("Warehouse {0} is not an active leaf warehouse for {1}.").format(warehouse, company))
         return warehouse
 
-    default = frappe.db.get_value("Company", company, "default_inventory_warehouse")
-    if default and frappe.db.exists("Warehouse", {"name": default, "is_group": 0, "disabled": 0}):
+    # ERPNext v15 owns the general stock default on Stock Settings, not Company.
+    # Stock Settings is global, so only accept its default when that Warehouse
+    # actually belongs to the requested Company; otherwise choose a company leaf.
+    default = str(frappe.db.get_single_value("Stock Settings", "default_warehouse") or "").strip()
+    if default and frappe.db.exists(
+        "Warehouse",
+        {"name": default, "company": company, "is_group": 0, "disabled": 0},
+    ):
         return default
 
     rows = frappe.get_all(
