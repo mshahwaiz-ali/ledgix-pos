@@ -3,7 +3,7 @@ from __future__ import annotations
 import frappe
 from frappe.utils import cint, flt, nowdate
 
-from ledgix_saas.migration import erpnext_phase5_master_migration_v2 as migration
+from ledgix_saas.migration import erpnext_phase5_master_migration_runtime as migration
 from ledgix_saas.migration.erpnext_integration_bootstrap import INTEGRATION_SITE, TEST_COMPANY
 from ledgix_saas.migration.erpnext_stock_purchase_behavioral_spike import _leaf_warehouse
 from ledgix_saas.setup import erpnext_phase5_extensions
@@ -19,6 +19,7 @@ SUPPLIER = "P5 Supplier"
 PAYMENT_METHOD = "P5 Wallet"
 TAX_CATEGORY = "P5 Standard 18"
 SERIALS = ("P5-SERIAL-001", "P5-SERIAL-002")
+ITEM_PRICE_PROVENANCE_FIELD = "custom_ledgix_legacy_item_price"
 
 
 def _assert_safe_site() -> None:
@@ -96,7 +97,6 @@ def _ensure_price_list() -> str:
 def _ensure_legacy_item(item_code: str, tracking: str, opening_stock: float, cost: float, selling: float, barcode: str, sku: str):
     if frappe.db.exists("Ledgix Item", item_code):
         doc = frappe.get_doc("Ledgix Item", item_code)
-        # Opening/current stock is ledger-owned after creation; never replay it.
         expected = {
             "tracking_type": tracking,
             "category": CATEGORY,
@@ -291,7 +291,7 @@ def _ensure_item_profile(item_name: str) -> str:
         doc = frappe.get_doc("Ledgix Item Tax Profile", existing)
     else:
         doc = frappe.get_doc({"doctype": "Ledgix Item Tax Profile", "item": item_name})
-    doc.erpnext_item = None  # prove Phase 5 relink from the legacy reference
+    doc.erpnext_item = None
     doc.tax_category = TAX_CATEGORY
     doc.taxable = 1
     doc.active = 1
@@ -398,8 +398,16 @@ def _target_evidence(warehouse: str, fixtures: dict) -> dict:
     for item_name, legacy_price in fixtures["prices"].items():
         row = frappe.db.get_value(
             "Item Price",
-            {"reference": f"Ledgix Item Price:{legacy_price}"},
-            ["name", "item_code", "price_list", "price_list_rate", "uom", "valid_from"],
+            {ITEM_PRICE_PROVENANCE_FIELD: legacy_price},
+            [
+                "name",
+                "item_code",
+                "price_list",
+                "price_list_rate",
+                "uom",
+                "valid_from",
+                ITEM_PRICE_PROVENANCE_FIELD,
+            ],
             as_dict=True,
         )
         item_price_rows[item_name] = dict(row or {})
