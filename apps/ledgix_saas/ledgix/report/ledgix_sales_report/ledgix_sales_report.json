@@ -10,26 +10,16 @@
  "idx": 0,
  "is_standard": "Yes",
  "letter_head": null,
- "modified": "2026-05-17 14:01:08.990271",
+ "modified": "2026-09-16 21:36:00.000000",
  "modified_by": "Administrator",
  "module": "Ledgix",
  "name": "Ledgix Sales Report",
  "owner": "Administrator",
  "prepared_report": 0,
- "ref_doctype": "Ledgix Sale",
+ "ref_doctype": "Sales Invoice",
  "reference_report": "",
  "report_name": "Ledgix Sales Report",
  "report_type": "Script Report",
- "roles": [
-  {
-   "role": "System Manager"
-  },
-  {
-   "role": "Ledgix Admin"
-  },
-  {
-   "role": "Ledgix Manager"
-  }
- ],
+ "roles": [{"role":"System Manager"},{"role":"Ledgix Admin"},{"role":"Ledgix Manager"}],
  "timeout": 0
 }
