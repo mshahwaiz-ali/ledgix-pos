@@ -69,7 +69,7 @@ echo "===== FAIL-CLOSED PHASE 6 + 7 + 8 + 9 STATIC CONTRACTS ====="
 echo
 echo "===== PHASE 9 NATIVE FBR SOURCE CUTOVER ====="
 bench --site "$SITE" execute \
-  ledgix_saas.migration.erpnext_phase9_fbr_gate.run \
+  ledgix_saas.migration.erpnext_phase9_fbr_closure_gate.run \
   | tee "$RESULT"
 
 echo
