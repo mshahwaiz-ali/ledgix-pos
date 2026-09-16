@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ledgix_saas.services import erpnext_reporting
+from ledgix_saas.services import erpnext_reporting_compat as erpnext_reporting
 
 
 def execute(filters=None):
