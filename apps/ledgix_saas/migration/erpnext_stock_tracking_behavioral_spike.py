@@ -203,6 +203,30 @@ def _sle_qty(voucher_type: str, voucher_no: str, item_code: str) -> float:
     return flt(result[0][0] if result else 0)
 
 
+def _stock_reconciliation_sle(voucher_no: str, item_code: str, warehouse: str) -> dict:
+    rows = frappe.db.sql(
+        """
+        select
+            name,
+            actual_qty,
+            qty_after_transaction,
+            stock_value_difference,
+            stock_value
+        from `tabStock Ledger Entry`
+        where voucher_type = 'Stock Reconciliation'
+          and voucher_no = %s
+          and item_code = %s
+          and warehouse = %s
+          and is_cancelled = 0
+        order by creation desc
+        limit 1
+        """,
+        (voucher_no, item_code, warehouse),
+        as_dict=True,
+    )
+    return dict(rows[0]) if rows else {}
+
+
 def _bundle(doc) -> str:
     if not doc.items:
         return ""
@@ -264,7 +288,7 @@ def run() -> dict:
     )
 
     stock_receipt_sle = _sle_qty("Stock Entry", stock_receipt.name, stock_item)
-    reconciliation_sle = _sle_qty("Stock Reconciliation", stock_reconciliation.name, stock_item)
+    reconciliation_sle = _stock_reconciliation_sle(stock_reconciliation.name, stock_item, warehouse)
     batch_receipt_sle = _sle_qty("Stock Entry", batch_receipt.name, batch_item)
     batch_issue_sle = _sle_qty("Stock Entry", batch_issue.name, batch_item)
     serial_receipt_sle = _sle_qty("Stock Entry", serial_receipt.name, serial_item)
@@ -281,9 +305,19 @@ def run() -> dict:
             "receipt_sle_qty": stock_receipt_sle,
             "reconciliation": stock_reconciliation.name,
             "reconciliation_docstatus": stock_reconciliation.docstatus,
-            "reconciliation_sle_qty": reconciliation_sle,
+            "reconciliation_sle": {
+                "name": reconciliation_sle.get("name"),
+                "actual_qty": flt(reconciliation_sle.get("actual_qty")),
+                "qty_after_transaction": flt(reconciliation_sle.get("qty_after_transaction")),
+                "stock_value_difference": flt(reconciliation_sle.get("stock_value_difference")),
+                "stock_value": flt(reconciliation_sle.get("stock_value")),
+            },
             "final_bin_qty": _bin_qty(stock_item, warehouse),
             "target_qty": STOCK_RECON_QTY,
+            "note": (
+                "ERPNext Stock Reconciliation may record actual_qty as zero; for reconciliation rows "
+                "qty_after_transaction represents the authoritative reconciled balance."
+            ),
         },
         "batch": {
             "item": batch_item,
@@ -317,7 +351,13 @@ def run() -> dict:
         "stock_reconciliation_target_qty": abs(
             evidence["stock_entry_reconciliation"]["final_bin_qty"] - STOCK_RECON_QTY
         ) < 0.005,
-        "stock_reconciliation_created_ledger_effect": abs(reconciliation_sle) > 0.005,
+        "stock_reconciliation_has_ledger_entry": bool(
+            evidence["stock_entry_reconciliation"]["reconciliation_sle"]["name"]
+        ),
+        "stock_reconciliation_ledger_target_qty": abs(
+            evidence["stock_entry_reconciliation"]["reconciliation_sle"]["qty_after_transaction"]
+            - STOCK_RECON_QTY
+        ) < 0.005,
         "batch_exists": bool(frappe.db.exists("Batch", batch_id)),
         "batch_receipt_has_bundle": bool(evidence["batch"]["receipt_bundle"]),
         "batch_issue_has_bundle": bool(evidence["batch"]["issue_bundle"]),
