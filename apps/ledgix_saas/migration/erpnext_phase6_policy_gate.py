@@ -157,10 +157,11 @@ def _ensure_reference_mode() -> str:
             {
                 "doctype": "Mode of Payment",
                 "mode_of_payment": REFERENCE_MODE,
-                "type": "Bank",
+                "type": "General",
             }
         )
 
+    mode.type = "General"
     if mode.meta.has_field("enabled"):
         mode.enabled = 1
     mode.custom_ledgix_legacy_payment_method = "P6-REFERENCE-POLICY"
