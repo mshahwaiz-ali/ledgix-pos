@@ -13,6 +13,7 @@ class LedgixClientSetup {
     this.wrapper = wrapper;
     this.boot = null;
     this.evaluation = null;
+    this.onboarding = null;
     this.make_fields();
     this.make_body();
     this.bind_actions();
@@ -93,9 +94,17 @@ class LedgixClientSetup {
           <div class="ledgix-setup-card" data-role="state"></div>
         </div>
         <div class="ledgix-setup-card">
-          <h5>${__("Readiness")}</h5>
+          <h5>${__("Configuration readiness")}</h5>
           <div data-role="checks" class="ledgix-setup-muted">${__("Loading setup status...")}</div>
           <div data-role="ready" class="ledgix-setup-ready"></div>
+        </div>
+        <div class="ledgix-setup-card">
+          <h5>${__("Operational onboarding")}</h5>
+          <div class="ledgix-setup-muted" style="margin-bottom:10px;">
+            ${__("Handover checks reuse ERPNext authority and verify accounting/payment prerequisites, named Ledgix users, FBR safety state and operational evidence. FBR Production remains a separate activation gate.")}
+          </div>
+          <div data-role="onboarding-checks" class="ledgix-setup-muted">${__("Loading onboarding readiness...")}</div>
+          <div data-role="onboarding-ready" class="ledgix-setup-ready"></div>
         </div>
       </div>
     `);
@@ -104,6 +113,7 @@ class LedgixClientSetup {
   bind_actions() {
     this.page.set_primary_action(__("Apply Configuration"), () => this.apply(), "check");
     this.page.add_inner_button(__("Check Readiness"), () => this.check(true));
+    this.page.add_inner_button(__("Refresh Onboarding"), () => this.refreshOnboarding(true));
     this.page.add_inner_button(__("Business Profile"), () => frappe.set_route("Form", "Ledgix Business Profile"));
     this.page.add_inner_button(__("FBR Settings"), () => frappe.set_route("Form", "Ledgix FBR Settings"));
   }
@@ -137,6 +147,7 @@ class LedgixClientSetup {
     this.pos_profile.set_value(resolved.pos_profile || "");
     this.apply_defaults.set_value(1);
     this.render(current);
+    await this.refreshOnboarding(false);
     this.page.clear_indicator();
   }
 
@@ -156,8 +167,41 @@ class LedgixClientSetup {
     }
   }
 
+  async refreshOnboarding(showAlert = false) {
+    const response = await frappe.call({
+      method: "ledgix_saas.api.client_readiness.get_client_readiness",
+      args: { strict_evidence: 0 },
+      freeze: false,
+    });
+    this.onboarding = response.message || {};
+    this.renderOnboarding(this.onboarding);
+    if (showAlert) {
+      frappe.show_alert({
+        message: this.onboarding?.ready ? __("Operational onboarding checks are green.") : __("Operational onboarding still has blockers."),
+        indicator: this.onboarding?.ready ? "green" : "orange",
+      });
+    }
+  }
+
   presetFor(name) {
     return (this.boot?.presets || []).find((row) => row.name === name) || {};
+  }
+
+  checkHtml(row) {
+    const klass = row.passed ? "is-ok" : (row.blocking ? "is-blocker" : "is-warning");
+    const indicator = row.passed ? "✓" : (row.blocking ? "✕" : "!");
+    const category = row.category ? `<div class="ledgix-setup-muted">${frappe.utils.escape_html(row.category)}</div>` : "";
+    const target = row.target ? `<div class="ledgix-setup-muted">${__("Configure")}: ${frappe.utils.escape_html(row.target)}</div>` : "";
+    return `
+      <div class="ledgix-setup-check ${klass}">
+        <div class="indicator">${indicator}</div>
+        <div>
+          <div>${frappe.utils.escape_html(row.message || "")}</div>
+          ${category}
+          ${target}
+        </div>
+      </div>
+    `;
   }
 
   render(evaluation) {
@@ -185,25 +229,27 @@ class LedgixClientSetup {
       return;
     }
 
-    const html = checks.map((row) => {
-      const klass = row.passed ? "is-ok" : (row.blocking ? "is-blocker" : "is-warning");
-      const indicator = row.passed ? "✓" : (row.blocking ? "✕" : "!");
-      const target = row.target ? `<div class="ledgix-setup-muted">${__("Configure")}: ${frappe.utils.escape_html(row.target)}</div>` : "";
-      return `
-        <div class="ledgix-setup-check ${klass}">
-          <div class="indicator">${indicator}</div>
-          <div>
-            <div>${frappe.utils.escape_html(row.message || "")}</div>
-            ${target}
-          </div>
-        </div>
-      `;
-    }).join("");
-    this.$body.find('[data-role="checks"]').html(html);
+    this.$body.find('[data-role="checks"]').html(checks.map((row) => this.checkHtml(row)).join(""));
     this.$body.find('[data-role="ready"]').html(
       this.evaluation.ready
         ? `<span class="text-success">${__("Ready to apply configuration")}</span>`
         : `<span class="text-warning">${__("Setup has blocking prerequisites")}</span>`
+    );
+  }
+
+  renderOnboarding(readiness) {
+    const checks = readiness?.checks || [];
+    if (!checks.length) {
+      this.$body.find('[data-role="onboarding-checks"]').html(__("No onboarding readiness result yet."));
+      this.$body.find('[data-role="onboarding-ready"]').empty();
+      return;
+    }
+    this.$body.find('[data-role="onboarding-checks"]').html(checks.map((row) => this.checkHtml(row)).join(""));
+    const next = frappe.utils.escape_html(readiness.next_workstream || "");
+    this.$body.find('[data-role="onboarding-ready"]').html(
+      readiness.ready
+        ? `<span class="text-success">${__("Operational onboarding checks are green")}</span>${next ? `<div class="ledgix-setup-muted">${__("Next")}: ${next}</div>` : ""}`
+        : `<span class="text-warning">${__("Operational onboarding has blocking prerequisites")}</span>`
     );
   }
 
@@ -230,6 +276,7 @@ class LedgixClientSetup {
         const result = response.message || {};
         this.boot.state = result.state || this.boot.state;
         this.render(result.evaluation || {});
+        await this.refreshOnboarding(false);
         frappe.show_alert({ message: result.message || __("Client setup applied."), indicator: "green" }, 6);
       }
     );
