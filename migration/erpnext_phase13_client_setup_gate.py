@@ -188,16 +188,45 @@ def run() -> dict:
                 price_list=price_list,
             )
         )
+        invalid_price = client_setup.evaluate_client_setup(
+            _setup_payload(
+                "Invoice + FBR Only",
+                pos_profile="",
+                warehouse="",
+                price_list="DOES-NOT-EXIST",
+            )
+        )
+        invalid_warehouse = client_setup.evaluate_client_setup(
+            _setup_payload(
+                "Small Retail",
+                pos_profile=pos_profile,
+                warehouse="DOES-NOT-EXIST",
+                price_list=price_list,
+            )
+        )
         retail_keys = {row.get("key") for row in retail.get("blockers") or []}
+        price_keys = {row.get("key") for row in invalid_price.get("blockers") or []}
+        warehouse_keys = {row.get("key") for row in invalid_warehouse.get("blockers") or []}
         checks = {
             "invoice_only_does_not_require_pos_profile": bool(invoice.get("ready")),
             "retail_requires_pos_profile": not retail.get("ready") and "pos_profile" in retail_keys,
+            "explicit_invalid_selling_price_list_fails_closed": (
+                not invalid_price.get("ready") and "selling_price_list" in price_keys
+            ),
+            "explicit_invalid_warehouse_fails_closed": (
+                not invalid_warehouse.get("ready") and "warehouse" in warehouse_keys
+            ),
             "fbr_activation_is_warning_not_setup_blocker": any(
                 row.get("key") == "fbr_activation" and not row.get("blocking")
                 for row in invoice.get("warnings") or []
             ),
         }
-        return {"invoice_only": invoice, "small_retail_bad_pos": retail}, checks
+        return {
+            "invoice_only": invoice,
+            "small_retail_bad_pos": retail,
+            "invoice_only_bad_price_list": invalid_price,
+            "small_retail_bad_warehouse": invalid_warehouse,
+        }, checks
 
     def apply_case():
         result = client_setup.apply_client_setup(
