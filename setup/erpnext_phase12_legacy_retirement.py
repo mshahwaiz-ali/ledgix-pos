@@ -3,13 +3,12 @@ from __future__ import annotations
 """Phase 12 migrate-time retirement synchronization.
 
 The existing Ledgix permission policy is intentionally left intact until an
-explicit successful freeze.  Once the retirement state is Frozen, this module
+explicit successful freeze. Once the retirement state is Frozen, this module
 reapplies read-only audit permissions after every migrate so earlier setup hooks
 cannot accidentally reopen legacy business DocTypes.
 """
 
 import frappe
-from frappe.core.doctype.doctype.doctype import validate_permissions_for_doctype
 from frappe.permissions import setup_custom_perms
 
 from ledgix_saas.api import legacy_retirement
@@ -26,12 +25,13 @@ def _audit_values() -> dict:
 
 
 def _insert_audit_perm(doctype: str, role: str) -> None:
+    # Pinned Frappe v15 models Custom DocPerm as a standalone DocType. Its
+    # reference to the protected DocType is the Data field `parent`; it is not a
+    # child table and therefore has no parenttype/parentfield columns.
     frappe.get_doc(
         {
             "doctype": "Custom DocPerm",
             "parent": doctype,
-            "parenttype": "DocType",
-            "parentfield": "permissions",
             "role": role,
             "permlevel": 0,
             "if_owner": 0,
@@ -45,12 +45,14 @@ def sync_legacy_read_only_permissions() -> dict:
     for doctype in legacy_retirement.LEGACY_TOP_LEVEL_DOCTYPES:
         if not frappe.db.exists("DocType", doctype):
             continue
+
+        # Materialize standard DocPerm rows into Custom DocPerm first so the
+        # presence of custom permissions becomes authoritative for this DocType.
         setup_custom_perms(doctype)
         frappe.db.delete(
             "Custom DocPerm",
             {
                 "parent": doctype,
-                "parenttype": "DocType",
                 "permlevel": 0,
                 "role": ["in", list(MANAGED_ROLES)],
             },
@@ -58,9 +60,9 @@ def sync_legacy_read_only_permissions() -> dict:
         for role in AUDIT_ROLES:
             if frappe.db.exists("Role", role):
                 _insert_audit_perm(doctype, role)
-        validate_permissions_for_doctype(doctype)
         frappe.clear_cache(doctype=doctype)
         changed.append(doctype)
+
     frappe.db.commit()
     return {
         "frozen": legacy_retirement.is_frozen(),
@@ -80,7 +82,6 @@ def read_only_permission_status() -> dict:
             "Custom DocPerm",
             filters={
                 "parent": doctype,
-                "parenttype": "DocType",
                 "permlevel": 0,
                 "role": ["in", list(MANAGED_ROLES)],
             },
