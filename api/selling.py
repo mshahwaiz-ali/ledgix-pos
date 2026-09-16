@@ -33,18 +33,16 @@ def _allow_rate_override() -> bool:
 
 def _invoice_items_from_cart(cart_items) -> list[dict]:
     rows = _parse(cart_items) or []
-    result = []
-    for row in rows:
-        result.append(
-            {
-                "item": row.get("item") or row.get("item_code"),
-                "qty": row.get("qty") or row.get("quantity"),
-                "uom": row.get("uom"),
-                "override_rate": row.get("override_rate"),
-                "warehouse": row.get("warehouse"),
-            }
-        )
-    return result
+    return [
+        {
+            "item": row.get("item") or row.get("item_code"),
+            "qty": row.get("qty") or row.get("quantity"),
+            "uom": row.get("uom"),
+            "override_rate": row.get("override_rate"),
+            "warehouse": row.get("warehouse"),
+        }
+        for row in rows
+    ]
 
 
 def _auto_allocations(customer: str, amount: float) -> list[dict]:
@@ -78,10 +76,7 @@ def _native_invoice_reference(value: str | None):
         return doc if doc.docstatus == 1 else None
     name = frappe.db.get_value(
         "Sales Invoice",
-        {
-            "custom_ledgix_client_sale_id": value,
-            "docstatus": 1,
-        },
+        {"custom_ledgix_client_sale_id": value, "docstatus": 1},
         "name",
     )
     return frappe.get_doc("Sales Invoice", name) if name else None
@@ -150,11 +145,7 @@ def complete_b2b_sale(
     discount_value=0,
     due_date=None,
 ):
-    """Compatibility boundary for the current Ledgix POS B2B checkout UI.
-
-    The UI may still be the old Ledgix page until Phase 8, but this path writes
-    only ERPNext Sales Invoice / Payment Entry financial documents.
-    """
+    """Current Ledgix B2B checkout contract backed only by ERPNext finance docs."""
 
     _require_manager()
     invoice = erpnext_selling.create_sales_invoice(
@@ -180,6 +171,7 @@ def complete_b2b_sale(
             method = tender.get("payment_method") or tender.get("mode_of_payment")
             if amount <= 0 or not method:
                 continue
+            invoice.reload()
             allocation = min(amount, max(flt(invoice.outstanding_amount), 0))
             if allocation <= 0:
                 break
@@ -188,19 +180,16 @@ def complete_b2b_sale(
                 mode_of_payment=method,
                 amount=amount,
                 allocations=[
-                    {
-                        "reference_name": invoice.name,
-                        "allocated_amount": allocation,
-                    }
+                    {"reference_name": invoice.name, "allocated_amount": allocation}
                 ],
                 client_payment_id=(
                     f"{client_sale_id}:PAY:{index}" if client_sale_id else None
                 ),
-                reference_number=tender.get("reference_number") or tender.get("reference_no"),
+                reference_number=tender.get("reference_number")
+                or tender.get("reference_no"),
                 payment_source="Ledgix POS B2B Checkout",
             )
             payments.append(payment.name)
-            invoice.reload()
 
     invoice.reload()
     result = erpnext_selling.invoice_summary(invoice, include_items=False)
@@ -352,7 +341,9 @@ def create_exchange(
     )
     return {
         "exchange_reference": exchange_reference,
-        "credit_note": erpnext_selling.invoice_summary(result["credit_note"], include_items=True),
+        "credit_note": erpnext_selling.invoice_summary(
+            result["credit_note"], include_items=True
+        ),
         "replacement_invoice": erpnext_selling.invoice_summary(
             result["replacement_invoice"], include_items=True
         ),
@@ -463,11 +454,7 @@ def _native_return_context(invoice) -> dict:
     returned = {}
     return_names = frappe.get_all(
         "Sales Invoice",
-        filters={
-            "return_against": invoice.name,
-            "is_return": 1,
-            "docstatus": 1,
-        },
+        filters={"return_against": invoice.name, "is_return": 1, "docstatus": 1},
         pluck="name",
         limit_page_length=0,
     )
@@ -475,11 +462,11 @@ def _native_return_context(invoice) -> dict:
         rows = frappe.get_all(
             "Sales Invoice Item",
             filters={"parent": ["in", return_names], "parenttype": "Sales Invoice"},
-            fields=["si_detail", "item_code", "qty"],
+            fields=["sales_invoice_item", "item_code", "qty"],
             limit_page_length=0,
         )
         for row in rows:
-            key = row.si_detail or row.item_code
+            key = row.sales_invoice_item or row.item_code
             returned[key] = flt(returned.get(key)) + abs(flt(row.qty))
 
     items = []
@@ -529,10 +516,9 @@ def create_pos_return_compat(original_sale=None, return_items=None, reason=None)
     invoice = _native_invoice_reference(original_sale)
     if invoice:
         _require_manager()
-        rows = _parse(return_items) or []
         note = erpnext_selling.create_sales_return(
             sales_invoice=invoice.name,
-            return_items=rows,
+            return_items=_parse(return_items) or [],
             reason=reason,
             client_return_id=None,
             checkout_source="Ledgix POS B2B Return",
