@@ -2,15 +2,10 @@ from __future__ import annotations
 
 """Phase 4 bridge between Ledgix FBR classification and ERPNext accounting.
 
-This module deliberately does *not* maintain a second grand-total engine. Ledgix
-resolves the legal/FBR tax components for each invoice line, persists immutable
-classification snapshots, and writes those monetary components into ERPNext
-Sales Taxes and Charges rows. ERPNext remains responsible for invoice totals,
-GL posting, returns and payment/accounting behavior.
-
-The functions are not wired to Sales Invoice hooks yet. Phase 4 proves parity on
-an isolated integration site first; authority cutover happens only in a later
-migration phase.
+Ledgix resolves legal/FBR tax inputs and immutable snapshots. ERPNext owns the
+invoice totals, tax rows and GL. Nothing here sets ``grand_total`` directly.
+The adapter is intentionally not hooked to Sales Invoice yet; Phase 4 proves
+parity first and later phases perform the authority cutover.
 """
 
 import json
@@ -26,11 +21,7 @@ MANAGED_TAX_DESCRIPTION_PREFIX = "[LEDGIX-TAX]"
 
 
 def _cf(fieldname: str, fieldtype: str, label: str = "", **values) -> dict:
-    row = {
-        "fieldname": fieldname,
-        "fieldtype": fieldtype,
-        "module": CUSTOM_FIELD_MODULE,
-    }
+    row = {"fieldname": fieldname, "fieldtype": fieldtype, "module": CUSTOM_FIELD_MODULE}
     if label:
         row["label"] = label
     row.update(values)
@@ -92,7 +83,6 @@ COMPANY_TAX_FIELDS = [
 ]
 
 CUSTOM_FIELDS = {"Company": COMPANY_TAX_FIELDS}
-
 COMPONENT_ACCOUNT_FIELDS = {
     "sales_tax": "custom_ledgix_sales_tax_account",
     "extra_tax": "custom_ledgix_extra_tax_account",
@@ -100,7 +90,6 @@ COMPONENT_ACCOUNT_FIELDS = {
     "fed_payable": "custom_ledgix_fed_account",
     "sales_tax_withheld_at_source": "custom_ledgix_sales_tax_withheld_account",
 }
-
 FINANCIAL_COMPONENTS = ("sales_tax", "extra_tax", "further_tax", "fed_payable")
 
 
@@ -126,9 +115,7 @@ def _money(value: Any) -> float:
 
 def _format_tax_rate(rate: Any) -> str:
     value = flt(rate)
-    if value == int(value):
-        return f"{int(value)}%"
-    return f"{value:g}%"
+    return f"{int(value)}%" if value == int(value) else f"{value:g}%"
 
 
 def _profile_for_item(item_code: str):
@@ -145,12 +132,7 @@ def _profile_for_item(item_code: str):
 
 def _category_values(category_name: str | None) -> dict:
     if not category_name or not frappe.db.exists("Ledgix Tax Category", category_name):
-        return {
-            "name": category_name or "",
-            "default_rate": 0.0,
-            "is_exempt": 0,
-            "is_zero_rated": 0,
-        }
+        return {"name": category_name or "", "default_rate": 0.0, "is_exempt": 0, "is_zero_rated": 0}
     row = frappe.db.get_value(
         "Ledgix Tax Category",
         category_name,
@@ -165,11 +147,8 @@ def _line_transaction_amount(doc, row) -> float:
     rate = flt(row.get("rate"))
     if qty:
         return _money(qty * rate)
-    # ERPNext supports financial-only credit-note lines: for a return with zero
-    # quantity the controller treats amount as -rate. Mirror that input basis
-    # only; ERPNext still computes the authoritative document total.
     if cint(doc.get("is_return")):
-        return _money(-1 * rate)
+        return _money(-rate)
     return _money(row.get("amount"))
 
 
@@ -177,23 +156,18 @@ def _ordinary_tax_values(*, amount: float, basis_amount: float, rate: float, inc
     if not rate:
         return _money(basis_amount if basis_amount else amount), 0.0
     if included:
-        # Inclusive mode is valid for the transaction-value path. For Third
-        # Schedule/notified-retail-price the notified value is an external tax
-        # basis, so the tax remains an additional ERPNext tax row.
         taxable = _money(amount / (1 + rate / 100.0))
         return taxable, _money(amount - taxable)
     return _money(basis_amount), _money(basis_amount * rate / 100.0)
 
 
 def build_line_snapshot(doc, row, *, price_includes_tax: bool = False) -> dict:
-    """Resolve one immutable Ledgix/FBR line snapshot from ERPNext Item data."""
-
     item_code = row.get("item_code")
     profile = _profile_for_item(item_code)
     category = _category_values(profile.get("tax_category") if profile else None)
-
     qty = flt(row.get("qty"))
     transaction_amount = _line_transaction_amount(doc, row)
+
     taxable = bool(profile and cint(profile.get("taxable")))
     exempt = bool(cint(category.get("is_exempt")))
     zero_rated = bool(cint(category.get("is_zero_rated")))
@@ -206,8 +180,6 @@ def build_line_snapshot(doc, row, *, price_includes_tax: bool = False) -> dict:
         frappe.throw(f"Notified Retail Price is required for Third Schedule ERPNext item {item_code}.")
 
     if third_schedule:
-        # Preserve sign for returns/credit notes. Zero-qty financial credits do
-        # not use notified-retail-price basis.
         sign = -1.0 if transaction_amount < 0 else 1.0
         basis_amount = _money(notified_retail_price * abs(qty) * sign) if qty else transaction_amount
     else:
@@ -221,12 +193,11 @@ def build_line_snapshot(doc, row, *, price_includes_tax: bool = False) -> dict:
         included=ordinary_included,
     )
 
-    per_unit_sign_qty = qty
-    extra_tax = _money(flt(profile.get("extra_tax_per_unit") if profile else 0) * per_unit_sign_qty)
-    further_tax = _money(flt(profile.get("further_tax_per_unit") if profile else 0) * per_unit_sign_qty)
-    fed_payable = _money(flt(profile.get("fed_payable_per_unit") if profile else 0) * per_unit_sign_qty)
+    extra_tax = _money(flt(profile.get("extra_tax_per_unit") if profile else 0) * qty)
+    further_tax = _money(flt(profile.get("further_tax_per_unit") if profile else 0) * qty)
+    fed_payable = _money(flt(profile.get("fed_payable_per_unit") if profile else 0) * qty)
     sales_tax_withheld = _money(
-        flt(profile.get("sales_tax_withheld_at_source_per_unit") if profile else 0) * per_unit_sign_qty
+        flt(profile.get("sales_tax_withheld_at_source_per_unit") if profile else 0) * qty
     )
 
     rate_description = str((profile.get("fbr_rate_description") if profile else "") or "").strip()
@@ -235,10 +206,10 @@ def build_line_snapshot(doc, row, *, price_includes_tax: bool = False) -> dict:
 
     charged_special = _money(extra_tax + further_tax + fed_payable)
     charged_tax = _money(sales_tax + charged_special)
-    # In inclusive mode only ordinary sales tax is inside the selling rate.
-    # Additional legal components remain payable and are explicit ERPNext rows.
-    erpnext_line_total = _money(transaction_amount + charged_special) if ordinary_included else _money(
-        transaction_amount + charged_tax
+    erpnext_line_total = (
+        _money(transaction_amount + charged_special)
+        if ordinary_included
+        else _money(transaction_amount + charged_tax)
     )
 
     return {
@@ -315,9 +286,7 @@ def get_company_tax_accounts(company: str, *, require_financial: bool = True) ->
         if require_financial and not _account_is_valid(company, accounts.get(component))
     ]
     if invalid:
-        frappe.throw(
-            "Ledgix ERPNext tax account mapping is missing/invalid for: " + ", ".join(invalid)
-        )
+        frappe.throw("Ledgix ERPNext tax account mapping is missing/invalid for: " + ", ".join(invalid))
     return accounts
 
 
@@ -325,7 +294,7 @@ def _managed_tax_row(description: str) -> bool:
     return str(description or "").startswith(MANAGED_TAX_DESCRIPTION_PREFIX)
 
 
-def _tax_row(component: str, amount: float, account: str, *, included: bool = False) -> dict:
+def _actual_tax_row(component: str, amount: float, account: str) -> dict:
     labels = {
         "sales_tax": "Sales Tax",
         "extra_tax": "Extra Tax",
@@ -337,12 +306,22 @@ def _tax_row(component: str, amount: float, account: str, *, included: bool = Fa
         "account_head": account,
         "description": f"{MANAGED_TAX_DESCRIPTION_PREFIX} {labels[component]}",
         "tax_amount": _money(amount),
-        "included_in_print_rate": 1 if included else 0,
+        "included_in_print_rate": 0,
+    }
+
+
+def _inclusive_sales_tax_row(rate: float, account: str) -> dict:
+    return {
+        "charge_type": "On Net Total",
+        "account_head": account,
+        "description": f"{MANAGED_TAX_DESCRIPTION_PREFIX} Sales Tax (Inclusive)",
+        "rate": flt(rate),
+        "included_in_print_rate": 1,
     }
 
 
 def _write_line_snapshot(row, snapshot: dict) -> None:
-    field_values = {
+    values = {
         "custom_ledgix_fbr_item_profile": snapshot["item_profile"],
         "custom_ledgix_fbr_hs_code": snapshot["hs_code"],
         "custom_ledgix_fbr_uom": snapshot["uom_for_fbr"],
@@ -360,23 +339,35 @@ def _write_line_snapshot(row, snapshot: dict) -> None:
         "custom_ledgix_fbr_snapshot_version": SNAPSHOT_VERSION,
         "custom_ledgix_fbr_snapshot_json": json.dumps(snapshot, sort_keys=True, separators=(",", ":")),
     }
-    for fieldname, value in field_values.items():
+    for fieldname, value in values.items():
         if row.meta.has_field(fieldname):
             row.set(fieldname, value)
 
 
-def apply_tax_plan(
-    doc,
-    *,
-    price_includes_tax: bool = False,
-    replace_managed_rows: bool = True,
-) -> dict:
-    """Write a Ledgix tax plan into an ERPNext draft invoice.
+def _append_ordinary_tax_row(doc, plan: dict, accounts: dict, *, price_includes_tax: bool) -> None:
+    amount = plan["totals"]["sales_tax"]
+    if not amount:
+        return
+    if not price_includes_tax:
+        doc.append("taxes", _actual_tax_row("sales_tax", amount, accounts["sales_tax"]))
+        return
 
-    The adapter writes tax inputs only. It intentionally does not assign net_total,
-    total_taxes_and_charges or grand_total; ERPNext calculates those values.
-    """
+    taxable_lines = [line for line in plan["lines"] if line["sales_tax"]]
+    rates = {flt(line["tax_rate"]) for line in taxable_lines}
+    invalid = [
+        line
+        for line in taxable_lines
+        if not cint(line["price_includes_tax"]) or line["tax_basis"] != "Transaction Value"
+    ]
+    if len(rates) != 1 or invalid:
+        frappe.throw(
+            "Inclusive Ledgix tax adapter requires one homogeneous transaction-value sales-tax rate. "
+            "Mixed/Third-Schedule inclusive pricing needs explicit Item Tax Template design before cutover."
+        )
+    doc.append("taxes", _inclusive_sales_tax_row(next(iter(rates)), accounts["sales_tax"]))
 
+
+def apply_tax_plan(doc, *, price_includes_tax: bool = False, replace_managed_rows: bool = True) -> dict:
     if doc.doctype not in {"Sales Invoice", "POS Invoice"}:
         frappe.throw(f"Unsupported tax adapter target: {doc.doctype}")
     if cint(doc.docstatus) != 0:
@@ -390,25 +381,18 @@ def apply_tax_plan(
         kept = [row.as_dict() for row in (doc.get("taxes") or []) if not _managed_tax_row(row.get("description"))]
         doc.set("taxes", [])
         for row in kept:
-            for key in ("name", "owner", "creation", "modified", "modified_by", "parent", "parentfield", "parenttype", "idx", "docstatus"):
+            for key in (
+                "name", "owner", "creation", "modified", "modified_by", "parent",
+                "parentfield", "parenttype", "idx", "docstatus",
+            ):
                 row.pop(key, None)
             doc.append("taxes", row)
 
-    totals = plan["totals"]
-    ordinary_included = bool(price_includes_tax and totals["sales_tax"])
-    for component in FINANCIAL_COMPONENTS:
-        amount = totals[component]
-        if not amount:
-            continue
-        doc.append(
-            "taxes",
-            _tax_row(
-                component,
-                amount,
-                accounts[component],
-                included=ordinary_included if component == "sales_tax" else False,
-            ),
-        )
+    _append_ordinary_tax_row(doc, plan, accounts, price_includes_tax=price_includes_tax)
+    for component in ("extra_tax", "further_tax", "fed_payable"):
+        amount = plan["totals"][component]
+        if amount:
+            doc.append("taxes", _actual_tax_row(component, amount, accounts[component]))
 
     for row, snapshot in zip(doc.get("items") or [], plan["lines"], strict=True):
         _write_line_snapshot(row, snapshot)
@@ -421,25 +405,16 @@ def apply_tax_plan(
         "is_return": cint(doc.get("is_return")),
         "return_against": doc.get("return_against") or "",
         "price_includes_tax": plan["price_includes_tax"],
-        "tax_totals": totals,
+        "tax_totals": plan["totals"],
     }
     if doc.meta.has_field("custom_ledgix_fbr_snapshot_version"):
         doc.custom_ledgix_fbr_snapshot_version = SNAPSHOT_VERSION
     if doc.meta.has_field("custom_ledgix_fbr_snapshot_json"):
-        doc.custom_ledgix_fbr_snapshot_json = json.dumps(
-            header_snapshot, sort_keys=True, separators=(",", ":")
-        )
-
+        doc.custom_ledgix_fbr_snapshot_json = json.dumps(header_snapshot, sort_keys=True, separators=(",", ":"))
     return plan
 
 
 def build_fbr_tax_preview(doc) -> dict:
-    """Build the tax/classification portion of the future ERPNext FBR payload.
-
-    This is preview-only and never submits to FBR. Phase 9 will switch the real
-    FBR datasource after the wider migration is complete.
-    """
-
     items = []
     for row in doc.get("items") or []:
         raw = row.get("custom_ledgix_fbr_snapshot_json")
@@ -453,9 +428,11 @@ def build_fbr_tax_preview(doc) -> dict:
                 "quantity": abs(flt(snapshot.get("qty"))),
                 "totalValues": abs(_money(snapshot.get("erpnext_line_total"))),
                 "valueSalesExcludingST": abs(_money(snapshot.get("taxable_amount"))),
-                "fixedNotifiedValueOrRetailPrice": abs(_money(snapshot.get("notified_retail_price")))
-                if snapshot.get("tax_basis") == "Notified Retail Price"
-                else 0.0,
+                "fixedNotifiedValueOrRetailPrice": (
+                    abs(_money(snapshot.get("notified_retail_price")))
+                    if snapshot.get("tax_basis") == "Notified Retail Price"
+                    else 0.0
+                ),
                 "salesTaxApplicable": abs(_money(snapshot.get("sales_tax"))),
                 "salesTaxWithheldAtSource": abs(_money(snapshot.get("sales_tax_withheld_at_source"))),
                 "extraTax": abs(_money(snapshot.get("extra_tax"))),
