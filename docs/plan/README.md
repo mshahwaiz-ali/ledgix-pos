@@ -24,14 +24,19 @@ Current direction:
 - Phase 10: `erpnext_phase10_bi_reports_print.md`
 - Phase 11: `erpnext_phase11_workspace_product_simplification.md`
 - Phase 12: `erpnext_phase12_legacy_freeze_retirement.md`
+- Phase 13: `erpnext_phase13_client_profiles_saas.md`
 
 Use **`erpnext_core_migration_progress.md`** for exercised gate status and current handoff state.
 
+Production/client lifecycle runbook:
+
+- `docs/production/client_lifecycle.md`
+
 ## Current implementation status
 
-- Phase 0–11: complete on the guarded migration/integration workflow.
-- Phase 12: implemented; final guarded reconciliation/freeze gate pending.
-- Next after Phase 12: Phase 13 — Client Profiles and SaaS Productization.
+- Phase 0–12: complete on the guarded migration/integration workflow.
+- Phase 13: implemented; final guarded client-profile/SaaS gate pending.
+- After Phase 13: client acceptance, production provisioning and release hardening.
 
 ## Historical plan
 
