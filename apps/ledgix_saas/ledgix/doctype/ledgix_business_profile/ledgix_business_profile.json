@@ -17,7 +17,15 @@
   "enable_advanced_inventory",
   "enable_b2b",
   "enable_fbr",
-  "enable_accounting_workspace"
+  "enable_accounting_workspace",
+  "setup_section",
+  "setup_complete",
+  "setup_version",
+  "setup_company",
+  "setup_column",
+  "setup_completed_at",
+  "setup_completed_by",
+  "setup_snapshot_json"
  ],
  "fields": [
   {
@@ -105,6 +113,57 @@
    "fieldname": "enable_accounting_workspace",
    "fieldtype": "Check",
    "label": "Accounting Workspace"
+  },
+  {
+   "collapsible": 1,
+   "description": "Audit metadata from the Phase 13 client setup wizard. These fields reference configuration only and never replace ERPNext business masters.",
+   "fieldname": "setup_section",
+   "fieldtype": "Section Break",
+   "label": "Client Setup State"
+  },
+  {
+   "default": "0",
+   "fieldname": "setup_complete",
+   "fieldtype": "Check",
+   "label": "Setup Complete",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "setup_version",
+   "fieldtype": "Int",
+   "label": "Setup Version",
+   "read_only": 1
+  },
+  {
+   "fieldname": "setup_company",
+   "fieldtype": "Link",
+   "label": "Configured Company",
+   "options": "Company",
+   "read_only": 1
+  },
+  {
+   "fieldname": "setup_column",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "setup_completed_at",
+   "fieldtype": "Datetime",
+   "label": "Setup Completed At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "setup_completed_by",
+   "fieldtype": "Data",
+   "label": "Setup Completed By",
+   "read_only": 1
+  },
+  {
+   "fieldname": "setup_snapshot_json",
+   "fieldtype": "Long Text",
+   "label": "Setup Snapshot JSON",
+   "read_only": 1,
+   "hidden": 1
   }
  ],
  "issingle": 1,
