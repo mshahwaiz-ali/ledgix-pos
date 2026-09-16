@@ -74,12 +74,22 @@ The user-facing POS rewrite is intentionally not mixed into Phase 6.
 
 Existing RPC paths stay valid through `override_whitelisted_methods`:
 
-- existing B2B checkout requests route to the ERPNext selling adapter;
-- existing B2B customer-credit calls read ERPNext receivables;
+- B2B boot/customer refresh shows ERPNext receivable/credit values;
+- B2B catalog search keeps legacy item display IDs for the current page but replaces line pricing with ERPNext price resolution;
+- B2B preview and checkout use the ERPNext selling adapter;
+- existing B2B customer-credit/open-invoice APIs read ERPNext receivables while retaining transitional response aliases such as `sale`;
 - native Sales Invoice return requests route to ERPNext Credit Notes;
 - **Retail** calls delegate to the existing retail backend until Phase 8.
 
 The old module names are compatibility boundaries only. They are not financial authorities.
+
+### Current B2B print boundary
+
+The current POS page's post-sale print helper is hard-coded to `Ledgix Sale`. Passing a native Sales Invoice name to that helper would create a broken print URL.
+
+Phase 6 therefore returns the native Sales Invoice number but suppresses the legacy auto-print trigger for B2B (`print_deferred=true`). Native ERPNext Sales Invoice printing remains available immediately; branded Ledgix Sales Invoice print migration is intentionally handled in Phase 10.
+
+Retail thermal printing is unchanged in Phase 6.
 
 ## Payment behavior
 
@@ -100,6 +110,12 @@ One Payment Entry may contain multiple Sales Invoice reference rows.
 The original Payment Entry is cancelled with a preserved Ledgix cancellation/reversal reason. ERPNext restores invoice outstanding from its own ledger entries.
 
 Phase 6 does not create a second custom reversal-payment document.
+
+### Mode of Payment accounting requirement
+
+Every payment method used on the native cutover path must have a standard ERPNext `Mode of Payment Account` for the active Company. Ledgix does not invent a custom GL-account field or silently guess the account for Wallet/Card/Bank modes.
+
+The native service fails closed when the selected Mode of Payment has no Company default account. Client cutover therefore includes explicit native Mode-of-Payment account configuration.
 
 ## Returns and refunds
 
@@ -141,6 +157,12 @@ It reports:
 
 Legacy mutable Ledgix Customer receivable fields are not updated by the Phase 6 path.
 
+### Historical receivable cutover guard
+
+Phase 5 intentionally did not manufacture fake accounting documents for legacy customer balances. Before Phase 6 can be considered cutover-ready, `erpnext_phase6_receivables_preflight` compares every mapped Ledgix Customer's legacy net receivable balance with its ERPNext net balance.
+
+Any difference greater than the cutover tolerance is a blocker. The preflight does not invent opening invoices and does not silently discard history; the operator must explicitly migrate/reconcile the affected customer's opening AR or transaction history.
+
 ## FBR boundary
 
 Phase 6 reuses the already-proven immutable ERPNext invoice-line FBR snapshots from Phase 4.
@@ -162,6 +184,8 @@ Runner:
 bash scripts/run_erpnext_phase6_final_gate.sh
 ```
 
+Before the Phase 6 transaction matrix, the runner re-runs Phase 2–5 and requires the legacy/native receivables preflight to be green.
+
 The Phase 6 gate proves:
 
 1. B2B client-sale idempotency;
@@ -181,8 +205,6 @@ The Phase 6 gate proves:
 15. immutable FBR snapshot remains attached;
 16. no parallel Ledgix Sale/Payment/Return financial records are created;
 17. retail POS cutover is explicitly not claimed.
-
-The consolidated runner also re-runs Phase 2, 3, 4 and 5 gates before Phase 6 closes.
 
 ## Exit criterion
 
