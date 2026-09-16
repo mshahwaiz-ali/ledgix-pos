@@ -7,6 +7,8 @@ old module path until the UI cleanup phase, but these endpoints no longer write
 Ledgix Sale/Payment or derive receivables from the legacy ledger.
 """
 
+import frappe
+
 from ledgix_saas.api import selling
 
 
@@ -15,14 +17,14 @@ get_customer_open_invoices = selling.get_customer_open_invoices
 post_customer_payment = selling.post_customer_payment
 
 
-@selling.frappe.whitelist()
+@frappe.whitelist()
 def refresh_customer_credit(customer):
     # The ERPNext-backed view is authoritative and does not maintain a duplicate
     # cached Ledgix Customer balance, so refresh simply returns the live result.
     return selling.get_customer_credit(customer)
 
 
-@selling.frappe.whitelist()
+@frappe.whitelist()
 def reverse_customer_payment(payment, reason):
     result = selling.cancel_customer_payment(payment, reason)
     # Preserve the old response key for transitional UI callers while making it
