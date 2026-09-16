@@ -17,15 +17,13 @@ app_include_js = [
 	"/assets/ledgix_saas/js/ledgix_sidebar_brand.js",
 	"/assets/ledgix_saas/js/ledgix_fbr_native_center.js",
 	"/assets/ledgix_saas/js/ledgix_phase10_native_surfaces.js",
+	"/assets/ledgix_saas/js/ledgix_phase11_product_shell.js",
 ]
 web_include_css = ["/assets/ledgix_saas/css/ledgix_brand.css"]
 web_include_js = ["/assets/ledgix_saas/js/ledgix_brand.js"]
 
-role_home_page = {
-	"Ledgix Cashier": "ledgix-pos",
-	"Ledgix Manager": "Ledgix",
-	"Ledgix Admin": "Ledgix",
-}
+# Desk landing is profile-aware in Phase 11. A static role_home_page hook would
+# incorrectly send Invoice-only/B2B Cashiers into POS when POS is disabled.
 
 jinja = {
 	"methods": [
@@ -46,9 +44,13 @@ after_migrate = [
 	"ledgix_saas.setup.erpnext_phase9_extensions.after_migrate",
 	"ledgix_saas.setup.erpnext_phase10_print_formats.after_migrate",
 	"ledgix_saas.setup.fast_permissions.after_migrate",
+	"ledgix_saas.setup.erpnext_phase11_product_shell.after_migrate",
 ]
 
-extend_bootinfo = ["ledgix_saas.api.brand.extend_bootinfo"]
+extend_bootinfo = [
+	"ledgix_saas.api.brand.extend_bootinfo",
+	"ledgix_saas.api.product_shell.extend_bootinfo",
+]
 update_website_context = ["ledgix_saas.api.brand.update_website_context"]
 
 # Keep Ledgix screen/RPC contracts stable while ERPNext owns the business engine.
