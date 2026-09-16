@@ -7,6 +7,10 @@ from ledgix_saas.migration.erpnext_phase4_tax_parity_gate_v2 import _price_only_
 from ledgix_saas.setup import erpnext_tax_foundation as tax_foundation
 
 
+PHASE4_CUSTOMER_GROUP = "Individual"
+PHASE4_TERRITORY = "Pakistan"
+
+
 def _failed_case(name: str, exc: Exception) -> dict:
     trace = frappe.get_traceback().splitlines()
     return {
@@ -47,6 +51,60 @@ def _safe_return_pair(accounts: dict) -> tuple[dict, dict]:
         return full, partial
 
 
+def _ensure_valid_customer_fixture() -> str:
+    """Create/repair the Phase 4 customer with leaf ERPNext masters.
+
+    ERPNext rejects group nodes such as ``All Customer Groups`` for Customer.
+    Reuse the exact leaf Customer Group/Territory already proven by the Phase 2
+    Sales Invoice behavioral spike so Phase 4 tests tax behavior rather than an
+    invalid setup fixture.
+    """
+
+    if not frappe.db.exists("Customer Group", PHASE4_CUSTOMER_GROUP):
+        frappe.throw(f"Required leaf Customer Group {PHASE4_CUSTOMER_GROUP!r} is missing.")
+    if frappe.db.get_value("Customer Group", PHASE4_CUSTOMER_GROUP, "is_group"):
+        frappe.throw(f"Phase 4 Customer Group {PHASE4_CUSTOMER_GROUP!r} must be a leaf group.")
+
+    if not frappe.db.exists("Territory", PHASE4_TERRITORY):
+        frappe.throw(f"Required leaf Territory {PHASE4_TERRITORY!r} is missing.")
+    if frappe.db.get_value("Territory", PHASE4_TERRITORY, "is_group"):
+        frappe.throw(f"Phase 4 Territory {PHASE4_TERRITORY!r} must be a leaf territory.")
+
+    existing = frappe.db.get_value("Customer", {"customer_name": base.TEST_CUSTOMER}, "name")
+    if existing:
+        customer = frappe.get_doc("Customer", existing)
+        changed = False
+        desired = {
+            "customer_group": PHASE4_CUSTOMER_GROUP,
+            "territory": PHASE4_TERRITORY,
+            "custom_ledgix_buyer_registration_type": "Unregistered",
+            "custom_ledgix_buyer_province": "Sindh",
+            "custom_ledgix_buyer_fbr_address": "Phase 4 Integration Address",
+        }
+        for fieldname, value in desired.items():
+            if customer.get(fieldname) != value:
+                customer.set(fieldname, value)
+                changed = True
+        if changed:
+            customer.save(ignore_permissions=True)
+        return customer.name
+
+    customer = frappe.get_doc(
+        {
+            "doctype": "Customer",
+            "customer_name": base.TEST_CUSTOMER,
+            "customer_type": "Individual",
+            "customer_group": PHASE4_CUSTOMER_GROUP,
+            "territory": PHASE4_TERRITORY,
+            "custom_ledgix_buyer_registration_type": "Unregistered",
+            "custom_ledgix_buyer_province": "Sindh",
+            "custom_ledgix_buyer_fbr_address": "Phase 4 Integration Address",
+        }
+    )
+    customer.insert(ignore_permissions=True)
+    return customer.name
+
+
 def run() -> dict:
     """Run all Phase 4 cases even when one behavioral case fails.
 
@@ -60,7 +118,7 @@ def run() -> dict:
     frappe.set_user("Administrator")
 
     sync = tax_foundation.sync_all()
-    base._ensure_customer()
+    customer = _ensure_valid_customer_fixture()
     fixture_data = base._ensure_fixture_data()
     accounts = base._ensure_tax_accounts()
 
@@ -120,6 +178,9 @@ def run() -> dict:
         "site": frappe.local.site,
         "run_as": frappe.session.user,
         "company": base.TEST_COMPANY,
+        "customer": customer,
+        "customer_group": PHASE4_CUSTOMER_GROUP,
+        "territory": PHASE4_TERRITORY,
         "sync": sync,
         "fixture_data": fixture_data,
         "foundation": foundation,
