@@ -2,6 +2,9 @@
 set -Eeuo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+LEGACY_SECRETS_FILE="$SCRIPT_DIR/production.secrets.md"
+SAFE_SECRETS_FILE="${LEDGIX_PRODUCTION_SECRETS_FILE:-$HOME/.config/ledgix/production-sites.md}"
 
 # Production actions run in fresh non-login shells on EC2. Node is installed
 # with nvm, so explicitly load the selected Node version before invoking any
@@ -15,11 +18,14 @@ if [[ -s "$NVM_DIR/nvm.sh" ]]; then
 fi
 
 # Fresh bench init can leave sites/apps.txt without a trailing newline.
-# Normalize it before any production action so custom apps are never appended
-# as a malformed value such as "frappeledgix_saas".
 if [[ -f "$SCRIPT_DIR/repair_apps_txt.sh" ]]; then
   bash "$SCRIPT_DIR/repair_apps_txt.sh"
 fi
+
+fail() {
+  printf '[ERROR] %s\n' "$*" >&2
+  exit 1
+}
 
 find_action() {
   local args=("$@") i
@@ -30,6 +36,33 @@ find_action() {
     fi
   done
   printf '\n'
+}
+
+relocate_legacy_secrets() {
+  [[ -f "$LEGACY_SECRETS_FILE" ]] || return 0
+  local target_dir
+  target_dir="$(dirname "$SAFE_SECRETS_FILE")"
+  umask 077
+  mkdir -p "$target_dir"
+  chmod 700 "$target_dir" 2>/dev/null || true
+  if [[ -s "$SAFE_SECRETS_FILE" ]]; then
+    printf '\n' >>"$SAFE_SECRETS_FILE"
+  fi
+  cat "$LEGACY_SECRETS_FILE" >>"$SAFE_SECRETS_FILE"
+  chmod 600 "$SAFE_SECRETS_FILE"
+  rm -f "$LEGACY_SECRETS_FILE"
+  printf '[OK] production credentials moved outside the repository: %s\n' "$SAFE_SECRETS_FILE"
+}
+
+require_production_site() {
+  [[ -n "${PRODUCTION_SITE:-}" ]] || fail 'PRODUCTION_SITE is required for production site/full/backup/update actions'
+  [[ "$PRODUCTION_SITE" =~ ^[a-z0-9][a-z0-9.-]*$ ]] || fail "invalid PRODUCTION_SITE: $PRODUCTION_SITE"
+}
+
+require_deploy_target() {
+  require_production_site
+  [[ -n "${DEPLOY_RELEASE:-}" ]] || fail 'DEPLOY_RELEASE is required and must be a full commit SHA or immutable tag'
+  [[ -n "${PRODUCTION_URL:-}" ]] || fail 'PRODUCTION_URL is required for post-deploy online smoke checks'
 }
 
 run_ec2() {
@@ -72,7 +105,8 @@ run_safe_backup() {
     printf '[ERROR] missing backup helper: %s\n' "$SCRIPT_DIR/backup_safe.sh" >&2
     return 1
   }
-  bash "$SCRIPT_DIR/backup_safe.sh"
+  require_production_site
+  bash "$SCRIPT_DIR/backup_safe.sh" --site "$PRODUCTION_SITE"
 }
 
 run_safe_deploy_update() {
@@ -80,47 +114,47 @@ run_safe_deploy_update() {
     printf '[ERROR] missing deploy update helper: %s\n' "$SCRIPT_DIR/deploy_update_safe.sh" >&2
     return 1
   }
-  bash "$SCRIPT_DIR/deploy_update_safe.sh"
+  require_deploy_target
+  bash "$SCRIPT_DIR/deploy_update_safe.sh" \
+    --site "$PRODUCTION_SITE" \
+    --release "$DEPLOY_RELEASE" \
+    --url "$PRODUCTION_URL"
 }
 
 ACTION="$(find_action "$@")"
 
-# Ledgix demo/server convention: keep the Administrator password simple unless
-# the caller explicitly supplies FRAPPE_ADMIN_PASSWORD. This can be overridden
-# at any time for a hardened client deployment.
-if [[ "$ACTION" == "site" || "$ACTION" == "full" ]]; then
-  export FRAPPE_ADMIN_PASSWORD="${FRAPPE_ADMIN_PASSWORD:-admin}"
-fi
+# Clean up any credential file left by an interrupted older run before doing
+# anything else. New production credentials are retained outside the Git repo.
+relocate_legacy_secrets
 
-# Route site backup directly by explicit site name. This avoids Bash nameref
-# edge cases with dotted Frappe site names such as ledgix.local.
+case "$ACTION" in
+  site|full|backup) require_production_site ;;
+  deploy-update) require_deploy_target ;;
+esac
+
 if [[ "$ACTION" == "backup" ]]; then
   run_safe_backup
   exit $?
 fi
 
-# Production updates need an exact app mirror because V2 intentionally deletes
-# legacy pages/assets. A plain cp-over-existing-tree would leave removed files
-# behind, so deploy-update uses the dedicated exact-sync helper. The helper also
-# prepares/installs ERPNext before migrating an existing Ledgix site.
 if [[ "$ACTION" == "deploy-update" ]]; then
   run_safe_deploy_update
   exit $?
 fi
 
-# Site creation/install/migrate can need the bench Redis cache/queue even
-# before Supervisor has been configured. Ensure ERPNext exists on the bench
-# first; Ledgix required_apps then installs ERPNext before Ledgix on a fresh site.
+# The underlying site creator generates a strong Administrator password when
+# FRAPPE_ADMIN_PASSWORD is omitted. Never provide an implicit weak default here.
 if [[ "$ACTION" == "site" ]]; then
   ensure_erpnext_bench
-  trap stop_temp_redis EXIT
+  trap 'stop_temp_redis; relocate_legacy_secrets' EXIT
   start_temp_redis
   run_ec2 "$@"
-  exit $?
+  stop_temp_redis
+  relocate_legacy_secrets
+  trap - EXIT
+  exit 0
 fi
 
-# App builds can produce new hashed Frappe assets. ERPNext is a first-class
-# Ledgix dependency, so make it available and branch-aligned before building.
 if [[ "$ACTION" == "apps" ]]; then
   ensure_erpnext_bench
   run_ec2 "$@"
@@ -128,17 +162,11 @@ if [[ "$ACTION" == "apps" ]]; then
   exit $?
 fi
 
-# Production services are generated, patched, installed and validated in one
-# pass. This adds the nvm Node PATH for Socket.IO, normalizes the Ubuntu Nginx
-# access-log format, and verifies automatic boot startup.
 if [[ "$ACTION" == "services" ]]; then
   run_services
   exit $?
 fi
 
-# Keep the one-command full flow safe as well: run the phases in order, with
-# temporary bench Redis only around site creation. ERPNext is fetched after the
-# bench exists and before Ledgix assets/site installation.
 if [[ "$ACTION" == "full" ]]; then
   original=("$@")
   base=()
@@ -150,6 +178,7 @@ if [[ "$ACTION" == "full" ]]; then
     base+=("${original[$i]}")
   done
 
+  trap relocate_legacy_secrets EXIT
   run_ec2 "${base[@]}" --action preflight
   run_ec2 "${base[@]}" --action packages
   run_ec2 "${base[@]}" --action bench
@@ -157,20 +186,19 @@ if [[ "$ACTION" == "full" ]]; then
   run_ec2 "${base[@]}" --action apps
   post_build_refresh
 
-  trap stop_temp_redis EXIT
+  trap 'stop_temp_redis; relocate_legacy_secrets' EXIT
   start_temp_redis
   run_ec2 "${base[@]}" --action site
   stop_temp_redis
-  trap - EXIT
 
   run_services
   if [[ -n "${PRODUCTION_DOMAIN:-}" && -n "${LETSENCRYPT_EMAIL:-}" ]]; then
     run_ec2 "${base[@]}" --action ssl
   fi
   run_ec2 "${base[@]}" --action status
+  relocate_legacy_secrets
+  trap - EXIT
   exit 0
 fi
 
-# Invoke through bash so the helper itself does not need a tracked executable
-# bit. This keeps EC2 clones clean even when files were created via GitHub API.
 exec bash "$SCRIPT_DIR/ec2_setup.sh" "$@"
