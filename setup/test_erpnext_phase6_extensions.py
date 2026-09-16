@@ -43,6 +43,7 @@ class TestERPNextPhase6ExtensionContract(unittest.TestCase):
                 "custom_ledgix_client_return_id",
                 "custom_ledgix_exchange_reference",
                 "custom_ledgix_checkout_source",
+                "custom_ledgix_price_override_json",
             }.issubset(fieldnames)
         )
 
@@ -65,7 +66,7 @@ class TestERPNextPhase6ExtensionContract(unittest.TestCase):
         self.assertIn("ledgix_saas.api.selling_compat.get_pos_v2_boot", hooks)
         self.assertIn("ledgix_saas.api.selling_compat.search_pos_v2_items", hooks)
         self.assertIn("ledgix_saas.api.selling_compat.complete_pos_v2_sale", hooks)
-        self.assertIn("ledgix_saas.api.selling.preview_pos_v2_checkout_compat", hooks)
+        self.assertIn("ledgix_saas.api.selling_compat.preview_pos_v2_checkout", hooks)
         self.assertIn("ledgix_saas.api.selling.get_pos_v2_customer_context_compat", hooks)
         self.assertIn("ledgix_saas.api.selling.get_pos_return_context_compat", hooks)
         self.assertIn("ledgix_saas.api.selling.create_pos_return_compat", hooks)
@@ -105,6 +106,13 @@ class TestERPNextPhase6ExtensionContract(unittest.TestCase):
         self.assertIn('result["pricing_authority"] = "ERPNext"', source)
         self.assertIn('result["financial_authority"] = "ERPNext"', source)
         self.assertIn("erpnext_selling.get_customer_receivables(customer)", source)
+
+    def test_b2b_price_override_reason_and_audit_are_preserved(self):
+        source = (APP_ROOT / "api" / "selling_compat.py").read_text(encoding="utf-8")
+        self.assertIn("Authorized B2B price override requires a reason.", source)
+        self.assertIn("custom_ledgix_price_override_json", source)
+        self.assertIn("if not current:", source)
+        self.assertIn("_persist_override_audit(invoice, audit)", source)
 
     def test_legacy_b2b_module_is_only_a_compatibility_wrapper(self):
         source = (APP_ROOT / "api" / "v2_b2b.py").read_text(encoding="utf-8")
