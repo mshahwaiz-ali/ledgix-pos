@@ -8,10 +8,18 @@ SITE="${LEDGIX_LOCAL_SITE:-ledgix-erpnext.local}"
 STAGE_DIR=""
 LOCAL_ADMIN_PASSWORD="${LEDGIX_LOCAL_ADMIN_PASSWORD:-admin}"
 LOCAL_USER_PASSWORD="${LEDGIX_LOCAL_USER_PASSWORD:-admin@123}"
+TEMP_REDIS_STARTED=0
 
 info() { printf '[INFO] %s\n' "$*"; }
 ok() { printf '[OK] %s\n' "$*"; }
 fail() { printf '[FAIL] %s\n' "$*" >&2; exit 1; }
+
+cleanup() {
+  if [[ "$TEMP_REDIS_STARTED" -eq 1 && -f "$REPO_ROOT/deploy/bench_redis.sh" ]]; then
+    BENCH_DIR="$BENCH_DIR" bash "$REPO_ROOT/deploy/bench_redis.sh" stop || true
+  fi
+}
+trap cleanup EXIT
 
 usage() {
   cat <<'EOF'
@@ -121,9 +129,13 @@ bench_run --site "$SITE" restore "$STAGED_DATABASE" \
   --admin-password "$LOCAL_ADMIN_PASSWORD" \
   --force
 
+printf '\n===== LOCAL POST-RESTORE RUNTIME =====\n'
+BENCH_DIR="$BENCH_DIR" bash "$REPO_ROOT/deploy/bench_redis.sh" start
+TEMP_REDIS_STARTED=1
+
 printf '\n===== LOCAL LOGIN PASSWORDS =====\n'
 bench_run --site "$SITE" set-admin-password "$LOCAL_ADMIN_PASSWORD"
-USER_LIST="$(bench_run --site "$SITE" execute frappe.get_all --args '["User"]' --kwargs '{"filters":{"enabled":1},"pluck":"name"}')"
+USER_LIST="$(bench_run --site "$SITE" execute frappe.get_all --args '["User"]' --kwargs '{"filters":{"enabled":1},"pluck":"name"}' | tail -n 1)"
 printf '%s' "$USER_LIST" | "$BENCH_DIR/env/bin/python" -c 'import ast,json,sys
 raw=sys.stdin.read().strip()
 try:
