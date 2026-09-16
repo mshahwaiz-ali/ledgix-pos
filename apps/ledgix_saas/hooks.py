@@ -54,6 +54,7 @@ after_migrate = [
 	"ledgix_saas.setup.erpnext_extensions.after_migrate",
 	"ledgix_saas.setup.erpnext_tax_foundation.after_migrate",
 	"ledgix_saas.setup.erpnext_phase5_extensions.after_migrate",
+	"ledgix_saas.setup.erpnext_phase6_extensions.after_migrate",
 	"ledgix_saas.setup.fast_permissions.after_migrate",
 ]
 
@@ -65,10 +66,17 @@ update_website_context = [
 	"ledgix_saas.api.brand.update_website_context",
 ]
 
-# Keep the existing Tax Center API contract stable while routing FBR readiness
-# through the environment-aware preflight service.
+# Keep stable UI/API contracts while moving business authority phase-by-phase.
+# Retail POS remains on the legacy backend until Phase 8; the compatibility
+# functions delegate Retail calls back to the existing implementation while B2B
+# and native Sales Invoice returns use ERPNext authority from Phase 6 onward.
 override_whitelisted_methods = {
 	"ledgix_saas.api.tax_center.get_fbr_readiness": "ledgix_saas.api.fbr_preflight.get_fbr_readiness",
+	"ledgix_saas.api.v2_pos.complete_pos_v2_sale": "ledgix_saas.api.selling.complete_pos_v2_sale_compat",
+	"ledgix_saas.api.v2_pos.preview_pos_v2_checkout": "ledgix_saas.api.selling.preview_pos_v2_checkout_compat",
+	"ledgix_saas.api.v2_pos.get_pos_v2_customer_context": "ledgix_saas.api.selling.get_pos_v2_customer_context_compat",
+	"ledgix_saas.api.v2_returns.get_pos_v2_return_context": "ledgix_saas.api.selling.get_pos_return_context_compat",
+	"ledgix_saas.api.v2_returns.create_pos_v2_return": "ledgix_saas.api.selling.create_pos_return_compat",
 }
 
 # Production FBR recovery is intentionally fail-closed. An ambiguous POST/HTTP
