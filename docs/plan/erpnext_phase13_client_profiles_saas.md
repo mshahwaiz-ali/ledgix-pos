@@ -1,8 +1,10 @@
 # Phase 13 — Client Profiles and SaaS Productization
 
-**Status:** IMPLEMENTED, FINAL GUARDED GATE PENDING  
+**Status:** COMPLETE  
+**Closed:** 2026-09-16  
+**Final guarded migration gate HEAD:** `d813d26d16a11665522da98c7bd542a7cc09c53f`  
 **Authority:** `docs/plan/erpnext_core_migration_plan.md`  
-**Stack:** Frappe v15 + ERPNext v15 + `ledgix_saas`
+**Stack:** Frappe `15.113.4` + ERPNext `15.121.3` + `ledgix_saas`
 
 ---
 
@@ -31,8 +33,6 @@ The existing `Ledgix Business Profile` is the canonical product-profile configur
 - FBR enabled;
 - accounting workspace enabled.
 
-Use for invoice/e-invoicing clients that do not need stock operations.
-
 ### Small Retail
 
 - Sales Invoice + POS enabled;
@@ -40,8 +40,6 @@ Use for invoice/e-invoicing clients that do not need stock operations.
 - advanced inventory disabled;
 - B2B disabled;
 - FBR enabled.
-
-Use for normal small-shop POS deployments.
 
 ### Full Retail
 
@@ -59,8 +57,6 @@ Small Retail plus:
 - inventory/buying disabled by default;
 - FBR and accounting enabled.
 
-Use for invoice-led wholesale/account-customer businesses.
-
 ### Mixed
 
 - retail POS;
@@ -69,8 +65,6 @@ Use for invoice-led wholesale/account-customer businesses.
 - normal + advanced inventory;
 - FBR;
 - accounting.
-
-Use when one client runs both counter retail and account/B2B operations.
 
 ---
 
@@ -102,18 +96,9 @@ It may:
 - set safe site defaults for Company, Selling Price List and Warehouse when explicitly requested;
 - record setup audit metadata on `Ledgix Business Profile`.
 
-It does **not** create:
+It does **not** create Items, Customers, Suppliers, invoices, stock/accounting transactions, accounts or parallel Ledgix business masters/ledgers.
 
-- Items;
-- Customers;
-- Suppliers;
-- Sales Invoices;
-- Purchase Invoices;
-- Stock Entries;
-- Accounts;
-- parallel Ledgix business masters or ledgers.
-
-If required native ERPNext configuration is missing, setup fails closed and names the target configuration screen.
+Explicit invalid Price List/Warehouse/POS Profile selections fail closed. Blank optional selections may resolve safe existing site defaults.
 
 FBR token/seller activation is a separate compliance step. FBR Settings must exist, but live activation remains an explicit operator decision.
 
@@ -121,7 +106,7 @@ FBR token/seller activation is a separate compliance step. FBR Settings must exi
 
 ## 4. Setup audit metadata
 
-`Ledgix Business Profile` now records:
+`Ledgix Business Profile` records:
 
 - Setup Complete;
 - Setup Version;
@@ -149,7 +134,7 @@ Visibility:
 - Ledgix Manager: hidden;
 - Ledgix Cashier: hidden.
 
-Business Profile feature flags still curate navigation only. ERPNext/Frappe permissions remain authorization authority.
+Business Profile feature flags curate navigation only. ERPNext/Frappe permissions remain authorization authority.
 
 ---
 
@@ -170,67 +155,9 @@ It fails if:
 - ERPNext is not major version 15;
 - the Ledgix app dependency contract does not require ERPNext.
 
-This complements the repository-level `scripts/validate_erpnext_dependency.sh` and deployment helpers that install ERPNext before Ledgix migration.
-
 ---
 
-## 7. Client provisioning sequence
-
-A fresh client uses the same repository and app code:
-
-```text
-Provision Frappe/ERPNext v15 site
-        |
-        v
-Install ERPNext + Ledgix
-        |
-        v
-Migrate / build
-        |
-        v
-Run client dependency preflight
-        |
-        v
-Create/configure standard ERPNext Company + required native masters
-        |
-        v
-Open Ledgix Setup Wizard
-        |
-        v
-Select one Ledgix Business Profile
-        |
-        v
-Resolve readiness blockers
-        |
-        v
-Apply configuration
-        |
-        v
-Configure/validate FBR before live submission
-        |
-        v
-Client acceptance
-```
-
-No code branch, custom fork or per-client business engine is required.
-
----
-
-## 8. Phase 12 boundary
-
-Phase 13 never unfreezes or edits Phase 12 historical Ledgix business records.
-
-The final runtime gate verifies:
-
-- Phase 12 retirement state is Frozen;
-- the saved digest matches before Phase 13;
-- the digest still matches after applying setup configuration;
-- no ERPNext business-master counts change;
-- the original integration-site Business Profile is restored after the test.
-
----
-
-## 9. Final gate
+## 7. Final guarded gate evidence
 
 Runner:
 
@@ -238,33 +165,78 @@ Runner:
 bash scripts/run_erpnext_phase13_final_gate.sh ledgix-erpnext.local
 ```
 
-It runs:
+Final guarded migration gate ran against:
 
-1. repository/local CI;
-2. temporary Redis runtime;
-3. migrate;
-4. Ledgix asset build;
-5. installed-app check;
-6. client-site ERPNext dependency preflight;
-7. Phase 6–13 fail-closed static contracts;
-8. Phase 13 runtime profile matrix;
-9. configuration-only apply proof;
-10. business-master count proof;
-11. Phase 12 digest proof;
-12. integration-site profile restoration proof.
+- branch: `main`;
+- HEAD: `d813d26d16a11665522da98c7bd542a7cc09c53f`;
+- site: `ledgix-erpnext.local`;
+- Frappe: `15.113.4`;
+- ERPNext: `15.121.3`;
+- Ledgix app: `0.0.1` / `main`.
 
-Required final result:
+### Static evidence
+
+- repository validation passed;
+- shell/Python/JSON/TOML validation passed;
+- ERPNext v15 dependency contract passed;
+- secret scan passed;
+- fail-closed Phase 6–13 static suite passed **90/90**.
+
+### Runtime evidence
+
+All **6/6** Phase 13 cases passed:
+
+1. `site_dependency_and_setup_surface`;
+2. `five_client_profile_presets`;
+3. `profile_specific_readiness_requirements`;
+4. `apply_configuration_without_fork`;
+5. `configuration_creates_no_business_masters`;
+6. `integration_site_state_restored`.
+
+The gate proved:
+
+- all five presets on one codebase;
+- profile-specific readiness requirements;
+- Invoice + FBR Only does not require a POS Profile;
+- POS-enabled profiles require valid native POS configuration;
+- explicit invalid Selling Price List/Warehouse/POS Profile selections fail closed;
+- FBR Production activation remains a non-blocking setup warning and separate compliance decision;
+- one real Mixed-profile configuration application persisted setup audit metadata;
+- Product Shell reflected the applied profile for Admin and Cashier contexts;
+- configuration created **zero** new ERPNext business masters;
+- ERPNext business-master counts were unchanged before/after apply and restore;
+- Phase 12 retirement state remained frozen;
+- Phase 12 deterministic historical digest still matched;
+- original integration-site Business Profile/setup state was restored without error.
+
+Final machine verdict:
 
 - `phase13_complete=true`;
 - `migration_complete=true`;
-- no failed cases;
-- Phase 12 legacy snapshot still matches;
-- no ERPNext business-master counts changed.
+- `failed_cases=[]`;
+- `passed=true`.
 
 ---
 
-## 10. Exit gate
+## 8. Phase 12 boundary
 
-Phase 13 closes when a new client can be provisioned from the same Ledgix codebase by selecting configuration/presets and standard ERPNext setup only, with no code edits or custom fork.
+Phase 13 never unfreezes or edits Phase 12 historical Ledgix business records.
 
-After Phase 13 the ERPNext Core Migration is complete on the guarded integration workflow. Remaining work is release/client acceptance, production provisioning, operational monitoring and any later separately-approved physical deletion of historical legacy schema after the observation period.
+The final gate proved the Phase 12 frozen snapshot remained stable before, during and after configuration testing. No legacy schema or historical business rows were deleted.
+
+---
+
+## 9. Exit gate — PASSED
+
+Phase 13 is closed. A client can be represented through one Ledgix codebase using supported Business Profile configuration plus standard ERPNext setup, without a client-specific implementation fork or duplicate business engine.
+
+**ERPNext Core Migration Phases 0–13 are COMPLETE.**
+
+There is no Phase 14. The next workstream is:
+
+**Client Acceptance + Production Provisioning + Release Hardening**
+
+See:
+
+- `docs/plan/client_acceptance_production_release_hardening.md`;
+- `docs/production/client_lifecycle.md`.
