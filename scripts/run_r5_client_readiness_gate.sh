@@ -169,6 +169,7 @@ if [[ -f "$REPO_ROOT/deploy/repair_apps_txt.sh" ]]; then
   BENCH_DIR="$BENCH_DIR" bash "$REPO_ROOT/deploy/repair_apps_txt.sh"
 fi
 [[ -f "$DEST_APP/api/client_readiness.py" ]] || fail 'bench app is missing R5 readiness service after sync'
+[[ -f "$DEST_APP/setup/r5_local_setup_apply.py" ]] || fail 'bench app is missing guarded R5 local setup adapter after sync'
 pass 'bench Ledgix code matches repository source'
 
 printf '\n===== RUNTIME DEPENDENCIES =====\n'
@@ -194,8 +195,8 @@ if [[ "$APPLY_SETUP" -eq 1 && "$READY" != "1" ]]; then
     fail 'could not derive safe existing setup payload from readiness evidence'
   fi
 
-  bench_run --site "$SITE" execute ledgix_saas.api.client_setup.apply_client_setup --kwargs "$APPLY_KWARGS"
-  pass 'existing Business Profile and resolved ERPNext configuration applied; no business masters were created by R5'
+  bench_run --site "$SITE" execute ledgix_saas.setup.r5_local_setup_apply.apply_existing_ready_setup --kwargs "$APPLY_KWARGS"
+  pass 'existing Business Profile and resolved ERPNext configuration applied through guarded local adapter; no business masters were created by R5'
 
   printf '\n===== POST-APPLY CLIENT READINESS EVIDENCE =====\n'
   READINESS_OUTPUT="$(generate_readiness)"
