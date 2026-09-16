@@ -3,7 +3,7 @@ from __future__ import annotations
 import frappe
 
 from ledgix_saas.api.security import require_ledgix_manager_or_above
-from ledgix_saas.services import erpnext_reporting
+from ledgix_saas.services import erpnext_reporting_compat as erpnext_reporting
 
 
 @frappe.whitelist()
