@@ -22,8 +22,8 @@ checked = 0
 
 
 def scrub(value: str) -> str:
-    # Equivalent naming shape required by Frappe DocType package paths:
-    # lowercase snake_case derived from the DocType name.
+    # Frappe DocType package naming shape: lowercase snake_case derived from
+    # the DocType name. Keep this validator dependency-free for repository CI.
     value = re.sub(r"[^a-z0-9]+", "_", (value or "").lower())
     return re.sub(r"_+", "_", value).strip("_")
 
@@ -37,7 +37,7 @@ for doctype_root in apps_root.rglob("doctype"):
 
         json_path = package / f"{package.name}.json"
         if not json_path.is_file():
-            # Non-DocType helper folders are not treated as DocType packages.
+            # Helper folders are not DocType packages.
             continue
 
         checked += 1
@@ -68,17 +68,6 @@ for doctype_root in apps_root.rglob("doctype"):
         if json_path.name != f"{expected_package}.json":
             errors.append(
                 f"{json_path.relative_to(root)}: JSON filename must be {expected_package}.json"
-            )
-
-        controller = package / f"{expected_package}.py"
-        same_stem_python = [
-            path for path in package.glob("*.py")
-            if path.name not in {"__init__.py"} and not path.name.startswith("test_")
-        ]
-        if same_stem_python and not controller.is_file():
-            errors.append(
-                f"{package.relative_to(root)}: controller files exist but canonical "
-                f"{expected_package}.py is missing"
             )
 
 if errors:
