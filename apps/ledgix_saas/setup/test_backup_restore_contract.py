@@ -104,6 +104,11 @@ class TestBackupRestoreContract(unittest.TestCase):
         self.assertIn("backup_restore_static_complete=true", static_source)
         for token in (
             "run_backup_restore_static_gate.sh",
+            "EXACT LEDGIX BENCH APP SYNC",
+            'cp -a "$SRC_APP" "$TMP_APP"',
+            'pip install -e "$DEST_APP"',
+            '[[ -f "$DEST_APP/setup/recovery.py" ]]',
+            "RECOVERY TARGET APP CONTRACT",
             "backup_safe.sh",
             "restore_drill.sh",
             "backup_restore_runtime_complete=true",
