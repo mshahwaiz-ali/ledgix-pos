@@ -7,7 +7,10 @@ pricing authority. Retail remains delegated to the existing backend until the
 POS cutover phase.
 """
 
+import json
+
 import frappe
+from frappe import _
 from frappe.utils import flt, nowdate
 
 from ledgix_saas.api import selling
@@ -29,6 +32,44 @@ def _decorate_native_credit(result: dict, customer: str | None) -> dict:
     result["customer"] = customer_row
     result["financial_authority"] = "ERPNext"
     return result
+
+
+def _price_override_audit(cart_items) -> list[dict]:
+    rows = frappe.parse_json(cart_items) if isinstance(cart_items, str) else cart_items
+    audit = []
+    for raw in rows or []:
+        override = raw.get("override_rate")
+        if override in (None, ""):
+            continue
+        reason = str(raw.get("override_reason") or "").strip()
+        if not reason:
+            frappe.throw(_("Authorized B2B price override requires a reason."))
+        audit.append(
+            {
+                "item": raw.get("item") or raw.get("item_code"),
+                "override_rate": flt(override, 6),
+                "reason": reason,
+            }
+        )
+    return audit
+
+
+def _persist_override_audit(invoice: str | None, audit: list[dict]) -> None:
+    if not invoice or not audit:
+        return
+    payload = json.dumps(audit, sort_keys=True, separators=(",", ":"))
+    current = frappe.db.get_value(
+        "Sales Invoice", invoice, "custom_ledgix_price_override_json"
+    )
+    # An idempotent retry must never rewrite the original authorized audit trail.
+    if not current:
+        frappe.db.set_value(
+            "Sales Invoice",
+            invoice,
+            "custom_ledgix_price_override_json",
+            payload,
+            update_modified=False,
+        )
 
 
 @frappe.whitelist()
@@ -90,6 +131,27 @@ def search_pos_v2_items(
 
 
 @frappe.whitelist()
+def preview_pos_v2_checkout(
+    cart_items=None,
+    customer=None,
+    sale_channel="Retail",
+    price_list=None,
+    discount_type="Amount",
+    discount_value=0,
+):
+    if sale_channel == "B2B":
+        _price_override_audit(cart_items)
+    return selling.preview_pos_v2_checkout_compat(
+        cart_items=cart_items,
+        customer=customer,
+        sale_channel=sale_channel,
+        price_list=price_list,
+        discount_type=discount_type,
+        discount_value=discount_value,
+    )
+
+
+@frappe.whitelist()
 def complete_pos_v2_sale(
     cart_items=None,
     tenders=None,
@@ -100,6 +162,7 @@ def complete_pos_v2_sale(
     discount_value=0,
     client_sale_id=None,
 ):
+    audit = _price_override_audit(cart_items) if sale_channel == "B2B" else []
     result = selling.complete_pos_v2_sale_compat(
         cart_items=cart_items,
         tenders=tenders,
@@ -116,6 +179,7 @@ def complete_pos_v2_sale(
             or result.get("sale")
             or result.get("invoice_number")
         )
+        _persist_override_audit(invoice, audit)
         result["erpnext_sales_invoice"] = invoice
         # Current page only calls its legacy Ledgix Sale print helper when
         # `result.sale` is truthy. Full Sales Invoice print branding is Phase 10.
