@@ -13,8 +13,8 @@
 | R3 — Backup / restore / rollback | COMPLETE | checksum-valid full backup, staged recovery outside site, destructive same-site wipe/recreate/restore, DB identity preservation, Phase 12 digest verification |
 | R1 — Fresh-client provisioning | COMPLETE | R1+R4 static gate green; immutable fresh provisioner, isolated DB, ERPNext-before-Ledgix install, external generated credentials, preflight/smoke/evidence |
 | R4 — Multi-site SaaS | COMPLETE | R1+R4 static gate green; single-site updater refuses shared bench; shared updater requires exact full tenant cohort with per-site backup/maintenance/migrate/smoke/evidence |
-| R5 — Client onboarding/readiness | IMPLEMENTED — RUNTIME AUDIT PENDING | profile-aware ERPNext readiness, accounting/payment prerequisites, named Ledgix users/roles, FBR pre-activation safety, private evidence, setup-page visibility |
-| FBR Sandbox -> Production activation | NEXT AFTER R5 | follows R5 runtime readiness audit/closure |
+| R5 — Client onboarding/readiness | RUNTIME AUDITED — ONE SAFE SETUP APPLY REMAINS | all ERPNext/accounting/payment/user/FBR safety checks green except the unapplied Phase 13 setup marker; safe `--apply-setup` closure path added |
+| FBR Sandbox -> Production activation | NEXT AFTER R5 | seller identity is currently incomplete and Production remains safely disabled/unarmed |
 | Printing/devices/UAT | PLANNED | follows FBR activation |
 | Final production release gate | PLANNED | final workstream |
 
@@ -35,7 +35,7 @@ The local canonical site `ledgix-erpnext.local` completed the required destructi
 - ERPNext-native offline smoke passed with zero failures/warnings;
 - Phase 12 frozen snapshot and representative reads matched after restore.
 
-The run then attempted an online smoke even though `--url` had not been supplied. Root cause was shell-variable leakage: sourcing the local credentials file populated `SITE_URL`. The required R3 recovery proof had already passed before that optional step. The runtime gate now uses a dedicated `ONLINE_URL` variable, so online smoke is strictly opt-in and cannot be enabled by sourced site credentials.
+The run then attempted an online smoke even though `--url` had not been supplied. Root cause was shell-variable leakage: sourcing the local credentials file populated `SITE_URL`. The required R3 recovery proof had already passed before that optional step. The runtime gate now uses a dedicated online URL variable, so online smoke is strictly opt-in and cannot be enabled by sourced site credentials.
 
 R3 is closed; another destructive recovery cycle is not required solely to reproduce a final marker after that optional-smoke bug.
 
@@ -110,7 +110,7 @@ If one online smoke fails, the whole approved cohort is returned to maintenance.
 
 Clients that require different Ledgix application revisions must use separate benches/hosts, not client forks.
 
-## R5 implementation
+## R5 implementation and exercised audit
 
 R5 reuses the Phase 13 client setup evaluator instead of creating a second configuration engine.
 
@@ -139,20 +139,48 @@ Readiness evidence is written owner-only under:
 private/ledgix-readiness/
 ```
 
-`/app/ledgix-setup` now also displays an Operational onboarding section. R5 does not create ERPNext business masters, users, passwords or FBR tokens and does not activate FBR Production.
+`/app/ledgix-setup` also displays an Operational onboarding section. R5 does not create ERPNext business masters, users, passwords or FBR tokens and does not activate FBR Production.
+
+The first runtime audit on `ledgix-erpnext.local` at release hardening HEAD `96c411a56c29dcde31cda80b854b26b9d48b621d` returned:
+
+- `r5_static_complete=true`;
+- dependency preflight green;
+- offline smoke: 0 failures / 0 warnings;
+- Business Profile: `Small Retail`;
+- Company: `Ledgix ERPNext Integration`;
+- Selling Price List: `Standard Selling`;
+- Warehouse: `Stores - LEI`;
+- POS Profile: `Ledgix ERPNext POS Spike`;
+- Chart of Accounts/default receivable/default income/default payable/default expense: green;
+- 3 mapped Modes of Payment;
+- all Ledgix role definitions present;
+- one enabled named Ledgix user with Admin/Manager/Cashier role coverage;
+- FBR Settings installed;
+- FBR mode `Disabled` and Production posting safely unarmed;
+- private readiness evidence written;
+- exactly one blocking check: `client_setup_applied`;
+- current profile prerequisites themselves were green;
+- FBR seller identity and production release/backup evidence remained non-blocking warnings in local non-strict mode;
+- `r5_readiness_evaluation_complete=true` and `r5_client_ready=false`.
+
+Because the only blocker is the Phase 13 setup marker and all resolved prerequisites are already green, the runtime gate now supports explicit `--apply-setup`. That path is fail-closed: it runs only when `client_setup_applied` is the sole blocker, reuses the already-resolved profile/Company/Price List/Warehouse/POS Profile, calls the existing Phase 13 setup service, creates no missing business masters, and re-evaluates readiness immediately.
 
 ## Next gate
 
-Run the non-destructive local/integration readiness audit:
+Close the local/integration R5 configuration proof with:
 
 ```bash
-bash scripts/run_r5_client_readiness_gate.sh ledgix-erpnext.local
+bash scripts/run_r5_client_readiness_gate.sh ledgix-erpnext.local \
+  --apply-setup \
+  --require-ready
 ```
 
-Expected evaluator marker:
+Expected final markers:
 
 ```text
+r5_static_complete=true
+r5_client_ready=true
 r5_readiness_evaluation_complete=true
 ```
 
-The same run also reports either `r5_client_ready=true` or `r5_client_ready=false`. If blockers remain, resolve those actual client prerequisites and rerun with `--require-ready` only when the site is intended to represent an accepted client configuration.
+After that green result, R5 local/integration closure is complete and the next workstream is FBR Sandbox -> Production activation. Production acceptance will separately use strict release/backup evidence and the authorized `/app/ledgix-setup` operator flow.
