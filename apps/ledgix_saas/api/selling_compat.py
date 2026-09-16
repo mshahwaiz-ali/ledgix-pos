@@ -4,7 +4,8 @@ from __future__ import annotations
 
 Phase 6 keeps the UI contract stable but removes competing B2B financial and
 pricing authority. Retail remains delegated to the existing backend until the
-POS cutover phase.
+POS cutover phase. Public B2B write/preview routes pass through this module so
+manual rate overrides always require and preserve an audit reason.
 """
 
 import json
@@ -70,6 +71,112 @@ def _persist_override_audit(invoice: str | None, audit: list[dict]) -> None:
             payload,
             update_modified=False,
         )
+
+
+def _invoice_from_result(result: dict | None) -> str:
+    result = result or {}
+    invoice = result.get("invoice") or result.get("invoice_number") or result.get("sale")
+    if isinstance(invoice, dict):
+        invoice = invoice.get("invoice") or invoice.get("name")
+    return str(invoice or "")
+
+
+@frappe.whitelist()
+def preview_b2b_invoice(
+    customer,
+    items=None,
+    price_list=None,
+    discount_type="Amount",
+    discount_value=0,
+    due_date=None,
+):
+    _price_override_audit(items)
+    return selling.preview_b2b_invoice(
+        customer=customer,
+        items=items,
+        price_list=price_list,
+        discount_type=discount_type,
+        discount_value=discount_value,
+        due_date=due_date,
+    )
+
+
+@frappe.whitelist()
+def create_b2b_invoice(
+    customer,
+    items=None,
+    price_list=None,
+    client_sale_id=None,
+    discount_type="Amount",
+    discount_value=0,
+    due_date=None,
+):
+    audit = _price_override_audit(items)
+    result = selling.create_b2b_invoice(
+        customer=customer,
+        items=items,
+        price_list=price_list,
+        client_sale_id=client_sale_id,
+        discount_type=discount_type,
+        discount_value=discount_value,
+        due_date=due_date,
+    )
+    _persist_override_audit(_invoice_from_result(result), audit)
+    return result
+
+
+@frappe.whitelist()
+def complete_b2b_sale(
+    customer,
+    cart_items=None,
+    tenders=None,
+    price_list=None,
+    client_sale_id=None,
+    discount_type="Amount",
+    discount_value=0,
+    due_date=None,
+):
+    audit = _price_override_audit(cart_items)
+    result = selling.complete_b2b_sale(
+        customer=customer,
+        cart_items=cart_items,
+        tenders=tenders,
+        price_list=price_list,
+        client_sale_id=client_sale_id,
+        discount_type=discount_type,
+        discount_value=discount_value,
+        due_date=due_date,
+    )
+    _persist_override_audit(_invoice_from_result(result), audit)
+    return result
+
+
+@frappe.whitelist()
+def create_exchange(
+    sales_invoice,
+    return_items=None,
+    replacement_items=None,
+    reason=None,
+    exchange_reference=None,
+    client_return_id=None,
+    client_sale_id=None,
+    price_list=None,
+):
+    audit = _price_override_audit(replacement_items)
+    result = selling.create_exchange(
+        sales_invoice=sales_invoice,
+        return_items=return_items,
+        replacement_items=replacement_items,
+        reason=reason,
+        exchange_reference=exchange_reference,
+        client_return_id=client_return_id,
+        client_sale_id=client_sale_id,
+        price_list=price_list,
+    )
+    replacement = (result or {}).get("replacement_invoice") or {}
+    invoice = replacement.get("invoice") if isinstance(replacement, dict) else replacement
+    _persist_override_audit(str(invoice or ""), audit)
+    return result
 
 
 @frappe.whitelist()
@@ -174,11 +281,7 @@ def complete_pos_v2_sale(
         client_sale_id=client_sale_id,
     )
     if sale_channel == "B2B" and result.get("financial_authority") == "ERPNext":
-        invoice = (
-            result.get("invoice")
-            or result.get("sale")
-            or result.get("invoice_number")
-        )
+        invoice = _invoice_from_result(result)
         _persist_override_audit(invoice, audit)
         result["erpnext_sales_invoice"] = invoice
         # Current page only calls its legacy Ledgix Sale print helper when
