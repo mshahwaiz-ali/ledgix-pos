@@ -104,6 +104,15 @@ CUSTOM_FIELDS = {
 }
 
 
+def schema_ready() -> bool:
+    for doctype, fields in CUSTOM_FIELDS.items():
+        meta = frappe.get_meta(doctype)
+        for field in fields:
+            if not meta.has_field(field["fieldname"]):
+                return False
+    return True
+
+
 def sync_custom_fields() -> None:
     create_custom_fields(CUSTOM_FIELDS, update=True)
     frappe.clear_cache(doctype="Sales Invoice")
@@ -111,12 +120,17 @@ def sync_custom_fields() -> None:
 
 
 def sync_all() -> dict:
-    sync_custom_fields()
+    already_ready = schema_ready()
+    if not already_ready:
+        sync_custom_fields()
     return {
         "sales_invoice_fields": len(CUSTOM_FIELDS["Sales Invoice"]),
         "payment_entry_fields": len(CUSTOM_FIELDS["Payment Entry"]),
+        "already_ready": already_ready,
     }
 
 
 def after_migrate() -> None:
-    sync_all()
+    # Migrate is the authoritative place for schema installation/update. Force
+    # update here so changed labels/options/read-only flags are applied too.
+    sync_custom_fields()
