@@ -50,7 +50,7 @@ class TestBackupRestoreContract(unittest.TestCase):
         for forbidden in (" bench restore ", " migrate", "set-maintenance-mode"):
             self.assertNotIn(forbidden, source)
 
-    def test_restore_drill_is_non_production_fail_closed(self):
+    def test_production_restore_drill_stays_non_production_fail_closed(self):
         path = DEPLOY / "restore_drill.sh"
         self.assertTrue(path.exists())
         source = path.read_text(encoding="utf-8")
@@ -93,34 +93,67 @@ class TestBackupRestoreContract(unittest.TestCase):
         self.assertNotIn("freeze_legacy_history", source)
         self.assertNotIn("frappe.db.commit", source)
 
-    def test_r3_gates_are_consolidated(self):
-        static_path = SCRIPTS / "run_backup_restore_static_gate.sh"
-        runtime_path = SCRIPTS / "run_backup_restore_runtime_gate.sh"
-        self.assertTrue(static_path.exists())
-        self.assertTrue(runtime_path.exists())
-        static_source = static_path.read_text(encoding="utf-8")
-        runtime_source = runtime_path.read_text(encoding="utf-8")
-        self.assertIn("test_backup_restore_contract", static_source)
-        self.assertIn("backup_restore_static_complete=true", static_source)
+    def test_site_setup_is_standard_single_site_ledgix_stack(self):
+        source = (REPO_ROOT / "site_setup.sh").read_text(encoding="utf-8")
         for token in (
-            "run_backup_restore_static_gate.sh",
-            "EXACT LEDGIX BENCH APP SYNC",
-            'cp -a "$SRC_APP" "$TMP_APP"',
-            'pip install -e "$DEST_APP"',
-            '[[ -f "$DEST_APP/setup/recovery.py" ]]',
-            "RECOVERY TARGET APP CONTRACT",
-            "backup_safe.sh",
-            "restore_drill.sh",
-            "backup_restore_runtime_complete=true",
-            ".ledgix-non-production-recovery-target",
+            "ledgix-erpnext.local",
+            "Frappe -> ERPNext -> ledgix_saas",
+            "install_standard_stack",
+            "ensure_erpnext.sh",
+            "install-app ledgix_saas",
+            "--reset",
+            'RESET $SITE',
+            "single-site local standard enforced",
+            "multiple active local sites found",
+            "bench Ledgix app now mirrors repository source exactly",
         ):
-            self.assertIn(token, runtime_source)
+            self.assertIn(token, source)
+        for forbidden in (
+            "Select apps for this site",
+            "Choose app numbers",
+            "select_apps",
+            "Create another site?",
+        ):
+            self.assertNotIn(forbidden, source)
+
+    def test_runtime_gate_is_single_site_destructive_restore_proof(self):
+        path = SCRIPTS / "run_backup_restore_runtime_gate.sh"
+        self.assertTrue(path.exists())
+        source = path.read_text(encoding="utf-8")
+        for token in (
+            "RESET AND RESTORE $SITE",
+            "local-only",
+            "PRE-RESET PHASE 12 / READ PROOF",
+            "VERIFIED SOURCE RECOVERY POINT",
+            "STAGE RECOVERY SET OUTSIDE SITE",
+            "DESTRUCTIVE SINGLE-SITE RESET",
+            'site_setup.sh"',
+            '--confirm "RESET $SITE"',
+            "source encryption key merged without copying old DB credentials",
+            "--admin-password \"$ADMIN_PASSWORD\"",
+            "single active local site enforced",
+            "ledgix_saas.setup.recovery.verify_recovery_state",
+            "backup_restore_runtime_complete=true",
+        ):
+            self.assertIn(token, source)
+        self.assertNotIn("ledgix-recovery.local", source)
+        self.assertNotIn("SOURCE_SITE TARGET_SITE", source)
+
+    def test_r3_static_gate_is_consolidated(self):
+        static_path = SCRIPTS / "run_backup_restore_static_gate.sh"
+        self.assertTrue(static_path.exists())
+        source = static_path.read_text(encoding="utf-8")
+        self.assertIn("ci_local.sh", source)
+        self.assertIn("test_backup_restore_contract", source)
+        self.assertIn("backup_restore_static_complete=true", source)
 
     def test_backup_restore_runbook_exists(self):
         path = REPO_ROOT / "docs" / "production" / "backup_restore_rollback.md"
         self.assertTrue(path.exists())
         source = path.read_text(encoding="utf-8").lower()
         for token in (
+            "single canonical local site",
+            "in-place local recovery drill",
             "non-production",
             "checksum",
             "site_config",
@@ -129,6 +162,7 @@ class TestBackupRestoreContract(unittest.TestCase):
             "rollback",
             "off-host",
             "matching release",
+            "frappe -> erpnext -> ledgix",
         ):
             self.assertIn(token, source)
 
