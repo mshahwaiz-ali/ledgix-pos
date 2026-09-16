@@ -44,17 +44,19 @@ Production hardening runbooks:
 - `docs/production/fresh_client_provisioning.md`
 - `docs/production/multi_site_saas.md`
 - `docs/production/client_onboarding_readiness.md`
+- `docs/production/fbr_sandbox_production_activation.md`
 
 ## Current implementation status
 
 - **ERPNext Core Migration Phases 0–13: COMPLETE** on the guarded integration workflow.
 - Phase 13 final guarded gate passed at migration implementation HEAD `d813d26d16a11665522da98c7bd542a7cc09c53f` with `phase13_complete=true` and `migration_complete=true`.
-- Phase 12 frozen historical digest remained stable and the integration-site profile/setup state was restored after the gate.
+- Phase 12 frozen historical digest remained stable through destructive recovery proof.
 - R0 + R2 production release hardening are complete.
-- R3 destructive backup/restore proof is complete; the same canonical local site was wiped, recreated, restored and its Phase 12 frozen digest reverified.
-- R1 fresh-client provisioning and R4 multi-site SaaS hardening are complete; consolidated static evidence returned `r1_r4_static_complete=true` on `f54bb336ba17e8e046bc4b46e9a6d22f1466a903`.
-- R5 client onboarding/readiness is implemented. Next gate is `scripts/run_r5_client_readiness_gate.sh ledgix-erpnext.local`; it evaluates the current integration site's real blockers without deleting/resetting business data.
-- FBR Sandbox -> Production activation follows R5 closure.
+- R3 destructive backup/restore proof is complete.
+- R1 fresh-client provisioning and R4 multi-site SaaS hardening are complete; `r1_r4_static_complete=true`.
+- R5 client onboarding/readiness is complete on the canonical local integration site; the guarded existing-profile apply finished with `r5_client_ready=true` and `r5_readiness_evaluation_complete=true`.
+- **Active workstream:** FBR Sandbox -> Production activation. Readiness/evidence tooling is implemented; real client seller identity/tokens and real Sandbox validate/POST proof must be supplied before Production can proceed.
+- Printing/devices/profile UAT follows FBR proof/activation.
 - Do not create another ERPNext Core Migration phase. Remaining work is release/operations hardening over the completed architecture.
 
 ## Historical plan
