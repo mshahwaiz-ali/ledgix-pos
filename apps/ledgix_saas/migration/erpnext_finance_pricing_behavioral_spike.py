@@ -11,11 +11,11 @@ PRICING_ITEM = "LEDGIX-PRICING-SPIKE"
 PRICING_RATE = 1000.0
 PRICING_DISCOUNT = 10.0
 PRICING_RULE_TITLE = "Ledgix ERPNext Pricing Rule Spike"
-PARTIAL_INVOICE_MARKER = "LEDGIX-ERPNEXT-PARTIAL-PAYMENT-SPIKE-V1"
-PARTIAL_PAYMENT_MARKER = "LEDGIX-ERPNEXT-PARTIAL-PAYMENT-PE-V1"
-UNALLOCATED_PAYMENT_MARKER = "LEDGIX-ERPNEXT-UNALLOCATED-PAYMENT-V1"
-PARTIAL_RETURN_SOURCE_MARKER = "LEDGIX-ERPNEXT-PARTIAL-RETURN-SOURCE-V1"
-PARTIAL_RETURN_MARKER = "LEDGIX-ERPNEXT-PARTIAL-RETURN-V1"
+PARTIAL_INVOICE_MARKER = "LEDGIX-ERPNEXT-PARTIAL-PAYMENT-SPIKE-V2"
+PARTIAL_PAYMENT_MARKER = "LEDGIX-ERPNEXT-PARTIAL-PAYMENT-PE-V2"
+UNALLOCATED_PAYMENT_MARKER = "LEDGIX-ERPNEXT-UNALLOCATED-PAYMENT-V2"
+PARTIAL_RETURN_SOURCE_MARKER = "LEDGIX-ERPNEXT-PARTIAL-RETURN-SOURCE-V2"
+PARTIAL_RETURN_MARKER = "LEDGIX-ERPNEXT-PARTIAL-RETURN-V2"
 PARTIAL_INVOICE_QTY = 2.0
 PARTIAL_PAYMENT_AMOUNT = 1000.0
 UNALLOCATED_AMOUNT = 300.0
@@ -213,6 +213,7 @@ def _ensure_partial_payment(invoice, cash_account: str):
     payment = get_payment_entry("Sales Invoice", invoice.name)
     payment.mode_of_payment = "Cash"
     payment.paid_to = cash_account
+    payment.custom_remarks = 1
     payment.remarks = PARTIAL_PAYMENT_MARKER
     payment.paid_amount = PARTIAL_PAYMENT_AMOUNT
     payment.received_amount = PARTIAL_PAYMENT_AMOUNT
@@ -236,6 +237,7 @@ def _ensure_unallocated_payment(invoice, cash_account: str):
     payment = get_payment_entry("Sales Invoice", invoice.name)
     payment.mode_of_payment = "Cash"
     payment.paid_to = cash_account
+    payment.custom_remarks = 1
     payment.remarks = UNALLOCATED_PAYMENT_MARKER
     payment.set("references", [])
     payment.paid_amount = UNALLOCATED_AMOUNT
