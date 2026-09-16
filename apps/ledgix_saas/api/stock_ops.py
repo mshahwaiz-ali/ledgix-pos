@@ -1,202 +1,156 @@
+from __future__ import annotations
+
 import frappe
-from frappe.utils import flt, now_datetime
+from frappe.utils import flt
 
 from ledgix_saas.api.security import require_ledgix_manager_or_above
-from ledgix_saas.api.stock_identity import (
-    create_stock_lot_from_manual_entry,
-    create_stock_serials_for_manual_entry,
-    is_lot_based_item,
-    is_serial_based_item,
-    reduce_lots_fifo_for_manual_out,
-)
+from ledgix_saas.services import erpnext_buying_inventory
 
 
-def _movement_note(source_label, note=None):
-    base = (source_label or "").strip()
-    extra = (note or "").strip()
-    if base and extra:
-        return f"{base} — {extra}"
-    return base or extra
+def _serial_list(serial_numbers) -> list[str]:
+    if isinstance(serial_numbers, str):
+        raw = serial_numbers.replace(",", "\n").splitlines()
+    else:
+        raw = serial_numbers or []
+    return [str(value).strip() for value in raw if str(value).strip()]
 
 
-def apply_movement_source(movement, movement_source):
-    stock_meta = frappe.get_meta("Ledgix Stock Movement")
-    if stock_meta.has_field("movement_source") and movement_source:
-        movement.movement_source = movement_source
+def _native_batch_for_manual_in(item_code: str, batch_no: str | None) -> str | None:
+    if not frappe.db.get_value("Item", item_code, "has_batch_no"):
+        return None
+    batch_no = str(batch_no or "").strip()
+    if not batch_no:
+        batch_no = f"LEDGIX-MANUAL-{frappe.generate_hash(length=10).upper()}"
+    return erpnext_buying_inventory.ensure_batch(item_code, batch_no)
 
 
-def _set_movement_fields(movement, movement_source, reference_note):
-    stock_meta = frappe.get_meta("Ledgix Stock Movement")
-    if stock_meta.has_field("movement_source") and movement_source:
-        movement.movement_source = movement_source
-    if stock_meta.has_field("reference_note") and reference_note:
-        movement.reference_note = reference_note
-
-
-def _current_cost(item):
-    return max(flt(frappe.db.get_value("Ledgix Item", item, "cost_price") or 0), 0)
-
-
-def _create_submitted_movement(
-    item,
-    movement_type,
-    qty,
-    movement_source,
-    reference_note,
-    valuation_rate=None,
-):
-    if not frappe.db.exists("Ledgix Item", item):
-        frappe.throw(f"Item {item} does not exist.")
-
-    qty = flt(qty)
-    if qty <= 0:
-        frappe.throw("Movement quantity must be greater than zero.")
-
-    movement = frappe.new_doc("Ledgix Stock Movement")
-    movement.item = item
-    movement.movement_type = movement_type
-    movement.quantity = qty
-    movement.valuation_rate = _current_cost(item) if valuation_rate is None else max(flt(valuation_rate), 0)
-    movement.movement_date = now_datetime()
-    movement.reference_doctype = "Ledgix Item"
-    movement.reference_name = item
-    _set_movement_fields(movement, movement_source, reference_note)
-    movement.insert(ignore_permissions=True)
-    movement.submit()
-    return movement
+def _valuation_rate(item_input: str, item_code: str, warehouse: str, requested=None) -> float:
+    if requested not in (None, ""):
+        return max(flt(requested), 0)
+    snapshot = erpnext_buying_inventory.stock_snapshot(item_code, warehouse=warehouse)
+    if flt(snapshot.get("valuation_rate")) > 0:
+        return flt(snapshot["valuation_rate"])
+    if frappe.db.exists("Ledgix Item", item_input):
+        return max(flt(frappe.db.get_value("Ledgix Item", item_input, "cost_price")), 0)
+    return 0
 
 
 @frappe.whitelist()
-def manual_stock_entry(item, qty_in=0, qty_out=0, serial_numbers=None, note=None):
+def manual_stock_entry(
+    item,
+    qty_in=0,
+    qty_out=0,
+    serial_numbers=None,
+    note=None,
+    warehouse=None,
+    batch_no=None,
+    valuation_rate=None,
+    client_stock_id=None,
+):
+    """Create a native ERPNext Stock Entry while preserving the old RPC shape."""
+
     require_ledgix_manager_or_above()
+    item_input = str(item or "").strip()
     qty_in = flt(qty_in)
     qty_out = flt(qty_out)
     note = str(note or "").strip()
-
-    if not item:
+    if not item_input:
         frappe.throw("Item is required.")
     if not note:
         frappe.throw("Reason / Note is required for a manual stock adjustment.")
-
     if qty_in <= 0 and qty_out <= 0:
         frappe.throw("Enter Add Stock or Remove Stock quantity.")
-
     if qty_in > 0 and qty_out > 0:
         frappe.throw("Enter either Add Stock or Remove Stock, not both at the same time.")
 
-    if is_serial_based_item(item) and qty_out > 0:
-        frappe.throw(
-            "Serial Based items cannot be reduced from the item form. Use Sale or Sales Return instead."
-        )
+    item_code = erpnext_buying_inventory._resolve_item(item_input)
+    company = erpnext_buying_inventory._company(None)
+    warehouse = erpnext_buying_inventory._resolve_warehouse(warehouse, company)
+    has_serial = bool(frappe.db.get_value("Item", item_code, "has_serial_no"))
+    has_batch = bool(frappe.db.get_value("Item", item_code, "has_batch_no"))
+    serials = _serial_list(serial_numbers)
 
+    if has_serial and qty_out > 0:
+        frappe.throw(
+            "Serial-tracked items cannot be reduced from this compatibility action. "
+            "Use the native Stock Entry flow and select the exact ERPNext Serial Nos."
+        )
+    if has_serial and qty_in > 0 and len(serials) != int(qty_in):
+        frappe.throw("Serial number count must match Add Stock quantity.")
+    if has_batch and qty_out > 0 and not str(batch_no or "").strip():
+        frappe.throw("Batch No is required when removing a batch-tracked item.")
+
+    client_stock_id = str(client_stock_id or "").strip() or f"MANUAL-{frappe.generate_hash(length=16)}"
     created = []
-    lot_name = None
-    serial_count = 0
+    native_batch = None
 
     if qty_in > 0:
-        result = _apply_stock_in(
-            item=item,
+        native_batch = _native_batch_for_manual_in(item_code, batch_no)
+        entry = erpnext_buying_inventory.create_stock_entry(
+            item=item_code,
             qty=qty_in,
-            serial_numbers=serial_numbers,
-            movement_source="Manual IN",
-            source_label="Manual IN",
-            note=note,
+            purpose="Material Receipt",
+            company=company,
+            target_warehouse=warehouse,
+            valuation_rate=_valuation_rate(item_input, item_code, warehouse, valuation_rate),
+            batch_no=native_batch,
+            serial_numbers=serials,
+            client_stock_id=client_stock_id,
+            source="Ledgix Manual IN",
+            remarks=note,
         )
-        created.append(result.get("movement_name"))
-        lot_name = result.get("lot_name")
-        serial_count = result.get("serial_count") or 0
+        created.append(entry.name)
 
     if qty_out > 0:
-        movement_name = _apply_stock_out(
-            item=item,
+        entry = erpnext_buying_inventory.create_stock_entry(
+            item=item_code,
             qty=qty_out,
-            movement_source="Manual OUT",
-            source_label="Manual OUT",
-            note=note,
+            purpose="Material Issue",
+            company=company,
+            source_warehouse=warehouse,
+            batch_no=str(batch_no or "").strip() or None,
+            client_stock_id=client_stock_id,
+            source="Ledgix Manual OUT",
+            remarks=note,
         )
-        created.append(movement_name)
+        created.append(entry.name)
 
-    current_stock = frappe.db.get_value("Ledgix Item", item, "current_stock")
-
+    snapshot = erpnext_buying_inventory.stock_snapshot(item_code, warehouse=warehouse, company=company)
     return {
-        "item": item,
+        "item": item_input,
+        "erpnext_item": item_code,
         "movements": created,
-        "lot_name": lot_name,
-        "serial_count": serial_count,
-        "current_stock": flt(current_stock),
+        "lot_name": native_batch,
+        "batch_no": native_batch,
+        "serial_count": len(serials),
+        "current_stock": flt(snapshot["actual_qty"]),
+        "warehouse": warehouse,
+        "authority": "ERPNext Stock Entry + Stock Ledger Entry",
     }
 
 
 @frappe.whitelist()
-def record_opening_stock(item, qty, serial_numbers=None):
+def record_opening_stock(
+    item,
+    qty,
+    serial_numbers=None,
+    warehouse=None,
+    batch_no=None,
+    valuation_rate=None,
+    client_stock_id=None,
+):
     require_ledgix_manager_or_above()
-    if flt(qty) <= 0:
+    qty = flt(qty)
+    if qty <= 0:
         return None
-
-    result = _apply_stock_in(
+    result = manual_stock_entry(
         item=item,
-        qty=flt(qty),
+        qty_in=qty,
         serial_numbers=serial_numbers,
-        movement_source="Opening",
-        source_label="Opening Stock",
-        note=None,
+        note="Opening Stock",
+        warehouse=warehouse,
+        batch_no=batch_no,
+        valuation_rate=valuation_rate,
+        client_stock_id=client_stock_id or f"OPENING-{frappe.generate_hash(length=16)}",
     )
-    return result.get("movement_name")
-
-
-def _apply_stock_in(item, qty, serial_numbers, movement_source, source_label, note=None):
-    qty = flt(qty)
-    reference_note = _movement_note(source_label, note)
-    lot_name = None
-    serial_count = 0
-    cost_rate = _current_cost(item)
-
-    if is_serial_based_item(item):
-        serial_count = create_stock_serials_for_manual_entry(
-            item=item,
-            qty=qty,
-            serial_numbers=serial_numbers,
-            cost_rate=cost_rate,
-        )
-
-    movement = _create_submitted_movement(
-        item=item,
-        movement_type="IN",
-        qty=qty,
-        movement_source=movement_source,
-        reference_note=reference_note,
-        valuation_rate=cost_rate,
-    )
-
-    if is_lot_based_item(item):
-        lot_name = create_stock_lot_from_manual_entry(
-            item=item,
-            qty=qty,
-            rate=cost_rate,
-            movement_name=movement.name,
-        )
-
-    return {
-        "movement_name": movement.name,
-        "lot_name": lot_name,
-        "serial_count": serial_count,
-    }
-
-
-def _apply_stock_out(item, qty, movement_source, source_label, note=None):
-    qty = flt(qty)
-    reference_note = _movement_note(source_label, note)
-    cost_rate = _current_cost(item)
-
-    if is_lot_based_item(item):
-        reduce_lots_fifo_for_manual_out(item, qty)
-
-    movement = _create_submitted_movement(
-        item=item,
-        movement_type="OUT",
-        qty=qty,
-        movement_source=movement_source,
-        reference_note=reference_note,
-        valuation_rate=cost_rate,
-    )
-    return movement.name
+    return (result.get("movements") or [None])[0]
