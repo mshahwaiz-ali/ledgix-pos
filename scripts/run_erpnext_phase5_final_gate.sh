@@ -109,7 +109,7 @@ PY
 echo
 echo "===== PHASE 4 TAX REGRESSION ====="
 bench --site "$SITE" execute \
-  ledgix_saas.migration.erpnext_phase4_tax_parity_gate_v3.run \
+  ledgix_saas.migration.erpnext_phase4_tax_parity_runtime.run \
   | tee "$PHASE4_RESULT"
 
 python3 - "$PHASE4_RESULT" <<'PY'
@@ -137,7 +137,7 @@ PY
 echo
 echo "===== PHASE 5 MASTER MIGRATION / RECONCILIATION ====="
 bench --site "$SITE" execute \
-  ledgix_saas.migration.erpnext_phase5_master_migration_gate_v3.run \
+  ledgix_saas.migration.erpnext_phase5_master_migration_gate_runtime.run \
   | tee "$PHASE5_RESULT"
 
 echo
