@@ -70,6 +70,8 @@ update_website_context = [
 # Retail POS remains on the legacy backend until Phase 8. For B2B, catalog
 # pricing, receivables, checkout and native Sales Invoice returns use ERPNext
 # authority from Phase 6 onward while the current Ledgix page remains the UX.
+# Public B2B write/preview RPCs route through selling_compat so authorized manual
+# rate overrides always require and persist an audit reason.
 override_whitelisted_methods = {
 	"ledgix_saas.api.tax_center.get_fbr_readiness": "ledgix_saas.api.fbr_preflight.get_fbr_readiness",
 	"ledgix_saas.api.v2_pos.get_pos_v2_boot": "ledgix_saas.api.selling_compat.get_pos_v2_boot",
@@ -79,6 +81,10 @@ override_whitelisted_methods = {
 	"ledgix_saas.api.v2_pos.get_pos_v2_customer_context": "ledgix_saas.api.selling.get_pos_v2_customer_context_compat",
 	"ledgix_saas.api.v2_returns.get_pos_v2_return_context": "ledgix_saas.api.selling.get_pos_return_context_compat",
 	"ledgix_saas.api.v2_returns.create_pos_v2_return": "ledgix_saas.api.selling.create_pos_return_compat",
+	"ledgix_saas.api.selling.preview_b2b_invoice": "ledgix_saas.api.selling_compat.preview_b2b_invoice",
+	"ledgix_saas.api.selling.create_b2b_invoice": "ledgix_saas.api.selling_compat.create_b2b_invoice",
+	"ledgix_saas.api.selling.complete_b2b_sale": "ledgix_saas.api.selling_compat.complete_b2b_sale",
+	"ledgix_saas.api.selling.create_exchange": "ledgix_saas.api.selling_compat.create_exchange",
 }
 
 # Ledgix-originated native Payment Entries remain ERPNext documents; this hook
