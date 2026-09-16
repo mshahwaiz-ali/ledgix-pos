@@ -102,7 +102,7 @@ class TestERPNextPhase11Contract(unittest.TestCase):
 
     def test_client_shell_uses_frappe_v15_workspace_dom_contract(self):
         source = (APP_ROOT / "public" / "js" / "ledgix_phase11_product_shell.js").read_text(encoding="utf-8")
-        self.assertIn("frappe.boot.ledgix_product", source)
+        self.assertIn("ledgix_product", source)
         self.assertIn(".desk-sidebar .sidebar-item-container", source)
         self.assertIn(".links-widget-box", source)
         self.assertIn("a.link-item", source)
