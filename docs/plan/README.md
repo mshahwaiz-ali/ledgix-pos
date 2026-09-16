@@ -23,14 +23,15 @@ Current direction:
 - Phase 9: `erpnext_phase9_fbr_cutover.md`
 - Phase 10: `erpnext_phase10_bi_reports_print.md`
 - Phase 11: `erpnext_phase11_workspace_product_simplification.md`
+- Phase 12: `erpnext_phase12_legacy_freeze_retirement.md`
 
 Use **`erpnext_core_migration_progress.md`** for exercised gate status and current handoff state.
 
 ## Current implementation status
 
-- Phase 0–10: complete on the guarded migration/integration workflow.
-- Phase 11: implemented; final guarded runtime gate pending.
-- Next after Phase 11: Phase 12 — Legacy Freeze, Reconciliation and Retirement.
+- Phase 0–11: complete on the guarded migration/integration workflow.
+- Phase 12: implemented; final guarded reconciliation/freeze gate pending.
+- Next after Phase 12: Phase 13 — Client Profiles and SaaS Productization.
 
 ## Historical plan
 
