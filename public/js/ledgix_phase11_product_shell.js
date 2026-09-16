@@ -4,6 +4,7 @@
 	"use strict";
 
 	const HIDDEN_CLASS = "lx-phase11-hidden";
+	const GENERIC_DESK_HOME_PATHS = new Set(["/app", "/app/home", "/app/workspaces"]);
 	let scheduled = false;
 	let observer = null;
 
@@ -63,18 +64,18 @@
 		});
 	}
 
-	function routeFromAppRoot() {
+	function routeFromGenericDeskHome() {
 		const product = context();
 		if (!product.landing_route || product.role_level === "none" || isSystemManager()) return;
 		const path = String(window.location.pathname || "").replace(/\/+$/, "").toLowerCase();
-		if (path !== "/app") return;
+		if (!GENERIC_DESK_HOME_PATHS.has(path)) return;
 		const target = product.landing_route === "ledgix-pos" ? "ledgix-pos" : "ledgix";
 		frappe.set_route(target);
 	}
 
 	function apply() {
 		scheduled = false;
-		routeFromAppRoot();
+		routeFromGenericDeskHome();
 		curateSidebar();
 		curateWorkspace();
 	}
