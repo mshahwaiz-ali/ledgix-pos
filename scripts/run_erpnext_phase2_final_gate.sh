@@ -1,10 +1,19 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -Eeuo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SITE="${1:-ledgix-erpnext.local}"
 LOG_DIR="$ROOT_DIR/logs"
 RESULT_FILE="$LOG_DIR/erpnext-phase2-final-gate.txt"
+TEMP_REDIS_READY=0
+
+cleanup() {
+  if [[ "$TEMP_REDIS_READY" == "1" ]]; then
+    cd "$ROOT_DIR"
+    bash deploy/bench_redis.sh stop || true
+  fi
+}
+trap cleanup EXIT
 
 if [[ "$SITE" != "ledgix-erpnext.local" ]]; then
   echo "[ERROR] Refusing Phase 2 final gate on site: $SITE" >&2
@@ -26,6 +35,17 @@ echo
 
 echo "===== LOCAL CI ====="
 bash scripts/ci_local.sh
+
+echo
+echo "===== REDIS RUNTIME ====="
+# Some native Frappe/ERPNext document lifecycle paths publish/enqueue work even
+# when the behavioral test itself is synchronous. Use the repository's guarded
+# temporary Redis helper so this final gate is reproducible without requiring a
+# separate `bench start` terminal. bench_redis.sh only stops processes for which
+# it created pidfiles, so already-running developer services are left alone.
+bash deploy/bench_redis.sh start
+TEMP_REDIS_READY=1
+bash deploy/bench_redis.sh status
 
 echo
 echo "===== INSTALLED APPS ====="
