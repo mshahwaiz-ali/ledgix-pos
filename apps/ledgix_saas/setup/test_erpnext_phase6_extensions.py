@@ -154,6 +154,9 @@ class TestERPNextPhase6ExtensionContract(unittest.TestCase):
         self.assertIn("from ledgix_saas.api import selling", source)
         self.assertIn('row.setdefault("sale", row.get("invoice"))', source)
         self.assertIn('row["reference_name"] = row["sale"]', source)
+        self.assertIn("def _validate_company_currency(currency)", source)
+        self.assertIn("Use native ERPNext multi-currency Payment Entry", source)
+        self.assertIn("_validate_company_currency(currency)", source)
 
     def test_native_payment_policy_uses_migrated_mode_metadata(self):
         source = (APP_ROOT / "services" / "erpnext_payment_policy.py").read_text(
