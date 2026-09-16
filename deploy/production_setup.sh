@@ -110,14 +110,21 @@ run_safe_provision_client() {
     return 1
   }
   require_provision_target
-  args=(
-    --site "$PRODUCTION_SITE"
+  bash "$SCRIPT_DIR/provision_client_site_safe.sh" \
+    --site "$PRODUCTION_SITE" \
     --release "$DEPLOY_RELEASE"
-  )
-  if [[ -n "${PRODUCTION_URL:-}" ]]; then
-    args+=(--url "$PRODUCTION_URL")
-  fi
-  bash "$SCRIPT_DIR/provision_client_site_safe.sh" "${args[@]}"
+}
+
+run_provision_online_smoke() {
+  [[ -n "${PRODUCTION_URL:-}" ]] || {
+    printf '[INFO] PRODUCTION_URL not supplied; post-service online smoke skipped\n'
+    return 0
+  }
+  bash "$SCRIPT_DIR/smoke_test.sh" \
+    --site "$PRODUCTION_SITE" \
+    --bench-dir "${BENCH_DIR:-$REPO_ROOT/frappe-bench}" \
+    --online \
+    --url "$PRODUCTION_URL"
 }
 
 run_safe_deploy_update() {
@@ -156,7 +163,7 @@ fi
 
 # Site provisioning is intentionally non-interactive and release-pinned. The
 # safe provisioner installs ERPNext before Ledgix and retains generated secrets
-# outside the repository.
+# outside the repository. Online smoke is performed only after services exist.
 if [[ "$ACTION" == "site" ]]; then
   ensure_erpnext_bench
   run_safe_provision_client
@@ -200,6 +207,7 @@ if [[ "$ACTION" == "full" ]]; then
   if [[ -n "${PRODUCTION_DOMAIN:-}" && -n "${LETSENCRYPT_EMAIL:-}" ]]; then
     run_ec2 "${base[@]}" --action ssl
   fi
+  run_provision_online_smoke
   run_ec2 "${base[@]}" --action status
   relocate_legacy_secrets
   trap - EXIT
