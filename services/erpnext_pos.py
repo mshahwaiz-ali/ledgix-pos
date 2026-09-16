@@ -46,9 +46,13 @@ def profile_for_user(
     else:
         from erpnext.stock.get_item_details import get_pos_profile
 
-        doc = get_pos_profile(company, user=user)
-        if isinstance(doc, dict):
-            doc = frappe.get_doc(doc)
+        profile_row = get_pos_profile(company, user=user)
+        profile_name = (
+            profile_row.get("name")
+            if isinstance(profile_row, dict)
+            else getattr(profile_row, "name", profile_row)
+        )
+        doc = frappe.get_doc("POS Profile", profile_name) if profile_name else None
     if not doc:
         frappe.throw(_("No active ERPNext POS Profile is configured for {0} in {1}.").format(user, company))
     if doc.company != company:
