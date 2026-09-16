@@ -8,6 +8,7 @@ from frappe.utils import add_to_date, get_datetime, now_datetime
 
 OPEN_STATUSES = {"Board Action Pending", "Commissioner Approval Pending"}
 FINAL_STATUSES = {"Completed", "Rejected"}
+NATIVE_DOCTYPES = {"Sales Invoice", "POS Invoice"}
 
 
 class LedgixFBRCorrectionRequest(Document):
@@ -16,40 +17,67 @@ class LedgixFBRCorrectionRequest(Document):
 		self.requested_at = now_datetime()
 
 	def validate(self):
-		sale = self._get_sale()
-		self._freeze_sale_reference(sale)
+		reference = self._get_reference()
+		self._freeze_reference(reference)
 		self._apply_correction_window()
 		self._validate_duplicate_open_request()
 		self._validate_completion_requirements()
 
-	def _get_sale(self):
+	def _get_reference(self):
+		if self.reference_doctype or self.reference_name:
+			if self.reference_doctype not in NATIVE_DOCTYPES:
+				frappe.throw("Reference DocType must be Sales Invoice or POS Invoice.")
+			if not self.reference_name:
+				frappe.throw("Native Invoice reference is required.")
+			if not frappe.db.exists(self.reference_doctype, self.reference_name):
+				frappe.throw(f"{self.reference_doctype} {self.reference_name} was not found.")
+			doc = frappe.get_doc(self.reference_doctype, self.reference_name)
+			if doc.docstatus != 1:
+				frappe.throw("FBR correction tracking requires a submitted ERPNext invoice.")
+			if not doc.get("custom_ledgix_fbr_invoice_number"):
+				frappe.throw("The ERPNext invoice does not have an official FBR invoice number.")
+			if doc.get("custom_ledgix_fbr_status") != "Submitted":
+				frappe.throw("The ERPNext invoice must be in FBR Submitted status before correction tracking.")
+			return doc
+
 		if not self.sale:
-			frappe.throw("Sale is required.")
+			frappe.throw("ERPNext native invoice reference is required. Legacy Sale is accepted only for historical records.")
 		if not frappe.db.exists("Ledgix Sale", self.sale):
 			frappe.throw(f"Ledgix Sale {self.sale} was not found.")
-
-		sale = frappe.get_doc("Ledgix Sale", self.sale)
-		if sale.docstatus != 1:
+		doc = frappe.get_doc("Ledgix Sale", self.sale)
+		if doc.docstatus != 1:
 			frappe.throw("FBR correction tracking requires a submitted sale.")
-		if not sale.fbr_invoice_number:
+		if not doc.fbr_invoice_number:
 			frappe.throw("The sale does not have an official FBR invoice number.")
-		if sale.fbr_status != "Submitted":
-			frappe.throw("The sale must be in FBR Submitted status before a correction request can be tracked.")
-		return sale
+		if doc.fbr_status != "Submitted":
+			frappe.throw("The sale must be in FBR Submitted status before correction tracking.")
+		return doc
 
-	def _freeze_sale_reference(self, sale):
+	def _reference_values(self, doc):
+		if doc.doctype in NATIVE_DOCTYPES:
+			return {
+				"invoice_number": doc.get("custom_ledgix_fbr_invoice_number"),
+				"generated_at": doc.get("custom_ledgix_fbr_submitted_at"),
+			}
+		return {
+			"invoice_number": doc.get("fbr_invoice_number"),
+			"generated_at": doc.get("fbr_generated_at") or doc.get("fbr_submitted_at"),
+		}
+
+	def _freeze_reference(self, doc):
+		values = self._reference_values(doc)
+		invoice_number = values.get("invoice_number") or ""
 		if not self.fbr_invoice_number:
-			self.fbr_invoice_number = sale.fbr_invoice_number
-		elif self.fbr_invoice_number != sale.fbr_invoice_number:
+			self.fbr_invoice_number = invoice_number
+		elif self.fbr_invoice_number != invoice_number:
 			frappe.throw("FBR Invoice Number cannot be changed after the correction request is created.")
 
 		if not self.fbr_generated_at:
-			self.fbr_generated_at = sale.fbr_generated_at or sale.fbr_submitted_at
+			self.fbr_generated_at = values.get("generated_at")
 		if not self.fbr_generated_at:
 			frappe.throw(
 				"FBR generation time is unavailable. The 72-hour correction window cannot be calculated safely."
 			)
-
 		self.fbr_generated_at = get_datetime(self.fbr_generated_at)
 		self.correction_deadline = add_to_date(self.fbr_generated_at, hours=72, as_datetime=True)
 
@@ -58,31 +86,33 @@ class LedgixFBRCorrectionRequest(Document):
 		decision_time = get_datetime(self.completed_at) if self.status == "Completed" and self.completed_at else now_datetime()
 		within_window = decision_time <= deadline
 		self.correction_path = "Within 72 Hours" if within_window else "Commissioner Approval Required"
-
 		if self.status == "Completed":
 			if not self.completed_at:
 				self.completed_at = decision_time
 			return
 		if self.status == "Rejected":
 			return
-
 		self.status = "Board Action Pending" if within_window else "Commissioner Approval Pending"
 		self.completed_at = None
 
 	def _validate_duplicate_open_request(self):
+		filters = {
+			"status": ["in", list(OPEN_STATUSES)],
+			"name": ["!=", self.name or ""],
+		}
+		if self.reference_doctype and self.reference_name:
+			filters.update({"reference_doctype": self.reference_doctype, "reference_name": self.reference_name})
+		else:
+			filters["sale"] = self.sale
 		existing = frappe.get_all(
 			"Ledgix FBR Correction Request",
-			filters={
-				"sale": self.sale,
-				"status": ["in", list(OPEN_STATUSES)],
-				"name": ["!=", self.name or ""],
-			},
+			filters=filters,
 			pluck="name",
 			limit=1,
 		)
 		if existing:
 			frappe.throw(
-				f"Open FBR correction request {existing[0]} already exists for sale {self.sale}. "
+				f"Open FBR correction request {existing[0]} already exists for this invoice. "
 				"Complete or reject it before creating another request."
 			)
 
