@@ -122,20 +122,12 @@ Final evidence:
 
 - local CI/migrate/apps green;
 - Phase 6+7+8 fail-closed static contracts passed **36/36**;
-- **7/7** Phase 8 runtime cases passed:
-  - native POS boot/catalog/profile/payment configuration;
-  - native POS Opening Entry shift;
-  - native draft holds with zero GL/SLE;
-  - split-tender checkout/change/idempotency;
-  - native POS return with source-rate authority;
-  - native Closing Entry/consolidation/stock movement;
-  - no parallel legacy POS writes;
-- Retail transaction authority is `POS Invoice`;
-- B2B remains native `Sales Invoice`;
-- stock/pricing/customer/payment authority is ERPNext;
+- **7/7** Phase 8 runtime cases passed;
+- native POS boot/catalog/profile/payment configuration;
+- native POS Opening Entry, draft holds, split-tender checkout/change/idempotency, native return and Closing Entry/consolidation;
 - final stock delta proved exactly once through native consolidation;
-- Ledgix Sale/Payment/POS Shift/POS Hold/stock/FBR-log counts stayed unchanged in the cutover matrix;
-- FBR source/network cutover was explicitly not performed during Phase 8.
+- no parallel Ledgix Sale/Payment/POS Shift/POS Hold/stock writes;
+- FBR source/network cutover remained deferred to Phase 9.
 
 Canonical service: `ledgix_saas.services.erpnext_pos`.
 
@@ -145,62 +137,104 @@ Design: `docs/plan/erpnext_phase8_pos_cutover.md`.
 
 ---
 
-## Phase 9 — FBR Source Cutover — IMPLEMENTED, FINAL RUNTIME GATE PENDING
+## Phase 9 — FBR Source Cutover — COMPLETE
 
-Phase 9 changes the FBR transaction source while retaining the Ledgix FBR/compliance layer.
+**Closed:** 2026-09-16  
+**Final gate HEAD:** `a441823ee23d075897fdbd30ee72ac265745f2e8`
 
-### Implemented authority boundary
+The guarded final gate on `ledgix-erpnext.local` passed with `phase9_complete=true` and `phase10_ready=true`.
 
-Native source documents:
+Final evidence:
 
-- `Sales Invoice` for B2B/invoice sales;
-- `POS Invoice` for retail POS sales;
-- native ERPNext return invoice / Credit Note for returns.
-
-Ledgix remains authoritative for:
-
-- FBR settings and Sandbox/Production controls;
-- immutable legal/FBR snapshots and payload mapping;
-- FBR client/response parsing;
-- `Ledgix FBR Submission Log`;
-- QR/reference/status/error metadata;
-- reconciliation-required safeguards;
-- correction tracking.
-
-### Safety rules implemented
-
-- submitted native invoice lines must contain immutable FBR snapshot JSON;
-- payload totals are reconciled to ERPNext totals before network submission;
-- consolidated POS accounting `Sales Invoice` is explicitly excluded as a second FBR source;
-- legacy `Ledgix Sale` production submission endpoint is fail-closed/retired;
-- native official submission is idempotent once an FBR invoice number exists;
-- ambiguous Production POST outcome enters `Reconciliation Required` and blocks blind retry;
-- native cancellation is blocked after official FBR submission/reconciliation state;
-- native Credit Note sends the original FBR invoice number as `invoiceRefNo`;
-- Tax & FBR Center FBR operations are routed to native `Sales Invoice` / `POS Invoice` references;
-- correction requests support native ERPNext references while legacy records remain historical.
+- local CI/migrate/assets/apps green;
+- Phase 6+7+8+9 fail-closed static contracts passed **48/48**;
+- **9/9** Phase 9 runtime cases passed;
+- Sales Invoice and POS Invoice payloads were built from immutable native FBR snapshots;
+- validation audit persisted against the native ERPNext reference;
+- Production submit idempotency persisted the official FBR invoice/QR metadata on the native document;
+- native Credit Note referenced the original official FBR invoice number;
+- ambiguous Production POST entered `Reconciliation Required`, blocked blind retry and required explicit reconciliation release;
+- consolidated POS accounting Sales Invoice was rejected as a second FBR source;
+- correction tracking accepted native ERPNext references;
+- no legacy business ledger or legacy FBR-source log was created;
+- legacy `Ledgix Sale` Production submission endpoint remained fail-closed/retired;
+- the migration gate used mocked FBR adapters only and recorded **zero real FBR/PRAL network calls**.
 
 Canonical adapter: `ledgix_saas.api.fbr_native`.
 
 UI adapter: `ledgix_saas.api.fbr_native_ui` + `public/js/ledgix_fbr_native_center.js`.
 
-Schema: `ledgix_saas.setup.erpnext_phase9_extensions`.
-
-Final runner: `scripts/run_erpnext_phase9_final_gate.sh`.
-
-The Phase 9 runtime gate is restricted to `ledgix-erpnext.local` and monkeypatches FBR validate/post adapters so **zero real FBR/PRAL network calls** occur during the migration proof.
-
-Required final result: `phase9_complete=true`, `phase10_ready=true`, no failed cases and `real_fbr_network_calls=0`.
-
 Design: `docs/plan/erpnext_phase9_fbr_cutover.md`.
 
 ---
 
-## Next after Phase 9
+## Phase 10 — BI, Reports and Print Migration — IMPLEMENTED, FINAL RUNTIME GATE PENDING
 
-**Phase 10 — Final Print Redesign**.
+Phase 10 removes active BI/report/print dependencies on duplicate Ledgix business ledgers while retaining the Ledgix analytics and branded document UX.
 
-The known legacy print targets were intentionally deferred during transaction-engine migration. Phase 10 will make native Sales/POS/Credit Note printing and Ledgix branding/thermal/A4 formats authoritative over the migrated ERPNext documents.
+### Implemented native reporting boundary
+
+Canonical reporting service:
+
+- `ledgix_saas.services.erpnext_reporting`
+
+Active authority:
+
+- Item / Bin / Item Reorder / Item Price for stock status;
+- Stock Ledger Entry for movements and inventory timeline;
+- Sales Invoice + POS Invoice for sales and native returns;
+- Purchase Invoice for buying reports;
+- GL Entry for customer statement;
+- ERPNext Batch / Serial identity through native stock data.
+
+The current Inventory Intelligence RPC is overridden to `ledgix_saas.api.inventory_intelligence_native.get_inventory_intelligence_data`, preserving the page contract while using ERPNext-native data.
+
+The active Ledgix report names remain available for user continuity, but their Python data sources, filters and `ref_doctype` metadata now point to ERPNext authority.
+
+### Implemented print boundary
+
+Native formats:
+
+- `Ledgix ERPNext Tax Invoice` -> `Sales Invoice` / native Credit Note rendering;
+- `Ledgix ERPNext POS Receipt` -> `POS Invoice` / native POS return rendering.
+
+Native print context:
+
+- `ledgix_saas.api.printing.get_native_invoice_print_context`
+
+It reads ERPNext document totals/payment/return state plus the immutable native FBR snapshots and Phase 9 persisted FBR metadata. The QR is generated locally from the persisted official FBR invoice number; no external QR service is used.
+
+Phase 8 POS compatibility now returns the native ERPNext document, DocType and Ledgix format as the print target. New POS printing never restores a `Ledgix Sale` identity just to print. Legacy print formats remain preserved for historical legacy records.
+
+### Final gate
+
+Runner:
+
+- `scripts/run_erpnext_phase10_final_gate.sh`
+
+The guarded runtime matrix is designed to prove:
+
+- native Sales Invoice A4 render;
+- native POS Invoice thermal render;
+- native Credit Note label/original FBR reference;
+- persisted FBR number + self-contained QR render;
+- native POS print target handoff;
+- active stock/sales/return/purchase/customer reports over ERPNext;
+- native Inventory Intelligence;
+- unchanged legacy business ledger counts;
+- **zero real FBR/PRAL network adapter calls**.
+
+Phase 10 closes only when the integration gate returns `phase10_complete=true`, `phase11_ready=true`, no failed cases and `real_fbr_network_calls=0`.
+
+Design: `docs/plan/erpnext_phase10_bi_reports_print.md`.
+
+---
+
+## Next after Phase 10
+
+**Phase 11 — Workspace and Product Simplification**.
+
+Phase 11 will remove obsolete legacy workspace shortcuts and expose the native ERPNext business engine through the simplified Ledgix product surface, while retaining differentiated Ledgix POS, FBR, BI and branding UX.
 
 ---
 
@@ -209,10 +243,11 @@ The known legacy print targets were intentionally deferred during transaction-en
 - Development is direct on `main`; no PR branch is used.
 - ERPNext core is never modified or vendored.
 - All destructive/runtime migration gates are restricted to `ledgix-erpnext.local`.
-- Legacy records remain preserved until later freeze/retirement cleanup.
+- Legacy records remain preserved until Phase 12 freeze/retirement cleanup.
 - Phase 6 B2B paths create no parallel Ledgix financial ledgers.
 - Phase 7 buying/inventory paths create no parallel Ledgix purchase/stock ledgers.
 - Phase 8 POS paths create no parallel Ledgix sale/payment/shift/hold/stock ledgers.
-- Phase 9 native FBR adapter writes FBR metadata/logs only and does not recreate business ledgers.
+- Phase 9 FBR writes only compliance metadata/logs over native ERPNext transaction authority.
+- Phase 10 BI/report/print paths are read-only over native ERPNext data and do not recreate duplicate business ledgers.
 - Customer AR and Supplier AP mismatches fail closed.
 - Production FBR ambiguous outcomes fail closed pending external reconciliation.
