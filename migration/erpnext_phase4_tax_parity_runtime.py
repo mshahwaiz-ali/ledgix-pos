@@ -3,7 +3,7 @@ from __future__ import annotations
 import frappe
 
 from ledgix_saas.migration import erpnext_phase4_tax_parity_gate as base
-from ledgix_saas.migration.erpnext_phase4_tax_parity_gate_v2 import _price_only_credit_case
+from ledgix_saas.migration.erpnext_phase4_tax_credit_case import _price_only_credit_case
 from ledgix_saas.setup import erpnext_tax_foundation as tax_foundation
 
 
