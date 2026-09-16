@@ -36,13 +36,8 @@ echo "Branch: $(git branch --show-current)"
 echo "Commit: $(git rev-parse --short=12 HEAD)"
 echo
 
-# The closure runner is restricted to the guarded local integration site.
-# Enable Frappe tests explicitly so the static contract cannot be skipped while
-# still returning a zero exit status.
-echo "===== ENABLE INTEGRATION-SITE TESTS ====="
-cd "$ROOT_DIR/frappe-bench"
-bench --site "$SITE" set-config allow_tests true
-cd "$ROOT_DIR"
+echo "===== FAIL-CLOSED STATIC CONTRACT ====="
+bash scripts/run_erpnext_phase6_static_contract.sh "$SITE"
 
 echo
 echo "===== FULL PHASE 6 FINAL GATE ====="
@@ -92,6 +87,6 @@ PY
 
 echo
 echo "===== PHASE 6 CLOSURE VERDICT ====="
-echo "[PASS] Phase 6 transaction, pricing, payment-policy and return-rate authority gates are green."
+echo "[PASS] Phase 6 static, transaction, pricing, payment-policy and return-rate authority gates are green."
 echo "[NEXT] Phase 7 — Buying and Inventory Cutover"
 echo "[OK] Return-rate result: $RETURN_RATE_RESULT"
