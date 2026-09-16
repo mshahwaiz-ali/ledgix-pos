@@ -4,11 +4,23 @@ import frappe
 from frappe.utils import cint, flt
 
 from ledgix_saas.migration import erpnext_phase5_master_migration as base
-from ledgix_saas.setup import erpnext_phase5_extensions
+from ledgix_saas.setup import erpnext_extensions, erpnext_phase5_extensions
 
 
 class MasterMigration(base.MasterMigration):
     """Canonical Phase 5 migration with exact legacy field normalization."""
+
+    def _inventory_enabled(self) -> bool:
+        features = erpnext_extensions.get_effective_business_features()
+        return bool(cint(features.get("enable_inventory")))
+
+    def _assert_prerequisites(self) -> None:
+        super()._assert_prerequisites()
+        if self.ctx.migrate_opening_stock and not self._inventory_enabled():
+            frappe.throw(
+                "Opening-stock migration is not allowed while the Ledgix Business Profile has inventory disabled. "
+                "Invoice + FBR Only clients must use non-stock ERPNext Items."
+            )
 
     def _source_rows(self, doctype: str, key_field: str) -> list:
         # Ledgix Item Price names are generated as IP-##### and therefore cannot
@@ -76,6 +88,106 @@ class MasterMigration(base.MasterMigration):
             else:
                 target.save(ignore_permissions=True)
             self.category_map[source.name] = target.name
+            self._record(stage, action, source.name, target.name)
+
+    def _item_expected(self, source) -> dict:
+        inventory_enabled = self._inventory_enabled()
+        tracking = str(source.tracking_type or "Normal")
+        return {
+            "item_group": self.category_map.get(source.category) or source.category or "Products",
+            "stock_uom": base.UNIT_MAP.get(source.unit, source.unit or "Nos"),
+            "is_stock_item": 1 if inventory_enabled else 0,
+            "has_batch_no": 1 if inventory_enabled and tracking == "Lot Based" else 0,
+            "has_serial_no": 1 if inventory_enabled and tracking == "Serial Based" else 0,
+        }
+
+    def migrate_items(self) -> None:
+        stage = "items"
+        inventory_enabled = self._inventory_enabled()
+        for source in self._source_rows("Ledgix Item", "item_code"):
+            expected = self._item_expected(source)
+            if source.category and not frappe.db.exists("Item Group", expected["item_group"]):
+                self._conflict(stage, source.name, source.item_code, "target Item Group missing")
+                continue
+            if not frappe.db.exists("UOM", expected["stock_uom"]):
+                self._conflict(stage, source.name, source.item_code, "target UOM missing")
+                continue
+
+            existing = frappe.db.exists("Item", source.item_code)
+            if existing:
+                target = frappe.get_doc("Item", existing)
+                marker = target.get("custom_ledgix_legacy_item")
+                if marker and marker != source.name:
+                    self._conflict(stage, source.name, target.name, f"already owned by {marker}")
+                    continue
+
+                mismatches = {}
+                for field, value in expected.items():
+                    actual = target.get(field)
+                    if field in {"is_stock_item", "has_batch_no", "has_serial_no"}:
+                        differs = cint(actual) != cint(value)
+                    else:
+                        differs = str(actual or "") != str(value or "")
+                    if differs:
+                        mismatches[field] = {"erpnext": actual, "ledgix_target": value}
+                if mismatches:
+                    self._conflict(stage, source.name, target.name, f"structural mismatch: {mismatches}")
+                    continue
+                action = "updated" if marker == source.name else "matched"
+            else:
+                values = {
+                    "doctype": "Item",
+                    "item_code": source.item_code,
+                    "item_name": source.item_name or source.item_code,
+                    "description": source.get("description") or source.item_name or source.item_code,
+                    "item_group": expected["item_group"],
+                    "stock_uom": expected["stock_uom"],
+                    "is_stock_item": expected["is_stock_item"],
+                    "include_item_in_manufacturing": 0,
+                    "has_batch_no": expected["has_batch_no"],
+                    "create_new_batch": 0,
+                    "has_serial_no": expected["has_serial_no"],
+                    "standard_rate": max(flt(source.selling_price), 0),
+                }
+                if inventory_enabled:
+                    values["valuation_method"] = "Moving Average"
+                    values["valuation_rate"] = max(flt(source.cost_price), 0)
+                target = frappe.get_doc(values)
+                action = "created"
+
+            target.item_name = source.item_name or source.item_code
+            if source.get("description"):
+                target.description = source.description
+            target.disabled = 0 if cint(source.active) else 1
+            target.custom_ledgix_legacy_item = source.name
+            target.custom_ledgix_legacy_sku = source.sku or ""
+            target.custom_ledgix_legacy_tracking_type = source.tracking_type or "Normal"
+            target.custom_ledgix_minimum_stock = max(flt(source.minimum_stock), 0)
+
+            if source.barcode:
+                existing_barcodes = {str(row.barcode or "") for row in target.get("barcodes") or []}
+                if source.barcode not in existing_barcodes:
+                    target.append("barcodes", {"barcode": source.barcode, "uom": expected["stock_uom"]})
+
+            if target.is_new():
+                target.insert(ignore_permissions=True)
+            else:
+                target.save(ignore_permissions=True)
+
+            if not inventory_enabled and (
+                abs(flt(source.current_stock)) > 0.005 or (source.tracking_type or "Normal") != "Normal"
+            ):
+                self._defer(
+                    stage,
+                    source.name,
+                    "business profile has inventory disabled; legacy stock/tracking state is retained for audit and is not posted to ERPNext",
+                    {
+                        "current_stock": flt(source.current_stock),
+                        "tracking_type": source.tracking_type or "Normal",
+                    },
+                )
+
+            self.item_map[source.name] = target.name
             self._record(stage, action, source.name, target.name)
 
     def _party_contact(self, target_doctype: str, target_name: str, source_doctype: str, source) -> str:
@@ -215,6 +327,7 @@ def run(
     frappe.db.savepoint(savepoint)
     try:
         result = MasterMigration(context).execute()
+        result["inventory_enabled"] = MasterMigration(context)._inventory_enabled()
         if context.dry_run:
             frappe.db.rollback(save_point=savepoint)
             result["rolled_back"] = True
