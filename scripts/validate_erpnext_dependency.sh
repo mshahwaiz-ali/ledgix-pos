@@ -62,13 +62,37 @@ for token in ("ERPNEXT_BRANCH", "ERPNEXT_REPO", "ensure_erpnext_app", "validate_
 if not prod_helper_path.is_file():
     fail("deploy/ensure_erpnext.sh is missing")
 
+# Fresh production installation is allowed to provision the ERPNext dependency.
 prod_wrapper_text = prod_wrapper_path.read_text(encoding="utf-8")
 if "ensure_erpnext_bench" not in prod_wrapper_text or "ensure_erpnext.sh" not in prod_wrapper_text:
-    fail("production_setup.sh is not wired to the ERPNext dependency helper")
+    fail("production_setup.sh is not wired to the ERPNext dependency helper for fresh installs")
 
+# An existing-site Ledgix release is deliberately different: ERPNext/Frappe are
+# immutable prerequisites. The updater must verify the exact installed stack and
+# fail closed instead of silently installing, pulling, or upgrading framework apps.
 deploy_update_text = deploy_update_path.read_text(encoding="utf-8")
-if "ensure_erpnext.sh" not in deploy_update_text or '--site "$SITE"' not in deploy_update_text:
-    fail("deploy_update_safe.sh must install ERPNext on the target site before migration")
+for token in (
+    "PINNED STACK CHECK",
+    "list-apps",
+    "LEDGIX_EXPECTED_FRAPPE_VERSION",
+    "LEDGIX_EXPECTED_ERPNEXT_VERSION",
+    "Frappe version mismatch",
+    "ERPNext version mismatch",
+    "ledgix_saas is not installed on the target site",
+):
+    if token not in deploy_update_text:
+        fail(f"deploy_update_safe.sh is missing pinned-stack prerequisite check: {token}")
+
+for forbidden in (
+    "ensure_erpnext.sh",
+    "bench get-app erpnext",
+    "install-app erpnext",
+):
+    if forbidden in deploy_update_text:
+        fail(
+            "deploy_update_safe.sh must not install or mutate ERPNext during an existing-site Ledgix release; "
+            f"found forbidden token: {forbidden}"
+        )
 
 print("[OK] ERPNext v15 dependency contract validated")
 PY
