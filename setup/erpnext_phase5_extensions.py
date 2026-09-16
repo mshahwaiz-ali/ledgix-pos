@@ -45,6 +45,14 @@ CUSTOM_FIELDS = {
             "Legacy SKU",
             insert_after="custom_ledgix_legacy_item",
         ),
+        _cf(
+            "custom_ledgix_minimum_stock",
+            "Float",
+            "Legacy Minimum Stock",
+            insert_after="custom_ledgix_legacy_sku",
+            non_negative=1,
+            description="Preserved until a client-specific warehouse reorder policy is configured.",
+        ),
     ],
     "Item Group": [
         _cf(
