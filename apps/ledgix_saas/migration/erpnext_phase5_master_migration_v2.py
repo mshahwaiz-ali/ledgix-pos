@@ -78,6 +78,51 @@ class MasterMigration(base.MasterMigration):
             self.category_map[source.name] = target.name
             self._record(stage, action, source.name, target.name)
 
+    def _party_contact(self, target_doctype: str, target_name: str, source_doctype: str, source) -> str:
+        mobile = source.get("mobile_number") or source.get("mobile") or ""
+        email = source.get("email_address") or source.get("email") or ""
+        if not mobile and not email:
+            return ""
+
+        source_key = f"{source_doctype}:{source.name}"
+        existing = frappe.db.get_value(
+            "Contact", {"custom_ledgix_legacy_contact_source": source_key}, "name"
+        )
+        if existing:
+            contact = frappe.get_doc("Contact", existing)
+        else:
+            contact = frappe.get_doc(
+                {
+                    "doctype": "Contact",
+                    "first_name": source.get("customer_name") or source.get("supplier_name") or source.name,
+                    "custom_ledgix_legacy_contact_source": source_key,
+                    "links": [{"link_doctype": target_doctype, "link_name": target_name}],
+                }
+            )
+
+        # email_id/mobile_no are derived read-only fields in pinned Frappe v15.
+        # Store authoritative values in their child tables and let Contact
+        # validation populate the derived fields.
+        contact.set("email_ids", [])
+        contact.set("phone_nos", [])
+        if email:
+            contact.append("email_ids", {"email_id": email, "is_primary": 1})
+        if mobile:
+            contact.append(
+                "phone_nos",
+                {
+                    "phone": mobile,
+                    "is_primary_mobile_no": 1,
+                    "is_primary_phone": 0,
+                },
+            )
+        contact.is_primary_contact = 1
+        if contact.is_new():
+            contact.insert(ignore_permissions=True)
+        else:
+            contact.save(ignore_permissions=True)
+        return contact.name
+
     def _party_address(self, target_doctype: str, target_name: str, source_doctype: str, source) -> str:
         # Ledgix Customer uses address_line_1/area while Ledgix Supplier uses
         # address. Normalize both without inventing missing city/address data.
