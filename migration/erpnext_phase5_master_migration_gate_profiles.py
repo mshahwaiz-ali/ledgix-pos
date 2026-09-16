@@ -20,7 +20,6 @@ NAMES = {
 NONSTOCK_PREFIX = "P5N-"
 NONSTOCK_CATEGORY = "P5N-Category"
 NONSTOCK_ITEM = "P5N-SERIAL-META"
-ITEM_PRICE_PROVENANCE_FIELD = "custom_ledgix_legacy_item_price"
 
 
 def _apply_names() -> dict[str, str]:
@@ -83,8 +82,8 @@ def _ensure_legacy_fixtures() -> dict:
     batch = base._ensure_legacy_item(
         base.BATCH_ITEM, "Lot Based", 3, 110, 165, "P5BAR002", "P5SKU002"
     )
-    # Serial Based Ledgix opening_stock auto-generates identities. Seed zero and
-    # then post the exact legacy serial numbers to make identity parity testable.
+    # Serial Based legacy opening_stock auto-generates identities. Seed zero and
+    # then post the exact serial numbers so identity parity is deterministic.
     serial = base._ensure_legacy_item(
         base.SERIAL_ITEM, "Serial Based", 0, 120, 180, "P5BAR003", "P5SKU003"
     )
@@ -116,29 +115,6 @@ def _ensure_legacy_fixtures() -> dict:
         "payment_method": method,
         "profiles": profiles,
     }
-
-
-def _target_evidence(warehouse: str, fixtures: dict) -> dict:
-    evidence = _ORIGINAL_TARGET_EVIDENCE(warehouse, fixtures)
-    item_price_rows = {}
-    for item_name, legacy_price in fixtures["prices"].items():
-        row = frappe.db.get_value(
-            "Item Price",
-            {ITEM_PRICE_PROVENANCE_FIELD: legacy_price},
-            [
-                "name",
-                "item_code",
-                "price_list",
-                "price_list_rate",
-                "uom",
-                "valid_from",
-                ITEM_PRICE_PROVENANCE_FIELD,
-            ],
-            as_dict=True,
-        )
-        item_price_rows[item_name] = dict(row or {})
-    evidence["item_prices"] = item_price_rows
-    return evidence
 
 
 def _ensure_nonstock_fixture() -> None:
@@ -210,7 +186,9 @@ def _prove_invoice_only_nonstock() -> dict:
         )
         checks = {
             "migration_passed": bool(report.get("passed")),
-            "profile_inventory_disabled": not bool(cint(erpnext_extensions.get_effective_business_features().get("enable_inventory"))),
+            "profile_inventory_disabled": not bool(
+                cint(erpnext_extensions.get_effective_business_features().get("enable_inventory"))
+            ),
             "item_is_nonstock": cint(item.is_stock_item) == 0,
             "no_batch_flag": cint(item.has_batch_no) == 0,
             "no_serial_flag": cint(item.has_serial_no) == 0,
@@ -238,15 +216,10 @@ def _prove_invoice_only_nonstock() -> dict:
         frappe.db.commit()
 
 
-_ORIGINAL_TARGET_EVIDENCE = base._target_evidence
-
-
 def run() -> dict:
     previous_names = _apply_names()
     original_fixtures = base._ensure_legacy_fixtures
-    original_evidence = base._target_evidence
     base._ensure_legacy_fixtures = _ensure_legacy_fixtures
-    base._target_evidence = _target_evidence
     try:
         result = base.run()
         nonstock = _prove_invoice_only_nonstock()
@@ -262,5 +235,4 @@ def run() -> dict:
         return result
     finally:
         base._ensure_legacy_fixtures = original_fixtures
-        base._target_evidence = original_evidence
         _restore_names(previous_names)
