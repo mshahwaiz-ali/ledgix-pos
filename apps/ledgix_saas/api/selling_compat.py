@@ -81,6 +81,81 @@ def _invoice_from_result(result: dict | None) -> str:
     return str(invoice or "")
 
 
+def _ensure_checkout_payments(result: dict, tenders, client_sale_id: str | None) -> dict:
+    """Recover deterministic checkout tenders after an interrupted B2B retry.
+
+    The underlying invoice and Payment Entry services are independently
+    idempotent. If the first request committed the Sales Invoice (or only some
+    tenders) before the client retried, reuse existing ``client_sale_id:PAY:n``
+    entries and create only the missing ones.
+    """
+
+    result = dict(result or {})
+    client_sale_id = str(client_sale_id or "").strip()
+    invoice_name = _invoice_from_result(result)
+    if not client_sale_id or not invoice_name:
+        return result
+
+    invoice = frappe.get_doc("Sales Invoice", invoice_name)
+    payment_names = []
+    for index, tender in enumerate(_parse_tenders(tenders), start=1):
+        amount = flt(tender.get("amount"))
+        method = tender.get("payment_method") or tender.get("mode_of_payment")
+        if amount <= 0 or not method:
+            continue
+
+        payment_client_id = f"{client_sale_id}:PAY:{index}"
+        existing = frappe.db.get_value(
+            "Payment Entry",
+            {
+                "company": invoice.company,
+                "custom_ledgix_client_payment_id": payment_client_id,
+                "docstatus": ["!=", 2],
+            },
+            "name",
+        )
+        if existing:
+            payment_names.append(existing)
+            continue
+
+        invoice.reload()
+        allocation = min(amount, max(flt(invoice.outstanding_amount), 0))
+        if allocation <= 0:
+            continue
+        payment = erpnext_selling.post_customer_payment(
+            customer=invoice.customer,
+            mode_of_payment=method,
+            amount=amount,
+            allocations=[
+                {"reference_name": invoice.name, "allocated_amount": allocation}
+            ],
+            company=invoice.company,
+            client_payment_id=payment_client_id,
+            reference_number=tender.get("reference_number")
+            or tender.get("reference_no"),
+            payment_source="Ledgix POS B2B Checkout",
+        )
+        payment_names.append(payment.name)
+
+    invoice.reload()
+    result["payments"] = payment_names
+    result["paid_amount"] = flt(invoice.grand_total - invoice.outstanding_amount, 2)
+    result["remaining_amount"] = max(flt(invoice.outstanding_amount, 2), 0)
+    result["payment_status"] = (
+        "Paid"
+        if abs(flt(invoice.outstanding_amount)) <= 0.005
+        else "Partial"
+        if flt(invoice.outstanding_amount) < flt(invoice.grand_total) - 0.005
+        else "Unpaid"
+    )
+    return result
+
+
+def _parse_tenders(tenders) -> list[dict]:
+    rows = frappe.parse_json(tenders) if isinstance(tenders, str) else tenders
+    return [dict(row) for row in (rows or [])]
+
+
 @frappe.whitelist()
 def preview_b2b_invoice(
     customer,
@@ -147,6 +222,7 @@ def complete_b2b_sale(
         discount_value=discount_value,
         due_date=due_date,
     )
+    result = _ensure_checkout_payments(result, tenders, client_sale_id)
     _persist_override_audit(_invoice_from_result(result), audit)
     return result
 
@@ -269,8 +345,25 @@ def complete_pos_v2_sale(
     discount_value=0,
     client_sale_id=None,
 ):
-    audit = _price_override_audit(cart_items) if sale_channel == "B2B" else []
-    result = selling.complete_pos_v2_sale_compat(
+    if sale_channel == "B2B":
+        result = complete_b2b_sale(
+            customer=customer,
+            cart_items=cart_items,
+            tenders=tenders,
+            price_list=price_list,
+            client_sale_id=client_sale_id,
+            discount_type=discount_type,
+            discount_value=discount_value,
+        )
+        invoice = _invoice_from_result(result)
+        result["erpnext_sales_invoice"] = invoice
+        # Current page only calls its legacy Ledgix Sale print helper when
+        # `result.sale` is truthy. Full Sales Invoice print branding is Phase 10.
+        result["sale"] = ""
+        result["print_deferred"] = True
+        return result
+
+    return selling.complete_pos_v2_sale_compat(
         cart_items=cart_items,
         tenders=tenders,
         customer=customer,
@@ -280,12 +373,3 @@ def complete_pos_v2_sale(
         discount_value=discount_value,
         client_sale_id=client_sale_id,
     )
-    if sale_channel == "B2B" and result.get("financial_authority") == "ERPNext":
-        invoice = _invoice_from_result(result)
-        _persist_override_audit(invoice, audit)
-        result["erpnext_sales_invoice"] = invoice
-        # Current page only calls its legacy Ledgix Sale print helper when
-        # `result.sale` is truthy. Full Sales Invoice print branding is Phase 10.
-        result["sale"] = ""
-        result["print_deferred"] = True
-    return result
