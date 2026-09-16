@@ -1,0 +1,109 @@
+{
+ "actions": [],
+ "creation": "2026-09-16 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "status_section",
+  "status",
+  "frozen_at",
+  "frozen_by",
+  "frozen_commit",
+  "verification_section",
+  "last_verified_at",
+  "last_verified_by",
+  "snapshot_json",
+  "reconciliation_json"
+ ],
+ "fields": [
+  {
+   "fieldname": "status_section",
+   "fieldtype": "Section Break",
+   "label": "ERPNext Cutover / Legacy Freeze"
+  },
+  {
+   "default": "Not Frozen",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "Not Frozen\nFrozen\nBlocked",
+   "read_only": 1
+  },
+  {
+   "fieldname": "frozen_at",
+   "fieldtype": "Datetime",
+   "label": "Frozen At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "frozen_by",
+   "fieldtype": "Link",
+   "label": "Frozen By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "frozen_commit",
+   "fieldtype": "Data",
+   "label": "Frozen Commit",
+   "read_only": 1
+  },
+  {
+   "fieldname": "verification_section",
+   "fieldtype": "Section Break",
+   "label": "Retirement Evidence"
+  },
+  {
+   "fieldname": "last_verified_at",
+   "fieldtype": "Datetime",
+   "label": "Last Verified At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_verified_by",
+   "fieldtype": "Link",
+   "label": "Last Verified By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "snapshot_json",
+   "fieldtype": "Long Text",
+   "label": "Frozen Legacy Snapshot JSON",
+   "read_only": 1
+  },
+  {
+   "fieldname": "reconciliation_json",
+   "fieldtype": "Long Text",
+   "label": "Reconciliation JSON",
+   "read_only": 1
+  }
+ ],
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-09-16 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Ledgix",
+ "name": "Ledgix Legacy Retirement State",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "read": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1,
+   "role": "System Manager"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1,
+   "role": "Ledgix Admin"
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}
