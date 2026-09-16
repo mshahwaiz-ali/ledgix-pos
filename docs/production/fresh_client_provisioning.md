@@ -24,17 +24,27 @@ On an already prepared production bench:
 ```bash
 PRODUCTION_SITE=client.example.com \
 DEPLOY_RELEASE=<approved-immutable-sha-or-tag> \
-PRODUCTION_URL=https://client.example.com \
 bash deploy/production_setup.sh --action site
 ```
 
-`PRODUCTION_URL` is optional during the initial site creation if web services/domain routing are not ready yet. When supplied, the provisioner also runs online smoke checks.
+The site action performs release-pinned provisioning and offline validation. It does not assume that Nginx/domain routing is already ready.
 
-The wrapper delegates to:
+For a full host/bench/services rollout, provide the public URL to the full wrapper. The wrapper performs online smoke only after services/SSL are configured:
+
+```bash
+PRODUCTION_SITE=client.example.com \
+DEPLOY_RELEASE=<approved-immutable-sha-or-tag> \
+PRODUCTION_URL=https://client.example.com \
+bash deploy/production_setup.sh --yes --action full
+```
+
+The wrapper delegates site creation to:
 
 ```text
 deploy/provision_client_site_safe.sh
 ```
+
+When infrastructure is already serving the target URL, the provisioner can also be called directly with `--url` for an immediate online smoke check.
 
 Do not use the generic legacy-style site creation flow for normal Ledgix production onboarding.
 
