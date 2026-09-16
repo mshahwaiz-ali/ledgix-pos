@@ -101,6 +101,13 @@ class TestERPNextPhase12Contract(unittest.TestCase):
         self.assertIn('"write", "create", "delete", "submit", "cancel", "amend"', source)
         self.assertIn("cashier_legacy_access", source)
 
+    def test_custom_docperm_uses_pinned_frappe_v15_schema(self):
+        source = (APP_ROOT / "setup" / "erpnext_phase12_legacy_retirement.py").read_text(encoding="utf-8")
+        self.assertIn('"parent": doctype', source)
+        self.assertIn("setup_custom_perms(doctype)", source)
+        self.assertNotIn('"parenttype":', source)
+        self.assertNotIn('"parentfield":', source)
+
     def test_hooks_freeze_all_legacy_top_level_business_doctypes(self):
         hooks = (APP_ROOT / "hooks.py").read_text(encoding="utf-8")
         self.assertIn("ledgix_saas.setup.erpnext_phase12_legacy_retirement.after_migrate", hooks)
