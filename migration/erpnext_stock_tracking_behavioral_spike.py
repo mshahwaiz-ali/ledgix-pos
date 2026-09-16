@@ -98,7 +98,11 @@ def _ensure_stock_entry(
         "company": TEST_COMPANY,
         "rate": rate,
         "do_not_save": True,
-        "use_serial_batch_fields": 0,
+        # ERPNext v15 still supports explicit serial/batch fields. Using them
+        # for this integration spike lets the Stock Entry controller build the
+        # authoritative Serial and Batch Bundle while avoiding auto-pick
+        # settings that may differ between client sites.
+        "use_serial_batch_fields": 1 if (batch_no or serial_no) else 0,
     }
     if inward:
         kwargs["to_warehouse"] = warehouse
