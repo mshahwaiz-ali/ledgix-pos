@@ -9,6 +9,8 @@ CONFIRM=""
 SITE_URL=""
 APP="ledgix_saas"
 TEMP_REDIS_STARTED=0
+LOCAL_ADMIN_PASSWORD="${LEDGIX_LOCAL_ADMIN_PASSWORD:-admin}"
+LOCAL_USER_PASSWORD="${LEDGIX_LOCAL_USER_PASSWORD:-admin@123}"
 
 usage() {
   cat <<'EOF'
@@ -21,7 +23,9 @@ Flow:
   verified backup -> stage outside site -> reset same local site -> restore -> verify
 
 The reset removes every active .local/.localhost site so local development ends
-with exactly one canonical site.
+with exactly one canonical site. Local database administration is handled by a
+dedicated generated localhost credential, so the MariaDB root password is not
+required by this gate.
 EOF
 }
 
@@ -167,6 +171,14 @@ chmod 600 "$SECRET_FILE" 2>/dev/null || true
 source "$SECRET_FILE"
 [[ -n "${ADMIN_PASSWORD:-}" ]] || fail 'new local Administrator password is missing from secret file'
 
+bash "$REPO_ROOT/deploy/local_db_admin.sh"
+DB_ADMIN_ENV="$REPO_ROOT/.secrets/local-db-admin.env"
+[[ -f "$DB_ADMIN_ENV" ]] || fail "local DB admin credential file missing: $DB_ADMIN_ENV"
+chmod 600 "$DB_ADMIN_ENV" 2>/dev/null || true
+# shellcheck disable=SC1090
+source "$DB_ADMIN_ENV"
+[[ -n "${LOCAL_DB_ADMIN_USER:-}" && -n "${LOCAL_DB_ADMIN_PASSWORD:-}" ]] || fail 'local DB admin credentials are incomplete'
+
 DB_IDENTITY_BEFORE="$($BENCH_DIR/env/bin/python - "$TARGET_CONFIG" <<'PY'
 import hashlib, json, pathlib, sys
 payload = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
@@ -212,6 +224,8 @@ printf '\n===== RESTORE STAGED DATABASE AND FILES =====\n'
 bench_run --site "$SITE" restore "$STAGED_DATABASE" \
   --with-public-files "$STAGED_PUBLIC" \
   --with-private-files "$STAGED_PRIVATE" \
+  --db-root-username "$LOCAL_DB_ADMIN_USER" \
+  --db-root-password "$LOCAL_DB_ADMIN_PASSWORD" \
   --admin-password "$ADMIN_PASSWORD" \
   --force
 
@@ -225,6 +239,23 @@ PY
 )"
 [[ "$DB_IDENTITY_AFTER_RESTORE" == "$DB_IDENTITY_BEFORE" ]] || fail 'fresh local site DB identity changed during restore'
 pass 'fresh local DB identity remained isolated after restore'
+
+printf '\n===== LOCAL LOGIN PASSWORD CONVENTION =====\n'
+bench_run --site "$SITE" set-admin-password "$LOCAL_ADMIN_PASSWORD"
+USER_LIST="$(bench_run --site "$SITE" execute frappe.get_all --args '["User"]' --kwargs '{"filters":{"enabled":1},"pluck":"name"}' | tail -n 1)"
+printf '%s' "$USER_LIST" | "$BENCH_DIR/env/bin/python" -c 'import ast,json,sys
+raw=sys.stdin.read().strip()
+try:
+    users=json.loads(raw)
+except Exception:
+    users=ast.literal_eval(raw)
+for user in users:
+    if user not in {"Administrator","Guest"}:
+        print(user)' | while IFS= read -r user; do
+  [[ -n "$user" ]] || continue
+  bench_run --site "$SITE" set-password "$user" "$LOCAL_USER_PASSWORD"
+done
+pass 'local Administrator and enabled user password convention applied'
 
 printf '\n===== POST-RESTORE RUNTIME =====\n'
 BENCH_DIR="$BENCH_DIR" bash "$REPO_ROOT/deploy/bench_redis.sh" start
@@ -259,6 +290,8 @@ EVIDENCE="$EVIDENCE_DIR/single-site-restore-$(date -u '+%Y%m%dT%H%M%SZ').env"
   printf 'destructive_reset_completed=1\n'
   printf 'target_db_identity_preserved=1\n'
   printf 'source_encryption_key_merged=1\n'
+  printf 'local_db_admin_credential=managed\n'
+  printf 'local_login_password_convention=applied\n'
   printf 'dependency_preflight=passed\n'
   printf 'offline_smoke=passed\n'
   printf 'phase12_frozen_snapshot=passed\n'
@@ -274,6 +307,8 @@ pass 'all local sites were reduced to one canonical site'
 pass 'canonical site was freshly recreated with Frappe -> ERPNext -> Ledgix'
 pass 'database/public/private files restored to the same canonical site'
 pass 'fresh DB credentials stayed isolated while source encryption key was restored'
+pass 'dedicated generated local DB admin removed the MariaDB root-password prompt'
+pass 'local login password convention was restored after database recovery'
 pass 'Phase 12 frozen snapshot and representative reads passed after recovery'
 printf 'backup_restore_runtime_complete=true\n'
 printf '[OK] recovery evidence: %s\n' "$EVIDENCE"
