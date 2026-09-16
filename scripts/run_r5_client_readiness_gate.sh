@@ -80,7 +80,7 @@ bench_run() {
 
 parse_readiness_field() {
   local field="$1"
-  "$BENCH_DIR/env/bin/python" - "$field" <<'PY'
+  "$BENCH_DIR/env/bin/python" -c '
 import ast
 import json
 import sys
@@ -123,7 +123,7 @@ elif field == "apply_kwargs":
     print(json.dumps({"payload": payload}, separators=(",", ":")))
 else:
     raise SystemExit(f"unknown readiness field: {field}")
-PY
+' "$field"
 }
 
 generate_readiness() {
