@@ -3,6 +3,7 @@ set -Eeuo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SITE="${1:-ledgix-erpnext.local}"
+BENCH_PY="$ROOT_DIR/frappe-bench/env/bin/python"
 
 if [[ "$SITE" != "ledgix-erpnext.local" ]]; then
   echo "[ERROR] Refusing Phase 6 static contract on site: $SITE" >&2
@@ -17,6 +18,11 @@ if [[ "$(git branch --show-current)" != "main" ]]; then
   exit 2
 fi
 
+if [[ ! -x "$BENCH_PY" ]]; then
+  echo "[ERROR] Bench Python is missing or not executable: $BENCH_PY" >&2
+  exit 2
+fi
+
 printf '%s\n' "=================================================="
 printf '%s\n' " ERPNext Phase 6 Static Contract"
 printf '%s\n' "=================================================="
@@ -26,17 +32,10 @@ printf 'Branch: %s\n' "$(git branch --show-current)"
 printf 'Commit: %s\n' "$(git rev-parse --short=12 HEAD)"
 printf '\n'
 
-cd "$ROOT_DIR/frappe-bench"
-
-# This site is a guarded local integration fixture. Explicitly enable Frappe
-# tests so `bench run-tests` cannot report a false-green skip.
-bench --site "$SITE" set-config allow_tests true
-
 echo "===== PHASE 6 STATIC CONTRACT ====="
-bench --site "$SITE" run-tests \
-  --app ledgix_saas \
-  --module ledgix_saas.setup.test_erpnext_phase6_extensions \
-  --skip-test-records
+PYTHONPATH="$ROOT_DIR/apps${PYTHONPATH:+:$PYTHONPATH}" \
+  "$BENCH_PY" -m unittest -v \
+  ledgix_saas.setup.test_erpnext_phase6_extensions
 
 echo
 echo "[PASS] Phase 6 static contract executed and passed on $SITE."
