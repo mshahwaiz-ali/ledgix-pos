@@ -614,7 +614,6 @@ def _return_request_map(source, return_items) -> dict:
             frappe.throw(_("Invalid return quantity for item {0}.").format(source_row.item_code))
         requested[source_row.name] = {
             "qty": qty,
-            "rate": raw.get("rate"),
             "item_code": source_row.item_code,
         }
     return requested
@@ -686,11 +685,8 @@ def create_sales_return(
         qty = -abs(flt(request["qty"]))
         row.qty = qty
         row.stock_qty = qty * flt(row.get("conversion_factor") or 1)
-        if request.get("rate") not in (None, ""):
-            row.rate = flt(request["rate"])
-            row.price_list_rate = flt(request["rate"])
-            row.discount_percentage = 0
-            row.discount_amount = 0
+        # ERPNext's native return mapper carries the original submitted line rate.
+        # Never replace it with a client-supplied return rate.
         selected_source_names.add(source_row_name)
         selected.append(row)
 
