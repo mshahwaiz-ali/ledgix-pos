@@ -36,6 +36,15 @@ echo "Branch: $(git branch --show-current)"
 echo "Commit: $(git rev-parse --short=12 HEAD)"
 echo
 
+# The closure runner is restricted to the guarded local integration site.
+# Enable Frappe tests explicitly so the static contract cannot be skipped while
+# still returning a zero exit status.
+echo "===== ENABLE INTEGRATION-SITE TESTS ====="
+cd "$ROOT_DIR/frappe-bench"
+bench --site "$SITE" set-config allow_tests true
+cd "$ROOT_DIR"
+
+echo
 echo "===== FULL PHASE 6 FINAL GATE ====="
 bash scripts/run_erpnext_phase6_final_gate.sh "$SITE"
 
