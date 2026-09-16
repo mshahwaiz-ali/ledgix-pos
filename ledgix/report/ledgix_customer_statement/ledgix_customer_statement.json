@@ -10,25 +10,15 @@
  "idx": 0,
  "is_standard": "Yes",
  "letter_head": null,
- "modified": "2026-05-17 15:48:08.267105",
+ "modified": "2026-09-16 21:36:00.000000",
  "modified_by": "Administrator",
  "module": "Ledgix",
  "name": "Ledgix Customer Statement",
  "owner": "Administrator",
  "prepared_report": 0,
- "ref_doctype": "Ledgix Customer",
+ "ref_doctype": "Customer",
  "report_name": "Ledgix Customer Statement",
  "report_type": "Script Report",
- "roles": [
-  {
-   "role": "System Manager"
-  },
-  {
-   "role": "Ledgix Admin"
-  },
-  {
-   "role": "Ledgix Manager"
-  }
- ],
+ "roles": [{"role":"System Manager"},{"role":"Ledgix Admin"},{"role":"Ledgix Manager"}],
  "timeout": 0
 }
