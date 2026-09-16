@@ -18,7 +18,7 @@ Phase 5 does **not** freeze/delete legacy masters and does **not** cut transacti
 | Ledgix Item unit | ERPNext `UOM` / Item `stock_uom` | `Piece -> Nos`, `Liter -> Litre`; remaining source values preserve name where possible |
 | Ledgix Price List | ERPNext `Price List` | Selling list; retail/default/priority/notes are Ledgix extension metadata |
 | Ledgix Item | ERPNext `Item` | Native barcode, tracking flags, valuation/standard rates; provenance/SKU/minimum-stock compatibility are Ledgix fields |
-| Ledgix Item Price | ERPNext `Item Price` | validity dates + deterministic legacy reference |
+| Ledgix Item Price | ERPNext `Item Price` | Native validity/rate/UOM fields; one Ledgix provenance Custom Field tracks the migration source |
 | Ledgix Customer | ERPNext `Customer` | native group/type/default price list/payment terms/credit limit + Phase 3 FBR fields |
 | Customer contact/address | Frappe `Contact` / `Address` | authoritative email/phone child tables + Dynamic Links |
 | Ledgix Supplier | ERPNext `Supplier` | native Supplier Group/contact/address |
@@ -30,19 +30,27 @@ Phase 5 does **not** freeze/delete legacy masters and does **not** cut transacti
 
 ## Data that intentionally does not move in Phase 5
 
-Customer receivables/credits and Supplier AP/opening balances are accounting transaction state, not master attributes. Non-zero values are reported as **deferred Phase 6 rows** rather than converted into fake master balances or journals during Phase 5.
+Accounting balances are transactional state, not master attributes:
+
+- Customer receivables, unallocated credit and customer credit balances move with **Phase 6 — Selling, Payments and Returns Cutover**.
+- Supplier AP/opening balances move with **Phase 7 — Buying and Inventory Cutover**.
+
+Phase 5 reports these rows as deferred rather than inventing fake master balances or journals.
 
 ## Extension policy
 
 `ledgix_saas.setup.erpnext_phase5_extensions` adds only information that pinned ERPNext v15 does not own natively:
 
 - legacy source/provenance identifiers;
-- legacy SKU and minimum-stock compatibility value;
+- legacy SKU, tracking-type audit value and minimum-stock compatibility value;
 - category active/icon/color and Ledgix FBR category-default switches;
 - retail Price List priority/default/notes;
+- one `Item Price.custom_ledgix_legacy_item_price` migration-provenance field;
 - Ledgix POS payment method policy (`requires_reference`, `allow_change`, sort order and legacy method type).
 
-No duplicate Item/Customer/Supplier/Price List fields are introduced for standard ERPNext data.
+ERPNext's standard `Item Price.reference` field is **not** used for migration provenance. In pinned ERPNext v15 the Item Price controller owns that field and derives it from Customer/Supplier semantics. Ledgix therefore leaves the native field untouched.
+
+No duplicate Item/Customer/Supplier/Price List/Item Price business model is introduced for target authority.
 
 Schema extensions are idempotently installed by `after_migrate`. **Business data migration is never automatically executed by migrate.**
 
@@ -51,7 +59,7 @@ Schema extensions are idempotently installed by `after_migrate`. **Business data
 Canonical migration service:
 
 ```text
-ledgix_saas.migration.erpnext_phase5_master_migration_v2.run
+ledgix_saas.migration.erpnext_phase5_master_migration_runtime.run
 ```
 
 Safety defaults:
@@ -74,7 +82,7 @@ Examples that become reconciliation conflicts:
 - an existing ERPNext Item with the same item code but incompatible group/UOM/batch/serial structure;
 - a Customer/Supplier name collision without Ledgix provenance;
 - a Price List currency mismatch;
-- an Item Price key with a different amount owned by another source;
+- an Item Price semantic key with a different amount or a different Ledgix provenance owner;
 - an Item Tax Profile already linked to a different ERPNext Item;
 - target stock ledger activity that did not come from the Phase 5 opening marker;
 - lot remaining quantity not matching legacy Item current stock;
@@ -103,6 +111,10 @@ Every non-cancelled legacy lot with positive `remaining_qty` becomes one ERPNext
 
 Every in-stock legacy serial identity (`Available` / `Returned`) is preserved exactly. Count must equal legacy Item `current_stock`. ERPNext creates the native Serial/Batch Bundle through the proven v15 Stock Entry path.
 
+### Invoice + FBR Only profile
+
+When the business profile has inventory disabled, migrated ERPNext Items remain **non-stock** even if the legacy Item carried a tracking type. The legacy tracking type is preserved only as audit metadata and no opening stock/Batch/Serial posting is performed.
+
 ### Duplicate-stock guard
 
 If the target Item/Warehouse already contains unrelated Stock Ledger Entry activity, opening stock migration refuses to post. On rerun, only Phase 5 marker documents are reused and their final Bin quantity must still match legacy current stock.
@@ -129,15 +141,22 @@ It performs:
 4. Phase 2 behavioral regression;
 5. Phase 3 schema regression;
 6. Phase 4 13-case tax/accounting regression;
-7. creation of isolated `P5-*` legacy fixtures;
+7. creation/reuse of isolated `P5-*` legacy fixtures;
 8. Phase 5 dry-run with rollback proof;
 9. first real scoped migration;
 10. second real scoped migration to prove idempotence;
 11. counts/identifiers/prices/FBR/contact/credit/payment-policy reconciliation;
 12. exact normal/batch/serial opening quantity and identity reconciliation;
-13. proof that legacy masters remain and transaction cutover/freeze has not occurred.
+13. Invoice + FBR Only non-stock migration proof;
+14. proof that legacy masters remain and transaction cutover/freeze has not occurred.
 
 Phase 5 is complete only when every final-gate check is green on `ledgix-erpnext.local`.
+
+## Naming policy
+
+Migration helper modules use descriptive names such as `*_runtime`, `*_profiles` and `*_credit_case`. Version-suffixed source files such as `*_v2.py` or `*_v3.py` are not permitted. Repository validation enforces this rule.
+
+Legacy Ledgix DocTypes are not renamed during Phase 5 because they are the migration source. Target business authority uses standard ERPNext/Frappe DocTypes wherever an equivalent exists.
 
 ## Production cutover usage later
 
@@ -146,9 +165,9 @@ Before a real client migration:
 1. take a database/site backup;
 2. record app/framework versions;
 3. run the migration in dry-run mode without opening stock and review every conflict/deferred row;
-4. select the exact target Company and leaf Warehouse;
+4. select the exact target Company and leaf Warehouse where inventory is enabled;
 5. reconcile legacy stock/lot/serial state;
-6. rerun dry-run with opening stock enabled;
+6. rerun dry-run with opening stock enabled when applicable;
 7. execute the actual migration only after the dry-run is clean;
 8. rerun reconciliation and record the output;
 9. only then move to Phase 6 transactional cutover planning.
