@@ -27,12 +27,10 @@ REQUIRED_FIELDS = {
         "rate",
         "tax_amount",
         "included_in_print_rate",
-        "add_deduct_tax",
-        "category",
         "item_wise_tax_detail",
     ],
     "Item Tax Template": ["title", "company", "taxes"],
-    "Item Tax Template Detail": ["tax_type", "tax_rate"],
+    "Item Tax Template Detail": ["tax_type", "tax_rate", "not_applicable"],
 }
 
 
@@ -80,7 +78,6 @@ def run() -> dict:
         "Tax Withholding Category": bool(frappe.db.exists("DocType", "Tax Withholding Category")),
     }
     charge_types = _select_options("Sales Taxes and Charges", "charge_type")
-    add_deduct_options = _select_options("Sales Taxes and Charges", "add_deduct_tax")
 
     primitive_checks = {
         "required_doctypes_present": all(result["exists"] for result in doctypes.values()),
@@ -90,21 +87,33 @@ def run() -> dict:
         "supports_inclusive_tax_flag": frappe.get_meta("Sales Taxes and Charges").has_field(
             "included_in_print_rate"
         ),
-        "supports_add_deduct_rows": bool(add_deduct_options),
-        "supports_item_tax_template": optional_doctypes["Tax Category"]
-        and bool(frappe.db.exists("DocType", "Item Tax Template")),
+        "supports_item_tax_template": bool(frappe.db.exists("DocType", "Item Tax Template")),
+        "supports_item_tax_not_applicable_flag": frappe.get_meta("Item Tax Template Detail").has_field(
+            "not_applicable"
+        ),
+        "supports_separate_tax_withholding_model": optional_doctypes["Tax Withholding Category"],
     }
 
     decisions = {
         "ordinary_percentage_sales_tax": "USE NATIVE ERPNext tax rows/item tax templates",
         "tax_inclusive_price": "USE NATIVE ERPNext included_in_print_rate behavior; prove totals in Phase 4",
-        "zero_rated_and_exempt": "EXTEND NATIVE with Ledgix FBR classification; prove ERPNext zero-tax accounting in Phase 4",
-        "further_tax": "USE/EXTEND NATIVE ERPNext financial tax row plus immutable Ledgix FBR metadata",
-        "extra_tax": "USE/EXTEND NATIVE ERPNext financial tax row plus immutable Ledgix FBR metadata",
-        "fed": "USE/EXTEND NATIVE ERPNext financial tax row plus immutable Ledgix FBR metadata",
-        "sales_tax_withheld_at_source": "CUSTOM PARITY REQUIRED in Phase 4; do not map blindly to generic withholding",
-        "third_schedule_notified_retail_price": "CUSTOM FBR/tax-basis extension required while ERPNext remains final ledger authority",
-        "fbr_hs_uom_sales_type_sro_scenario": "KEEP LEDGIX compliance metadata, relink to ERPNext Item/invoice snapshots",
+        "zero_rated_and_exempt": (
+            "EXTEND NATIVE: use ERPNext zero-rate/not-applicable financial behavior plus Ledgix FBR classification; "
+            "prove both cases in Phase 4"
+        ),
+        "further_tax": "USE/EXTEND NATIVE ERPNext positive financial tax row plus immutable Ledgix FBR metadata",
+        "extra_tax": "USE/EXTEND NATIVE ERPNext positive financial tax row plus immutable Ledgix FBR metadata",
+        "fed": "USE/EXTEND NATIVE ERPNext positive financial tax row plus immutable Ledgix FBR metadata",
+        "sales_tax_withheld_at_source": (
+            "CUSTOM PARITY REQUIRED in Phase 4; ERPNext has a separate withholding model, but Ledgix sales-tax-"
+            "withheld semantics must not be blindly mapped to it"
+        ),
+        "third_schedule_notified_retail_price": (
+            "CUSTOM FBR/tax-basis extension required while ERPNext remains final ledger authority"
+        ),
+        "fbr_hs_uom_sales_type_sro_scenario": (
+            "KEEP LEDGIX compliance metadata, relink to ERPNext Item/invoice snapshots"
+        ),
         "authoritative_grand_total": "ERPNext only after Phase 4 parity passes",
     }
 
@@ -113,7 +122,6 @@ def run() -> dict:
         "doctypes": doctypes,
         "optional_doctypes": optional_doctypes,
         "charge_types": charge_types,
-        "add_deduct_options": add_deduct_options,
         "primitive_checks": primitive_checks,
         "decisions": decisions,
         "phase4_parity_required": True,
