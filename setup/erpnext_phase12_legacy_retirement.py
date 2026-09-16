@@ -15,7 +15,6 @@ from ledgix_saas.api import legacy_retirement
 from ledgix_saas.setup.permissions import PERM_KEYS
 
 AUDIT_ROLES = ("System Manager", "Ledgix Admin", "Ledgix Manager")
-MANAGED_ROLES = ("System Manager", "Ledgix Admin", "Ledgix Manager", "Ledgix Cashier")
 
 
 def _audit_values() -> dict:
@@ -46,23 +45,19 @@ def sync_legacy_read_only_permissions() -> dict:
         if not frappe.db.exists("DocType", doctype):
             continue
 
-        # Materialize standard DocPerm rows into Custom DocPerm first so the
-        # presence of custom permissions becomes authoritative for this DocType.
+        # Materialize standard DocPerm rows into Custom DocPerm first. Then
+        # replace the complete custom permission set so no historical/unknown
+        # application role can retain write access to a frozen legacy ledger.
         setup_custom_perms(doctype)
-        frappe.db.delete(
-            "Custom DocPerm",
-            {
-                "parent": doctype,
-                "permlevel": 0,
-                "role": ["in", list(MANAGED_ROLES)],
-            },
-        )
+        frappe.db.delete("Custom DocPerm", {"parent": doctype})
         for role in AUDIT_ROLES:
             if frappe.db.exists("Role", role):
                 _insert_audit_perm(doctype, role)
         frappe.clear_cache(doctype=doctype)
         changed.append(doctype)
 
+    # freeze_legacy_history writes the Frozen state in the same transaction.
+    # Commit only after every legacy DocType has received the audit-only policy.
     frappe.db.commit()
     return {
         "frozen": legacy_retirement.is_frozen(),
@@ -80,19 +75,22 @@ def read_only_permission_status() -> dict:
             continue
         permissions = frappe.get_all(
             "Custom DocPerm",
-            filters={
-                "parent": doctype,
-                "permlevel": 0,
-                "role": ["in", list(MANAGED_ROLES)],
-            },
-            fields=["role", *PERM_KEYS],
-            order_by="role asc",
+            filters={"parent": doctype},
+            fields=["role", "permlevel", "if_owner", *PERM_KEYS],
+            order_by="permlevel asc, role asc",
             limit_page_length=0,
         )
         normalized = []
         for row in permissions:
             values = {key: int(row.get(key) or 0) for key in PERM_KEYS}
-            normalized.append({"role": row.role, **values})
+            normalized.append(
+                {
+                    "role": row.role,
+                    "permlevel": int(row.get("permlevel") or 0),
+                    "if_owner": int(row.get("if_owner") or 0),
+                    **values,
+                }
+            )
             forbidden = [
                 key
                 for key in ("write", "create", "delete", "submit", "cancel", "amend", "share", "email")
@@ -100,17 +98,27 @@ def read_only_permission_status() -> dict:
             ]
             if forbidden:
                 violations.append({"doctype": doctype, "role": row.role, "forbidden": forbidden})
+            if int(row.get("permlevel") or 0) != 0 or int(row.get("if_owner") or 0):
+                violations.append(
+                    {
+                        "doctype": doctype,
+                        "role": row.role,
+                        "forbidden": ["nonzero_permlevel_or_if_owner"],
+                    }
+                )
             if row.role == "Ledgix Cashier":
                 violations.append({"doctype": doctype, "role": row.role, "forbidden": ["legacy_cashier_access"]})
+
         expected_roles = set(AUDIT_ROLES)
         actual_roles = {row["role"] for row in normalized}
-        if actual_roles != expected_roles:
+        if actual_roles != expected_roles or len(normalized) != len(expected_roles):
             violations.append(
                 {
                     "doctype": doctype,
                     "role_mismatch": {
                         "expected": sorted(expected_roles),
                         "actual": sorted(actual_roles),
+                        "row_count": len(normalized),
                     },
                 }
             )
