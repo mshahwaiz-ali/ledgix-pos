@@ -81,6 +81,15 @@ override_whitelisted_methods = {
 	"ledgix_saas.api.v2_returns.create_pos_v2_return": "ledgix_saas.api.selling.create_pos_return_compat",
 }
 
+# Ledgix-originated native Payment Entries remain ERPNext documents; this hook
+# only enforces migrated POS policy such as reference requirements and the
+# standard company Mode-of-Payment account mapping.
+doc_events = {
+	"Payment Entry": {
+		"validate": "ledgix_saas.services.erpnext_payment_policy.validate_ledgix_payment_entry",
+	},
+}
+
 # Production FBR recovery is intentionally fail-closed. An ambiguous POST/HTTP
 # failure can mean FBR received the invoice even when Ledgix did not receive the
 # response, so automatic retransmission is disabled until reconciliation-safe
