@@ -194,19 +194,78 @@ Design contract:
 
 ---
 
-## Phase 5 — Master Data Migration — IMPLEMENTED, FINAL RUNTIME GATE PENDING
+## Phase 5 — Master Data Migration — IMPLEMENTED, ITEM-PRICE FIX READY FOR RE-GATE
 
-### Goal
+### Latest runtime evidence
 
-Move legacy master authority to ERPNext once, with explicit dry-run, conflict reporting, idempotent execution and reconciliation. This is not a permanent synchronization layer.
+The consolidated Phase 2 + 3 + 4 + 5 gate was exercised on `ledgix-erpnext.local` at commit `2cd059a2fe78` on 2026-09-16.
+
+Regression status remained green:
+
+- Phase 2: **PASS**;
+- Phase 3: **PASS**;
+- Phase 4: **PASS, 13/13**.
+
+Phase 5 proved every mandatory master/stock/profile check except explicit Item Price reconciliation. The failed checks were limited to:
+
+- `dry_run_passed`;
+- `first_migration_passed`;
+- `second_migration_passed`;
+- `explicit_item_prices_mapped`.
+
+The underlying migration had no conflicts/errors and all non-price checks were green: categories, Items, tracking, customers, contacts/addresses, FBR fields, suppliers, payment methods, Item Tax Profile relink, normal/batch/serial opening state, legacy record preservation and Invoice + FBR Only non-stock behavior.
+
+### Item Price root cause identified and corrected
+
+The first implementation attempted to store Ledgix migration provenance in ERPNext `Item Price.reference`.
+
+Pinned ERPNext v15 owns that standard field: `ItemPrice.before_save()` derives `reference` from the native Customer/Supplier price semantics. For a generic selling price the migration marker is therefore cleared during save. The ERPNext Item Price records themselves were created, but the reconciliation lookup by `reference` could not find their provenance.
+
+Corrected design:
+
+- ERPNext `Item Price.reference` is left fully native;
+- `Item Price.custom_ledgix_legacy_item_price` stores only one-time Ledgix migration provenance;
+- existing matching ERPNext Item Price rows from the failed rehearsal are adopted by semantic key only when their rate matches and no other Ledgix provenance owner exists;
+- a different rate or provenance owner fails closed as a conflict;
+- reconciliation now checks the dedicated provenance field.
+
+This allows the next re-gate to repair the already-created rehearsal rows without generating another explicit price row.
+
+### Standard target ownership
+
+Target business authority uses standard ERPNext/Frappe DocTypes:
+
+- `Item Group`, `UOM`, `Price List`, `Item`, `Item Price`;
+- `Customer`, `Contact`, `Address`, `Supplier`;
+- `Mode of Payment`;
+- ERPNext Stock Ledger / `Batch` / `Serial No`.
+
+Legacy `Ledgix Item`, `Ledgix Customer`, `Ledgix Supplier`, etc. remain only as migration sources until later freeze/retirement phases. They are intentionally not renamed or deleted during Phase 5.
+
+Ledgix-only configuration/compliance models such as `Ledgix Item Tax Profile` and `Ledgix Business Profile` remain custom because ERPNext does not replace their product/FBR purpose.
+
+### Naming cleanup
+
+Active migration/test helper names are descriptive rather than versioned. Examples:
+
+- `erpnext_phase5_master_migration_runtime`;
+- `erpnext_phase5_master_migration_gate_profiles`;
+- `erpnext_phase5_master_migration_gate_runtime`;
+- `erpnext_phase4_tax_credit_case`;
+- `erpnext_phase4_tax_parity_runtime`;
+- `erpnext_pos_behavioral_spike_runtime`;
+- `erpnext_stock_purchase_behavioral_spike_runtime`.
+
+Version-suffixed migration modules are removed. Repository validation now rejects future `*_vN.py` migration modules or references.
 
 ### Extension schema implemented
 
 `ledgix_saas.setup.erpnext_phase5_extensions` adds only Ledgix-only metadata/provenance that pinned ERPNext v15 does not model natively:
 
-- Item legacy source, SKU and minimum-stock compatibility value;
+- Item legacy source, SKU, legacy tracking audit and minimum-stock compatibility value;
 - Item Group legacy source, active/icon/color and category FBR-default metadata;
 - Price List legacy source/default-retail/priority/notes;
+- Item Price migration provenance only;
 - Customer/Supplier provenance;
 - Address/Contact provenance;
 - Mode of Payment legacy POS policy (`requires_reference`, `allow_change`, sort order, legacy method type).
@@ -217,7 +276,7 @@ Schema installation is idempotent through `after_migrate`. **Business data migra
 
 Canonical entry point:
 
-- `ledgix_saas.migration.erpnext_phase5_master_migration_v2.run`
+- `ledgix_saas.migration.erpnext_phase5_master_migration_runtime.run`
 
 Production-safe defaults:
 
@@ -230,54 +289,46 @@ Implemented migration order:
 2. categories -> ERPNext Item Groups;
 3. Price Lists;
 4. Items + barcode/tracking/provenance;
-5. active Item Prices with validity and deterministic legacy reference;
+5. active Item Prices with native validity/rate/UOM and dedicated Ledgix provenance;
 6. Customers + native group/type/default price list/payment terms/company credit limit + Contact/Address + FBR fields;
 7. Suppliers + native group + Contact/Address;
 8. Modes of Payment + Ledgix POS policy metadata;
 9. legacy Item Tax Profile relink to ERPNext Item;
 10. opt-in opening stock / Batch / Serial state.
 
-### Conflict / accounting policy
+### Accounting-state ownership
 
-Migration reports and refuses ambiguous collisions rather than silently overwriting incompatible native masters.
+- Customer receivable/unallocated-credit state is deferred to **Phase 6 — Selling, Payments and Returns Cutover**.
+- Supplier AP/opening balances are deferred to **Phase 7 — Buying and Inventory Cutover**.
 
-Customer receivable/credit state and Supplier AP/opening balances are explicitly deferred to Phase 6 because they are transactional accounting state, not master fields.
+Neither is converted into a fake master balance in Phase 5.
 
 ### Opening stock implementation
 
-Opening stock requires an explicit enabled leaf ERPNext Warehouse.
+Opening stock requires an explicit enabled leaf ERPNext Warehouse and an inventory-enabled business profile.
 
 - Normal: native Material Receipt;
 - Lot Based: exact surviving legacy lot name -> ERPNext Batch + receipt;
 - Serial Based: exact in-stock legacy serial numbers -> ERPNext Serial No / Serial & Batch Bundle;
 - target stock activity unrelated to Phase 5 markers blocks migration;
-- reruns reuse marker documents and must reconcile final Bin quantity.
+- reruns reuse marker documents and must reconcile final Bin quantity;
+- Invoice + FBR Only profile creates non-stock ERPNext Items and performs no stock-ledger posting.
 
-### Final integration gate ready
+### Final integration gate
 
 Runner:
 
 - `scripts/run_erpnext_phase5_final_gate.sh`
 
-The gate uses isolated `P5-*` legacy fixtures and proves:
+The next runtime gate must reconfirm:
 
-- Phase 2 regression remains green;
-- Phase 3 regression remains green;
-- Phase 4 13-case tax/accounting regression remains green;
-- dry-run executes then rolls back target business data;
-- first actual scoped migration;
-- second actual scoped migration without duplicate target counts;
-- legacy source counts remain unchanged;
-- identifiers/UOM/category/SKU/barcode/tracking metadata;
-- explicit Item Prices;
-- Customer pricing/terms/credit/contact/address/FBR fields;
-- Supplier group/contact/address with AP opening balance deferred;
-- Mode of Payment policy;
-- FBR Item Profile relink;
-- exact normal/batch/serial quantities and identities;
-- no legacy master freeze and no transaction-authority cutover.
+- Phase 2/3/4 regressions;
+- dry-run rollback;
+- first and second idempotent migration runs;
+- explicit Item Price provenance/rate mapping;
+- all previously green master/profile/stock checks.
 
-Phase 5 is **not** marked complete until this runtime gate passes on `ledgix-erpnext.local`.
+Phase 5 remains **not complete** until that corrected runtime gate passes on `ledgix-erpnext.local`.
 
 Design contract:
 
@@ -289,7 +340,7 @@ Design contract:
 
 Phase 6 — Selling, Payments and Returns Cutover.
 
-Phase 6 will move transactional sales/payment/return authority and will absorb the customer/supplier accounting state intentionally deferred by Phase 5. FBR submission cutover remains Phase 9.
+Phase 6 will move new sales/payment/return authority and customer receivable/credit state to ERPNext. Supplier AP/opening state aligns with Phase 7 buying cutover. FBR submission cutover remains Phase 9.
 
 ---
 
