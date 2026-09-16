@@ -72,7 +72,7 @@ update_website_context = [
 # and native Sales Invoice returns use ERPNext authority from Phase 6 onward.
 override_whitelisted_methods = {
 	"ledgix_saas.api.tax_center.get_fbr_readiness": "ledgix_saas.api.fbr_preflight.get_fbr_readiness",
-	"ledgix_saas.api.v2_pos.complete_pos_v2_sale": "ledgix_saas.api.selling.complete_pos_v2_sale_compat",
+	"ledgix_saas.api.v2_pos.complete_pos_v2_sale": "ledgix_saas.api.selling_compat.complete_pos_v2_sale",
 	"ledgix_saas.api.v2_pos.preview_pos_v2_checkout": "ledgix_saas.api.selling.preview_pos_v2_checkout_compat",
 	"ledgix_saas.api.v2_pos.get_pos_v2_customer_context": "ledgix_saas.api.selling.get_pos_v2_customer_context_compat",
 	"ledgix_saas.api.v2_returns.get_pos_v2_return_context": "ledgix_saas.api.selling.get_pos_return_context_compat",
