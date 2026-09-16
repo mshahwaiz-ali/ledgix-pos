@@ -125,6 +125,13 @@ class TestBackupRestoreContract(unittest.TestCase):
             "single-site local standard enforced",
             "multiple active local sites found",
             "bench Ledgix app now mirrors repository source exactly",
+            "LEDGIX_LOCAL_ADMIN_PASSWORD:-admin",
+            "LEDGIX_LOCAL_USER_PASSWORD:-admin@123",
+            "LEDGIX_LOCAL_DB_PASSWORD:-admin@123",
+            "set-admin-password",
+            "set-password",
+            "DEFAULT_USER_PASSWORD",
+            "local login password convention applied",
         ):
             self.assertIn(token, source)
         for forbidden in (
@@ -134,6 +141,42 @@ class TestBackupRestoreContract(unittest.TestCase):
             "Create another site?",
         ):
             self.assertNotIn(forbidden, source)
+
+    def test_local_db_admin_is_generated_stored_outside_git_and_localhost_only(self):
+        path = DEPLOY / "local_db_admin.sh"
+        self.assertTrue(path.exists())
+        source = path.read_text(encoding="utf-8")
+        for token in (
+            ".secrets/local-db-admin.env",
+            "openssl rand",
+            "@'localhost'",
+            "WITH GRANT OPTION",
+            "chmod 600",
+            "LOCAL_DB_ADMIN_USER",
+            "LOCAL_DB_ADMIN_PASSWORD",
+        ):
+            self.assertIn(token, source)
+        self.assertNotIn("@'%'", source)
+
+    def test_interrupted_local_r3_recovery_is_resumable(self):
+        path = DEPLOY / "recover_local_r3.sh"
+        self.assertTrue(path.exists())
+        source = path.read_text(encoding="utf-8")
+        for token in (
+            "local recovery helper refuses non-local site",
+            "recovery-staging",
+            "sha256sum -c",
+            "local_db_admin.sh",
+            "--db-root-username",
+            "--db-root-password",
+            "--with-public-files",
+            "--with-private-files",
+            "set-admin-password",
+            "set-password",
+            "verify_recovery_state",
+            "local_r3_recovery_complete=true",
+        ):
+            self.assertIn(token, source)
 
     def test_runtime_gate_is_single_site_destructive_restore_proof(self):
         path = SCRIPTS / "run_backup_restore_runtime_gate.sh"
@@ -149,7 +192,13 @@ class TestBackupRestoreContract(unittest.TestCase):
             'site_setup.sh"',
             '--confirm "RESET $SITE"',
             "source encryption key merged without copying old DB credentials",
+            "local_db_admin.sh",
+            "--db-root-username \"$LOCAL_DB_ADMIN_USER\"",
+            "--db-root-password \"$LOCAL_DB_ADMIN_PASSWORD\"",
             "--admin-password \"$ADMIN_PASSWORD\"",
+            "LOCAL LOGIN PASSWORD CONVENTION",
+            "set-admin-password",
+            "set-password",
             "single active local site enforced",
             "ledgix_saas.setup.recovery.verify_recovery_state",
             "backup_restore_runtime_complete=true",
@@ -157,6 +206,15 @@ class TestBackupRestoreContract(unittest.TestCase):
             self.assertIn(token, source)
         self.assertNotIn("ledgix-recovery.local", source)
         self.assertNotIn("SOURCE_SITE TARGET_SITE", source)
+
+    def test_local_weak_credentials_do_not_leak_into_production_setup(self):
+        production_source = (DEPLOY / "production_setup.sh").read_text(encoding="utf-8")
+        updater_source = (DEPLOY / "deploy_update_safe.sh").read_text(encoding="utf-8")
+        for source in (production_source, updater_source):
+            self.assertNotIn("LEDGIX_LOCAL_ADMIN_PASSWORD", source)
+            self.assertNotIn("LEDGIX_LOCAL_USER_PASSWORD", source)
+            self.assertNotIn("LEDGIX_LOCAL_DB_PASSWORD", source)
+            self.assertNotIn("admin@123", source)
 
     def test_r3_static_gate_is_consolidated(self):
         static_path = SCRIPTS / "run_backup_restore_static_gate.sh"
