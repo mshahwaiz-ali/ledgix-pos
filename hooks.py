@@ -75,7 +75,7 @@ override_whitelisted_methods = {
 	"ledgix_saas.api.v2_pos.get_pos_v2_boot": "ledgix_saas.api.selling_compat.get_pos_v2_boot",
 	"ledgix_saas.api.v2_pos.search_pos_v2_items": "ledgix_saas.api.selling_compat.search_pos_v2_items",
 	"ledgix_saas.api.v2_pos.complete_pos_v2_sale": "ledgix_saas.api.selling_compat.complete_pos_v2_sale",
-	"ledgix_saas.api.v2_pos.preview_pos_v2_checkout": "ledgix_saas.api.selling.preview_pos_v2_checkout_compat",
+	"ledgix_saas.api.v2_pos.preview_pos_v2_checkout": "ledgix_saas.api.selling_compat.preview_pos_v2_checkout",
 	"ledgix_saas.api.v2_pos.get_pos_v2_customer_context": "ledgix_saas.api.selling.get_pos_v2_customer_context_compat",
 	"ledgix_saas.api.v2_returns.get_pos_v2_return_context": "ledgix_saas.api.selling.get_pos_return_context_compat",
 	"ledgix_saas.api.v2_returns.create_pos_v2_return": "ledgix_saas.api.selling.create_pos_return_compat",
