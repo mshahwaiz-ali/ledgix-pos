@@ -56,7 +56,6 @@ class TestERPNextPhase8Contract(unittest.TestCase):
         for native in (
             '"POS Profile"',
             '"POS Opening Entry"',
-            '"POS Closing Entry"',
             '"POS Invoice"',
             '"Sales Invoice"',
             '"Customer"',
@@ -65,6 +64,15 @@ class TestERPNextPhase8Contract(unittest.TestCase):
             '"Mode of Payment"',
         ):
             self.assertIn(native, source)
+
+        # ERPNext creates POS Closing Entry through its native helper rather than
+        # constructing the DocType directly. Assert the real behavior instead of
+        # requiring an otherwise-unused literal string in the service source.
+        self.assertIn(
+            "from erpnext.accounts.doctype.pos_closing_entry.pos_closing_entry import make_closing_entry_from_opening",
+            source,
+        )
+        self.assertIn("closing = make_closing_entry_from_opening(opening)", source)
 
     def test_pos_holds_are_native_drafts(self):
         source = (APP_ROOT / "services" / "erpnext_pos.py").read_text(encoding="utf-8")
