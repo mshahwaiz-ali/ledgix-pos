@@ -1,3 +1,4 @@
+import unittest
 from pathlib import Path
 
 from ledgix_saas.setup import erpnext_phase6_extensions
@@ -6,68 +7,77 @@ from ledgix_saas.setup import erpnext_phase6_extensions
 APP_ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_phase6_extensions_only_target_native_financial_documents():
-    assert set(erpnext_phase6_extensions.CUSTOM_FIELDS) == {"Sales Invoice", "Payment Entry"}
+class TestERPNextPhase6ExtensionContract(unittest.TestCase):
+    def test_phase6_extensions_only_target_native_financial_documents(self):
+        self.assertEqual(
+            set(erpnext_phase6_extensions.CUSTOM_FIELDS),
+            {"Sales Invoice", "Payment Entry"},
+        )
 
+    def test_phase6_extensions_do_not_duplicate_erpnext_money_fields(self):
+        forbidden = {
+            "grand_total",
+            "net_total",
+            "outstanding_amount",
+            "paid_amount",
+            "received_amount",
+            "allocated_amount",
+            "total_taxes_and_charges",
+        }
+        fieldnames = {
+            row["fieldname"]
+            for rows in erpnext_phase6_extensions.CUSTOM_FIELDS.values()
+            for row in rows
+        }
+        self.assertFalse(forbidden.intersection(fieldnames))
+        self.assertTrue(all(name.startswith("custom_ledgix_") for name in fieldnames))
 
-def test_phase6_extensions_do_not_duplicate_erpnext_money_fields():
-    forbidden = {
-        "grand_total",
-        "net_total",
-        "outstanding_amount",
-        "paid_amount",
-        "received_amount",
-        "allocated_amount",
-        "total_taxes_and_charges",
-    }
-    fieldnames = {
-        row["fieldname"]
-        for rows in erpnext_phase6_extensions.CUSTOM_FIELDS.values()
-        for row in rows
-    }
-    assert not forbidden.intersection(fieldnames)
-    assert all(name.startswith("custom_ledgix_") for name in fieldnames)
+    def test_phase6_sales_invoice_metadata_contract(self):
+        fieldnames = {
+            row["fieldname"]
+            for row in erpnext_phase6_extensions.CUSTOM_FIELDS["Sales Invoice"]
+        }
+        self.assertTrue(
+            {
+                "custom_ledgix_sale_channel",
+                "custom_ledgix_client_return_id",
+                "custom_ledgix_exchange_reference",
+                "custom_ledgix_checkout_source",
+            }.issubset(fieldnames)
+        )
 
+    def test_phase6_payment_entry_metadata_contract(self):
+        fieldnames = {
+            row["fieldname"]
+            for row in erpnext_phase6_extensions.CUSTOM_FIELDS["Payment Entry"]
+        }
+        self.assertTrue(
+            {
+                "custom_ledgix_client_payment_id",
+                "custom_ledgix_payment_source",
+                "custom_ledgix_reversal_reason",
+            }.issubset(fieldnames)
+        )
 
-def test_phase6_sales_invoice_metadata_contract():
-    fieldnames = {
-        row["fieldname"] for row in erpnext_phase6_extensions.CUSTOM_FIELDS["Sales Invoice"]
-    }
-    assert {
-        "custom_ledgix_sale_channel",
-        "custom_ledgix_client_return_id",
-        "custom_ledgix_exchange_reference",
-        "custom_ledgix_checkout_source",
-    }.issubset(fieldnames)
+    def test_phase6_hooks_install_schema_and_compatibility_routes(self):
+        hooks = (APP_ROOT / "hooks.py").read_text(encoding="utf-8")
+        self.assertIn("ledgix_saas.setup.erpnext_phase6_extensions.after_migrate", hooks)
+        self.assertIn("ledgix_saas.api.selling.complete_pos_v2_sale_compat", hooks)
+        self.assertIn("ledgix_saas.api.selling.preview_pos_v2_checkout_compat", hooks)
+        self.assertIn("ledgix_saas.api.selling.get_pos_v2_customer_context_compat", hooks)
+        self.assertIn("ledgix_saas.api.selling.get_pos_return_context_compat", hooks)
+        self.assertIn("ledgix_saas.api.selling.create_pos_return_compat", hooks)
 
-
-def test_phase6_payment_entry_metadata_contract():
-    fieldnames = {
-        row["fieldname"] for row in erpnext_phase6_extensions.CUSTOM_FIELDS["Payment Entry"]
-    }
-    assert {
-        "custom_ledgix_client_payment_id",
-        "custom_ledgix_payment_source",
-        "custom_ledgix_reversal_reason",
-    }.issubset(fieldnames)
-
-
-def test_phase6_hooks_install_schema_and_compatibility_routes():
-    hooks = (APP_ROOT / "hooks.py").read_text(encoding="utf-8")
-    assert "ledgix_saas.setup.erpnext_phase6_extensions.after_migrate" in hooks
-    assert "ledgix_saas.api.selling.complete_pos_v2_sale_compat" in hooks
-    assert "ledgix_saas.api.selling.preview_pos_v2_checkout_compat" in hooks
-    assert "ledgix_saas.api.selling.get_pos_v2_customer_context_compat" in hooks
-    assert "ledgix_saas.api.selling.get_pos_return_context_compat" in hooks
-    assert "ledgix_saas.api.selling.create_pos_return_compat" in hooks
-
-
-def test_native_selling_service_does_not_write_legacy_financial_doctypes():
-    source = (APP_ROOT / "services" / "erpnext_selling.py").read_text(encoding="utf-8")
-    assert 'frappe.new_doc("Ledgix Sale")' not in source
-    assert 'frappe.new_doc("Ledgix Payment")' not in source
-    assert 'frappe.get_doc("Ledgix Sale"' not in source
-    assert 'frappe.get_doc("Ledgix Payment"' not in source
-    assert '"si_detail"' not in source
-    assert 'row.get("sales_invoice_item")' in source
-    assert "payment.references[0].allocated_amount = -refund_amount" in source
+    def test_native_selling_service_does_not_write_legacy_financial_doctypes(self):
+        source = (APP_ROOT / "services" / "erpnext_selling.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertNotIn('frappe.new_doc("Ledgix Sale")', source)
+        self.assertNotIn('frappe.new_doc("Ledgix Payment")', source)
+        self.assertNotIn('frappe.get_doc("Ledgix Sale"', source)
+        self.assertNotIn('frappe.get_doc("Ledgix Payment"', source)
+        self.assertNotIn('"si_detail"', source)
+        self.assertIn('row.get("sales_invoice_item")', source)
+        self.assertIn(
+            "payment.references[0].allocated_amount = -refund_amount", source
+        )
