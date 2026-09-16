@@ -78,6 +78,31 @@ class TestClientReadinessContract(unittest.TestCase):
             self.assertIn(token, source)
         self.assertNotIn("production_post_armed", source)
 
+    def test_guarded_local_setup_adapter_reuses_phase13_service(self):
+        path = APP_ROOT / "setup" / "r5_local_setup_apply.py"
+        self.assertTrue(path.exists())
+        source = path.read_text(encoding="utf-8")
+        for token in (
+            'site.endswith(".local")',
+            'site.endswith(".localhost")',
+            'frappe.set_user("Administrator")',
+            "client_setup.evaluate_client_setup",
+            "client_setup.apply_client_setup",
+            '"business_masters_created": False',
+            '"fbr_production_activated": False',
+            "frappe.db.commit()",
+        ):
+            self.assertIn(token, source)
+        for forbidden in (
+            "frappe.new_doc",
+            ".insert(",
+            "production_post_armed",
+            "production_token",
+            "sandbox_token",
+            "set-password",
+        ):
+            self.assertNotIn(forbidden, source)
+
     def test_runtime_setup_apply_is_explicit_and_fail_closed(self):
         runtime_gate = SCRIPTS / "run_r5_client_readiness_gate.sh"
         source = runtime_gate.read_text(encoding="utf-8")
@@ -85,7 +110,7 @@ class TestClientReadinessContract(unittest.TestCase):
             "--apply-setup",
             'blockers != ["client_setup_applied"]',
             'row.get("key") == "client_setup_current_readiness" and row.get("passed")',
-            "ledgix_saas.api.client_setup.apply_client_setup",
+            "ledgix_saas.setup.r5_local_setup_apply.apply_existing_ready_setup",
             "apply_standard_defaults",
             "POST-APPLY CLIENT READINESS EVIDENCE",
             "no business masters were created by R5",
@@ -131,6 +156,7 @@ class TestClientReadinessContract(unittest.TestCase):
             "strict evidence",
             "client-readiness",
             "no client fork",
+            "--apply-setup",
         ):
             self.assertIn(token, runbook_text)
 
