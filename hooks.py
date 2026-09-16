@@ -67,11 +67,13 @@ update_website_context = [
 ]
 
 # Keep stable UI/API contracts while moving business authority phase-by-phase.
-# Retail POS remains on the legacy backend until Phase 8; the compatibility
-# functions delegate Retail calls back to the existing implementation while B2B
-# and native Sales Invoice returns use ERPNext authority from Phase 6 onward.
+# Retail POS remains on the legacy backend until Phase 8. For B2B, catalog
+# pricing, receivables, checkout and native Sales Invoice returns use ERPNext
+# authority from Phase 6 onward while the current Ledgix page remains the UX.
 override_whitelisted_methods = {
 	"ledgix_saas.api.tax_center.get_fbr_readiness": "ledgix_saas.api.fbr_preflight.get_fbr_readiness",
+	"ledgix_saas.api.v2_pos.get_pos_v2_boot": "ledgix_saas.api.selling_compat.get_pos_v2_boot",
+	"ledgix_saas.api.v2_pos.search_pos_v2_items": "ledgix_saas.api.selling_compat.search_pos_v2_items",
 	"ledgix_saas.api.v2_pos.complete_pos_v2_sale": "ledgix_saas.api.selling_compat.complete_pos_v2_sale",
 	"ledgix_saas.api.v2_pos.preview_pos_v2_checkout": "ledgix_saas.api.selling.preview_pos_v2_checkout_compat",
 	"ledgix_saas.api.v2_pos.get_pos_v2_customer_context": "ledgix_saas.api.selling.get_pos_v2_customer_context_compat",
