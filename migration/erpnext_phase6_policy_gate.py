@@ -4,7 +4,7 @@ import json
 import traceback
 
 import frappe
-from frappe.utils import flt
+from frappe.utils import flt, nowdate
 
 from ledgix_saas.api import selling_compat
 from ledgix_saas.migration.erpnext_integration_bootstrap import INTEGRATION_SITE, TEST_COMPANY
@@ -66,6 +66,65 @@ def _case(name: str, fn) -> dict:
             "error": str(exc),
             "traceback_tail": trace[-TRACEBACK_TAIL:],
         }
+
+
+def _invoice(client_id: str):
+    return erpnext_selling.create_sales_invoice(
+        customer=CUSTOMER,
+        items=[{"item_code": ITEM, "qty": 1, "uom": "Nos"}],
+        company=TEST_COMPANY,
+        selling_price_list=PRICE_LIST,
+        sale_channel="B2B",
+        client_sale_id=client_id,
+        checkout_source="Phase 6 Policy Gate",
+        submit=True,
+    )
+
+
+def _case_checkout_discount():
+    client_id = "LEDGIX-P6-V1-CHECKOUT-DISCOUNT"
+    native_customer = erpnext_selling._resolve_customer(CUSTOMER)
+    base = erpnext_selling._native_item_rate(
+        item_code=ITEM,
+        customer=native_customer,
+        company=TEST_COMPANY,
+        price_list=PRICE_LIST,
+        qty=1,
+        posting_date=nowdate(),
+    )
+    base_rate = flt(base.rate)
+    expected_net = _money(base_rate * 0.90)
+    before_legacy = frappe.db.count("Ledgix Sale") if frappe.db.exists("DocType", "Ledgix Sale") else 0
+
+    result = selling_compat.complete_b2b_sale(
+        customer=CUSTOMER,
+        cart_items=[{"item": ITEM, "qty": 1}],
+        tenders=[],
+        price_list=PRICE_LIST,
+        client_sale_id=client_id,
+        discount_type="Percent",
+        discount_value=10,
+    )
+    invoice_name = selling_compat._invoice_from_result(result)
+    invoice = frappe.get_doc("Sales Invoice", invoice_name)
+    after_legacy = frappe.db.count("Ledgix Sale") if frappe.db.exists("DocType", "Ledgix Sale") else 0
+
+    evidence = {
+        "invoice": invoice.name,
+        "base_native_rate": _money(base_rate),
+        "expected_net_total": expected_net,
+        "invoice_line_rate": _money(invoice.items[0].rate),
+        "invoice_net_total": _money(invoice.net_total),
+        "legacy_sale_count_before": before_legacy,
+        "legacy_sale_count_after": after_legacy,
+    }
+    checks = {
+        "native_invoice_submitted": invoice.docstatus == 1,
+        "ten_percent_discount_applied": abs(_money(invoice.net_total) - expected_net) < 0.01,
+        "discounted_line_rate_matches": abs(_money(invoice.items[0].rate) - expected_net) < 0.01,
+        "no_parallel_ledgix_sale": before_legacy == after_legacy,
+    }
+    return evidence, checks
 
 
 def _case_override_audit():
@@ -186,19 +245,6 @@ def _ensure_reference_mode() -> str:
     else:
         mode.save(ignore_permissions=True)
     return mode.name
-
-
-def _invoice(client_id: str):
-    return erpnext_selling.create_sales_invoice(
-        customer=CUSTOMER,
-        items=[{"item_code": ITEM, "qty": 1, "uom": "Nos"}],
-        company=TEST_COMPANY,
-        selling_price_list=PRICE_LIST,
-        sale_channel="B2B",
-        client_sale_id=client_id,
-        checkout_source="Phase 6 Policy Gate",
-        submit=True,
-    )
 
 
 def _case_checkout_retry_recovery():
@@ -391,6 +437,7 @@ def run() -> dict:
     frappe.set_user("Administrator")
 
     cases = {
+        "checkout_discount": _case("checkout_discount", _case_checkout_discount),
         "manual_price_override_audit": _case(
             "manual_price_override_audit", _case_override_audit
         ),
