@@ -5,232 +5,145 @@
 **Pre-functional-change main baseline:** `148b35e63371cb0bd5bd5408df69f5262e64680e`  
 **Rollback tag:** `pre-erpnext-core-2026-09-16`
 
-This file records exercised evidence against `erpnext_core_migration_plan.md`. A phase is not marked complete merely because code exists; runtime gates must pass on the dedicated integration site where applicable.
+This ledger records exercised evidence against `erpnext_core_migration_plan.md`. Code existence alone never closes a phase; the guarded integration-site runtime gate must pass where applicable.
 
 ---
 
-## Phase 0 — Baseline / Safety
+## Phase 0 — Baseline / Safety — COMPLETE FOR MIGRATION DEVELOPMENT
 
-### Completed
+Completed:
 
-- Repository architecture audit completed.
-- ERPNext-core master plan locked.
-- Rollback baseline recorded at `148b35e63371cb0bd5bd5408df69f5262e64680e`.
-- Rollback tag `pre-erpnext-core-2026-09-16` created and pushed.
-- Superseded plan removed.
-- Repository CI, package validation, ERPNext dependency validation and secret scan established.
-- Runtime bench/sites/databases/secrets/environments are excluded from Git.
-- Tested Frappe/ERPNext baseline is tracked in `config/framework.lock` rather than vendoring framework source.
+- repository architecture audit and ERPNext-core master plan;
+- rollback baseline/tag;
+- repository CI/package validation/dependency validation/secret scan;
+- runtime bench/sites/databases/secrets/environments excluded from Git;
+- tested framework baseline tracked in `config/framework.lock` instead of vendoring framework source.
 
-### Pending before production cutover
+Still mandatory before any real staging/production cutover:
 
-- Back up any meaningful staging/production Ledgix database/site.
-- Record installed apps/framework versions on each staging/production site immediately before cutover work.
+- fresh database/site backups;
+- exact installed-app/framework version capture;
+- cutover-specific rollback checkpoint.
 
 ---
 
 ## Phase 1 — ERPNext Dependency and Fresh Integration Site — COMPLETE
 
-### Dependency plumbing
+Dependency plumbing is active through `required_apps = ["erpnext"]`, v15 dependency constraints and deploy/install validation.
 
-- `required_apps = ["erpnext"]` is declared in Ledgix hooks.
-- `pyproject.toml` declares Frappe v15 + ERPNext v15 support.
-- Local and production install/deploy scripts prepare ERPNext before Ledgix site migration.
-- ERPNext dependency validation is part of local CI.
-- `site_setup.sh` is compatible with recursive required-app installation.
+Proven baseline:
 
-### Proven framework baseline
+- Frappe `15.113.4`, commit `588e443808206a7bfe87429c5a55e16016ec7840`;
+- ERPNext `15.121.3`, commit `26f06878346fb6861229ccb1fe3a53dc1bf5bad3`;
+- Ledgix `0.0.1` from `erpnext-core-migration`;
+- integration site `ledgix-erpnext.local`.
 
-- Frappe `15.113.4`, commit `588e443808206a7bfe87429c5a55e16016ec7840`.
-- ERPNext `15.121.3`, commit `26f06878346fb6861229ccb1fe3a53dc1bf5bad3`.
-- Ledgix `0.0.1` from `erpnext-core-migration`.
-
-### Fresh-site evidence
-
-Integration site: `ledgix-erpnext.local`
-
-Verified on the real bench:
-
-- all three apps installed;
-- migrate completed;
-- Ledgix assets built;
-- `site_config.json` exists;
-- `frappe.get_installed_apps()` returned `frappe`, `erpnext`, `ledgix_saas`;
-- runtime files/secrets remained outside Git.
-
-**Phase 1 decision: PASS.**
+Fresh-site migrate/build/list-apps/site-config checks passed.
 
 ---
 
-## Phase 2 — Native ERPNext Capability / Gap Matrix — FINAL REGRESSION VALIDATION PENDING
+## Phase 2 — Native ERPNext Capability / Gap Matrix — COMPLETE
 
-### Objective
+The final Phase 2 regression gate passed on `ledgix-erpnext.local` during the Phase 3 combined runtime gate on 2026-09-16.
 
-Prove what Ledgix can replace with ERPNext native authority before building adapters or retiring any existing Ledgix business model.
+### Native capability proven
 
-### Schema capability evidence
+- standard Item / Item Group / UOM / Customer / Supplier / Address / Contact;
+- Price List / Item Price / Pricing Rule;
+- Sales Invoice / native return Credit Note;
+- Mode of Payment / Payment Entry / outstanding and unallocated payment behavior;
+- Purchase Order / Purchase Receipt / Purchase Invoice / supplier payment;
+- Warehouse / Stock Entry / Stock Reconciliation / Stock Ledger;
+- Batch / Serial No / Serial and Batch Bundle;
+- POS Profile / Opening / POS Invoice / split tender / Closing / consolidation;
+- persisted unfinished/draft POS Invoice;
+- native print rendering.
 
-The integration-site schema probe confirmed native models for masters, pricing, selling, payments, buying, stock, serial/batch and POS opening/closing. The submittable probe was corrected to use Frappe v15 `meta.is_submittable`.
+### Runtime business-engine evidence — PASS
 
-Pinned-source verification confirmed ERPNext `15.121.3` POS Invoice intentionally has no `update_stock` field. POS stock/accounting is evaluated through the native closing/consolidation lifecycle rather than by adding a compatibility field.
-
-### Integration business bootstrap — PASS
-
-The isolated test business was created through ERPNext setup logic:
-
-- Company: `Ledgix ERPNext Integration` (`LEI`)
-- Country: Pakistan
-- Currency: PKR
-- Fiscal year: 2026-07-01 through 2027-06-30
-- Chart of Accounts: Standard
-
-Post-bootstrap evidence included 82 accounts, 5 warehouses, 2 price lists, 5 modes of payment, required groups/UOMs and no behavioral preflight blockers.
-
-### Core behavioral batch — PASS
-
-Real integration-site execution passed all primary business-engine paths.
-
-#### Invoice-only / FBR-style profile — PASS
-
-Proven natively:
+Invoice/FBR-only path:
 
 - non-stock Item;
-- submitted Sales Invoice;
-- GL posting;
-- zero stock ledger effect;
+- Sales Invoice + GL;
+- zero stock effect;
 - Payment Entry settlement;
-- linked native return/Credit Note;
-- no parallel `Ledgix Sale` creation.
+- native return;
+- no parallel Ledgix Sale.
 
-**Decision:** invoice + FBR-only clients can use ERPNext non-stock Items and Sales Invoice/Payment Entry without fake or negative inventory.
+Purchase/inventory path:
 
-#### Purchase / inventory / stock sale / return — PASS
+- PO -> Receipt -> Invoice -> supplier Payment Entry;
+- stock increase, sale reduction and native return restoration;
+- GL throughout;
+- no parallel Ledgix Purchase/Payment/Stock Movement/Sale.
 
-Proven natively:
+POS path:
 
-- Purchase Order -> Purchase Receipt -> Purchase Invoice;
-- supplier Payment Entry and AP settlement;
-- stock receipt, stock sale and linked stock return;
-- GL posting throughout;
-- no parallel Ledgix Sale/Purchase/Payment/Stock Movement creation.
-
-#### POS / split payment / opening-closing — PASS
-
-Proven natively:
-
-- POS Profile and POS Opening Entry;
+- POS opening;
+- Cash + Credit Card split payment;
 - submitted POS Invoice;
-- split tender using Cash + Credit Card;
-- fully paid POS transaction;
-- POS Closing Entry;
-- consolidation into submitted Sales Invoice;
-- no duplicate stock posting;
-- no parallel Ledgix Sale/Payment/POS Shift/Stock Movement creation.
+- closing and consolidated Sales Invoice;
+- ERPNext consolidated accounting/stock ownership;
+- no parallel Ledgix POS Shift/Sale/Payment/Stock Movement.
 
-**Current POS decision:** keep the Ledgix POS UX over the ERPNext native engine unless later UI evaluation justifies using ERPNext's native screen directly.
+Extended evidence:
 
-### Extended final-gate first run — useful evidence, harness corrections applied
+- Pricing Rule resolves correctly;
+- partial Payment Entry preserves outstanding;
+- unallocated customer advance works natively;
+- partial Credit Note works;
+- Stock Reconciliation authoritative quantity proven through `qty_after_transaction`;
+- serial/batch bundles proven;
+- draft POS creates no GL/stock posting until submit;
+- native tax primitives exist, with FBR-specific semantics reserved for Phase 4.
 
-The first extended final-gate execution proved most of the remaining capability but exposed three harness/environment issues rather than business-engine failures:
+### Phase 2 decisions
 
-1. Pricing Rule returned the expected `price_list_rate=1000` and `discount_percentage=10`; the test incorrectly treated a context-dependent raw `rate=0` as failure. The assertion now proves the native rule inputs/effective rate instead.
-2. Stock Reconciliation submitted and produced the correct final bin quantity `7.0`; ERPNext v15 may represent reconciliation through `qty_after_transaction` even when `actual_qty=0`. The assertion now follows ERPNext's reconciliation semantics.
-3. Draft POS proof reached a Redis Queue connection error on `127.0.0.1:11000`. The guarded final-gate runner now starts/stops temporary Redis cache/queue automatically through `deploy/bench_redis.sh`.
+- standard masters/pricing/payments/AR/AP/buying/stock/serial/batch: **USE NATIVE**;
+- invoice + FBR-only clients: **USE NATIVE non-stock Item + Sales Invoice**;
+- POS engine: **ERPNext authority; keep Ledgix UX wrapper for now**;
+- POS hold: **Ledgix UX over native draft POS Invoice**;
+- financial tax: **extend ERPNext only after Phase 4 parity**;
+- FBR compliance metadata/submission/reconciliation: **KEEP LEDGIX**.
 
-Tax architecture evidence already passed and confirms:
-
-- ordinary percentage tax rows/item tax templates are native candidates;
-- inclusive-tax primitives exist;
-- zero-rated/not-applicable concepts have native financial primitives;
-- a separate ERPNext withholding model exists but must not be blindly mapped to Ledgix Sales Tax Withheld at Source;
-- Third Schedule/notified retail price and FBR legal classifications remain explicit Phase 4 extension/parity work.
-
-### Phase 2 completion rule
-
-The Phase 3 combined runner now re-runs the complete Phase 2 final gate after migration. Phase 2 is marked COMPLETE only when that regression gate passes on `ledgix-erpnext.local`.
-
-No production authority cutover has occurred.
+No production authority cutover occurred.
 
 ---
 
-## Phase 3 — Standard Masters and Ledgix Extension Schema — IMPLEMENTED, FINAL GATE PENDING
+## Phase 3 — Standard Masters and Ledgix Extension Schema — COMPLETE
 
-### Goal
+The combined Phase 2 + Phase 3 gate passed on `ledgix-erpnext.local` on 2026-09-16 at branch commit `7c6bd61b2faf`.
 
-Establish the target Ledgix-on-ERPNext schema before transaction cutover, while preserving existing Ledgix compatibility until later migration phases.
+### ERPNext Customer FBR extension — PASS
 
-### Standard master ownership locked
+ERPNext `Customer` now persists Ledgix-specific buyer fields for registration type, NTN/CNIC, STRN, province, FBR address and verification state/date.
 
-No new duplicate business masters were introduced. Target authority remains:
+### Item Tax Profile relink — PASS
 
-- ERPNext `Item` / `Item Group` / UOM;
-- ERPNext `Customer` / `Supplier` / Address / Contact;
-- ERPNext `Price List` / `Item Price` / `Pricing Rule`;
-- ERPNext Mode of Payment, sales, purchase, payment, stock and POS documents.
+`Ledgix Item Tax Profile` supports `erpnext_item -> Item` as the target authority while retaining the legacy `Ledgix Item` reference as optional migration compatibility only.
 
-### ERPNext Customer FBR extension — IMPLEMENTED
+The runtime gate proved an ERPNext-Item-only profile without requiring a legacy item.
 
-ERPNext `Customer` receives Ledgix-owned fields for:
+### ERPNext sales/FBR envelope — PASS
 
-- buyer registration type;
-- NTN/CNIC;
-- STRN;
-- province;
-- FBR address;
-- verification status/date.
+`Sales Invoice` and `POS Invoice` contain server-managed Ledgix fields for FBR status/reference/result/reconciliation state, client-sale identifier and immutable header snapshot.
 
-Commercial identity, contacts, addresses, pricing defaults, credit and receivables remain native ERPNext responsibilities.
+`Sales Invoice Item` and `POS Invoice Item` contain immutable line snapshots for:
 
-### Item Tax Profile relink — IMPLEMENTED SAFELY
-
-`Ledgix Item Tax Profile` now supports `ERPNext Item` as the target product reference.
-
-- new ERPNext-native profiles can exist without a duplicate Ledgix Item;
-- the old `Ledgix Item` link is retained as an optional migration compatibility reference;
-- an idempotent backfill only links an existing ERPNext Item when a safe matching item code already exists;
-- the Phase 3 synchronizer does not create/synchronize master Items and does not cut authority over.
-
-### ERPNext sales/FBR envelope — IMPLEMENTED
-
-Both `Sales Invoice` and `POS Invoice` receive server-managed Ledgix fields for:
-
-- FBR status;
-- FBR invoice number/reference;
-- submitted timestamp;
-- error code/message;
-- reconciliation-required state;
-- submission trigger;
-- client-sale/idempotency identifier;
-- immutable header snapshot version + JSON.
-
-Returns/Credit Notes inherit the same target storage model through ERPNext's native return documents.
-
-### Immutable line-level FBR snapshot — IMPLEMENTED
-
-`Sales Invoice Item` and `POS Invoice Item` receive read-only/no-copy legal snapshot fields for:
-
-- source Ledgix FBR Item Profile;
-- HS Code;
-- FBR UOM;
-- Sales Type;
-- FBR rate description;
-- Sandbox Scenario ID;
-- SRO schedule/item references;
-- transaction-value vs notified-retail-price tax basis;
-- Notified Retail Price;
+- FBR Item Profile;
+- HS Code / FBR UOM / Sales Type / rate description;
+- scenario and SRO references;
+- Transaction Value vs Notified Retail Price basis;
+- notified retail price;
 - Sales Tax Withheld at Source;
 - Extra Tax;
 - Further Tax;
 - FED Payable;
-- snapshot version + JSON.
+- versioned JSON snapshot.
 
-These are storage contracts only in Phase 3. Phase 4 must prove monetary tax parity before ERPNext becomes authoritative for these tax amounts.
+### Business/client profiles — PASS
 
-### Business/client profile configuration — IMPLEMENTED
-
-A new site-level Single DocType, `Ledgix Business Profile`, configures product experience without duplicating standard masters.
-
-Supported profiles:
+Site-level `Ledgix Business Profile` supports:
 
 - Invoice + FBR Only;
 - Small Retail;
@@ -238,85 +151,102 @@ Supported profiles:
 - B2B;
 - Mixed.
 
-Feature flags cover Sales Invoice, POS, inventory, buying, advanced inventory, B2B, FBR and accounting-workspace exposure. These flags are UX/product configuration only; DocType/server permissions remain authoritative.
+These flags curate product UX only; server permissions remain authoritative.
 
-### Ledgix role mapping to standard ERPNext documents — IMPLEMENTED
+### Role mapping — PASS
 
-Explicit additive `Custom DocPerm` grants map:
+Additive Ledgix Cashier/Manager/Admin permissions on target ERPNext DocTypes were installed and the gate reported no mismatches. Native ERPNext permissions are retained.
 
-- `Ledgix Cashier` to customer/sales/POS/payment operations and read-only operational references;
-- `Ledgix Manager` to operational masters, selling, buying, stock and controlled transaction correction;
-- `Ledgix Admin` to broad Ledgix operational administration.
+### Idempotency — PASS
 
-Native ERPNext roles/permissions are not deleted or replaced. Cashier purchase-write access is intentionally excluded.
+The schema synchronizer ran twice without duplicate Custom Fields. The final gate proved every configured Phase 3 field exactly once and all persistence contracts green.
 
-### Migration-safe installation — IMPLEMENTED
-
-Phase 3 schema is installed/maintained through:
-
-- `ledgix_saas.patches.v1_0.sync_erpnext_extension_schema` after model sync;
-- `ledgix_saas.setup.erpnext_extensions.after_migrate` for idempotent ongoing synchronization;
-- existing Ledgix Custom Field fixture filtering;
-- `apps/ledgix_saas/setup/test_erpnext_extensions.py` static contract tests.
-
-Design contract:
-
-- `docs/plan/erpnext_phase3_extension_schema.md`
-
-### Phase 3 runtime final gate — READY
-
-Combined runner:
-
-- `scripts/run_erpnext_phase3_final_gate.sh`
-
-It performs one guarded integration-site validation sequence:
-
-1. local repository CI;
-2. temporary Redis runtime startup;
-3. `bench migrate` to apply Phase 3 schema/patches;
-4. full Phase 2 regression final gate;
-5. Phase 3 idempotent schema sync twice;
-6. Custom Field type/options/read-only/no-copy validation;
-7. duplicate-free Custom Field validation;
-8. standard ERPNext Ledgix-role permission validation;
-9. Business Profile default-resolution validation;
-10. ERPNext Item-only FBR Item Profile persistence;
-11. ERPNext Customer FBR field persistence;
-12. draft Sales Invoice header/line FBR snapshot persistence;
-13. temporary Redis cleanup.
-
-### Phase 3 completion rule
-
-Phase 3 is marked COMPLETE only when the combined runner proves both the Phase 2 regression and Phase 3 schema gate green on `ledgix-erpnext.local`.
-
-No old Ledgix master, transaction, tax engine or FBR submission source has been retired by Phase 3.
+No old Ledgix master/transaction/tax/FBR source was retired in Phase 3.
 
 ---
 
-## Phase 4 — Tax Parity and Accounting Foundation — NEXT AFTER COMBINED GATE
+## Phase 4 — Tax Parity and Accounting Foundation — IMPLEMENTED, RUNTIME GATE PENDING
 
-ERPNext will become monetary/tax authority only after an explicit parity matrix passes for:
+### Goal
 
-- ordinary taxable sales;
-- tax-inclusive pricing;
-- zero-rated and exempt sales;
-- Third Schedule/notified retail price;
-- Further Tax;
-- Extra Tax;
-- FED;
-- Sales Tax Withheld at Source;
-- mixed invoices;
-- full and partial returns;
-- price-only credit notes where required.
+Prove ERPNext as the **single monetary/tax + GL authority** while Ledgix remains the legal/FBR classification and immutable-snapshot layer.
 
-The parity gate must compare ERPNext totals/GL with Ledgix/FBR-required values and adapt FBR preview to the ERPNext transaction source before any old tax engine is retired.
+### Foundation implemented
+
+`ledgix_saas.setup.erpnext_tax_foundation` now provides an integration adapter that:
+
+- never assigns a competing `grand_total`;
+- resolves line tax/FBR metadata from ERPNext Item + Ledgix Item Tax Profile;
+- freezes immutable line/header snapshots;
+- maps ordinary Sales Tax, Extra Tax, Further Tax and FED into ERPNext Sales Taxes and Charges rows/accounts;
+- keeps Sales Tax Withheld at Source separate from invoice payable/GL in Phase 4, matching the existing Ledgix/FBR semantic contract;
+- maps Third Schedule/notified retail price into a legal tax basis while ERPNext remains the final total/GL authority;
+- uses native `On Net Total + included_in_print_rate` for homogeneous tax-inclusive pricing because ERPNext rejects inclusive `Actual` tax rows;
+- fails closed for unproven mixed-rate/Third-Schedule inclusive pricing rather than guessing.
+
+ERPNext `Company` receives account-map fields for Sales Tax, Extra Tax, Further Tax, FED and a reserved withheld account. No duplicate Company/master model is introduced.
+
+### Mandatory 13-case matrix implemented
+
+The isolated runtime gate covers:
+
+1. ordinary taxable item;
+2. tax-inclusive price;
+3. zero-rated item;
+4. exempt item;
+5. Third Schedule / Notified Retail Price;
+6. Further Tax;
+7. Extra Tax;
+8. FED;
+9. Sales Tax Withheld at Source;
+10. mixed-tax invoice;
+11. full return;
+12. partial return;
+13. non-stock financial/price-adjustment Credit Note.
+
+Each relevant case checks submitted ERPNext documents, net/tax/grand totals, tax-account GL, balanced GL, immutable line snapshots, FBR tax preview and zero stock effect for the dedicated non-stock fixtures.
+
+Returns use ERPNext's native return mapper. The financial/price-adjustment case uses `qty=-1`, a reduced adjustment rate and `update_stock=0`; ERPNext requires a negative item quantity on a linked return and therefore a zero-quantity linked return is intentionally not used.
+
+### FBR safety
+
+Phase 4 preview code does **not**:
+
+- call FBR/PRAL network endpoints;
+- submit sandbox or production invoices;
+- cut over FBR Submission Log authority;
+- switch the real FBR payload datasource;
+- retire the legacy Ledgix tax engine.
+
+### Final gate
+
+Runner:
+
+- `scripts/run_erpnext_phase4_final_gate.sh`
+
+Sequence:
+
+1. local CI;
+2. Redis readiness;
+3. migrate Phase 4 Company extension;
+4. full Phase 2 regression;
+5. full Phase 3 regression;
+6. Phase 4 foundation/account-map checks;
+7. all 13 real ERPNext tax/accounting parity cases;
+8. single PASS/FAIL verdict.
+
+Phase 4 becomes **COMPLETE only after this runtime gate passes** on `ledgix-erpnext.local`.
+
+Design contract:
+
+- `docs/plan/erpnext_phase4_tax_parity_matrix.md`
 
 ---
 
 ## Safety Status
 
-- No production sales, purchase, stock, payment, tax, FBR, POS, receivable or master-data authority has been cut over.
-- Existing Ledgix business DocTypes/services remain available while replacement paths are proven.
-- Migration behavioral/schema helpers are hard-guarded to `ledgix-erpnext.local`.
-- FBR has not been switched to ERPNext transaction sourcing yet.
-- Phase 3 adds extension/storage contracts and permissions only; it does not perform master or transaction cutover.
+- No staging/production authority has been cut over.
+- Existing Ledgix masters, transactions, tax engine and FBR source remain available while replacement paths are proven.
+- Migration behavioral/schema/tax helpers are hard-guarded to `ledgix-erpnext.local` where they create integration data.
+- No FBR network submission is performed by migration gates.
+- Phase 4 code is a parity foundation, not yet an automatic Sales Invoice event hook.
