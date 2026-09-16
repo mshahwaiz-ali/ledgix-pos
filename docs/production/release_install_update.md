@@ -1,7 +1,6 @@
 # Ledgix Production Release Install / Update Runbook
 
 **Workstream:** Client Acceptance + Production Provisioning + Release Hardening  
-**Scope:** R0 + R2 deployment hardening  
 **Architecture:** one Ledgix codebase, ERPNext business authority, no per-client forks.
 
 ---
@@ -15,9 +14,9 @@ Every approved release is identified by either:
 - a full 40-character Git commit SHA; or
 - an approved Git tag resolving to one commit.
 
-`main` remains the development source of truth, but a production update resolves an explicit immutable release identity before the site is mutated.
+`main` remains the development source of truth, but production resolves an explicit immutable release identity before a site is mutated.
 
-The supported stack for the release is recorded in `deploy/release_contract.env`.
+The supported stack is recorded in `deploy/release_contract.env`.
 
 Current contract:
 
@@ -26,13 +25,13 @@ Current contract:
 - app `ledgix_saas`;
 - ERPNext Core Migration closure gate `d813d26d16a11665522da98c7bd542a7cc09c53f`.
 
-Updating Ledgix never silently pulls or rewrites ERPNext core. The pinned Frappe/ERPNext stack is a prerequisite and an incompatible production site fails closed.
+Updating Ledgix never silently pulls or rewrites ERPNext core.
 
 ---
 
 ## 2. Required production inputs
 
-For mutating production operations, set the target explicitly:
+For mutating production operations, set targets explicitly:
 
 ```bash
 export PRODUCTION_SITE='client.example.com'
@@ -40,9 +39,9 @@ export DEPLOY_RELEASE='<40-char-approved-sha-or-tag>'
 export PRODUCTION_URL='https://client.example.com'
 ```
 
-`PRODUCTION_SITE` is required for site/full/backup/update actions.
+`PRODUCTION_SITE` and `DEPLOY_RELEASE` are required for fresh site/full provisioning.
 
-`DEPLOY_RELEASE` and `PRODUCTION_URL` are additionally required for updates.
+`PRODUCTION_SITE`, `DEPLOY_RELEASE` and `PRODUCTION_URL` are required for a production update.
 
 Do not use a moving branch such as `main` as `DEPLOY_RELEASE`.
 
@@ -50,47 +49,43 @@ Do not use a moving branch such as `main` as `DEPLOY_RELEASE`.
 
 ## 3. Administrator credentials
 
-The production wrapper no longer supplies `admin` as an implicit Administrator password.
+Production has no implicit `admin`, `admin@123`, or other weak convenience defaults.
 
-For site creation:
-
-- interactive setup may accept an explicitly entered password;
-- unattended setup lets the underlying production helper generate a strong random password when `FRAPPE_ADMIN_PASSWORD` is omitted;
-- if `FRAPPE_ADMIN_PASSWORD` is supplied intentionally, keep it outside source control and shell history where practical.
-
-Legacy helper output written to `deploy/production.secrets.md` is immediately relocated by the supported `production_setup.sh` wrapper to:
+Fresh provisioning generates strong Administrator/database credentials automatically and stores them outside the repository with owner-only permissions. The default per-site location is:
 
 ```text
-~/.config/ledgix/production-sites.md
+~/.config/ledgix/sites/<site>.env
 ```
 
-or the path specified by `LEDGIX_PRODUCTION_SECRETS_FILE`.
+Legacy helper output under `deploy/production.secrets.md`, if found from an older interrupted workflow, is relocated by the supported wrapper to the configured external secrets location.
 
-Do not commit production credentials into the Ledgix repository.
+Local development credentials are a separate policy and never flow into these production helpers.
 
 ---
 
-## 4. Fresh production setup
+## 4. Fresh production provisioning
 
-Use the supported wrapper rather than calling internal EC2 helper actions directly.
-
-Example:
+Use the supported wrapper:
 
 ```bash
 cd /path/to/pos
 export PRODUCTION_SITE='client.example.com'
-export PRODUCTION_DOMAIN='client.example.com'
-export LETSENCRYPT_EMAIL='ops@example.com'
-bash deploy/production_setup.sh --yes --action full
+export DEPLOY_RELEASE='<40-char-approved-sha-or-tag>'
+export PRODUCTION_URL='https://client.example.com'
+bash deploy/production_setup.sh --action site
 ```
 
-The full flow prepares the supported Frappe/ERPNext bench, synchronizes Ledgix, creates the explicit site, configures production services and optionally configures HTTPS.
+For full host/bench/services setup, also provide domain/HTTPS inputs as required and use `--action full`.
 
-After provisioning, complete standard ERPNext prerequisites and use `/app/ledgix-setup` to select the client Business Profile.
+The canonical site provisioner is `deploy/provision_client_site_safe.sh`. It creates an isolated database, installs ERPNext before Ledgix, migrates/builds, runs dependency preflight and offline smoke checks, and records provisioning evidence.
+
+It does not create client business masters, apply a Business Profile, or activate FBR Production. After provisioning, configure native ERPNext prerequisites and then use `/app/ledgix-setup`.
+
+See `docs/production/fresh_client_provisioning.md`.
 
 ---
 
-## 5. Verified backup
+## 5. Verified backup and restore readiness
 
 Run an explicit verified backup before every production update, FBR Production switch or destructive maintenance operation:
 
@@ -98,23 +93,17 @@ Run an explicit verified backup before every production update, FBR Production s
 bash deploy/backup_safe.sh --site client.example.com
 ```
 
-For release updates the updater runs this automatically before maintenance mode.
+The R3 contract covers database, public files, private files, secure site-config inputs, checksum verification, release identity and rollback metadata.
 
-The helper requires a newly-created:
+R3 recovery was exercised on the local canonical site with an actual destructive wipe/recreate/restore cycle and Phase 12 digest verification. Production still requires the correct client-specific recovery point and operational approval before destructive recovery.
 
-- database archive;
-- public files archive;
-- private files archive.
-
-It writes rollback metadata beside the site backups, including current and target release identities when supplied.
-
-A backup is still only one part of rollback readiness. Off-host retention and an actual restore drill are handled in the R3 backup/restore workstream.
+See `docs/production/backup_restore_rollback.md`.
 
 ---
 
-## 6. Safe production update
+## 6. Safe update: single-site bench
 
-Preferred direct command:
+Use this path only when the bench contains one site:
 
 ```bash
 bash deploy/deploy_update_safe.sh \
@@ -132,98 +121,94 @@ export PRODUCTION_URL='https://client.example.com'
 bash deploy/production_setup.sh --action deploy-update
 ```
 
-The update flow:
+The updater verifies a backup before code movement, enables maintenance, checks out the immutable release, verifies the pinned stack, syncs Ledgix exactly, builds/migrates, runs preflight/offline smoke, refreshes services, runs online smoke and only then writes successful release evidence.
 
-1. requires a clean repository;
-2. rejects an unapproved shared-bench update unless `LEDGIX_ALLOW_SHARED_BENCH_UPDATE=1` is deliberately set under the multi-site procedure;
-3. resolves the explicit SHA/tag and rejects moving branch names;
-4. records the previous SHA;
-5. creates and verifies a pre-update database/files backup;
-6. enables maintenance mode;
-7. checks out the approved release detached at the resolved SHA;
-8. verifies the tracked release contract and proves the exact pinned Frappe/ERPNext stack is already installed;
-9. runs the client dependency preflight before application mutation;
-10. mirrors only `ledgix_saas` into the bench exactly — ERPNext core is not pulled or rewritten by the update;
-11. builds assets and migrates the target site;
-12. reruns dependency preflight and ERPNext-native offline smoke checks;
-13. refreshes production processes and validates Nginx/Supervisor;
-14. leaves maintenance mode only after the offline gate is green;
-15. runs online smoke checks against the explicit public URL;
-16. re-enables maintenance mode if online smoke fails;
-17. writes `private/ledgix-release/last-successful.env` only after success.
-
-If deployment exits after maintenance mode was enabled but before success, the helper intentionally leaves maintenance mode enabled. Do not expose a partially migrated site merely because cleanup ran.
+If the bench contains multiple sites, this updater fails closed. There is no environment-variable bypass.
 
 ---
 
-## 7. Shared-bench safety
+## 7. Safe update: shared multi-site bench
 
-Application code and built assets are bench-level resources. Therefore an update on a bench containing multiple sites can affect more than the named site even though migration commands are site-specific.
+Application code and built assets are bench-level resources. Every Ledgix tenant on one shared bench must therefore move as one explicitly approved release cohort.
 
-Until the R4 multi-site release procedure explicitly approves the affected sites, the updater blocks a bench containing more than one Frappe site.
-
-The override:
+Use:
 
 ```bash
-export LEDGIX_ALLOW_SHARED_BENCH_UPDATE=1
+bash deploy/deploy_update_shared_safe.sh \
+  --release '<40-char-approved-sha-or-tag>' \
+  --site client-a.example.com=https://client-a.example.com \
+  --site client-b.example.com=https://client-b.example.com
 ```
 
-must only be used when every affected site has been included in the shared-bench maintenance/release plan. It is not a convenience bypass.
+The supplied cohort must exactly match every site on that bench that has `ledgix_saas` installed.
+
+The shared updater:
+
+1. validates every tenant and the pinned stack;
+2. creates and verifies a per-site backup for every tenant;
+3. puts the full cohort into maintenance before shared code movement;
+4. switches/syncs/builds the approved Ledgix release once;
+5. migrates, preflights and offline-smokes every tenant;
+6. restarts shared processes once;
+7. reopens the cohort only after all offline gates pass;
+8. online-smokes every tenant;
+9. returns the full cohort to maintenance if any online smoke fails;
+10. writes per-site release evidence with one common cohort digest.
+
+If clients require different Ledgix revisions, place them on separate benches instead of creating per-client forks.
+
+See `docs/production/multi_site_saas.md`.
 
 ---
 
-## 8. Release record
+## 8. Release evidence
 
-After a successful update, retain:
+Successful updates retain:
 
 ```text
 frappe-bench/sites/<site>/private/ledgix-release/last-successful.env
 ```
 
-It records:
+Evidence includes site/URL, previous and deployed release identities, backup metadata and smoke/preflight results. Shared-bench releases also record the common cohort digest.
 
-- site and URL;
-- release input;
-- previous SHA;
-- deployed SHA;
-- Frappe version;
-- ERPNext version;
-- Ledgix app;
-- latest backup metadata path;
-- dependency preflight result;
-- offline smoke result;
-- online smoke result.
-
-This is operational evidence only. ERPNext remains the business-data authority.
+Fresh provisioning retains separate initial provisioning evidence under the site's private directory.
 
 ---
 
-## 9. Static release-hardening gate
+## 9. Static gates
 
-Before using the hardened production helpers, run:
+Release baseline / single-site deployment contract:
 
 ```bash
 bash scripts/run_release_hardening_static_gate.sh
 ```
 
-This is non-destructive. It validates repository CI, shell syntax, the immutable release contract, explicit-site rules, verified-backup contract, fail-closed maintenance behavior and ERPNext-native smoke surfaces.
+Backup/restore contract:
 
-It does not deploy or mutate a production site.
+```bash
+bash scripts/run_backup_restore_static_gate.sh
+```
+
+Fresh provisioning + multi-site contract:
+
+```bash
+bash scripts/run_r1_r4_static_gate.sh
+```
+
+These static gates do not deploy production sites.
 
 ---
 
 ## 10. Rollback boundary
 
-This R0 + R2 batch records the previous release and verifies a pre-update backup, but it does not yet claim a restore drill is proven.
+Rollback restores application revision, database and files as one consistent recovery point.
 
-R3 will add the restoration exercise and formal rollback evidence.
+Do not:
 
-Until then:
-
-- do not delete the previous known-good release identity;
-- do not delete the verified backup set;
-- do not unfreeze Phase 12 historical Ledgix business records as a normal rollback shortcut;
-- never run legacy Ledgix and ERPNext financial/stock authorities in parallel.
+- delete the previous known-good release identity before the rollback window closes;
+- delete the verified backup set;
+- unfreeze Phase 12 historical Ledgix data as a normal rollback shortcut;
+- run legacy Ledgix and ERPNext financial/stock authorities in parallel.
 
 ---
 
