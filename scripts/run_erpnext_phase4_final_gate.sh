@@ -108,7 +108,7 @@ PY
 echo
 echo "===== PHASE 4 TAX PARITY MATRIX ====="
 bench --site "$SITE" execute \
-  ledgix_saas.migration.erpnext_phase4_tax_parity_gate_v3.run \
+  ledgix_saas.migration.erpnext_phase4_tax_parity_runtime.run \
   | tee "$PHASE4_RESULT"
 
 echo
