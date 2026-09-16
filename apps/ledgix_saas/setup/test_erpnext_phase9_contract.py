@@ -132,13 +132,24 @@ class TestERPNextPhase9Contract(unittest.TestCase):
         self.assertIn('NATIVE_DOCTYPES = {"Sales Invoice", "POS Invoice"}', controller)
         self.assertIn('custom_ledgix_fbr_invoice_number', controller)
 
+    def test_phase9_closure_reads_validation_log_from_persisted_audit(self):
+        source = (
+            APP_ROOT / "migration" / "erpnext_phase9_fbr_closure_gate.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn("Ledgix FBR Submission Log", source)
+        self.assertIn('"reference_doctype": "Sales Invoice"', source)
+        self.assertIn('"fbr_status": "Validated"', source)
+        self.assertIn("validation_log_persisted", source)
+        self.assertIn("production_adapter_modified", source)
+        self.assertIn("payload = base.run()", source)
+
     def test_phase9_runner_is_fail_closed(self):
         runner = REPO_ROOT / "scripts" / "run_erpnext_phase9_final_gate.sh"
         if not runner.exists():
             self.fail("Phase 9 final gate runner is missing")
         text = runner.read_text(encoding="utf-8")
         self.assertIn("test_erpnext_phase9_contract", text)
-        self.assertIn("erpnext_phase9_fbr_gate.run", text)
+        self.assertIn("erpnext_phase9_fbr_closure_gate.run", text)
         self.assertIn("phase9_complete", text)
         self.assertIn("phase10_ready", text)
 
