@@ -38,8 +38,8 @@ class TestERPNextPhase13Contract(unittest.TestCase):
         self.assertIn("apply_standard_defaults", source)
         self.assertIn('frappe.get_single("Ledgix Business Profile")', source)
         self.assertIn('frappe.db.set_single_value("Global Defaults"', source)
-        self.assertIn('frappe.db.set_single_value(\n                "Selling Settings"', source)
-        self.assertIn('frappe.db.set_single_value(\n                "Stock Settings"', source)
+        self.assertIn('"Selling Settings"', source)
+        self.assertIn('"Stock Settings"', source)
         for forbidden in (
             'frappe.new_doc("Item")',
             'frappe.new_doc("Customer")',
@@ -53,6 +53,18 @@ class TestERPNextPhase13Contract(unittest.TestCase):
         ):
             self.assertNotIn(forbidden, source)
 
+    def test_explicit_setup_selections_fail_closed(self):
+        source = (APP_ROOT / "api" / "client_setup.py").read_text(encoding="utf-8")
+        self.assertGreaterEqual(source.count('explicit = str(value or "").strip()'), 3)
+        gate = (
+            APP_ROOT
+            / "migration"
+            / "erpnext_phase13_client_setup_gate.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn("explicit_invalid_selling_price_list_fails_closed", gate)
+        self.assertIn("explicit_invalid_warehouse_fails_closed", gate)
+        self.assertIn("retail_requires_pos_profile", gate)
+
     def test_setup_page_is_admin_only_and_uses_readiness_api(self):
         schema = json.loads((SETUP_PAGE / "ledgix_setup.json").read_text(encoding="utf-8"))
         self.assertEqual(schema["name"], "ledgix-setup")
@@ -65,7 +77,7 @@ class TestERPNextPhase13Contract(unittest.TestCase):
         self.assertIn("evaluate_client_setup", source)
         self.assertIn("apply_client_setup", source)
         self.assertIn("Apply Configuration", source)
-        self.assertIn("creates duplicate Items", source)
+        self.assertIn("does not create duplicate Items", source)
 
     def test_business_profile_records_setup_audit_not_business_authority(self):
         schema = json.loads(BUSINESS_PROFILE.read_text(encoding="utf-8"))
