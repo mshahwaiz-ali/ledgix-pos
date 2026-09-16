@@ -20,6 +20,7 @@ NAMES = {
 NONSTOCK_PREFIX = "P5N-"
 NONSTOCK_CATEGORY = "P5N-Category"
 NONSTOCK_ITEM = "P5N-SERIAL-META"
+ITEM_PRICE_PROVENANCE_FIELD = "custom_ledgix_legacy_item_price"
 
 
 def _apply_names() -> dict[str, str]:
@@ -115,6 +116,29 @@ def _ensure_legacy_fixtures() -> dict:
         "payment_method": method,
         "profiles": profiles,
     }
+
+
+def _target_evidence(warehouse: str, fixtures: dict) -> dict:
+    evidence = _ORIGINAL_TARGET_EVIDENCE(warehouse, fixtures)
+    item_price_rows = {}
+    for item_name, legacy_price in fixtures["prices"].items():
+        row = frappe.db.get_value(
+            "Item Price",
+            {ITEM_PRICE_PROVENANCE_FIELD: legacy_price},
+            [
+                "name",
+                "item_code",
+                "price_list",
+                "price_list_rate",
+                "uom",
+                "valid_from",
+                ITEM_PRICE_PROVENANCE_FIELD,
+            ],
+            as_dict=True,
+        )
+        item_price_rows[item_name] = dict(row or {})
+    evidence["item_prices"] = item_price_rows
+    return evidence
 
 
 def _ensure_nonstock_fixture() -> None:
@@ -214,10 +238,15 @@ def _prove_invoice_only_nonstock() -> dict:
         frappe.db.commit()
 
 
+_ORIGINAL_TARGET_EVIDENCE = base._target_evidence
+
+
 def run() -> dict:
     previous_names = _apply_names()
     original_fixtures = base._ensure_legacy_fixtures
+    original_evidence = base._target_evidence
     base._ensure_legacy_fixtures = _ensure_legacy_fixtures
+    base._target_evidence = _target_evidence
     try:
         result = base.run()
         nonstock = _prove_invoice_only_nonstock()
@@ -233,4 +262,5 @@ def run() -> dict:
         return result
     finally:
         base._ensure_legacy_fixtures = original_fixtures
+        base._target_evidence = original_evidence
         _restore_names(previous_names)
