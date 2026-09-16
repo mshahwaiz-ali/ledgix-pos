@@ -3,7 +3,7 @@ from __future__ import annotations
 """Ledgix-only metadata for native ERPNext selling/payment authority.
 
 Phase 6 must not duplicate ERPNext monetary fields. These extensions only keep
-Ledgix routing/idempotency context that ERPNext does not model as a product
+Ledgix routing/idempotency/audit context that ERPNext does not model as a product
 concept by default.
 """
 
@@ -64,6 +64,19 @@ CUSTOM_FIELDS = {
             insert_after="custom_ledgix_exchange_reference",
             read_only=1,
             no_copy=1,
+        ),
+        _cf(
+            "custom_ledgix_price_override_json",
+            "Long Text",
+            "Ledgix Price Override Audit",
+            insert_after="custom_ledgix_checkout_source",
+            read_only=1,
+            no_copy=1,
+            allow_on_submit=1,
+            description=(
+                "Immutable compatibility audit of authorized manual B2B line-rate overrides. "
+                "ERPNext rate/price fields remain the monetary authority."
+            ),
         ),
     ],
     "Payment Entry": [
