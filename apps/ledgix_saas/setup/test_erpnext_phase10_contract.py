@@ -161,6 +161,15 @@ class TestERPNextPhase10Contract(unittest.TestCase):
         for source in (sales, returns, intelligence_report, native_bi):
             self.assertIn("erpnext_reporting_compat", source)
 
+    def test_phase10_print_formats_force_sync_after_migrate(self):
+        hooks = (APP_ROOT / "hooks.py").read_text(encoding="utf-8")
+        sync = (APP_ROOT / "setup" / "erpnext_phase10_print_formats.py").read_text(encoding="utf-8")
+        self.assertIn("ledgix_saas.setup.erpnext_phase10_print_formats.after_migrate", hooks)
+        self.assertIn('frappe.reload_doc("ledgix", "print_format", docname, force=True)', sync)
+        self.assertIn("p['items']", sync)
+        self.assertIn("p.items", sync)
+        self.assertIn("stale", sync)
+
     def test_phase10_runner_is_fail_closed(self):
         runner = REPO_ROOT / "scripts" / "run_erpnext_phase10_final_gate.sh"
         if not runner.exists():
