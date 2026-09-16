@@ -134,6 +134,30 @@ class TestERPNextPhase10Contract(unittest.TestCase):
         self.assertNotIn("tax_gate._ensure_item(ITEM)", gate)
         self.assertIn('client_stock_id="LEDGIX-P10-STOCK-SEED-V2"', gate)
 
+    def test_phase10_print_and_pos_cost_follow_pinned_erpnext_v15(self):
+        tax = json.loads(
+            (PRINT_ROOT / "ledgix_erpnext_tax_invoice" / "ledgix_erpnext_tax_invoice.json").read_text(encoding="utf-8")
+        )
+        pos = json.loads(
+            (PRINT_ROOT / "ledgix_erpnext_pos_receipt" / "ledgix_erpnext_pos_receipt.json").read_text(encoding="utf-8")
+        )
+        for payload in (tax, pos):
+            self.assertIn("p['items']", payload["html"])
+            self.assertNotIn("p.items", payload["html"])
+
+        compat = (APP_ROOT / "services" / "erpnext_reporting_compat.py").read_text(encoding="utf-8")
+        self.assertIn("`tabStock Ledger Entry`", compat)
+        self.assertIn("sle.voucher_type = 'POS Invoice'", compat)
+        self.assertIn("sle.voucher_detail_no", compat)
+        self.assertIn("stock_value_difference", compat)
+        self.assertNotIn("pii.incoming_rate", compat)
+
+        sales = (REPORT_ROOT / "ledgix_sales_report" / "ledgix_sales_report.py").read_text(encoding="utf-8")
+        returns = (REPORT_ROOT / "ledgix_sales_return_report" / "ledgix_sales_return_report.py").read_text(encoding="utf-8")
+        native_bi = (APP_ROOT / "api" / "inventory_intelligence_native.py").read_text(encoding="utf-8")
+        for source in (sales, returns, native_bi):
+            self.assertIn("erpnext_reporting_compat", source)
+
     def test_phase10_runner_is_fail_closed(self):
         runner = REPO_ROOT / "scripts" / "run_erpnext_phase10_final_gate.sh"
         if not runner.exists():
