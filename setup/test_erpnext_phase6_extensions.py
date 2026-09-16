@@ -139,6 +139,14 @@ class TestERPNextPhase6ExtensionContract(unittest.TestCase):
         self.assertIn("def complete_b2b_sale(", source)
         self.assertIn("def create_exchange(", source)
 
+    def test_b2b_checkout_retry_recovers_deterministic_payments(self):
+        source = (APP_ROOT / "api" / "selling_compat.py").read_text(encoding="utf-8")
+        self.assertIn("def _ensure_checkout_payments(", source)
+        self.assertIn('payment_client_id = f"{client_sale_id}:PAY:{index}"', source)
+        self.assertIn("custom_ledgix_client_payment_id", source)
+        self.assertIn("result = _ensure_checkout_payments(result, tenders, client_sale_id)", source)
+        self.assertIn("if existing:", source)
+
     def test_legacy_b2b_module_is_only_a_compatibility_wrapper(self):
         source = (APP_ROOT / "api" / "v2_b2b.py").read_text(encoding="utf-8")
         self.assertNotIn("ledgix_saas.services.payments", source)
