@@ -3,7 +3,7 @@ from __future__ import annotations
 import frappe
 from frappe.utils import cint
 
-from ledgix_saas.migration import erpnext_phase5_master_migration_gate_v2 as base
+from ledgix_saas.migration import erpnext_phase5_master_migration_gate_profiles as base
 from ledgix_saas.setup import erpnext_extensions
 
 
