@@ -57,7 +57,8 @@
   {"hidden":0,"is_query_report":0,"label":"FBR Submission Logs","link_count":0,"link_to":"Ledgix FBR Submission Log","link_type":"DocType","onboard":0,"type":"Link"},
   {"hidden":0,"is_query_report":0,"label":"Tax Audit Logs","link_count":0,"link_to":"Ledgix Tax Audit Log","link_type":"DocType","onboard":0,"type":"Link"},
 
-  {"description":"Ledgix product configuration, branding, access and compliance setup.","hidden":0,"is_query_report":0,"label":"Administration","link_count":7,"link_type":"DocType","onboard":0,"type":"Card Break"},
+  {"description":"Client provisioning, product configuration, branding, access and compliance setup.","hidden":0,"is_query_report":0,"label":"Administration","link_count":8,"link_type":"DocType","onboard":0,"type":"Card Break"},
+  {"hidden":0,"is_query_report":0,"label":"Setup Wizard","link_count":0,"link_to":"ledgix-setup","link_type":"Page","onboard":0,"type":"Link"},
   {"hidden":0,"is_query_report":0,"label":"Business Profile","link_count":0,"link_to":"Ledgix Business Profile","link_type":"DocType","onboard":0,"type":"Link"},
   {"hidden":0,"is_query_report":0,"label":"Brand Settings","link_count":0,"link_to":"Ledgix Brand Settings","link_type":"DocType","onboard":0,"type":"Link"},
   {"hidden":0,"is_query_report":0,"label":"User Profiles","link_count":0,"link_to":"Ledgix User Profile","link_type":"DocType","onboard":0,"type":"Link"},
