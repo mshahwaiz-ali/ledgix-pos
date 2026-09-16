@@ -52,6 +52,7 @@ jinja = {
 
 after_migrate = [
 	"ledgix_saas.setup.erpnext_extensions.after_migrate",
+	"ledgix_saas.setup.erpnext_tax_foundation.after_migrate",
 	"ledgix_saas.setup.fast_permissions.after_migrate",
 ]
 
