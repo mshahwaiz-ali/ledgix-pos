@@ -8,6 +8,7 @@ PHASE2_RESULT="$LOG_DIR/erpnext-phase2-regression-from-phase6.txt"
 PHASE3_RESULT="$LOG_DIR/erpnext-phase3-regression-from-phase6.txt"
 PHASE4_RESULT="$LOG_DIR/erpnext-phase4-regression-from-phase6.txt"
 PHASE5_RESULT="$LOG_DIR/erpnext-phase5-regression-from-phase6.txt"
+PHASE6_PREFLIGHT="$LOG_DIR/erpnext-phase6-receivables-preflight.txt"
 PHASE6_RESULT="$LOG_DIR/erpnext-phase6-final-gate.txt"
 TEMP_REDIS_READY=0
 
@@ -170,6 +171,36 @@ print("[PASS] Phase 5 master migration regression gate remains green.")
 PY
 
 echo
+echo "===== PHASE 6 LEGACY / ERPNext RECEIVABLES PREFLIGHT ====="
+bench --site "$SITE" execute \
+  ledgix_saas.migration.erpnext_phase6_receivables_preflight.run \
+  | tee "$PHASE6_PREFLIGHT"
+python3 - "$PHASE6_PREFLIGHT" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+payload = None
+for line in reversed([x.strip() for x in Path(sys.argv[1]).read_text(encoding="utf-8").splitlines() if x.strip()]):
+    try:
+        value = json.loads(line)
+    except json.JSONDecodeError:
+        continue
+    if isinstance(value, dict) and "blocking_customers" in value:
+        payload = value
+        break
+if not payload or not payload.get("ready"):
+    print("[FAIL] Legacy/native customer receivables are not reconciled for Phase 6 cutover.")
+    if payload:
+        for row in payload.get("blocking_customers") or []:
+            print(
+                "       {legacy_customer} -> {erpnext_customer}: legacy={legacy_net_balance} native={erpnext_net_balance} difference={difference}".format(**row)
+            )
+    raise SystemExit(1)
+print(f"[PASS] Receivables cutover preflight green for {payload.get('mapped_customer_count', 0)} mapped customer(s).")
+PY
+
+echo
 echo "===== PHASE 6 SELLING / PAYMENTS / RETURNS CUTOVER ====="
 bench --site "$SITE" execute \
   ledgix_saas.migration.erpnext_phase6_selling_gate.run \
@@ -229,4 +260,5 @@ echo "[OK] Phase 2 result: $PHASE2_RESULT"
 echo "[OK] Phase 3 result: $PHASE3_RESULT"
 echo "[OK] Phase 4 result: $PHASE4_RESULT"
 echo "[OK] Phase 5 result: $PHASE5_RESULT"
+echo "[OK] Phase 6 receivables preflight: $PHASE6_PREFLIGHT"
 echo "[OK] Phase 6 result: $PHASE6_RESULT"
