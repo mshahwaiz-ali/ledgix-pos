@@ -16,6 +16,7 @@ app_include_js = [
 	"/assets/ledgix_saas/js/ledgix_brand.js",
 	"/assets/ledgix_saas/js/ledgix_sidebar_brand.js",
 	"/assets/ledgix_saas/js/ledgix_fbr_native_center.js",
+	"/assets/ledgix_saas/js/ledgix_phase10_native_surfaces.js",
 ]
 web_include_css = ["/assets/ledgix_saas/css/ledgix_brand.css"]
 web_include_js = ["/assets/ledgix_saas/js/ledgix_brand.js"]
@@ -31,6 +32,7 @@ jinja = {
 		"ledgix_saas.api.brand.get_splash_logo_url",
 		"ledgix_saas.api.brand.get_print_logo_url",
 		"ledgix_saas.api.printing.get_fbr_qr_data_uri",
+		"ledgix_saas.api.printing.get_native_invoice_print_context",
 	],
 }
 
@@ -51,6 +53,7 @@ update_website_context = ["ledgix_saas.api.brand.update_website_context"]
 # Keep Ledgix screen/RPC contracts stable while ERPNext owns the business engine.
 override_whitelisted_methods = {
 	"ledgix_saas.api.tax_center.get_fbr_readiness": "ledgix_saas.api.fbr_preflight.get_fbr_readiness",
+	"ledgix_saas.api.inventory_intelligence.get_inventory_intelligence_data": "ledgix_saas.api.inventory_intelligence_native.get_inventory_intelligence_data",
 
 	"ledgix_saas.api.v2_pos.get_pos_v2_boot": "ledgix_saas.api.pos_compat.get_pos_v2_boot",
 	"ledgix_saas.api.v2_pos.search_pos_v2_items": "ledgix_saas.api.pos_compat.search_pos_v2_items",
