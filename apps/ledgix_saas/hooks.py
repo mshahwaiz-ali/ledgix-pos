@@ -5,37 +5,20 @@ app_description = "POS and inventory platform for retail shops"
 app_email = "alishahwaiz96@gmail.com"
 app_license = "mit"
 
-# Ledgix is an ERPNext extension product. Frappe installs required apps before
-# installing Ledgix on a site, so ERPNext must already be available on the bench.
 required_apps = ["erpnext"]
-
-# Modern Frappe Desk shells build app_data / dock branding from the app_logo_url
-# hook instead of the older top-level bootinfo.app_logo_url field. Keep the
-# bundled Ledgix symbol declared here so the app logo is correct from first
-# render; ledgix_brand.js can still apply a per-site Brand Settings override.
 app_logo_url = "/assets/ledgix_saas/images/brand/ledgix-symbol.svg"
 
-# Keep the global Desk layer deliberately small. Workflow-specific styling belongs
-# to its Page so native Frappe Lists, Forms, Workspaces and dialogs retain normal behavior.
 app_include_css = [
 	"/assets/ledgix_saas/css/ledgix_brand.css",
 	"/assets/ledgix_saas/css/ledgix_v2_tokens.css",
 ]
-
 app_include_js = [
 	"/assets/ledgix_saas/js/ledgix_brand.js",
 	"/assets/ledgix_saas/js/ledgix_sidebar_brand.js",
 ]
+web_include_css = ["/assets/ledgix_saas/css/ledgix_brand.css"]
+web_include_js = ["/assets/ledgix_saas/js/ledgix_brand.js"]
 
-web_include_css = [
-	"/assets/ledgix_saas/css/ledgix_brand.css",
-]
-web_include_js = [
-	"/assets/ledgix_saas/js/ledgix_brand.js",
-]
-
-# Homepage routing is only a UX default. Authorization remains enforced by
-# Page, DocType, Report and server-side permissions.
 role_home_page = {
 	"Ledgix Cashier": "ledgix-pos",
 	"Ledgix Manager": "Ledgix",
@@ -56,79 +39,63 @@ after_migrate = [
 	"ledgix_saas.setup.erpnext_phase5_extensions.after_migrate",
 	"ledgix_saas.setup.erpnext_phase6_extensions.after_migrate",
 	"ledgix_saas.setup.erpnext_phase7_extensions.after_migrate",
+	"ledgix_saas.setup.erpnext_phase8_extensions.after_migrate",
 	"ledgix_saas.setup.fast_permissions.after_migrate",
 ]
 
-extend_bootinfo = [
-	"ledgix_saas.api.brand.extend_bootinfo",
-]
+extend_bootinfo = ["ledgix_saas.api.brand.extend_bootinfo"]
+update_website_context = ["ledgix_saas.api.brand.update_website_context"]
 
-update_website_context = [
-	"ledgix_saas.api.brand.update_website_context",
-]
-
-# Keep stable UI/API contracts while moving business authority phase-by-phase.
-# Retail POS remains on the legacy backend until Phase 8. For B2B, catalog
-# pricing, receivables, checkout and native Sales Invoice returns use ERPNext
-# authority from Phase 6 onward while the current Ledgix page remains the UX.
-# Public B2B write/preview RPCs route through selling_compat so authorized manual
-# rate overrides always require and persist an audit reason.
+# Keep the Ledgix screen/RPC contracts stable while ERPNext owns the business
+# engine underneath them. Phase 8 routes retail POS boot, catalog, pricing,
+# checkout, shifts, holds and returns through native ERPNext POS documents.
+# B2B continues through the Phase 6 native Sales Invoice compatibility path.
 override_whitelisted_methods = {
 	"ledgix_saas.api.tax_center.get_fbr_readiness": "ledgix_saas.api.fbr_preflight.get_fbr_readiness",
-	"ledgix_saas.api.v2_pos.get_pos_v2_boot": "ledgix_saas.api.selling_compat.get_pos_v2_boot",
-	"ledgix_saas.api.v2_pos.search_pos_v2_items": "ledgix_saas.api.selling_compat.search_pos_v2_items",
-	"ledgix_saas.api.v2_pos.complete_pos_v2_sale": "ledgix_saas.api.selling_compat.complete_pos_v2_sale",
-	"ledgix_saas.api.v2_pos.preview_pos_v2_checkout": "ledgix_saas.api.selling_compat.preview_pos_v2_checkout",
-	"ledgix_saas.api.v2_pos.get_pos_v2_customer_context": "ledgix_saas.api.selling.get_pos_v2_customer_context_compat",
-	"ledgix_saas.api.v2_returns.get_pos_v2_return_context": "ledgix_saas.api.selling.get_pos_return_context_compat",
-	"ledgix_saas.api.v2_returns.create_pos_v2_return": "ledgix_saas.api.selling.create_pos_return_compat",
+
+	"ledgix_saas.api.v2_pos.get_pos_v2_boot": "ledgix_saas.api.pos_compat.get_pos_v2_boot",
+	"ledgix_saas.api.v2_pos.search_pos_v2_items": "ledgix_saas.api.pos_compat.search_pos_v2_items",
+	"ledgix_saas.api.v2_pos.complete_pos_v2_sale": "ledgix_saas.api.pos_compat.complete_pos_v2_sale",
+	"ledgix_saas.api.v2_pos.preview_pos_v2_checkout": "ledgix_saas.api.pos_compat.preview_pos_v2_checkout",
+	"ledgix_saas.api.v2_pos.get_pos_v2_customer_context": "ledgix_saas.api.pos_compat.get_pos_v2_customer_context",
+
+	"ledgix_saas.api.v2_returns.get_pos_v2_return_context": "ledgix_saas.api.pos_compat.get_pos_v2_return_context",
+	"ledgix_saas.api.v2_returns.create_pos_v2_return": "ledgix_saas.api.pos_compat.create_pos_v2_return",
+
+	"ledgix_saas.api.v2_holds.hold_pos_v2_sale": "ledgix_saas.api.pos_compat.hold_pos_v2_sale",
+	"ledgix_saas.api.v2_holds.get_pos_v2_holds": "ledgix_saas.api.pos_compat.get_pos_v2_holds",
+	"ledgix_saas.api.v2_holds.resume_pos_v2_hold": "ledgix_saas.api.pos_compat.resume_pos_v2_hold",
+	"ledgix_saas.api.v2_holds.cancel_pos_v2_hold": "ledgix_saas.api.pos_compat.cancel_pos_v2_hold",
+
+	"ledgix_saas.api.shifts.get_active_shift_info": "ledgix_saas.api.pos_compat.get_active_shift_info",
+	"ledgix_saas.api.shifts.open_pos_shift": "ledgix_saas.api.pos_compat.open_pos_shift",
+	"ledgix_saas.api.shifts.close_pos_shift": "ledgix_saas.api.pos_compat.close_pos_shift",
+	"ledgix_saas.api.api.get_active_shift_info": "ledgix_saas.api.pos_compat.get_active_shift_info",
+	"ledgix_saas.api.api.open_pos_shift": "ledgix_saas.api.pos_compat.open_pos_shift",
+	"ledgix_saas.api.api.close_pos_shift": "ledgix_saas.api.pos_compat.close_pos_shift",
+
 	"ledgix_saas.api.selling.preview_b2b_invoice": "ledgix_saas.api.selling_compat.preview_b2b_invoice",
 	"ledgix_saas.api.selling.create_b2b_invoice": "ledgix_saas.api.selling_compat.create_b2b_invoice",
 	"ledgix_saas.api.selling.complete_b2b_sale": "ledgix_saas.api.selling_compat.complete_b2b_sale",
 	"ledgix_saas.api.selling.create_exchange": "ledgix_saas.api.selling_compat.create_exchange",
 }
 
-# Ledgix-originated native Payment Entries remain ERPNext documents; this hook
-# only enforces migrated POS policy such as reference requirements and the
-# standard company Mode-of-Payment account mapping.
 doc_events = {
 	"Payment Entry": {
 		"validate": "ledgix_saas.services.erpnext_payment_policy.validate_ledgix_payment_entry",
 	},
 }
 
-# Production FBR recovery is intentionally fail-closed. An ambiguous POST/HTTP
-# failure can mean FBR received the invoice even when Ledgix did not receive the
-# response, so automatic retransmission is disabled until reconciliation-safe
-# status checking is implemented and proven against the client Sandbox/PRAL flow.
+# Phase 8 does not switch FBR submission source. Production FBR recovery remains
+# fail-closed until reconciliation-safe status checking is proven in Phase 9.
 scheduler_events = {}
 
-# Export customizations, business roles, Workspace, and property metadata.
 fixtures = [
 	{
 		"doctype": "Role",
-		"filters": [
-			[
-				"name",
-				"in",
-				[
-					"Ledgix Admin",
-					"Ledgix Manager",
-					"Ledgix Cashier",
-				],
-			]
-		],
+		"filters": [["name", "in", ["Ledgix Admin", "Ledgix Manager", "Ledgix Cashier"]]],
 	},
-	{
-		"doctype": "Workspace",
-		"filters": [["name", "=", "Ledgix"]],
-	},
-	{
-		"doctype": "Custom Field",
-		"filters": [["module", "=", "Ledgix"]],
-	},
-	{
-		"doctype": "Property Setter",
-		"filters": [["module", "=", "Ledgix"]],
-	},
+	{"doctype": "Workspace", "filters": [["name", "=", "Ledgix"]]},
+	{"doctype": "Custom Field", "filters": [["module", "=", "Ledgix"]]},
+	{"doctype": "Property Setter", "filters": [["module", "=", "Ledgix"]]},
 ]

@@ -11,9 +11,9 @@ This ledger records exercised evidence against `erpnext_core_migration_plan.md`.
 
 ## Phase 0 — Baseline / Safety — COMPLETE FOR MIGRATION DEVELOPMENT
 
-Completed: repository architecture audit, rollback baseline/tag, repository/dependency/secret validation, runtime bench/site/database exclusions, and pinned framework baseline.
+Repository architecture audit, rollback baseline/tag, repository/dependency/secret validation, runtime bench/site/database exclusions and pinned framework baseline are complete.
 
-Still mandatory before a real client cutover: fresh backup, exact version capture and a cutover rollback checkpoint.
+A real client cutover still requires a fresh backup, exact version capture and a production rollback checkpoint.
 
 ---
 
@@ -27,53 +27,35 @@ Proven baseline:
 - site `ledgix-erpnext.local`;
 - Company `Ledgix ERPNext Integration` / PKR / Pakistan.
 
-Ledgix declares ERPNext as required. Fresh-site migrate/build/list-apps/bootstrap checks passed.
-
 ---
 
 ## Phase 2 — Native ERPNext Capability / Gap Matrix — COMPLETE
 
-Runtime evidence proved native ERPNext paths for masters, pricing, Sales Invoice/Payment Entry/Credit Note, purchase documents, Stock Entry/Reconciliation/Ledger, Batch/Serial, POS opening/invoice/split tender/closing, unfinished POS draft and native print.
+Native proofs cover masters, pricing, Sales Invoice/Payment Entry/Credit Note, buying, stock ledger, Batch/Serial, POS Profile, Opening Entry, split-tender POS Invoice, Closing Entry, unfinished native POS draft and native print behavior.
 
-Decision: standard masters, pricing, financials, buying and inventory use ERPNext authority; Ledgix keeps product UX and FBR/compliance concerns.
+Decision: standard business engines use ERPNext authority; Ledgix retains product UX, FBR/compliance, intelligence and branding.
 
 ---
 
 ## Phase 3 — Standard Masters and Ledgix Extension Schema — COMPLETE
 
-Runtime gate proved ERPNext Customer FBR extensions, Item-linked Ledgix legal/tax profiles, Sales/POS Invoice FBR envelope fields, immutable line snapshots, business profiles, additive Ledgix permissions and idempotent schema synchronization.
+ERPNext Customer/Item/native invoice extensions, immutable legal/FBR line snapshots, business profiles, additive roles/permissions and idempotent schema synchronization are proven.
 
 ---
 
 ## Phase 4 — Tax Parity and Accounting Foundation — COMPLETE
 
-Mandatory tax/accounting matrix passed **13/13** on `ledgix-erpnext.local`: ordinary, inclusive, zero-rated, exempt, Third Schedule, Further Tax, Extra Tax, FED, Sales Tax Withheld at Source, mixed invoice, full return, partial return and price-only Credit Note.
+Mandatory matrix passed **13/13**: ordinary, tax-inclusive, zero-rated, exempt, Third Schedule, Further Tax, Extra Tax, FED, Sales Tax Withheld at Source, mixed invoice, full return, partial return and price-only Credit Note.
 
-ERPNext owns monetary totals/tax rows/GL; Ledgix owns legal/FBR classification and immutable snapshots.
-
-Design: `docs/plan/erpnext_phase4_tax_parity_matrix.md`.
+ERPNext owns monetary totals/tax rows/GL. Ledgix owns legal/FBR classification and immutable snapshots.
 
 ---
 
 ## Phase 5 — Master Data Migration — COMPLETE
 
-The consolidated Phase 2+3+4+5 gate passed on 2026-09-16.
-
-Proven:
-
-- dry-run rollback and stable target counts;
-- real migration and rerun idempotence;
-- Item Group/Item/Item Price/Customer/Supplier/Mode of Payment mappings;
-- contacts/addresses/FBR metadata;
-- opening stock;
-- Batch/Serial identity preservation;
-- invoice-only profile creates non-stock Items and no SLE;
-- source legacy records are not deleted;
-- supplier AP/current liability intentionally deferred to Phase 7.
+The consolidated gate proved dry-run rollback, real migration/rerun idempotence, native item/customer/supplier/pricing/payment mappings, contacts/addresses/FBR metadata, opening stock, Batch/Serial identities and non-stock invoice-only mode without SLE. Legacy source rows remain preserved.
 
 Canonical service: `ledgix_saas.migration.erpnext_phase5_master_migration_runtime.run`.
-
-Design: `docs/plan/erpnext_phase5_master_migration.md`.
 
 ---
 
@@ -82,26 +64,20 @@ Design: `docs/plan/erpnext_phase5_master_migration.md`.
 **Closed:** 2026-09-16  
 **Final static-proof HEAD:** `3df4634dc4dc05d13231ead7427af353a799a71d`
 
-Phase 6 moved the new B2B/invoice financial path to ERPNext while intentionally leaving retail POS backend to Phase 8 and FBR submission datasource/network cutover to Phase 9.
+Final evidence includes:
 
-### Final evidence
-
-Full guarded closure on `ledgix-erpnext.local` proved:
-
-- Phase 2–5 regression gates green;
+- Phase 2–5 regressions green;
 - customer receivables preflight reconciled;
-- **17/17** Phase 6 transaction cases passed;
+- **17/17** transaction cases green;
 - full/partial payments and native AR;
-- multi-invoice Payment Entry allocation;
-- Payment Entry idempotency/cancellation/outstanding restoration;
-- full/partial Credit Note, refund and exchange;
-- B2B compatibility APIs use ERPNext authority;
-- non-stock Phase 6 fixtures create no SLE;
-- immutable FBR snapshots remain attached;
-- no parallel `Ledgix Sale` / `Ledgix Payment` / `Ledgix Sales Return` financial writes;
-- pricing/payment policy proof green: checkout discount, authorized rate-override audit, interrupted payment recovery and required payment references;
-- malicious client-supplied return rate `1.23` could not override the original ERPNext invoice rate `1000.00`;
-- final fail-closed static contract ran **14/14 tests** and passed.
+- Payment Entry allocation/idempotency/cancellation;
+- full/partial Credit Notes, refund and exchange;
+- B2B compatibility over native Sales Invoice/Payment Entry;
+- checkout discount and authorized rate-override audit;
+- interrupted payment recovery and required payment references;
+- malicious return-rate input could not override source ERPNext invoice rate;
+- no parallel Ledgix Sale/Payment/Sales Return financial writes;
+- fail-closed static contract passed **14/14**.
 
 Canonical service: `ledgix_saas.services.erpnext_selling`.
 
@@ -109,81 +85,101 @@ Design: `docs/plan/erpnext_phase6_selling_cutover.md`.
 
 ---
 
-## Phase 7 — Buying and Inventory Cutover — IMPLEMENTED, FINAL RUNTIME GATE PENDING
+## Phase 7 — Buying and Inventory Cutover — COMPLETE
 
-### Implemented authority boundary
+**Closed:** 2026-09-16  
+**Final gate HEAD:** `6fbfc95063becd57d051476df37219fab43ae704`
 
-Canonical service:
+The guarded final gate on `ledgix-erpnext.local` passed with `phase7_complete=true` and `phase8_ready=true`.
 
-- `ledgix_saas.services.erpnext_buying_inventory`
+### Final evidence
 
-Implemented native paths:
+- local CI/migrate/apps green;
+- Phase 6+7 fail-closed static contracts passed **25/25**;
+- mapped Supplier AP preflight reconciled with no blocker;
+- **11/11** Phase 7 runtime cases passed:
+  - full PO -> PR -> PI -> supplier Payment Entry;
+  - direct Purchase Invoice with stock;
+  - non-stock financial-only Purchase Invoice;
+  - Material Transfer;
+  - Stock Reconciliation;
+  - Batch / Serial and Batch Bundle authority;
+  - Serial No availability/issue;
+  - Purchase Return;
+  - cancellation + backdated stock behavior;
+  - ERPNext valuation authority;
+  - no parallel Ledgix Purchase/Stock Movement/Lot/Serial writes;
+- native Bin/SLE stock and valuation matched expected quantities;
+- legacy purchase/stock identity counts were unchanged.
 
-- Purchase Order -> Purchase Receipt -> Purchase Invoice -> supplier Payment Entry;
-- direct Purchase Invoice with stock effect for small-shop buying;
-- financial-only Purchase Invoice for non-stock items;
-- Purchase Return through ERPNext return mapping;
-- Material Receipt / Issue / Transfer through Stock Entry;
-- quantity correction through Stock Reconciliation;
-- stock availability/valuation from Bin + Stock Ledger Entry;
-- Batch and Serial No / Serial and Batch Bundle authority;
-- POS serial availability compatibility now reads ERPNext Serial No;
-- manual stock compatibility now writes native Stock Entry instead of Ledgix Stock Movement/Lot/Serial.
-
-### Supplier AP guard
-
-`erpnext_phase7_supplier_ap_preflight.run` compares mapped legacy Supplier `current_balance` with ERPNext Supplier GL payable state. Legacy `opening_balance` is reported as provenance only and is never silently reposted. Any current-payable mismatch blocks cutover.
-
-### Workspace routing
-
-Ledgix Buying & Suppliers and Inventory & Stock cards now point normal operations to standard ERPNext Purchase Order/Receipt/Invoice, Supplier, Item/Item Group, Warehouse, Stock Entry/Reconciliation, Batch and Serial No.
-
-Historical legacy DocTypes/reports remain available for migration/reconciliation; they are not deleted in Phase 7.
-
-### Final gate
-
-Runner:
-
-- `scripts/run_erpnext_phase7_final_gate.sh`
-
-It performs local CI, migrate, fail-closed Phase 6+7 static contracts, supplier AP preflight and the Phase 7 runtime matrix.
-
-Runtime matrix covers:
-
-- full purchase chain + supplier payment;
-- purchase idempotency;
-- direct stock purchase;
-- non-stock financial-only purchase;
-- material transfer;
-- Stock Reconciliation;
-- Batch bundle behavior;
-- Serial No availability/issue;
-- Purchase Return;
-- stock cancellation;
-- backdated SLE behavior;
-- ERPNext valuation authority;
-- no parallel Ledgix Purchase/Stock Movement/Lot/Serial writes.
-
-Phase 7 closes only when the integration gate returns both `phase7_complete=true` and `phase8_ready=true`.
+Canonical service: `ledgix_saas.services.erpnext_buying_inventory`.
 
 Design: `docs/plan/erpnext_phase7_buying_inventory_cutover.md`.
 
 ---
 
-## Next after Phase 7
+## Phase 8 — POS Engine Migration — IMPLEMENTED, FINAL RUNTIME GATE PENDING
 
-Phase 8 — POS Engine Migration. The retained Ledgix POS UX will be moved onto the already-proven ERPNext Customer/Item/Pricing/Sales/Payment/Stock authority and legacy retail financial/stock backends will be removed from the live path.
+Architecture decision: **retain the Ledgix POS screen, replace its business backend with ERPNext POS authority**.
+
+### Implemented authority boundary
+
+Canonical service:
+
+- `ledgix_saas.services.erpnext_pos`
+
+Compatibility layer:
+
+- `ledgix_saas.api.pos_compat`
+
+Implemented native paths:
+
+- boot/profile/payment configuration from `POS Profile`;
+- Customer/Item/Item Group/Price List/Item Price/Pricing Rule catalog authority;
+- availability from ERPNext Bin/stock ledger;
+- cashier opening from `POS Opening Entry`;
+- retail checkout from `POS Invoice`;
+- split payment/reference/change through native POS payment rows;
+- retail checkout idempotency through native invoice metadata;
+- held Retail carts as draft `POS Invoice`;
+- held B2B carts as draft `Sales Invoice`;
+- retail returns via ERPNext POS return mapper with source-rate authority;
+- cashier close/consolidation via `POS Closing Entry` and native consolidated Sales Invoice;
+- current Ledgix RPC names routed to the Phase 8 compatibility layer using Frappe method overrides;
+- known-wrong legacy `Ledgix Sale` auto-print target is suppressed with `print_deferred=true` until native/Ledgix print formats are finalized;
+- Phase 6 B2B Sales Invoice path remains native and unchanged;
+- no Phase 8 FBR network/source cutover.
+
+### Final gate
+
+Runner:
+
+- `scripts/run_erpnext_phase8_final_gate.sh`
+
+The guarded runtime matrix proves native boot/catalog, opening shift, draft holds with zero GL/SLE, split-tender checkout/change/idempotency, native POS return, closing/consolidation, final stock delta, and unchanged Ledgix Sale/Payment/POS Shift/POS Hold/stock/FBR-log counts.
+
+Phase 8 closes only when the integration gate returns `phase8_complete=true` and `phase9_ready=true`.
+
+Design: `docs/plan/erpnext_phase8_pos_cutover.md`.
+
+---
+
+## Next after Phase 8
+
+**Phase 9 — FBR Source Cutover**.
+
+The FBR integration layer stays Ledgix-owned, but the transaction datasource will deliberately switch from legacy `Ledgix Sale` to native `Sales Invoice`, `POS Invoice` and native return/Credit Note documents only after payload preview parity and no-dual-submit safeguards pass.
 
 ---
 
 ## Safety Status
 
-- Development remains direct on `main`; no PR branch is used.
-- ERPNext core is never modified/vendor-forked.
-- No production/client authority is changed by these integration-site gates.
-- Legacy records remain available until explicit later freeze/retirement phases.
-- Phase 6 B2B financial paths create no parallel Ledgix financial documents.
-- Phase 7 adapters are designed to create no parallel Ledgix purchase/stock/lot/serial documents.
-- Customer AR and Supplier AP mismatches fail closed rather than being silently lost.
-- Retail POS backend remains intentionally deferred to Phase 8.
-- FBR network submission/source cutover remains intentionally deferred to Phase 9.
+- Development is direct on `main`; no PR branch is used.
+- ERPNext core is never modified or vendored.
+- All destructive/runtime migration gates are restricted to `ledgix-erpnext.local`.
+- Legacy records remain preserved until later freeze/retirement cleanup.
+- Phase 6 B2B paths create no parallel Ledgix financial ledgers.
+- Phase 7 buying/inventory paths create no parallel Ledgix purchase/stock ledgers.
+- Phase 8 POS paths are designed to create no parallel Ledgix sale/payment/shift/hold/stock ledgers.
+- Customer AR and Supplier AP mismatches fail closed.
+- FBR submission/source cutover remains intentionally deferred to Phase 9; Phase 8 must not dual-submit.
