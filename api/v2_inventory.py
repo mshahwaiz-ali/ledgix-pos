@@ -3,36 +3,27 @@ from __future__ import annotations
 import frappe
 
 from ledgix_saas.api.security import require_ledgix_cashier_or_above
-from ledgix_saas.api.stock_identity import is_serial_based_item
+from ledgix_saas.services import erpnext_buying_inventory
 
 
 @frappe.whitelist()
-def get_available_pos_serials(item=None, limit=200):
-    """Return currently available serial identities for a Serial Based POS item."""
-    require_ledgix_cashier_or_above()
-    item = str(item or "").strip()
-    if not item or not frappe.db.exists("Ledgix Item", item):
-        frappe.throw("Valid item is required.")
-    if not is_serial_based_item(item):
-        frappe.throw("Serial selection is only available for Serial Based items.")
+def get_available_pos_serials(item=None, limit=200, warehouse=None):
+    """Return available ERPNext Serial Nos while preserving the POS response shape."""
 
-    limit = min(max(int(limit or 200), 1), 500)
-    rows = frappe.get_all(
-        "Ledgix Stock Serial",
-        filters={"item": item, "status": "Available"},
-        fields=["name", "serial_no", "purchase", "purchase_date"],
-        order_by="purchase_date asc, creation asc, serial_no asc",
-        limit_page_length=limit,
+    require_ledgix_cashier_or_above()
+    item_input = str(item or "").strip()
+    if not item_input:
+        frappe.throw("Valid item is required.")
+
+    item_code = erpnext_buying_inventory._resolve_item(item_input)
+    rows = erpnext_buying_inventory.available_serials(
+        item_code,
+        warehouse=warehouse,
+        limit=limit,
     )
     return {
-        "item": item,
-        "serials": [
-            {
-                "name": row.name,
-                "serial_no": row.serial_no,
-                "purchase": row.purchase,
-                "purchase_date": row.purchase_date,
-            }
-            for row in rows
-        ],
+        "item": item_input,
+        "erpnext_item": item_code,
+        "authority": "ERPNext Serial No",
+        "serials": rows,
     }
