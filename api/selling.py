@@ -69,6 +69,24 @@ def _auto_allocations(customer: str, amount: float) -> list[dict]:
     return allocations
 
 
+def _native_invoice_reference(value: str | None):
+    value = str(value or "").strip()
+    if not value:
+        return None
+    if frappe.db.exists("Sales Invoice", value):
+        doc = frappe.get_doc("Sales Invoice", value)
+        return doc if doc.docstatus == 1 else None
+    name = frappe.db.get_value(
+        "Sales Invoice",
+        {
+            "custom_ledgix_client_sale_id": value,
+            "docstatus": 1,
+        },
+        "name",
+    )
+    return frappe.get_doc("Sales Invoice", name) if name else None
+
+
 @frappe.whitelist()
 def preview_b2b_invoice(
     customer,
@@ -340,3 +358,200 @@ def create_exchange(
         ),
         "authority": "ERPNext Sales Invoice / Credit Note",
     }
+
+
+@frappe.whitelist()
+def complete_pos_v2_sale_compat(
+    cart_items=None,
+    tenders=None,
+    customer=None,
+    sale_channel="Retail",
+    price_list=None,
+    discount_type="Amount",
+    discount_value=0,
+    client_sale_id=None,
+):
+    """Keep the existing POS RPC stable while B2B writes move to ERPNext."""
+
+    if sale_channel == "B2B":
+        return complete_b2b_sale(
+            customer=customer,
+            cart_items=cart_items,
+            tenders=tenders,
+            price_list=price_list,
+            client_sale_id=client_sale_id,
+            discount_type=discount_type,
+            discount_value=discount_value,
+        )
+    from ledgix_saas.api.v2_pos import complete_pos_v2_sale
+
+    return complete_pos_v2_sale(
+        cart_items=cart_items,
+        tenders=tenders,
+        customer=customer,
+        sale_channel=sale_channel,
+        price_list=price_list,
+        discount_type=discount_type,
+        discount_value=discount_value,
+        client_sale_id=client_sale_id,
+    )
+
+
+@frappe.whitelist()
+def preview_pos_v2_checkout_compat(
+    cart_items=None,
+    customer=None,
+    sale_channel="Retail",
+    price_list=None,
+    discount_type="Amount",
+    discount_value=0,
+):
+    if sale_channel == "B2B":
+        native = preview_b2b_invoice(
+            customer=customer,
+            items=cart_items,
+            price_list=price_list,
+            discount_type=discount_type,
+            discount_value=discount_value,
+        )
+        credit = erpnext_selling.get_customer_receivables(customer)
+        return {
+            "subtotal": native["net_total"],
+            "discount_amount": flt((native.get("discount") or {}).get("amount"), 2),
+            "total_amount": native["net_total"],
+            "tax_amount": native["tax_amount"],
+            "grand_total": native["grand_total"],
+            "price_list": native["price_list"],
+            "sale_channel": "B2B",
+            "credit": credit,
+            "items": native.get("items") or [],
+            "financial_authority": "ERPNext",
+        }
+    from ledgix_saas.api.v2_pos import preview_pos_v2_checkout
+
+    return preview_pos_v2_checkout(
+        cart_items=cart_items,
+        customer=customer,
+        sale_channel=sale_channel,
+        price_list=price_list,
+        discount_type=discount_type,
+        discount_value=discount_value,
+    )
+
+
+@frappe.whitelist()
+def get_pos_v2_customer_context_compat(customer, sale_channel=None):
+    from ledgix_saas.api.v2_pos import get_pos_v2_customer_context
+
+    result = get_pos_v2_customer_context(customer, sale_channel)
+    if result.get("sale_channel") == "B2B":
+        credit = erpnext_selling.get_customer_receivables(customer)
+        customer_row = dict(result.get("customer") or {})
+        customer_row.update(
+            {
+                "outstanding": flt(credit.get("outstanding"), 2),
+                "available_credit": flt(credit.get("available_credit"), 2),
+                "overdue": flt(credit.get("overdue"), 2),
+            }
+        )
+        result["customer"] = customer_row
+        result["financial_authority"] = "ERPNext"
+    return result
+
+
+def _native_return_context(invoice) -> dict:
+    returned = {}
+    return_names = frappe.get_all(
+        "Sales Invoice",
+        filters={
+            "return_against": invoice.name,
+            "is_return": 1,
+            "docstatus": 1,
+        },
+        pluck="name",
+        limit_page_length=0,
+    )
+    if return_names:
+        rows = frappe.get_all(
+            "Sales Invoice Item",
+            filters={"parent": ["in", return_names], "parenttype": "Sales Invoice"},
+            fields=["si_detail", "item_code", "qty"],
+            limit_page_length=0,
+        )
+        for row in rows:
+            key = row.si_detail or row.item_code
+            returned[key] = flt(returned.get(key)) + abs(flt(row.qty))
+
+    items = []
+    for row in invoice.items:
+        already = flt(returned.get(row.name) or returned.get(row.item_code), 2)
+        returnable = max(flt(row.qty) - already, 0)
+        if returnable <= 0.005:
+            continue
+        items.append(
+            {
+                "item": row.item_code,
+                "item_code": row.item_code,
+                "original_sale_item_row": row.name,
+                "sales_invoice_item": row.name,
+                "item_name": row.item_name,
+                "sold_qty": flt(row.qty),
+                "already_returned_qty": already,
+                "returnable_qty": returnable,
+                "return_qty": 0,
+                "rate": flt(row.rate),
+                "amount": 0,
+            }
+        )
+    return {
+        "success": True,
+        "sale_id": invoice.name,
+        "invoice_number": invoice.name,
+        "customer": invoice.customer,
+        "sale_date": invoice.posting_date,
+        "items": items,
+        "financial_authority": "ERPNext",
+    }
+
+
+@frappe.whitelist()
+def get_pos_return_context_compat(sale_id=None):
+    invoice = _native_invoice_reference(sale_id)
+    if invoice:
+        return _native_return_context(invoice)
+    from ledgix_saas.api.v2_returns import get_pos_v2_return_context
+
+    return get_pos_v2_return_context(sale_id=sale_id)
+
+
+@frappe.whitelist()
+def create_pos_return_compat(original_sale=None, return_items=None, reason=None):
+    invoice = _native_invoice_reference(original_sale)
+    if invoice:
+        _require_manager()
+        rows = _parse(return_items) or []
+        note = erpnext_selling.create_sales_return(
+            sales_invoice=invoice.name,
+            return_items=rows,
+            reason=reason,
+            client_return_id=None,
+            checkout_source="Ledgix POS B2B Return",
+        )
+        return {
+            "success": True,
+            "return_id": note.name,
+            "original_sale": invoice.name,
+            "customer": note.customer,
+            "total_amount": flt(note.net_total, 2),
+            "tax_amount": flt(note.total_taxes_and_charges, 2),
+            "grand_total": flt(note.grand_total, 2),
+            "fbr_status": note.get("custom_ledgix_fbr_status") or "",
+            "financial_authority": "ERPNext",
+        }
+    from ledgix_saas.api.v2_returns import create_pos_v2_return
+
+    return create_pos_v2_return(
+        original_sale=original_sale,
+        return_items=return_items,
+        reason=reason,
+    )
