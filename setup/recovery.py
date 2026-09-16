@@ -5,13 +5,26 @@ import frappe
 from ledgix_saas.api import legacy_retirement
 
 
-REPRESENTATIVE_READ_DOCTYPES = (
+ERP_NEXT_READ_DOCTYPES = (
     "Company",
     "Item",
     "Customer",
     "Sales Invoice",
-    "Business Profile",
 )
+LEDGIX_BUSINESS_PROFILE_DOCTYPE = "Ledgix Business Profile"
+
+
+def _read_business_profile() -> dict | None:
+    """Read the Ledgix Single DocType without mutating site configuration."""
+
+    if not frappe.db.exists("DocType", LEDGIX_BUSINESS_PROFILE_DOCTYPE):
+        return None
+
+    profile = frappe.get_single(LEDGIX_BUSINESS_PROFILE_DOCTYPE)
+    return {
+        "doctype": profile.doctype,
+        "business_profile": profile.get("business_profile"),
+    }
 
 
 def verify_recovery_state(require_phase12_frozen: int | bool = 1) -> dict:
@@ -24,12 +37,14 @@ def verify_recovery_state(require_phase12_frozen: int | bool = 1) -> dict:
     """
 
     installed_apps = set(frappe.get_installed_apps())
-    reads: dict[str, int | None] = {}
-    for doctype in REPRESENTATIVE_READ_DOCTYPES:
+    reads: dict[str, object] = {}
+    for doctype in ERP_NEXT_READ_DOCTYPES:
         if frappe.db.exists("DocType", doctype):
             reads[doctype] = frappe.db.count(doctype)
         else:
             reads[doctype] = None
+
+    reads[LEDGIX_BUSINESS_PROFILE_DOCTYPE] = _read_business_profile()
 
     require_frozen = str(require_phase12_frozen).strip().lower() not in {"0", "false", "no"}
     phase12_frozen = legacy_retirement.is_frozen()
@@ -40,9 +55,9 @@ def verify_recovery_state(require_phase12_frozen: int | bool = 1) -> dict:
         "erpnext_installed": "erpnext" in installed_apps,
         "ledgix_installed": "ledgix_saas" in installed_apps,
         "representative_erpnext_reads_available": all(
-            reads.get(doctype) is not None for doctype in ("Company", "Item", "Customer", "Sales Invoice")
+            reads.get(doctype) is not None for doctype in ERP_NEXT_READ_DOCTYPES
         ),
-        "business_profile_read_available": reads.get("Business Profile") is not None,
+        "business_profile_read_available": reads.get(LEDGIX_BUSINESS_PROFILE_DOCTYPE) is not None,
         "phase12_frozen_when_required": (not require_frozen) or phase12_frozen,
         "phase12_snapshot_matches_when_required": (not require_frozen) or bool(snapshot.get("matches")),
     }
