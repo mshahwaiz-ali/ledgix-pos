@@ -160,6 +160,38 @@ print(f"[OK] validated {len(files)} TOML file(s)")
 PY
 }
 
+validate_migration_module_names() {
+  section "Migration module naming"
+  require_cmd grep
+
+  local migration_dir="$REPO_ROOT/apps/ledgix_saas/migration"
+  local bad_files=""
+  local bad_refs=""
+
+  if [[ -d "$migration_dir" ]]; then
+    bad_files="$(find "$migration_dir" -maxdepth 1 -type f -regextype posix-extended -regex '.*_v[0-9]+\.py$' -print || true)"
+  fi
+
+  if [[ -n "$bad_files" ]]; then
+    printf '%s\n' "$bad_files" >&2
+    die "Version-suffixed migration modules are not allowed; use descriptive canonical/runtime/helper names."
+  fi
+
+  bad_refs="$(grep -R -n -E 'erpnext_[A-Za-z0-9_]+_v[0-9]+' \
+    "$REPO_ROOT/apps/ledgix_saas" \
+    "$REPO_ROOT/scripts" \
+    "$REPO_ROOT/docs/plan" \
+    --exclude-dir='__pycache__' \
+    --exclude='*.pyc' || true)"
+
+  if [[ -n "$bad_refs" ]]; then
+    printf '%s\n' "$bad_refs" >&2
+    die "Version-suffixed migration module references remain in source/scripts/docs."
+  fi
+
+  ok "migration modules use descriptive names without _vN suffixes"
+}
+
 validate_apps() {
   section "Custom app packaging"
   require_cmd "$PYTHON_BIN"
@@ -301,6 +333,7 @@ main() {
   validate_python
   validate_json
   validate_toml
+  validate_migration_module_names
   validate_apps
   ok "repository validation passed"
 }

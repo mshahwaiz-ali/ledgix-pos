@@ -64,6 +64,10 @@ printf '\n===== MAINTENANCE MODE =====\n'
 bench_run --site "$SITE" set-maintenance-mode on
 MAINTENANCE_ENABLED=1
 
+printf '\n===== ERPNEXT DEPENDENCY =====\n'
+[[ -f "$SCRIPT_DIR/ensure_erpnext.sh" ]] || die "missing ERPNext dependency helper: $SCRIPT_DIR/ensure_erpnext.sh"
+BENCH_DIR="$BENCH_DIR" bash "$SCRIPT_DIR/ensure_erpnext.sh" --site "$SITE"
+
 printf '\n===== EXACT APP SYNC =====\n'
 rm -rf "$TMP_APP"
 cp -a "$SRC_APP" "$TMP_APP"

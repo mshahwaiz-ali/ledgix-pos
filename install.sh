@@ -7,6 +7,8 @@ LOG_DIR="$SCRIPT_DIR/logs/install"
 TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
 LOG_FILE="$LOG_DIR/install-$TIMESTAMP.log"
 FRAPPE_BRANCH="${FRAPPE_BRANCH:-version-15}"
+ERPNEXT_BRANCH="${ERPNEXT_BRANCH:-version-15}"
+ERPNEXT_REPO="${ERPNEXT_REPO:-https://github.com/frappe/erpnext.git}"
 NODE_MAJOR="${NODE_MAJOR:-22}"
 NVM_INSTALL_VERSION="${NVM_INSTALL_VERSION:-v0.40.3}"
 MODE=""
@@ -44,6 +46,8 @@ Options:
 
 Environment:
   FRAPPE_BRANCH       Default: $FRAPPE_BRANCH
+  ERPNEXT_BRANCH      Default: $ERPNEXT_BRANCH
+  ERPNEXT_REPO        Default: $ERPNEXT_REPO
   NODE_MAJOR          Default: $NODE_MAJOR
   BENCH_DIR           Default: $BENCH_DIR
   ALLOW_INTERACTIVE_SUDO=1
@@ -146,8 +150,8 @@ ensure_service() {
 
 preflight() {
   section 'Preflight'
-  printf 'Repo: %s\nBench: %s\nFrappe: %s\nNode: %s\nOS: %s\nRAM: %s\nSwap: %s\nDisk free: %s\n' \
-    "$SCRIPT_DIR" "$BENCH_DIR" "$FRAPPE_BRANCH" "$NODE_MAJOR" \
+  printf 'Repo: %s\nBench: %s\nFrappe: %s\nERPNext: %s\nNode: %s\nOS: %s\nRAM: %s\nSwap: %s\nDisk free: %s\n' \
+    "$SCRIPT_DIR" "$BENCH_DIR" "$FRAPPE_BRANCH" "$ERPNEXT_BRANCH" "$NODE_MAJOR" \
     "$(. /etc/os-release 2>/dev/null && printf '%s' "${PRETTY_NAME:-unknown}" || printf unknown)" \
     "$(free -h 2>/dev/null | awk '/^Mem:/ {print $2}')" \
     "$(free -h 2>/dev/null | awk '/^Swap:/ {print $2}')" \
@@ -229,6 +233,61 @@ ensure_bench() {
   ok "bench initialized: $BENCH_DIR"
 }
 
+ensure_bench_app_registered() {
+  local app="$1"
+  local apps_txt="$BENCH_DIR/sites/apps.txt"
+  [[ -f "$apps_txt" ]] || : >"$apps_txt"
+  if grep -Fxq "$app" "$apps_txt" 2>/dev/null; then
+    return 0
+  fi
+  if [[ -s "$apps_txt" && -n "$(tail -c 1 "$apps_txt" 2>/dev/null || true)" ]]; then
+    printf '\n' >>"$apps_txt"
+  fi
+  printf '%s\n' "$app" >>"$apps_txt"
+  ok "registered bench app: $app"
+}
+
+ensure_erpnext_app() {
+  section 'ERPNext v15 Dependency'
+  valid_bench || die "valid bench not found: $BENCH_DIR"
+  local app_dir="$BENCH_DIR/apps/erpnext"
+
+  if [[ -d "$app_dir" ]]; then
+    [[ -d "$app_dir/.git" ]] || die "ERPNext app directory exists but is not a git checkout: $app_dir"
+    info "reusing ERPNext app: $app_dir"
+  else
+    info "fetching ERPNext $ERPNEXT_BRANCH from $ERPNEXT_REPO"
+    (cd "$BENCH_DIR" && bench get-app --branch "$ERPNEXT_BRANCH" erpnext "$ERPNEXT_REPO")
+  fi
+
+  [[ -d "$app_dir" ]] || die "ERPNext was not prepared in bench: $app_dir"
+  ensure_bench_app_registered erpnext
+  "$BENCH_DIR/env/bin/python" -c 'import erpnext' >/dev/null 2>&1 || die 'ERPNext import failed after bench setup'
+  ok 'ERPNext is available on the bench'
+}
+
+validate_framework_alignment() {
+  section 'Frappe / ERPNext Alignment'
+  local app expected branch app_dir
+  for app in frappe erpnext; do
+    if [[ "$app" == "frappe" ]]; then expected="$FRAPPE_BRANCH"; else expected="$ERPNEXT_BRANCH"; fi
+    app_dir="$BENCH_DIR/apps/$app"
+    [[ -d "$app_dir/.git" ]] || die "$app is not a git checkout: $app_dir"
+    branch="$(git -C "$app_dir" branch --show-current)"
+    if [[ -n "$branch" && "$branch" != "$expected" ]]; then
+      die "$app branch mismatch: expected $expected, found $branch"
+    fi
+    if [[ -z "$branch" ]]; then
+      warn "$app is on a detached HEAD; expected branch policy is $expected"
+    else
+      ok "$app branch: $branch"
+    fi
+  done
+
+  info 'bench application versions:'
+  (cd "$BENCH_DIR" && bench version --format plain) || die 'could not read bench app versions'
+}
+
 wsl_note() {
   if grep -qiE 'microsoft|wsl' /proc/version /proc/sys/kernel/osrelease 2>/dev/null; then
     warn 'WSL detected: Windows browser can normally use http://localhost:8000.'
@@ -243,9 +302,12 @@ local_flow() {
   ensure_nvm_node_yarn
   ensure_cli_tools
   ensure_bench
+  ensure_erpnext_app
+  validate_framework_alignment
   wsl_note
   section 'Local Setup Complete'
   ok "bench ready: $BENCH_DIR"
+  ok "framework stack: Frappe $FRAPPE_BRANCH + ERPNext $ERPNEXT_BRANCH"
   info 'Next: ./site_setup.sh'
   if [[ "$ASSUME_YES" -eq 0 && -f "$SCRIPT_DIR/site_setup.sh" ]] && confirm 'Run site setup now?' 'N'; then
     exec "$SCRIPT_DIR/site_setup.sh"

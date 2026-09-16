@@ -123,7 +123,7 @@ rebuild_sites_index() {
 
   for secret in "$SECRETS_SITES_DIR"/*.env; do
     [[ -f "$secret" ]] || continue
-    site="$(awk -F= '$1 == "SITE_NAME" {gsub(/^'''|'''$/, "", $2); print $2; exit}' "$secret" 2>/dev/null || true)"
+    site="$(sed -n "s/^SITE_NAME='\([^']*\)'$/\1/p" "$secret" | head -n 1)"
     [[ -n "$site" ]] || site="$(basename "$secret" .env)"
     printf 'SITE_SECRET_%s=%s\n' "$(safe_secret_filename "$site" | tr '.-' '__')" "$(shell_quote "$secret")" >>"$tmp"
   done
@@ -213,7 +213,7 @@ repair_secrets() {
   local secret site stale=0 missing=0
   for secret in "$SECRETS_SITES_DIR"/*.env; do
     [[ -f "$secret" ]] || continue
-    site="$(awk -F= '$1 == "SITE_NAME" {gsub(/^'''|'''$/, "", $2); print $2; exit}' "$secret" 2>/dev/null || true)"
+    site="$(sed -n "s/^SITE_NAME='\([^']*\)'$/\1/p" "$secret" | head -n 1)"
     [[ -n "$site" ]] || site="$(basename "$secret" .env)"
 
     if [[ ! -d "$BENCH_DIR/sites/$site" ]]; then

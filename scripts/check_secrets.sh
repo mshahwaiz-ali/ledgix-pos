@@ -67,6 +67,7 @@ allow_words = (
     "press enter",
     "newstrongpassword",
     "[redacted]",
+    "read -r -s -p",
     "${",
     "$",
 )

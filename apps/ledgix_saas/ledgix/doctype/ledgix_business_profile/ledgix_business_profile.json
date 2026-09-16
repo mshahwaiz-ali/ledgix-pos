@@ -1,0 +1,156 @@
+{
+ "actions": [],
+ "creation": "2026-09-16 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "profile_section",
+  "business_profile",
+  "use_profile_defaults",
+  "profile_note",
+  "feature_section",
+  "enable_sales_invoice",
+  "enable_pos",
+  "enable_inventory",
+  "enable_buying",
+  "feature_column",
+  "enable_advanced_inventory",
+  "enable_b2b",
+  "enable_fbr",
+  "enable_accounting_workspace"
+ ],
+ "fields": [
+  {
+   "fieldname": "profile_section",
+   "fieldtype": "Section Break",
+   "label": "Ledgix Product Profile"
+  },
+  {
+   "default": "Small Retail",
+   "description": "Controls the Ledgix experience only. ERPNext remains the business engine and standard masters are never duplicated here.",
+   "fieldname": "business_profile",
+   "fieldtype": "Select",
+   "label": "Business Profile",
+   "options": "Invoice + FBR Only\nSmall Retail\nFull Retail\nB2B\nMixed",
+   "reqd": 1
+  },
+  {
+   "default": "1",
+   "description": "When enabled, feature flags are derived from the selected profile. Disable only for an intentional site-specific combination.",
+   "fieldname": "use_profile_defaults",
+   "fieldtype": "Check",
+   "label": "Use Profile Defaults"
+  },
+  {
+   "description": "These flags are product/workspace configuration, not an authorization system. DocType and server-side permissions remain authoritative.",
+   "fieldname": "profile_note",
+   "fieldtype": "Small Text",
+   "label": "Configuration Rule",
+   "read_only": 1
+  },
+  {
+   "fieldname": "feature_section",
+   "fieldtype": "Section Break",
+   "label": "Enabled Experience"
+  },
+  {
+   "default": "1",
+   "fieldname": "enable_sales_invoice",
+   "fieldtype": "Check",
+   "label": "Sales Invoice"
+  },
+  {
+   "default": "1",
+   "fieldname": "enable_pos",
+   "fieldtype": "Check",
+   "label": "POS"
+  },
+  {
+   "default": "1",
+   "fieldname": "enable_inventory",
+   "fieldtype": "Check",
+   "label": "Inventory"
+  },
+  {
+   "default": "1",
+   "fieldname": "enable_buying",
+   "fieldtype": "Check",
+   "label": "Buying"
+  },
+  {
+   "fieldname": "feature_column",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "description": "Expose advanced stock controls such as Stock Entry, Reconciliation, Serial and Batch workflows.",
+   "fieldname": "enable_advanced_inventory",
+   "fieldtype": "Check",
+   "label": "Advanced Inventory"
+  },
+  {
+   "default": "0",
+   "fieldname": "enable_b2b",
+   "fieldtype": "Check",
+   "label": "B2B Features"
+  },
+  {
+   "default": "1",
+   "fieldname": "enable_fbr",
+   "fieldtype": "Check",
+   "label": "FBR / Digital Invoicing"
+  },
+  {
+   "default": "1",
+   "fieldname": "enable_accounting_workspace",
+   "fieldtype": "Check",
+   "label": "Accounting Workspace"
+  }
+ ],
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-09-16 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Ledgix",
+ "name": "Ledgix Business Profile",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Ledgix Admin",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "print": 1,
+   "read": 1,
+   "role": "Ledgix Manager"
+  },
+  {
+   "read": 1,
+   "role": "Ledgix Cashier"
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}
