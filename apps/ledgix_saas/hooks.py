@@ -44,6 +44,7 @@ after_migrate = [
 	"ledgix_saas.setup.erpnext_phase7_extensions.after_migrate",
 	"ledgix_saas.setup.erpnext_phase8_extensions.after_migrate",
 	"ledgix_saas.setup.erpnext_phase9_extensions.after_migrate",
+	"ledgix_saas.setup.erpnext_phase10_print_formats.after_migrate",
 	"ledgix_saas.setup.fast_permissions.after_migrate",
 ]
 
