@@ -8,8 +8,8 @@ import frappe
 from ledgix_saas.migration.erpnext_behavioral_preflight import run as run_preflight
 from ledgix_saas.migration.erpnext_integration_bootstrap import INTEGRATION_SITE
 from ledgix_saas.migration.erpnext_invoice_behavioral_spike import run as run_invoice_spike
-from ledgix_saas.migration.erpnext_pos_behavioral_spike_v2 import run as run_pos_spike
-from ledgix_saas.migration.erpnext_stock_purchase_behavioral_spike_v2 import (
+from ledgix_saas.migration.erpnext_pos_behavioral_spike_runtime import run as run_pos_spike
+from ledgix_saas.migration.erpnext_stock_purchase_behavioral_spike_runtime import (
     run as run_stock_purchase_spike,
 )
 
