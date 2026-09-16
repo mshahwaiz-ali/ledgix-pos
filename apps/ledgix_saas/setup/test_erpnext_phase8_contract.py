@@ -64,10 +64,6 @@ class TestERPNextPhase8Contract(unittest.TestCase):
             '"Mode of Payment"',
         ):
             self.assertIn(native, source)
-
-        # ERPNext creates POS Closing Entry through its native helper rather than
-        # constructing the DocType directly. Assert the real behavior instead of
-        # requiring an otherwise-unused literal string in the service source.
         self.assertIn(
             "from erpnext.accounts.doctype.pos_closing_entry.pos_closing_entry import make_closing_entry_from_opening",
             source,
@@ -111,11 +107,15 @@ class TestERPNextPhase8Contract(unittest.TestCase):
         for value in required:
             self.assertIn(value, hooks)
 
-    def test_native_result_suppresses_known_wrong_legacy_sale_print_route(self):
+    def test_native_result_never_restores_legacy_sale_print_identity(self):
         source = (APP_ROOT / "api" / "pos_compat.py").read_text(encoding="utf-8")
         self.assertIn('result["sale"] = ""', source)
-        self.assertIn('result["print_deferred"] = True', source)
         self.assertIn('result["native_document"] = native_document', source)
+        self.assertIn('result["print_doctype"] = doctype', source)
+        self.assertIn('result["print_deferred"] = False', source)
+        self.assertIn('"Ledgix ERPNext POS Receipt"', source)
+        self.assertIn('"Ledgix ERPNext Tax Invoice"', source)
+        self.assertNotIn('print_doctype"] = "Ledgix Sale"', source)
 
     def test_phase8_schema_is_installed_after_migrate(self):
         hooks = (APP_ROOT / "hooks.py").read_text(encoding="utf-8")
