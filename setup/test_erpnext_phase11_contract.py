@@ -108,7 +108,9 @@ class TestERPNextPhase11Contract(unittest.TestCase):
         self.assertIn("a.link-item", source)
         self.assertIn("visible_workspace_cards", source)
         self.assertIn("visible_workspace_links", source)
-        self.assertIn('path !== "/app"', source)
+        self.assertIn("GENERIC_DESK_HOME_PATHS", source)
+        self.assertIn('"/app/home"', source)
+        self.assertIn('"/app/workspaces"', source)
 
     def test_business_profile_refreshes_landing_without_becoming_authorization(self):
         controller = (
