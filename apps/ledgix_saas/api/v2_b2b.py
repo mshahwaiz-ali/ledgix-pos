@@ -1,102 +1,33 @@
 from __future__ import annotations
 
-import frappe
-from frappe import _
-from frappe.utils import flt
+"""Backward-compatible B2B API wrappers.
 
-from ledgix_saas.services.payments import post_payment, reverse_payment
-from ledgix_saas.services.receivables import get_customer_receivables, refresh_customer_credit_summary
+Phase 6 moves the financial authority to ERPNext. Existing callers may keep the
+old module path until the UI cleanup phase, but these endpoints no longer write
+Ledgix Sale/Payment or derive receivables from the legacy ledger.
+"""
 
-
-def _require_manager():
-	roles = set(frappe.get_roles(frappe.session.user))
-	if not roles.intersection({"System Manager", "Ledgix Admin", "Ledgix Manager"}):
-		frappe.throw(_("Manager or Admin access is required."), frappe.PermissionError)
+from ledgix_saas.api import selling
 
 
-def _require_admin():
-	roles = set(frappe.get_roles(frappe.session.user))
-	if not roles.intersection({"System Manager", "Ledgix Admin"}):
-		frappe.throw(_("Admin access is required."), frappe.PermissionError)
+get_customer_credit = selling.get_customer_credit
+get_customer_open_invoices = selling.get_customer_open_invoices
+post_customer_payment = selling.post_customer_payment
 
 
-def _parse(value):
-	return frappe.parse_json(value) if isinstance(value, str) else value
-
-
-@frappe.whitelist()
-def get_customer_credit(customer):
-	_require_manager()
-	return get_customer_receivables(customer)
-
-
-@frappe.whitelist()
+@selling.frappe.whitelist()
 def refresh_customer_credit(customer):
-	_require_manager()
-	return refresh_customer_credit_summary(customer)
+    # The ERPNext-backed view is authoritative and does not maintain a duplicate
+    # cached Ledgix Customer balance, so refresh simply returns the live result.
+    return selling.get_customer_credit(customer)
 
 
-@frappe.whitelist()
-def get_customer_open_invoices(customer):
-	_require_manager()
-	result = get_customer_receivables(customer)
-	result["invoices"] = [row for row in result.get("invoices", []) if flt(row.get("outstanding")) > 0.005]
-	return result
-
-
-@frappe.whitelist()
-def post_customer_payment(
-	customer,
-	payment_method,
-	amount,
-	allocations=None,
-	reference_number=None,
-	currency="PKR",
-):
-	_require_manager()
-	allocations = _parse(allocations) or []
-	if not allocations:
-		credit = get_customer_receivables(customer)
-		remaining = flt(amount)
-		allocations = []
-		for invoice in credit.get("invoices", []):
-			if remaining <= 0:
-				break
-			outstanding = flt(invoice.get("outstanding"))
-			if outstanding <= 0:
-				continue
-			allocated = min(remaining, outstanding)
-			allocations.append({
-				"reference_doctype": "Ledgix Sale",
-				"reference_name": invoice["sale"],
-				"allocated_amount": allocated,
-			})
-			remaining -= allocated
-
-	payment = post_payment(
-		customer=customer,
-		payment_method=payment_method,
-		amount=amount,
-		allocations=allocations,
-		reference_number=reference_number,
-		currency=currency,
-	)
-	return {
-		"payment": payment.name,
-		"amount": flt(payment.amount),
-		"allocated_amount": flt(payment.allocated_amount),
-		"unallocated_amount": flt(payment.unallocated_amount),
-		"credit": get_customer_receivables(customer),
-	}
-
-
-@frappe.whitelist()
+@selling.frappe.whitelist()
 def reverse_customer_payment(payment, reason):
-	_require_admin()
-	reversal = reverse_payment(payment, reason)
-	return {
-		"reversal": reversal.name,
-		"original_payment": payment,
-		"customer": reversal.customer,
-		"credit": get_customer_receivables(reversal.customer) if reversal.customer else None,
-	}
+    result = selling.cancel_customer_payment(payment, reason)
+    # Preserve the old response key for transitional UI callers while making it
+    # explicit that ERPNext cancels/reverses the original Payment Entry rather
+    # than creating a parallel Ledgix reversal document.
+    result["reversal"] = result["payment"]
+    result["original_payment"] = payment
+    return result
