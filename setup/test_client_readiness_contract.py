@@ -78,6 +78,23 @@ class TestClientReadinessContract(unittest.TestCase):
             self.assertIn(token, source)
         self.assertNotIn("production_post_armed", source)
 
+    def test_runtime_setup_apply_is_explicit_and_fail_closed(self):
+        runtime_gate = SCRIPTS / "run_r5_client_readiness_gate.sh"
+        source = runtime_gate.read_text(encoding="utf-8")
+        for token in (
+            "--apply-setup",
+            'blockers != ["client_setup_applied"]',
+            'row.get("key") == "client_setup_current_readiness" and row.get("passed")',
+            "ledgix_saas.api.client_setup.apply_client_setup",
+            "apply_standard_defaults",
+            "POST-APPLY CLIENT READINESS EVIDENCE",
+            "no business masters were created by R5",
+        ):
+            self.assertIn(token, source)
+        self.assertNotIn("frappe.new_doc", source)
+        self.assertNotIn("set-password", source)
+        self.assertNotIn("production_post_armed", source)
+
     def test_r5_gates_and_runbook_exist(self):
         static_gate = SCRIPTS / "run_r5_static_gate.sh"
         runtime_gate = SCRIPTS / "run_r5_client_readiness_gate.sh"
