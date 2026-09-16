@@ -1,0 +1,72 @@
+.ledgix-setup-shell {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 12px 0 48px;
+}
+
+.ledgix-setup-hero {
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 18px 20px;
+  margin-bottom: 18px;
+  background: var(--card-bg);
+}
+
+.ledgix-setup-hero h3 {
+  margin: 0 0 6px;
+}
+
+.ledgix-setup-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.ledgix-setup-card {
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 14px 16px;
+  background: var(--card-bg);
+}
+
+.ledgix-setup-card h5 {
+  margin: 0 0 8px;
+}
+
+.ledgix-setup-check {
+  display: flex;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.ledgix-setup-check:last-child {
+  border-bottom: 0;
+}
+
+.ledgix-setup-check .indicator {
+  flex: 0 0 auto;
+  font-weight: 700;
+}
+
+.ledgix-setup-check.is-ok .indicator {
+  color: var(--green-600);
+}
+
+.ledgix-setup-check.is-blocker .indicator {
+  color: var(--red-600);
+}
+
+.ledgix-setup-check.is-warning .indicator {
+  color: var(--orange-600);
+}
+
+.ledgix-setup-ready {
+  margin-top: 12px;
+  font-weight: 600;
+}
+
+.ledgix-setup-muted {
+  color: var(--text-muted);
+}
