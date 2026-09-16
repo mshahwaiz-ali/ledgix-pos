@@ -86,7 +86,7 @@ Every case proves the relevant subset of:
 
 Returns are created with ERPNext's native return mapper. The Ledgix adapter is re-applied to the draft return so fixed `Actual` component rows scale to the returned quantity instead of blindly copying the original invoice amount.
 
-The price-only case uses ERPNext's supported zero-quantity return-line behavior. The line rate becomes a pure financial credit with no Stock Ledger Entry, while the related sales tax is reversed through ERPNext accounting.
+ERPNext requires at least one negative-quantity item on a linked Sales Invoice return, so a zero-quantity linked Credit Note is not used by this gate. The price-adjustment case instead uses a dedicated **non-stock** item, `qty=-1`, a reduced adjustment rate and `update_stock=0`. It therefore proves a pure financial/tax credit with no Stock Ledger Entry while remaining valid under ERPNext's native return validation.
 
 ## Inclusive-price rule
 
