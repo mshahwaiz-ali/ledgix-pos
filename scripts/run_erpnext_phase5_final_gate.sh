@@ -137,7 +137,7 @@ PY
 echo
 echo "===== PHASE 5 MASTER MIGRATION / RECONCILIATION ====="
 bench --site "$SITE" execute \
-  ledgix_saas.migration.erpnext_phase5_master_migration_gate_v2.run \
+  ledgix_saas.migration.erpnext_phase5_master_migration_gate_v3.run \
   | tee "$PHASE5_RESULT"
 
 echo
@@ -179,6 +179,7 @@ print()
 if payload.get("phase5_complete") and payload.get("phase6_ready"):
     print("[PASS] Phase 5 COMPLETE — native ERPNext master migration and reconciliation are proven.")
     print("[PASS] Dry-run rollback and actual idempotent rerun are proven.")
+    print("[PASS] Stock-enabled and Invoice + FBR Only non-stock Item migration are both proven.")
     print("[PASS] Legacy masters were not deleted/frozen; transaction authority was not cut over.")
     print(f"[NEXT] {payload.get('next_phase')}")
     raise SystemExit(0)
