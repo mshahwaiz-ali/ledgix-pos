@@ -31,7 +31,9 @@ usage() {
   cat <<'EOF'
 Usage: deploy/deploy_update_safe.sh --site SITE --release REF --url URL [options]
 
-Deploys an explicitly approved immutable Ledgix release to one existing site.
+Deploys an explicitly approved immutable Ledgix release to one existing site on
+a single-tenant bench. Shared benches must use deploy/deploy_update_shared_safe.sh
+so every Ledgix tenant is backed up, placed in maintenance and migrated together.
 REF must be a full 40-character commit SHA or a Git tag. Moving branch names
 such as main are rejected.
 
@@ -102,8 +104,8 @@ for site_config in "$BENCH_DIR"/sites/*/site_config.json; do
   [[ -f "$site_config" ]] || continue
   site_count=$((site_count + 1))
 done
-if [[ "$site_count" -gt 1 && "${LEDGIX_ALLOW_SHARED_BENCH_UPDATE:-0}" != "1" ]]; then
-  die "bench contains $site_count sites; shared-bench update is blocked until every affected site is explicitly approved (set LEDGIX_ALLOW_SHARED_BENCH_UPDATE=1 only under the multi-site release procedure)"
+if [[ "$site_count" -gt 1 ]]; then
+  die "bench contains $site_count sites; single-site updater refuses shared benches. Use deploy/deploy_update_shared_safe.sh with every Ledgix tenant explicitly approved."
 fi
 
 printf '\n===== RESOLVE IMMUTABLE RELEASE =====\n'
@@ -169,7 +171,7 @@ rm -rf "$DEST_APP"
 mv "$TMP_APP" "$DEST_APP"
 "$BENCH_DIR/env/bin/python" -m pip install -e "$DEST_APP"
 if [[ -f "$SCRIPT_DIR/repair_apps_txt.sh" ]]; then
-  bash "$SCRIPT_DIR/repair_apps_txt.sh"
+  BENCH_DIR="$BENCH_DIR" bash "$SCRIPT_DIR/repair_apps_txt.sh"
 fi
 ok "bench app mirrors approved repository release exactly"
 
