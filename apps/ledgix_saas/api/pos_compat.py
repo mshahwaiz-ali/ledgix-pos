@@ -1,17 +1,17 @@
 from __future__ import annotations
 
-"""Stable Ledgix POS RPC contracts backed by ERPNext-native Phase 8 services."""
+"""Stable Ledgix POS RPC contracts backed by ERPNext-native services."""
 
 import frappe
 from frappe.utils import flt
 
+from ledgix_saas.api import selling as selling_api
+from ledgix_saas.api import selling_compat
 from ledgix_saas.api.security import (
     LEDGIX_MANAGER_OR_ABOVE,
     has_any_role,
     require_ledgix_cashier_or_above,
 )
-from ledgix_saas.api import selling as selling_api
-from ledgix_saas.api import selling_compat
 from ledgix_saas.services import erpnext_pos
 
 
@@ -23,20 +23,22 @@ def _allow_rate_override() -> bool:
     return has_any_role(LEDGIX_MANAGER_OR_ABOVE)
 
 
-def _defer_legacy_page_print(result: dict, *, native_document: str, doctype: str) -> dict:
-    """Keep the current page from invoking its legacy Ledgix Sale print route.
-
-    Native POS/Sales printing and Ledgix branded formats are finalized in the
-    dedicated print phase. Until then checkout must succeed without opening a
-    known-wrong legacy doctype print URL.
-    """
+def _native_print_target(result: dict, *, native_document: str, doctype: str) -> dict:
+    """Attach the Phase 10 native print target without restoring legacy Sale IDs."""
 
     result = dict(result or {})
     result["native_document"] = native_document
     result["doctype"] = doctype
     result["print_doctype"] = doctype
     result["sale"] = ""
-    result["print_deferred"] = True
+    if doctype == "POS Invoice":
+        result["print_mode"] = "Thermal"
+        result["print_format"] = "Ledgix ERPNext POS Receipt"
+    else:
+        result["print_mode"] = "A4"
+        result["print_format"] = "Ledgix ERPNext Tax Invoice"
+    result["print_deferred"] = False
+    result["print_authority"] = "ERPNext native document + Ledgix print format"
     return result
 
 
@@ -118,7 +120,7 @@ def complete_pos_v2_sale(
         )
         native = str(result.get("invoice") or result.get("invoice_number") or result.get("sale") or "")
         result["erpnext_sales_invoice"] = native
-        return _defer_legacy_page_print(result, native_document=native, doctype="Sales Invoice")
+        return _native_print_target(result, native_document=native, doctype="Sales Invoice")
 
     invoice = erpnext_pos.complete_sale(
         cart_items=cart_items,
@@ -131,7 +133,7 @@ def complete_pos_v2_sale(
         allow_rate_override=_allow_rate_override(),
     )
     result = erpnext_pos.sale_result(invoice)
-    return _defer_legacy_page_print(result, native_document=invoice.name, doctype="POS Invoice")
+    return _native_print_target(result, native_document=invoice.name, doctype="POS Invoice")
 
 
 @frappe.whitelist()
@@ -252,10 +254,15 @@ def create_pos_v2_return(original_sale, return_items=None, reason=None, client_r
             reason=reason,
             client_return_id=client_return_id,
         )
-        return erpnext_pos.return_result(doc)
-    return selling_api.create_pos_return_compat(
+        result = erpnext_pos.return_result(doc)
+        return _native_print_target(result, native_document=doc.name, doctype="POS Invoice")
+    result = selling_api.create_pos_return_compat(
         original_sale=original_sale,
         return_items=return_items,
         reason=reason,
         client_return_id=client_return_id,
     )
+    native = str(result.get("return_id") or result.get("credit_note") or result.get("invoice") or "")
+    if native and frappe.db.exists("Sales Invoice", native):
+        return _native_print_target(result, native_document=native, doctype="Sales Invoice")
+    return result
