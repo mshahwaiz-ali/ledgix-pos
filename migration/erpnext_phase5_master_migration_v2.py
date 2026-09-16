@@ -7,6 +7,9 @@ from ledgix_saas.migration import erpnext_phase5_master_migration as base
 from ledgix_saas.setup import erpnext_extensions, erpnext_phase5_extensions
 
 
+ITEM_PRICE_PROVENANCE_FIELD = "custom_ledgix_legacy_item_price"
+
+
 class MasterMigration(base.MasterMigration):
     """Canonical Phase 5 migration with exact legacy field normalization."""
 
@@ -190,6 +193,99 @@ class MasterMigration(base.MasterMigration):
             self.item_map[source.name] = target.name
             self._record(stage, action, source.name, target.name)
 
+    def migrate_item_prices(self) -> None:
+        """Migrate explicit Ledgix prices without abusing ERPNext's native reference field.
+
+        In ERPNext v15 ``Item Price.before_save`` owns ``reference`` and derives it
+        from Customer/Supplier for selling/buying prices. Migration provenance is
+        therefore stored in the dedicated Ledgix custom field.
+        """
+
+        stage = "item_prices"
+        for source in self._source_rows("Ledgix Item Price", "name"):
+            target_item = self.item_map.get(source.item)
+            target_price_list = self.price_list_map.get(source.price_list)
+            if not target_item or not target_price_list:
+                self._conflict(stage, source.name, "", "item or price-list mapping missing")
+                continue
+            if not cint(source.enabled):
+                self._record(
+                    stage,
+                    "skipped",
+                    source.name,
+                    "",
+                    "disabled legacy Item Price is intentionally not active in ERPNext",
+                )
+                continue
+
+            uom = base.UNIT_MAP.get(
+                source.uom,
+                source.uom or frappe.db.get_value("Item", target_item, "stock_uom"),
+            )
+            name = frappe.db.get_value(
+                "Item Price",
+                {ITEM_PRICE_PROVENANCE_FIELD: source.name},
+                "name",
+            )
+            if name:
+                target = frappe.get_doc("Item Price", name)
+                action = "updated"
+            else:
+                semantic_filters = {
+                    "item_code": target_item,
+                    "price_list": target_price_list,
+                    "uom": uom,
+                    "valid_from": source.effective_from,
+                    "valid_upto": source.effective_to,
+                }
+                semantic = frappe.db.get_value(
+                    "Item Price",
+                    semantic_filters,
+                    ["name", "price_list_rate", ITEM_PRICE_PROVENANCE_FIELD],
+                    as_dict=True,
+                )
+                if semantic:
+                    owner = semantic.get(ITEM_PRICE_PROVENANCE_FIELD)
+                    if owner and owner != source.name:
+                        self._conflict(
+                            stage,
+                            source.name,
+                            semantic.name,
+                            f"semantic price already belongs to legacy Item Price {owner}",
+                        )
+                        continue
+                    if abs(flt(semantic.price_list_rate) - flt(source.rate)) > 0.005:
+                        self._conflict(
+                            stage,
+                            source.name,
+                            semantic.name,
+                            "same price key exists with a different rate",
+                        )
+                        continue
+                    target = frappe.get_doc("Item Price", semantic.name)
+                    action = "matched"
+                else:
+                    target = frappe.get_doc(
+                        {
+                            "doctype": "Item Price",
+                            "item_code": target_item,
+                            "price_list": target_price_list,
+                            "uom": uom,
+                            "price_list_rate": flt(source.rate),
+                            "valid_from": source.effective_from,
+                            "valid_upto": source.effective_to,
+                        }
+                    )
+                    action = "created"
+
+            target.price_list_rate = flt(source.rate)
+            target.set(ITEM_PRICE_PROVENANCE_FIELD, source.name)
+            if target.is_new():
+                target.insert(ignore_permissions=True)
+            else:
+                target.save(ignore_permissions=True)
+            self._record(stage, action, source.name, target.name)
+
     def _party_contact(self, target_doctype: str, target_name: str, source_doctype: str, source) -> str:
         mobile = source.get("mobile_number") or source.get("mobile") or ""
         email = source.get("email_address") or source.get("email") or ""
@@ -297,6 +393,37 @@ class MasterMigration(base.MasterMigration):
                     balances,
                 )
 
+    def migrate_suppliers(self) -> None:
+        super().migrate_suppliers()
+        for row in self.report.get("deferred") or []:
+            if row.get("stage") != "suppliers":
+                continue
+            if "supplier AP/opening balances" in str(row.get("reason") or ""):
+                row["reason"] = (
+                    "supplier AP/opening balances are transactional accounting state and move in "
+                    "Phase 7 — Buying and Inventory Cutover, not master migration"
+                )
+
+    def reconcile(self) -> dict:
+        result = super().reconcile()
+        active_prices = [
+            row
+            for row in self._source_rows("Ledgix Item Price", "name")
+            if cint(row.enabled)
+        ]
+        result["checks"]["all_active_item_prices_mapped"] = all(
+            bool(
+                frappe.db.get_value(
+                    "Item Price",
+                    {ITEM_PRICE_PROVENANCE_FIELD: row.name},
+                    "name",
+                )
+            )
+            for row in active_prices
+        )
+        result["passed"] = all(result["checks"].values())
+        return result
+
 
 def run(
     dry_run: int | bool = 1,
@@ -326,8 +453,11 @@ def run(
     savepoint = "ledgix_phase5_master_migration"
     frappe.db.savepoint(savepoint)
     try:
-        result = MasterMigration(context).execute()
-        result["inventory_enabled"] = MasterMigration(context)._inventory_enabled()
+        migration = MasterMigration(context)
+        result = migration.execute()
+        result["inventory_enabled"] = migration._inventory_enabled()
+        result["deferred_accounting_rows"] = len(result.get("deferred") or [])
+        result.pop("phase6_deferred_accounting_rows", None)
         if context.dry_run:
             frappe.db.rollback(save_point=savepoint)
             result["rolled_back"] = True
