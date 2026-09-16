@@ -55,7 +55,7 @@ class TestERPNextPhase11Contract(unittest.TestCase):
         }
         self.assertEqual(
             page_targets,
-            {"ledgix-pos", "business-intelligence-center", "ledgix-tax-center"},
+            {"ledgix-pos", "business-intelligence-center", "ledgix-tax-center", "ledgix-setup"},
         )
 
     def test_product_profiles_curate_cashier_without_granting_permissions(self):
@@ -69,6 +69,7 @@ class TestERPNextPhase11Contract(unittest.TestCase):
         self.assertNotIn("Purchase Invoices", invoice["visible_workspace_links"])
         self.assertNotIn("Stock Entries", invoice["visible_workspace_links"])
         self.assertNotIn("Tax & FBR Center", invoice["visible_workspace_links"])
+        self.assertNotIn("Setup Wizard", invoice["visible_workspace_links"])
 
         small = product_shell.build_product_context(
             roles=["Ledgix Cashier"], features={"business_profile": "Small Retail", **PROFILE_DEFAULTS["Small Retail"]}
@@ -84,9 +85,11 @@ class TestERPNextPhase11Contract(unittest.TestCase):
         self.assertIn("Stock Entries", manager["visible_workspace_links"])
         self.assertIn("Tax & FBR Center", manager["visible_workspace_links"])
         self.assertNotIn("Business Profile", manager["visible_workspace_links"])
+        self.assertNotIn("Setup Wizard", manager["visible_workspace_links"])
         self.assertNotIn("Tax Audit Logs", manager["visible_workspace_links"])
 
         admin = product_shell.build_product_context(roles=["Ledgix Admin"], features=full_features)
+        self.assertIn("Setup Wizard", admin["visible_workspace_links"])
         self.assertIn("Business Profile", admin["visible_workspace_links"])
         self.assertIn("Brand Settings", admin["visible_workspace_links"])
         self.assertIn("Tax Audit Logs", admin["visible_workspace_links"])
