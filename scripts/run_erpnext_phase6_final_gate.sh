@@ -10,6 +10,7 @@ PHASE4_RESULT="$LOG_DIR/erpnext-phase4-regression-from-phase6.txt"
 PHASE5_RESULT="$LOG_DIR/erpnext-phase5-regression-from-phase6.txt"
 PHASE6_PREFLIGHT="$LOG_DIR/erpnext-phase6-receivables-preflight.txt"
 PHASE6_RESULT="$LOG_DIR/erpnext-phase6-final-gate.txt"
+PHASE6_POLICY_RESULT="$LOG_DIR/erpnext-phase6-policy-gate.txt"
 TEMP_REDIS_READY=0
 
 cleanup() {
@@ -207,6 +208,45 @@ bench --site "$SITE" execute \
   | tee "$PHASE6_RESULT"
 
 echo
+echo "===== PHASE 6 PRICING / PAYMENT POLICY PROOF ====="
+bench --site "$SITE" execute \
+  ledgix_saas.migration.erpnext_phase6_policy_gate.run \
+  | tee "$PHASE6_POLICY_RESULT"
+python3 - "$PHASE6_POLICY_RESULT" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+payload = None
+for line in reversed([x.strip() for x in Path(sys.argv[1]).read_text(encoding="utf-8").splitlines() if x.strip()]):
+    try:
+        value = json.loads(line)
+    except json.JSONDecodeError:
+        continue
+    if isinstance(value, dict) and "phase6_policy_complete" in value:
+        payload = value
+        break
+if payload is None:
+    print("[FAIL] Could not find Phase 6 policy-gate JSON result.")
+    raise SystemExit(1)
+for name, case in (payload.get("cases") or {}).items():
+    passed = bool(case.get("passed"))
+    print(f"[{'PASS' if passed else 'FAIL'}] {name}")
+    if not passed:
+        if case.get("error_type"):
+            print(f"       {case.get('error_type')}: {case.get('error')}")
+        failed_checks = [key for key, value in (case.get("checks") or {}).items() if not value]
+        if failed_checks:
+            print("       failed checks: " + ", ".join(failed_checks))
+        for line in case.get("traceback_tail") or []:
+            print("         " + line)
+if not payload.get("phase6_policy_complete") or payload.get("failed_cases"):
+    print("[FAIL] Phase 6 pricing/payment policy proof is not green.")
+    raise SystemExit(1)
+print("[PASS] Phase 6 pricing/payment policy proof is green.")
+PY
+
+echo
 echo "===== FINAL VERDICT ====="
 python3 - "$PHASE6_RESULT" <<'PY'
 import json
@@ -245,6 +285,7 @@ if payload.get("failed_cases"):
 print()
 if payload.get("phase6_complete") and payload.get("phase7_ready"):
     print("[PASS] Phase 6 COMPLETE — new B2B sales, payments, receivables and returns use ERPNext authority.")
+    print("[PASS] Native B2B pricing override audit and migrated payment policy are runtime-proven.")
     print("[PASS] No parallel Ledgix Sale/Payment financial writes occurred on the Phase 6 path.")
     print("[PASS] Retail POS backend remains intentionally deferred to Phase 8.")
     print("[PASS] FBR network submission/source cutover remains intentionally deferred to Phase 9.")
@@ -261,4 +302,5 @@ echo "[OK] Phase 3 result: $PHASE3_RESULT"
 echo "[OK] Phase 4 result: $PHASE4_RESULT"
 echo "[OK] Phase 5 result: $PHASE5_RESULT"
 echo "[OK] Phase 6 receivables preflight: $PHASE6_PREFLIGHT"
-echo "[OK] Phase 6 result: $PHASE6_RESULT"
+echo "[OK] Phase 6 transaction result: $PHASE6_RESULT"
+echo "[OK] Phase 6 policy result: $PHASE6_POLICY_RESULT"
