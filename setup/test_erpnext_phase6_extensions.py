@@ -69,6 +69,10 @@ class TestERPNextPhase6ExtensionContract(unittest.TestCase):
         self.assertIn("ledgix_saas.api.selling.get_pos_v2_customer_context_compat", hooks)
         self.assertIn("ledgix_saas.api.selling.get_pos_return_context_compat", hooks)
         self.assertIn("ledgix_saas.api.selling.create_pos_return_compat", hooks)
+        self.assertIn(
+            "ledgix_saas.services.erpnext_payment_policy.validate_ledgix_payment_entry",
+            hooks,
+        )
 
     def test_native_selling_service_does_not_write_legacy_financial_doctypes(self):
         source = (APP_ROOT / "services" / "erpnext_selling.py").read_text(
@@ -109,3 +113,11 @@ class TestERPNextPhase6ExtensionContract(unittest.TestCase):
         self.assertIn("from ledgix_saas.api import selling", source)
         self.assertIn('row.setdefault("sale", row.get("invoice"))', source)
         self.assertIn('row["reference_name"] = row["sale"]', source)
+
+    def test_native_payment_policy_uses_migrated_mode_metadata(self):
+        source = (APP_ROOT / "services" / "erpnext_payment_policy.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("custom_ledgix_requires_reference", source)
+        self.assertIn('"Mode of Payment Account"', source)
+        self.assertIn("doc.reference_no", source)
