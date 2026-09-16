@@ -136,6 +136,7 @@ run_offline() {
   require_file "$REPO_ROOT/apps/ledgix_saas/public/css/ledgix_brand.css" "brand CSS asset"
   require_file "$REPO_ROOT/apps/ledgix_saas/public/js/ledgix_brand.js" "brand JS asset"
   require_file "$REPO_ROOT/apps/ledgix_saas/api/client_setup.py" "client setup service"
+  require_file "$REPO_ROOT/apps/ledgix_saas/api/client_readiness.py" "client readiness service"
   require_file "$REPO_ROOT/apps/ledgix_saas/api/product_shell.py" "product shell service"
   require_file "$REPO_ROOT/apps/ledgix_saas/api/fbr_native.py" "ERPNext-native FBR adapter"
   require_file "$REPO_ROOT/apps/ledgix_saas/services/erpnext_selling.py" "ERPNext-native selling service"
@@ -146,6 +147,7 @@ run_offline() {
 
   if [[ -d "$BENCH_DIR/apps/ledgix_saas" ]] &&
     { [[ ! -f "$BENCH_DIR/apps/ledgix_saas/api/client_setup.py" ]] ||
+      [[ ! -f "$BENCH_DIR/apps/ledgix_saas/api/client_readiness.py" ]] ||
       [[ ! -f "$BENCH_DIR/apps/ledgix_saas/api/fbr_native.py" ]] ||
       [[ ! -f "$BENCH_DIR/apps/ledgix_saas/services/erpnext_selling.py" ]]; }; then
     warn "bench app copy is missing current ERPNext-native Ledgix source files; sync apps before bench execute checks"
@@ -160,6 +162,7 @@ for name in (
     "ledgix_saas",
     "ledgix_saas.hooks",
     "ledgix_saas.api.client_setup",
+    "ledgix_saas.api.client_readiness",
     "ledgix_saas.api.product_shell",
     "ledgix_saas.api.fbr_native",
     "ledgix_saas.services.erpnext_selling",
