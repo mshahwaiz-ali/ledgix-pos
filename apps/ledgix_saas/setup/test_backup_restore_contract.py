@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import unittest
 from pathlib import Path
 
@@ -77,8 +78,21 @@ class TestBackupRestoreContract(unittest.TestCase):
 
     def test_recovery_verifier_is_read_only_and_checks_phase12(self):
         path = APP_ROOT / "setup" / "recovery.py"
+        profile_schema_path = (
+            APP_ROOT
+            / "ledgix"
+            / "doctype"
+            / "ledgix_business_profile"
+            / "ledgix_business_profile.json"
+        )
         self.assertTrue(path.exists())
+        self.assertTrue(profile_schema_path.exists())
+
         source = path.read_text(encoding="utf-8")
+        profile_schema = json.loads(profile_schema_path.read_text(encoding="utf-8"))
+        self.assertEqual(profile_schema.get("name"), "Ledgix Business Profile")
+        self.assertEqual(profile_schema.get("issingle"), 1)
+
         for token in (
             "verify_frozen_snapshot",
             "is_frozen",
@@ -86,10 +100,15 @@ class TestBackupRestoreContract(unittest.TestCase):
             "Item",
             "Customer",
             "Sales Invoice",
-            "Business Profile",
+            "Ledgix Business Profile",
+            "frappe.get_single",
+            "business_profile_read_available",
             "recovery_state_verified",
         ):
             self.assertIn(token, source)
+
+        self.assertNotIn('"Business Profile"', source)
+        self.assertNotIn("frappe.db.count(LEDGIX_BUSINESS_PROFILE_DOCTYPE)", source)
         self.assertNotIn("freeze_legacy_history", source)
         self.assertNotIn("frappe.db.commit", source)
 
