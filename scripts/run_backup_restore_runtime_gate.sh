@@ -6,7 +6,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 BENCH_DIR="${BENCH_DIR:-$REPO_ROOT/frappe-bench}"
 SITE="${LEDGIX_LOCAL_SITE:-ledgix-erpnext.local}"
 CONFIRM=""
-SITE_URL=""
+ONLINE_URL=""
 APP="ledgix_saas"
 TEMP_REDIS_STARTED=0
 LOCAL_ADMIN_PASSWORD="${LEDGIX_LOCAL_ADMIN_PASSWORD:-admin}"
@@ -26,6 +26,8 @@ The reset removes every active .local/.localhost site so local development ends
 with exactly one canonical site. Local database administration is handled by a
 dedicated generated localhost credential, so the MariaDB root password is not
 required by this gate.
+
+Online smoke is strictly opt-in and runs only when --url is explicitly passed.
 EOF
 }
 
@@ -53,7 +55,7 @@ trap cleanup EXIT
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --confirm) [[ $# -ge 2 ]] || fail '--confirm requires a value'; CONFIRM="$2"; shift 2 ;;
-    --url) [[ $# -ge 2 ]] || fail '--url requires a value'; SITE_URL="${2%/}"; shift 2 ;;
+    --url) [[ $# -ge 2 ]] || fail '--url requires a value'; ONLINE_URL="${2%/}"; shift 2 ;;
     --help|-h) usage; exit 0 ;;
     *) fail "unknown option: $1" ;;
   esac
@@ -270,9 +272,9 @@ bench_run --site "$SITE" execute ledgix_saas.setup.recovery.verify_recovery_stat
 pass 'representative ERPNext/Ledgix reads and Phase 12 frozen snapshot survived destructive recovery'
 
 ONLINE_SMOKE="not_run"
-if [[ -n "$SITE_URL" ]]; then
+if [[ -n "$ONLINE_URL" ]]; then
   printf '\n===== OPTIONAL ONLINE SMOKE =====\n'
-  bash "$REPO_ROOT/deploy/smoke_test.sh" --site "$SITE" --bench-dir "$BENCH_DIR" --online --url "$SITE_URL"
+  bash "$REPO_ROOT/deploy/smoke_test.sh" --site "$SITE" --bench-dir "$BENCH_DIR" --online --url "$ONLINE_URL"
   ONLINE_SMOKE="passed"
 fi
 
