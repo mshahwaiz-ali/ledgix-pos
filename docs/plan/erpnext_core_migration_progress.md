@@ -163,7 +163,7 @@ Retail POS backend is intentionally not switched here; that remains Phase 8. FBR
 
 ### Native selling service implemented
 
-Canonical service:
+Canonical financial adapter:
 
 - `ledgix_saas.services.erpnext_selling`
 
@@ -176,6 +176,7 @@ Implemented capabilities:
 - checkout client-sale idempotency under a Company transaction lock;
 - post one Payment Entry against one or multiple Sales Invoices;
 - payment client-id idempotency;
+- recover missing deterministic checkout tenders after an interrupted/idempotent retry;
 - native Payment Entry cancellation with preserved Ledgix reason;
 - native Credit Note/return using ERPNext's return mapper and `Sales Invoice Item.sales_invoice_item` source-row link;
 - customer refund through native Payment Entry type `Pay` with negative Credit Note allocation;
@@ -184,16 +185,17 @@ Implemented capabilities:
 
 No custom monetary total, payment balance or second receivables ledger was introduced.
 
-### Phase 6 extension schema
+### Phase 6 extension / policy schema
 
-Only routing/idempotency metadata was added to standard native documents.
+Only Ledgix routing/idempotency/audit metadata was added to standard native documents.
 
 Sales Invoice:
 
 - sale channel;
 - client return ID;
 - exchange reference;
-- checkout source.
+- checkout source;
+- immutable compatibility audit JSON for authorized manual B2B line-rate overrides.
 
 Payment Entry:
 
@@ -203,16 +205,37 @@ Payment Entry:
 
 Existing Phase 3 `custom_ledgix_client_sale_id` remains the sale idempotency field.
 
+Migrated Mode of Payment policy remains metadata on native `Mode of Payment`. A Payment Entry validate hook applies the Ledgix-only policy only to Ledgix-originated native Payment Entries:
+
+- required transaction reference is enforced server-side;
+- configured Company default account is required;
+- selected paid-from/paid-to account must match the native Mode of Payment account mapping;
+- unrelated/native ERPNext Payment Entries are not converted into Ledgix documents.
+
 ### Compatibility routing
 
 Current Ledgix RPC/UI paths stay stable through Frappe method overrides:
 
+- B2B catalog rates -> ERPNext price authority;
 - B2B preview/checkout -> ERPNext selling adapter;
+- direct public B2B create/preview/exchange routes -> audited compatibility boundary;
 - B2B customer credit/open invoices -> ERPNext receivables;
 - native invoice returns -> ERPNext Credit Notes;
 - Retail requests -> existing retail backend until Phase 8.
 
-`api/v2_b2b.py` is now a compatibility wrapper; it no longer owns Ledgix Sale/Payment writes.
+`api/v2_b2b.py` is now a compatibility wrapper; it no longer owns Ledgix Sale/Payment writes. Historic response aliases and allocation keys remain available without restoring the old ledger. Its legacy `currency` argument is accepted only when it matches the ERPNext Company currency; unsupported currencies fail closed rather than being silently posted as PKR.
+
+The current POS page's old A4 auto-print helper is hard-coded to `Ledgix Sale`. For native B2B invoices that legacy auto-print trigger is suppressed rather than pointed at the wrong DocType. Native Sales Invoice print/branding migration remains Phase 10.
+
+### Receivables cutover preflight
+
+`erpnext_phase6_receivables_preflight.run` compares every mapped legacy customer before the authority switch:
+
+- legacy Ledgix net receivable balance;
+- target ERPNext net receivable balance;
+- difference/tolerance.
+
+Any non-zero unreconciled customer is an explicit blocker. Historical/opening AR is never silently discarded.
 
 ### Phase 6 final gate implemented
 
@@ -223,15 +246,17 @@ Runner:
 It performs:
 
 1. local CI/schema/naming/dependency/secret checks;
-2. migrate Phase 6 fields;
-3. Phase 6 static contract test;
+2. migrate Phase 6 fields/hooks;
+3. Phase 6 static contract tests;
 4. Phase 2 regression;
 5. Phase 3 regression;
 6. Phase 4 13-case tax/accounting regression;
 7. Phase 5 master migration/reconciliation regression;
-8. Phase 6 native selling/payment/return matrix.
+8. legacy-vs-ERPNext receivables cutover preflight;
+9. Phase 6 native selling/payment/return matrix;
+10. Phase 6 pricing/payment-policy runtime proof.
 
-Phase 6 matrix covers:
+Core Phase 6 transaction matrix covers:
 
 - client-sale idempotency;
 - fully paid;
@@ -251,7 +276,16 @@ Phase 6 matrix covers:
 - no parallel Ledgix financial documents;
 - explicit retail-POS deferral.
 
-Phase 6 is **not complete** until this runner is green on `ledgix-erpnext.local`.
+Additional policy/recovery gate covers:
+
+- manual B2B rate override reason + native Sales Invoice audit persistence;
+- audit immutability across idempotent retry;
+- interrupted checkout payment recovery with deterministic payment IDs;
+- repeated checkout retry does not duplicate Payment Entry;
+- migrated Mode of Payment `requires_reference` rejection;
+- successful referenced Payment Entry through the same native policy path.
+
+Phase 6 is **not complete** until this consolidated runner is green on `ledgix-erpnext.local`.
 
 Design: `docs/plan/erpnext_phase6_selling_cutover.md`.
 
@@ -267,10 +301,11 @@ Phase 7 will move Purchase Order/Receipt/Invoice, supplier Payment Entry, Stock 
 
 ## Safety Status
 
-- Active development is now directly on `main`; no migration PR flow is required.
+- Active development is directly on `main`; no migration PR flow is required.
 - No production/client authority has been cut over by these integration gates.
 - Legacy masters remain available until later freeze/retirement phases.
 - New Phase 6 B2B financial code does not create Ledgix Sale/Payment documents.
+- Historical customer AR mismatch blocks cutover rather than being silently lost.
 - Retail POS financial backend is still intentionally deferred to Phase 8.
 - FBR network submission/source cutover is still intentionally deferred to Phase 9.
 - Supplier AP/opening state remains deferred to Phase 7.
