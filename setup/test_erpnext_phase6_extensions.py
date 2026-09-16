@@ -81,3 +81,8 @@ class TestERPNextPhase6ExtensionContract(unittest.TestCase):
         self.assertIn(
             "payment.references[0].allocated_amount = -refund_amount", source
         )
+
+    def test_return_compatibility_uses_pinned_erpnext_source_row_field(self):
+        source = (APP_ROOT / "api" / "selling.py").read_text(encoding="utf-8")
+        self.assertNotIn('"si_detail"', source)
+        self.assertIn('fields=["sales_invoice_item", "item_code", "qty"]', source)
