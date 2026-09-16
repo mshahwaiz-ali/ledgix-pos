@@ -206,7 +206,7 @@ import sys
 
 root = pathlib.Path(sys.argv[1])
 bench_python = pathlib.Path(sys.argv[2])
-apps = root / "apps"
+apps_root = root / "apps"
 required = ("hooks.py", "__init__.py", "modules.txt")
 key_imports = {
     "ledgix_saas": [
@@ -222,11 +222,11 @@ key_imports = {
     ],
 }
 
-if not apps.is_dir():
+if not apps_root.is_dir():
     raise SystemExit("[ERROR] apps directory is missing")
 
-apps = sorted(path for path in apps.iterdir() if path.is_dir())
-if not apps:
+app_dirs = sorted(path for path in apps_root.iterdir() if path.is_dir())
+if not app_dirs:
     raise SystemExit("[ERROR] no custom apps found under apps")
 
 
@@ -287,10 +287,10 @@ def validate_imports(app_name):
             f"importlib.import_module({name!r})" for name in imports
         )
         env = os.environ.copy()
-        env["PYTHONPATH"] = f"{apps}:{env.get('PYTHONPATH', '')}"
+        env["PYTHONPATH"] = f"{apps_root}:{env.get('PYTHONPATH', '')}"
         subprocess.run([str(bench_python), "-c", script], check=True, env=env)
     else:
-        sys.path.insert(0, str(apps))
+        sys.path.insert(0, str(apps_root))
         importlib.import_module(app_name)
 
 
@@ -310,7 +310,7 @@ def warn_stale_bench_copy(app_name):
         )
 
 
-for app_dir in apps:
+for app_dir in app_dirs:
     app_name = app_dir.name
     if not re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", app_name):
         fail(f"app folder is not a valid Python import name: {app_name}")
