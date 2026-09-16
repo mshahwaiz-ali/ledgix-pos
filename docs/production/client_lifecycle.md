@@ -4,7 +4,7 @@ This runbook covers the normal lifecycle for a Ledgix client site after the ERPN
 
 **Supported stack:** Frappe v15 + ERPNext v15 + `ledgix_saas`.
 
-**Architecture rule:** each client site has its own Frappe site/database. The same Ledgix codebase is used for Invoice-only, Retail, B2B and Mixed clients; differences are configuration, not forks.
+**Architecture rule:** each production client has its own Frappe site/database. The same Ledgix codebase is used for Invoice-only, Retail, B2B and Mixed clients; differences are configuration, not forks.
 
 ---
 
@@ -27,29 +27,66 @@ bash scripts/ci_local.sh
 
 ---
 
-## 2. Create a local/new client site
+## 2. Local development site
 
-For the repository-managed local workflow:
+The repository-managed local workflow intentionally keeps one canonical site:
 
-```bash
-./site_setup.sh
+```text
+ledgix-erpnext.local
 ```
 
-Use the interactive **New Site** flow. The script creates a dedicated database/user, installs the selected apps, migrates the site, stores local development credentials under `.secrets/sites/`, and can add the local hosts entry.
+Create or repair it with:
 
-For Ledgix client sites, ensure the installed app set includes:
+```bash
+bash site_setup.sh --ensure
+```
 
-1. `frappe`;
-2. `erpnext`;
-3. `ledgix_saas`.
+For a deliberate destructive clean reset:
 
-ERPNext must be installed before Ledgix migration completes.
+```bash
+bash site_setup.sh --reset \
+  --site ledgix-erpnext.local \
+  --confirm "RESET ledgix-erpnext.local"
+```
 
-For production infrastructure, follow the existing production setup/deployment scripts under `deploy/` and keep one Frappe site/database per client.
+There is no app-selection menu. The local standard stack is always:
+
+```text
+Frappe -> ERPNext -> ledgix_saas
+```
+
+Local convenience credentials are separate from production policy.
 
 ---
 
-## 3. Site dependency preflight
+## 3. Fresh production client site
+
+Use the release-pinned provisioner documented in `docs/production/fresh_client_provisioning.md`.
+
+Canonical wrapper:
+
+```bash
+PRODUCTION_SITE=client.example.com \
+DEPLOY_RELEASE=<approved-immutable-sha-or-tag> \
+PRODUCTION_URL=https://client.example.com \
+bash deploy/production_setup.sh --action site
+```
+
+This path:
+
+- creates a dedicated site/database;
+- installs ERPNext before Ledgix;
+- generates strong credentials;
+- retains credentials outside the repository;
+- runs dependency preflight and offline smoke checks;
+- records provisioning evidence;
+- does not create client business masters;
+- does not apply a Business Profile;
+- does not activate FBR Production.
+
+---
+
+## 4. Site dependency preflight
 
 After app installation/migration, run:
 
@@ -70,7 +107,7 @@ Do not continue client onboarding until this passes.
 
 ---
 
-## 4. Configure standard ERPNext prerequisites
+## 5. Configure standard ERPNext prerequisites
 
 Ledgix does not create duplicate commercial/accounting masters through its setup wizard.
 
@@ -96,7 +133,7 @@ For POS-enabled clients, the selected POS Profile must have:
 
 ---
 
-## 5. Apply the Ledgix client profile
+## 6. Apply the Ledgix client profile
 
 Sign in as `System Manager` or `Ledgix Admin` and open:
 
@@ -120,7 +157,7 @@ The wizard may apply safe site defaults for Company, Selling Price List and Ware
 
 ---
 
-## 6. FBR onboarding
+## 7. FBR onboarding
 
 When the profile enables FBR, configure `Ledgix FBR Settings` separately.
 
@@ -132,7 +169,7 @@ For migrated sites, historical `Ledgix Sale` FBR submission stays retired. New F
 
 ---
 
-## 7. Client acceptance checklist
+## 8. Client acceptance checklist
 
 Before handover, prove the workflows relevant to the selected profile.
 
@@ -179,47 +216,43 @@ Run both the Retail and B2B acceptance paths.
 
 ---
 
-## 8. Backup before upgrades or production changes
+## 9. Backup before upgrades or production changes
 
-Create a current site backup before every production deployment, migration, FBR production switch or destructive maintenance action.
+Create and verify a current site backup before every production deployment, migration, FBR Production switch or destructive maintenance action.
 
-Use the repository backup tooling under `deploy/`, for example the safe backup workflow already provided by the project, and verify the resulting database/files backup is stored outside the live site/instance when appropriate.
+The R3 contract requires database, public files, private files, secure site-config inputs, release identity, stack versions and rollback ownership. Use `deploy/backup_safe.sh` and retain an off-host/off-server copy where appropriate.
 
-At minimum record:
-
-- site name;
-- current Git commit;
-- Frappe version;
-- ERPNext version;
-- Ledgix version/branch;
-- database backup location;
-- public/private files backup location;
-- rollback owner/window.
-
-Do not start a destructive legacy-schema removal based only on Phase 12 freeze. Physical deletion remains a separately approved future migration after observation and backup/rollback planning.
+Do not start destructive legacy-schema removal based only on Phase 12 freeze. Physical deletion remains a separately approved future migration after observation and backup/rollback planning.
 
 ---
 
-## 9. Upgrade workflow
+## 10. Upgrade workflow
 
-For an existing client site:
+### Single-site bench
 
-1. take and verify a fresh backup;
-2. capture the current Git commit and installed app versions;
-3. pull the approved Ledgix release/update;
-4. ensure ERPNext dependency/alignment using the existing deployment helpers;
-5. run repository validation;
-6. migrate the target site;
-7. rebuild Ledgix assets;
-8. run the client dependency preflight;
-9. smoke-test the client-profile workflows;
-10. verify FBR mode/state before allowing Production submissions.
+Use:
 
-The repository contains safe production/deploy helpers under `deploy/`; use those rather than editing ERPNext core or copying client-specific code into the framework apps.
+```text
+deploy/deploy_update_safe.sh
+```
+
+It refuses a bench containing multiple sites.
+
+### Shared multi-site bench
+
+Use:
+
+```text
+deploy/deploy_update_shared_safe.sh
+```
+
+Every Ledgix tenant on the bench must be explicitly approved as part of the same release cohort. The shared updater backs up and places all tenants into maintenance before switching shared Ledgix code.
+
+See `docs/production/multi_site_saas.md`.
 
 ---
 
-## 10. Rollback principles
+## 11. Rollback principles
 
 Rollback should restore the site/database/files and application revision together.
 
@@ -229,24 +262,24 @@ Never run two financial/stock authorities in parallel to “keep both sides safe
 
 ---
 
-## 11. Multi-site SaaS boundary
+## 12. Multi-site SaaS boundary
 
 Ledgix SaaS uses native Frappe multitenancy:
 
-- one codebase/app revision;
+- one codebase/application revision per bench;
 - separate Frappe site per client;
 - separate site database per client;
 - per-site Business Profile and standard ERPNext configuration;
 - per-site FBR credentials/settings;
-- per-site backups;
+- per-site backups and release evidence;
 - shared infrastructure is acceptable for smaller tenants while keeping site/database boundaries;
 - larger clients can move to dedicated infrastructure without changing application code.
 
-Do not implement per-client forks for feature selection. If a client needs a supported combination, model it through Business Profile/configuration and normal ERPNext permissions/settings.
+If clients need different Ledgix releases, place them on separate benches rather than creating client forks.
 
 ---
 
-## 12. Operational evidence to retain
+## 13. Operational evidence to retain
 
 For every production client, retain a short provisioning record with:
 
