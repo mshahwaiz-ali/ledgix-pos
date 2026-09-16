@@ -59,6 +59,11 @@ require_production_site() {
   [[ "$PRODUCTION_SITE" =~ ^[a-z0-9][a-z0-9.-]*$ ]] || fail "invalid PRODUCTION_SITE: $PRODUCTION_SITE"
 }
 
+require_provision_target() {
+  require_production_site
+  [[ -n "${DEPLOY_RELEASE:-}" ]] || fail 'DEPLOY_RELEASE is required for site/full provisioning and must be a full commit SHA or immutable tag'
+}
+
 require_deploy_target() {
   require_production_site
   [[ -n "${DEPLOY_RELEASE:-}" ]] || fail 'DEPLOY_RELEASE is required and must be a full commit SHA or immutable tag'
@@ -75,16 +80,6 @@ ensure_erpnext_bench() {
     return 1
   }
   bash "$SCRIPT_DIR/ensure_erpnext.sh"
-}
-
-start_temp_redis() {
-  [[ -f "$SCRIPT_DIR/bench_redis.sh" ]] || return 0
-  bash "$SCRIPT_DIR/bench_redis.sh" start
-}
-
-stop_temp_redis() {
-  [[ -f "$SCRIPT_DIR/bench_redis.sh" ]] || return 0
-  bash "$SCRIPT_DIR/bench_redis.sh" stop || true
 }
 
 run_services() {
@@ -109,6 +104,22 @@ run_safe_backup() {
   bash "$SCRIPT_DIR/backup_safe.sh" --site "$PRODUCTION_SITE"
 }
 
+run_safe_provision_client() {
+  [[ -f "$SCRIPT_DIR/provision_client_site_safe.sh" ]] || {
+    printf '[ERROR] missing client provisioner: %s\n' "$SCRIPT_DIR/provision_client_site_safe.sh" >&2
+    return 1
+  }
+  require_provision_target
+  args=(
+    --site "$PRODUCTION_SITE"
+    --release "$DEPLOY_RELEASE"
+  )
+  if [[ -n "${PRODUCTION_URL:-}" ]]; then
+    args+=(--url "$PRODUCTION_URL")
+  fi
+  bash "$SCRIPT_DIR/provision_client_site_safe.sh" "${args[@]}"
+}
+
 run_safe_deploy_update() {
   [[ -f "$SCRIPT_DIR/deploy_update_safe.sh" ]] || {
     printf '[ERROR] missing deploy update helper: %s\n' "$SCRIPT_DIR/deploy_update_safe.sh" >&2
@@ -128,7 +139,8 @@ ACTION="$(find_action "$@")"
 relocate_legacy_secrets
 
 case "$ACTION" in
-  site|full|backup) require_production_site ;;
+  site|full) require_provision_target ;;
+  backup) require_production_site ;;
   deploy-update) require_deploy_target ;;
 esac
 
@@ -142,17 +154,13 @@ if [[ "$ACTION" == "deploy-update" ]]; then
   exit $?
 fi
 
-# The underlying site creator generates a strong Administrator password when
-# FRAPPE_ADMIN_PASSWORD is omitted. Never provide an implicit weak default here.
+# Site provisioning is intentionally non-interactive and release-pinned. The
+# safe provisioner installs ERPNext before Ledgix and retains generated secrets
+# outside the repository.
 if [[ "$ACTION" == "site" ]]; then
   ensure_erpnext_bench
-  trap 'stop_temp_redis; relocate_legacy_secrets' EXIT
-  start_temp_redis
-  run_ec2 "$@"
-  stop_temp_redis
-  relocate_legacy_secrets
-  trap - EXIT
-  exit 0
+  run_safe_provision_client
+  exit $?
 fi
 
 if [[ "$ACTION" == "apps" ]]; then
@@ -186,10 +194,7 @@ if [[ "$ACTION" == "full" ]]; then
   run_ec2 "${base[@]}" --action apps
   post_build_refresh
 
-  trap 'stop_temp_redis; relocate_legacy_secrets' EXIT
-  start_temp_redis
-  run_ec2 "${base[@]}" --action site
-  stop_temp_redis
+  run_safe_provision_client
 
   run_services
   if [[ -n "${PRODUCTION_DOMAIN:-}" && -n "${LETSENCRYPT_EMAIL:-}" ]]; then
