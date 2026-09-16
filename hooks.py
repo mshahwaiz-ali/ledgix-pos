@@ -45,6 +45,9 @@ after_migrate = [
 	"ledgix_saas.setup.erpnext_phase10_print_formats.after_migrate",
 	"ledgix_saas.setup.fast_permissions.after_migrate",
 	"ledgix_saas.setup.erpnext_phase11_product_shell.after_migrate",
+	# This runs after the normal permission policy so a previously frozen site
+	# always finishes migrate with legacy business DocTypes read-only again.
+	"ledgix_saas.setup.erpnext_phase12_legacy_retirement.after_migrate",
 ]
 
 extend_bootinfo = [
@@ -57,6 +60,9 @@ update_website_context = ["ledgix_saas.api.brand.update_website_context"]
 override_whitelisted_methods = {
 	"ledgix_saas.api.tax_center.get_fbr_readiness": "ledgix_saas.api.fbr_preflight.get_fbr_readiness",
 	"ledgix_saas.api.inventory_intelligence.get_inventory_intelligence_data": "ledgix_saas.api.inventory_intelligence_native.get_inventory_intelligence_data",
+	# The original 79KB BI engine remains historical source code only. Any old RPC
+	# client now receives the same ERPNext-native intelligence result as Phase 10.
+	"ledgix_saas.api.business_intelligence.get_business_intelligence_data": "ledgix_saas.api.inventory_intelligence_native.get_inventory_intelligence_data",
 
 	"ledgix_saas.api.v2_pos.get_pos_v2_boot": "ledgix_saas.api.pos_compat.get_pos_v2_boot",
 	"ledgix_saas.api.v2_pos.search_pos_v2_items": "ledgix_saas.api.pos_compat.search_pos_v2_items",
@@ -102,6 +108,37 @@ doc_events = {
 		"before_cancel": "ledgix_saas.api.fbr_native.block_cancel_after_fbr_submission",
 	},
 }
+
+# Phase 12 keeps historical rows physically present but immutable once the
+# retirement state is explicitly Frozen.  The guard is state-aware, so merely
+# installing/migrating Phase 12 does not trap an unresolved legacy draft.
+_legacy_retired_business_doctypes = (
+	"Ledgix Item",
+	"Ledgix Category",
+	"Ledgix Customer",
+	"Ledgix Supplier",
+	"Ledgix Price List",
+	"Ledgix Item Price",
+	"Ledgix Payment Method",
+	"Ledgix Sale",
+	"Ledgix Purchase",
+	"Ledgix Sales Return",
+	"Ledgix POS Shift",
+	"Ledgix POS Hold",
+	"Ledgix Payment",
+	"Ledgix Stock Movement",
+	"Ledgix Stock Lot",
+	"Ledgix Stock Serial",
+)
+_legacy_freeze_events = {
+	"before_insert": "ledgix_saas.api.legacy_retirement.guard_legacy_write",
+	"before_save": "ledgix_saas.api.legacy_retirement.guard_legacy_write",
+	"before_submit": "ledgix_saas.api.legacy_retirement.guard_legacy_write",
+	"before_cancel": "ledgix_saas.api.legacy_retirement.guard_legacy_write",
+	"on_trash": "ledgix_saas.api.legacy_retirement.guard_legacy_write",
+}
+for _legacy_doctype in _legacy_retired_business_doctypes:
+	doc_events[_legacy_doctype] = _legacy_freeze_events
 
 # Retransmission remains fail-closed. A production POST with an ambiguous outcome
 # must be externally reconciled before any manual retry; no blind scheduler retry.
