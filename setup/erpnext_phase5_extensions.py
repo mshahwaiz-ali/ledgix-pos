@@ -2,7 +2,7 @@ from __future__ import annotations
 
 """Small Ledgix-only extensions needed when native ERPNext masters take authority.
 
-Phase 5 deliberately does not copy standard master fields into custom fields.  The
+Phase 5 deliberately does not copy standard master fields into custom fields. The
 fields below only preserve Ledgix product/FBR defaults or one-time provenance
 that ERPNext v15 does not model natively.
 """
@@ -72,16 +72,29 @@ CUSTOM_FIELDS = {
             in_standard_filter=1,
         ),
         _cf(
+            "custom_ledgix_category_active",
+            "Check",
+            "Legacy Category Active",
+            insert_after="custom_ledgix_legacy_category",
+            default="1",
+        ),
+        _cf(
             "custom_ledgix_category_description",
             "Small Text",
             "Category Description",
-            insert_after="custom_ledgix_legacy_category",
+            insert_after="custom_ledgix_category_active",
+        ),
+        _cf(
+            "custom_ledgix_category_icon",
+            "Data",
+            "Category Icon",
+            insert_after="custom_ledgix_category_description",
         ),
         _cf(
             "custom_ledgix_accent_color",
             "Color",
             "Accent Color",
-            insert_after="custom_ledgix_category_description",
+            insert_after="custom_ledgix_category_icon",
         ),
         _cf(
             "custom_ledgix_category_defaults_column",
@@ -89,10 +102,17 @@ CUSTOM_FIELDS = {
             insert_after="custom_ledgix_accent_color",
         ),
         _cf(
+            "custom_ledgix_tax_defaults_enabled",
+            "Check",
+            "Tax Defaults Enabled",
+            insert_after="custom_ledgix_category_defaults_column",
+            default="0",
+        ),
+        _cf(
             "custom_ledgix_default_tax_category",
             "Link",
             "Default Ledgix Tax Category",
-            insert_after="custom_ledgix_category_defaults_column",
+            insert_after="custom_ledgix_tax_defaults_enabled",
             options="Ledgix Tax Category",
         ),
         _cf(
