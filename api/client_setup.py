@@ -78,9 +78,11 @@ def _profile(name: str | None) -> tuple[str, dict]:
 
 
 def _company(value: str | None = None) -> str:
+    explicit = str(value or "").strip()
+    if explicit:
+        return explicit if frappe.db.exists("Company", explicit) else ""
     candidate = str(
-        value
-        or frappe.defaults.get_user_default("Company")
+        frappe.defaults.get_user_default("Company")
         or frappe.db.get_single_value("Global Defaults", "default_company")
         or ""
     ).strip()
@@ -90,7 +92,10 @@ def _company(value: str | None = None) -> str:
 
 
 def _selling_price_list(value: str | None = None) -> str:
-    candidate = str(value or frappe.db.get_single_value("Selling Settings", "selling_price_list") or "").strip()
+    explicit = str(value or "").strip()
+    if explicit:
+        return explicit if frappe.db.exists("Price List", {"name": explicit, "enabled": 1, "selling": 1}) else ""
+    candidate = str(frappe.db.get_single_value("Selling Settings", "selling_price_list") or "").strip()
     if candidate and frappe.db.exists("Price List", {"name": candidate, "enabled": 1, "selling": 1}):
         return candidate
     rows = frappe.get_all(
@@ -104,7 +109,15 @@ def _selling_price_list(value: str | None = None) -> str:
 
 
 def _warehouse(company: str, value: str | None = None) -> str:
-    candidate = str(value or frappe.db.get_single_value("Stock Settings", "default_warehouse") or "").strip()
+    explicit = str(value or "").strip()
+    if explicit:
+        if frappe.db.exists(
+            "Warehouse",
+            {"name": explicit, "company": company, "is_group": 0, "disabled": 0},
+        ):
+            return explicit
+        return ""
+    candidate = str(frappe.db.get_single_value("Stock Settings", "default_warehouse") or "").strip()
     if candidate and frappe.db.exists(
         "Warehouse",
         {"name": candidate, "company": company, "is_group": 0, "disabled": 0},
@@ -150,7 +163,7 @@ def _pos_profile_checks(name: str, company: str) -> list[dict]:
     if not name:
         return [_check("pos_profile", False, "Create or select an enabled ERPNext POS Profile for this Company.", target="POS Profile")]
     doc = frappe.get_doc("POS Profile", name)
-    rows = [
+    return [
         _check("pos_profile_company", doc.company == company, "POS Profile must belong to the selected Company.", target="POS Profile"),
         _check("pos_profile_enabled", not cint(doc.get("disabled")), "POS Profile must be enabled.", target="POS Profile"),
         _check("pos_customer", bool(str(doc.get("customer") or "").strip()), "POS Profile needs a default Customer.", target="POS Profile"),
@@ -158,7 +171,6 @@ def _pos_profile_checks(name: str, company: str) -> list[dict]:
         _check("pos_price_list", bool(str(doc.get("selling_price_list") or "").strip()), "POS Profile needs a Selling Price List.", target="POS Profile"),
         _check("pos_payments", bool(doc.get("payments") or []), "POS Profile needs at least one Mode of Payment.", target="POS Profile"),
     ]
-    return rows
 
 
 def evaluate_client_setup(payload=None) -> dict:
