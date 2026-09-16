@@ -48,10 +48,17 @@ class TestProvisioningAndMultisiteContract(unittest.TestCase):
             "require_provision_target",
             "DEPLOY_RELEASE is required for site/full provisioning",
             "run_safe_provision_client",
+            "run_provision_online_smoke",
+            "PRODUCTION_URL not supplied; post-service online smoke skipped",
         ):
             self.assertIn(token, source)
         self.assertNotIn('FRAPPE_ADMIN_PASSWORD:-admin', source)
         self.assertNotIn("admin@123", source)
+        self.assertNotIn('args+=(--url "$PRODUCTION_URL")', source)
+
+        full_block = source[source.index('if [[ "$ACTION" == "full" ]]'):]
+        self.assertLess(full_block.index("run_safe_provision_client"), full_block.index("run_services"))
+        self.assertLess(full_block.index("run_services"), full_block.index("run_provision_online_smoke"))
 
     def test_single_site_updater_cannot_bypass_shared_bench_guard(self):
         source = (DEPLOY / "deploy_update_safe.sh").read_text(encoding="utf-8")
