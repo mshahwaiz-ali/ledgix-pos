@@ -23,8 +23,8 @@ def _company(company: str | None = None) -> str:
 
 
 def _lock_company(company: str) -> None:
-    # Serialize Ledgix client-id checks without inventing a second idempotency
-    # ledger. The lock lasts only for the current database transaction.
+    """Serialize client-id checks inside the current database transaction."""
+
     frappe.db.sql("SELECT name FROM `tabCompany` WHERE name=%s FOR UPDATE", (company,))
 
 
@@ -34,7 +34,9 @@ def _resolve_customer(customer: str) -> str:
         frappe.throw(_("Customer is required."))
     if frappe.db.exists("Customer", customer):
         return customer
-    mapped = frappe.db.get_value("Customer", {"custom_ledgix_legacy_customer": customer}, "name")
+    mapped = frappe.db.get_value(
+        "Customer", {"custom_ledgix_legacy_customer": customer}, "name"
+    )
     if mapped:
         return mapped
     frappe.throw(_("ERPNext Customer not found for {0}.").format(customer))
@@ -99,6 +101,10 @@ def _mode_account(mode: str, company: str) -> str:
     return account
 
 
+def _account_currency(account: str) -> str:
+    return frappe.db.get_value("Account", account, "account_currency") or "PKR"
+
+
 def _currency(company: str) -> str:
     return frappe.db.get_value("Company", company, "default_currency") or "PKR"
 
@@ -143,17 +149,18 @@ def _native_item_rate(
     details = frappe._dict(get_item_details(args) or {})
     rate = flt(details.get("rate") or details.get("price_list_rate"))
     if rate <= 0:
-        price_row = frappe.db.get_value(
+        rows = frappe.get_all(
             "Item Price",
-            {
+            filters={
                 "item_code": item_code,
                 "price_list": price_list,
                 "selling": 1,
             },
-            ["name", "price_list_rate"],
-            as_dict=True,
+            fields=["name", "price_list_rate"],
             order_by="valid_from desc, creation desc",
+            limit_page_length=1,
         )
+        price_row = rows[0] if rows else None
         rate = flt((price_row or {}).get("price_list_rate"))
         if price_row:
             details.item_price_reference = price_row.name
@@ -212,7 +219,9 @@ def _normalize_items(
             {
                 "item_code": item_code,
                 "qty": qty,
-                "uom": raw.get("uom") or details.get("uom") or frappe.db.get_value("Item", item_code, "stock_uom"),
+                "uom": raw.get("uom")
+                or details.get("uom")
+                or frappe.db.get_value("Item", item_code, "stock_uom"),
                 "rate": rate,
                 "price_list_rate": flt(details.price_list_rate),
                 "discount_percentage": flt(details.get("discount_percentage")),
@@ -222,7 +231,9 @@ def _normalize_items(
     return normalized
 
 
-def _apply_checkout_discount(items: list[dict], discount_type: str, discount_value: float) -> dict:
+def _apply_checkout_discount(
+    items: list[dict], discount_type: str, discount_value: float
+) -> dict:
     discount_value = max(flt(discount_value), 0)
     subtotal = sum(flt(row["qty"]) * flt(row["rate"]) for row in items)
     if not discount_value or subtotal <= 0:
@@ -280,11 +291,7 @@ def build_sales_invoice(
     checkout_source: str = "Ledgix Native Selling",
     exchange_reference: str | None = None,
 ):
-    """Build an unsaved ERPNext Sales Invoice using ERPNext masters/pricing.
-
-    ERPNext owns monetary totals/GL. Ledgix only supplies checkout context and
-    the already-proven FBR tax/snapshot adapter.
-    """
+    """Build an unsaved ERPNext Sales Invoice using ERPNext masters/pricing."""
 
     erpnext_phase6_extensions.sync_all()
     company = _company(company)
@@ -319,9 +326,9 @@ def build_sales_invoice(
             "items": normalized,
         }
     )
+    invoice.set_missing_values()
     if due_date:
         invoice.due_date = getdate(due_date)
-    invoice.set_missing_values()
     erpnext_tax_foundation.apply_tax_plan(invoice, replace_managed_rows=True)
     invoice.run_method("calculate_taxes_and_totals")
     invoice._ledgix_discount = discount
@@ -358,25 +365,42 @@ def _normalize_allocations(customer: str, company: str, allocations) -> list[dic
     allocations = allocations or []
     normalized = []
     for row in allocations:
-        reference_name = str(row.get("reference_name") or row.get("invoice") or "").strip()
+        reference_name = str(
+            row.get("reference_name") or row.get("invoice") or ""
+        ).strip()
         if not reference_name:
             continue
         invoice = frappe.db.get_value(
             "Sales Invoice",
             reference_name,
-            ["name", "customer", "company", "docstatus", "grand_total", "outstanding_amount"],
+            [
+                "name",
+                "customer",
+                "company",
+                "docstatus",
+                "grand_total",
+                "outstanding_amount",
+            ],
             as_dict=True,
         )
         if not invoice or cint(invoice.docstatus) != 1:
             frappe.throw(_("Submitted Sales Invoice not found: {0}").format(reference_name))
         if invoice.customer != customer or invoice.company != company:
             frappe.throw(_("Payment allocations cannot cross Customer or Company boundaries."))
+        if flt(invoice.outstanding_amount) <= MONEY_TOLERANCE:
+            frappe.throw(
+                _("Sales Invoice {0} has no positive receivable outstanding.").format(
+                    reference_name
+                )
+            )
         allocated = flt(row.get("allocated_amount"))
         if allocated <= 0:
             continue
-        if allocated - abs(flt(invoice.outstanding_amount)) > MONEY_TOLERANCE:
+        if allocated - flt(invoice.outstanding_amount) > MONEY_TOLERANCE:
             frappe.throw(
-                _("Allocated amount exceeds outstanding amount for {0}.").format(reference_name)
+                _("Allocated amount exceeds outstanding amount for {0}.").format(
+                    reference_name
+                )
             )
         normalized.append(
             {
@@ -431,9 +455,14 @@ def post_customer_payment(
     references = _normalize_allocations(customer, company, allocations)
     if not references:
         frappe.throw(
-            _("At least one Sales Invoice allocation is required on the Ledgix cutover path. "
-              "Use native ERPNext Payment Entry directly for an unapplied customer advance.")
+            _(
+                "At least one Sales Invoice allocation is required on the Ledgix cutover path. "
+                "Use native ERPNext Payment Entry directly for an unapplied customer advance."
+            )
         )
+    allocated_total = flt(sum(flt(row["allocated_amount"]) for row in references), 2)
+    if amount + MONEY_TOLERANCE < allocated_total:
+        frappe.throw(_("Payment amount cannot be less than its allocated amount."))
 
     from erpnext.accounts.doctype.payment_entry.payment_entry import get_payment_entry
 
@@ -445,12 +474,16 @@ def post_customer_payment(
     payment.remarks = payment_source
     payment.custom_ledgix_client_payment_id = client_payment_id
     payment.custom_ledgix_payment_source = payment_source
-    payment.reference_no = reference_number or payment.reference_no
+    if reference_number:
+        payment.reference_no = reference_number
+        payment.reference_date = nowdate()
     payment.set("references", [])
     for row in references:
         payment.append("references", row)
 
-    payment.paid_to = _mode_account(mode_of_payment, company)
+    account = _mode_account(mode_of_payment, company)
+    payment.paid_to = account
+    payment.paid_to_account_currency = _account_currency(account)
     payment.paid_amount = amount
     payment.received_amount = amount
     payment.base_paid_amount = amount
@@ -491,7 +524,9 @@ def refund_credit_note(
             "name",
         )
         if existing_name:
-            return frappe.get_doc("Payment Entry", existing_name)
+            existing = frappe.get_doc("Payment Entry", existing_name)
+            existing.flags.ledgix_duplicate_client_payment = True
+            return existing
 
     from erpnext.accounts.doctype.payment_entry.payment_entry import get_payment_entry
 
@@ -505,21 +540,27 @@ def refund_credit_note(
         frappe.throw(_("Refund amount exceeds the Credit Note outstanding amount."))
 
     payment.mode_of_payment = mode
-    payment.paid_from = _mode_account(mode, company)
+    account = _mode_account(mode, company)
+    payment.paid_from = account
+    payment.paid_from_account_currency = _account_currency(account)
     payment.custom_remarks = 1
     payment.remarks = "Ledgix Native Customer Refund"
     payment.custom_ledgix_client_payment_id = client_payment_id
     payment.custom_ledgix_payment_source = "Ledgix Native Customer Refund"
-    payment.reference_no = reference_number or payment.reference_no
+    if reference_number:
+        payment.reference_no = reference_number
+        payment.reference_date = nowdate()
     payment.paid_amount = refund_amount
     payment.received_amount = refund_amount
     payment.base_paid_amount = refund_amount
     payment.base_received_amount = refund_amount
-    if payment.references:
-        payment.references[0].allocated_amount = refund_amount
+    if not payment.references:
+        frappe.throw(_("ERPNext refund mapper returned no Credit Note reference."))
+    payment.references[0].allocated_amount = -refund_amount
     payment.insert(ignore_permissions=True)
     payment.submit()
     payment.reload()
+    payment.flags.ledgix_duplicate_client_payment = False
     return payment
 
 
@@ -550,7 +591,9 @@ def _return_request_map(source, return_items) -> dict:
 
     requested = {}
     for raw in return_items:
-        source_row_name = str(raw.get("sales_invoice_item") or raw.get("original_sale_item_row") or "").strip()
+        source_row_name = str(
+            raw.get("sales_invoice_item") or raw.get("original_sale_item_row") or ""
+        ).strip()
         item_code = str(raw.get("item_code") or raw.get("item") or "").strip()
         source_row = source_by_name.get(source_row_name) if source_row_name else None
         if source_row is None and item_code:
@@ -568,9 +611,7 @@ def _return_request_map(source, return_items) -> dict:
 
         qty = flt(raw.get("return_qty") or raw.get("qty") or raw.get("quantity"))
         if qty <= 0 or qty - flt(source_row.qty) > MONEY_TOLERANCE:
-            frappe.throw(
-                _("Invalid return quantity for item {0}.").format(source_row.item_code)
-            )
+            frappe.throw(_("Invalid return quantity for item {0}.").format(source_row.item_code))
         requested[source_row.name] = {
             "qty": qty,
             "rate": raw.get("rate"),
@@ -628,22 +669,18 @@ def create_sales_return(
     credit.remarks = reason
 
     selected = []
+    selected_source_names = set()
     for row in credit.items:
-        source_row_name = row.get("si_detail") or ""
+        source_row_name = row.get("sales_invoice_item") or ""
         request = requested.get(source_row_name)
         if request is None:
             candidates = [
-                value
+                (name, value)
                 for name, value in requested.items()
-                if value["item_code"] == row.item_code and name not in {
-                    selected_row.get("_source_row") for selected_row in selected
-                }
+                if value["item_code"] == row.item_code and name not in selected_source_names
             ]
             if len(candidates) == 1:
-                request = candidates[0]
-                source_row_name = next(
-                    name for name, value in requested.items() if value is request
-                )
+                source_row_name, request = candidates[0]
         if request is None:
             continue
         qty = -abs(flt(request["qty"]))
@@ -654,13 +691,11 @@ def create_sales_return(
             row.price_list_rate = flt(request["rate"])
             row.discount_percentage = 0
             row.discount_amount = 0
-        row.set("_source_row", source_row_name)
+        selected_source_names.add(source_row_name)
         selected.append(row)
 
-    if len(selected) != len(requested):
+    if len(selected_source_names) != len(requested):
         frappe.throw(_("ERPNext return mapper could not match every requested source row."))
-    for row in selected:
-        row.pop("_source_row", None)
     credit.set("items", selected)
 
     erpnext_tax_foundation.apply_tax_plan(credit, replace_managed_rows=True)
@@ -793,7 +828,9 @@ def get_customer_receivables(
         fields=["name", "unallocated_amount"],
         limit_page_length=0,
     )
-    unallocated_credit = flt(sum(max(flt(row.unallocated_amount), 0) for row in payment_rows), 2)
+    unallocated_credit = flt(
+        sum(max(flt(row.unallocated_amount), 0) for row in payment_rows), 2
+    )
     outstanding = flt(positive_outstanding, 2)
     total_credit = flt(invoice_credit + unallocated_credit, 2)
     net_balance = flt(outstanding - total_credit, 2)
@@ -834,7 +871,10 @@ def invoice_summary(invoice, *, include_items: bool = False) -> dict:
         "client_return_id": invoice.get("custom_ledgix_client_return_id") or "",
         "exchange_reference": invoice.get("custom_ledgix_exchange_reference") or "",
         "fbr_status": invoice.get("custom_ledgix_fbr_status") or "",
-        "duplicate": bool(getattr(invoice.flags, "ledgix_duplicate_client_sale", False) or getattr(invoice.flags, "ledgix_duplicate_client_return", False)),
+        "duplicate": bool(
+            getattr(invoice.flags, "ledgix_duplicate_client_sale", False)
+            or getattr(invoice.flags, "ledgix_duplicate_client_return", False)
+        ),
     }
     discount = getattr(invoice, "_ledgix_discount", None)
     if discount:
