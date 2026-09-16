@@ -101,3 +101,11 @@ class TestERPNextPhase6ExtensionContract(unittest.TestCase):
         self.assertIn('result["pricing_authority"] = "ERPNext"', source)
         self.assertIn('result["financial_authority"] = "ERPNext"', source)
         self.assertIn("erpnext_selling.get_customer_receivables(customer)", source)
+
+    def test_legacy_b2b_module_is_only_a_compatibility_wrapper(self):
+        source = (APP_ROOT / "api" / "v2_b2b.py").read_text(encoding="utf-8")
+        self.assertNotIn("ledgix_saas.services.payments", source)
+        self.assertNotIn("ledgix_saas.services.receivables", source)
+        self.assertIn("from ledgix_saas.api import selling", source)
+        self.assertIn('row.setdefault("sale", row.get("invoice"))', source)
+        self.assertIn('row["reference_name"] = row["sale"]', source)
