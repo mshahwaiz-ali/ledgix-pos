@@ -154,8 +154,11 @@ class TestERPNextPhase10Contract(unittest.TestCase):
 
         sales = (REPORT_ROOT / "ledgix_sales_report" / "ledgix_sales_report.py").read_text(encoding="utf-8")
         returns = (REPORT_ROOT / "ledgix_sales_return_report" / "ledgix_sales_return_report.py").read_text(encoding="utf-8")
+        intelligence_report = (
+            REPORT_ROOT / "inventory_intelligence_report" / "inventory_intelligence_report.py"
+        ).read_text(encoding="utf-8")
         native_bi = (APP_ROOT / "api" / "inventory_intelligence_native.py").read_text(encoding="utf-8")
-        for source in (sales, returns, native_bi):
+        for source in (sales, returns, intelligence_report, native_bi):
             self.assertIn("erpnext_reporting_compat", source)
 
     def test_phase10_runner_is_fail_closed(self):
