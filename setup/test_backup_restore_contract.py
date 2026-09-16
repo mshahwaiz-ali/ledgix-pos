@@ -208,6 +208,20 @@ class TestBackupRestoreContract(unittest.TestCase):
         self.assertNotIn("ledgix-recovery.local", source)
         self.assertNotIn("SOURCE_SITE TARGET_SITE", source)
 
+    def test_runtime_online_smoke_is_explicitly_opt_in(self):
+        source = (SCRIPTS / "run_backup_restore_runtime_gate.sh").read_text(encoding="utf-8")
+        for token in (
+            'ONLINE_URL=""',
+            '--url) [[ $# -ge 2 ]] || fail',
+            'ONLINE_URL="${2%/}"',
+            'if [[ -n "$ONLINE_URL" ]]',
+            '--online --url "$ONLINE_URL"',
+            "Online smoke is strictly opt-in",
+        ):
+            self.assertIn(token, source)
+        self.assertNotIn('if [[ -n "$SITE_URL" ]]', source)
+        self.assertNotIn('--online --url "$SITE_URL"', source)
+
     def test_local_weak_credentials_do_not_leak_into_production_setup(self):
         production_source = (DEPLOY / "production_setup.sh").read_text(encoding="utf-8")
         updater_source = (DEPLOY / "deploy_update_safe.sh").read_text(encoding="utf-8")
