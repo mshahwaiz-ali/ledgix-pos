@@ -108,7 +108,7 @@ PY
 echo
 echo "===== PHASE 4 TAX PARITY MATRIX ====="
 bench --site "$SITE" execute \
-  ledgix_saas.migration.erpnext_phase4_tax_parity_gate_v2.run \
+  ledgix_saas.migration.erpnext_phase4_tax_parity_gate_v3.run \
   | tee "$PHASE4_RESULT"
 
 echo
@@ -140,9 +140,16 @@ print()
 for name, case in (payload.get("cases") or {}).items():
     print(f"[{'PASS' if case.get('passed') else 'FAIL'}] {name}")
     if not case.get("passed"):
+        if case.get("error_type"):
+            print(f"       {case.get('error_type')}: {case.get('error')}")
         failed_checks = [check for check, ok in (case.get("checks") or {}).items() if not ok]
         if failed_checks:
             print("       failed checks: " + ", ".join(failed_checks))
+        trace = case.get("traceback_tail") or []
+        if trace:
+            print("       traceback tail:")
+            for line in trace:
+                print("         " + line)
 
 if payload.get("failed_cases"):
     print("\nFailed cases: " + ", ".join(payload["failed_cases"]))
