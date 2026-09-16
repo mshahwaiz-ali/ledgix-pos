@@ -5,7 +5,7 @@ from ledgix_saas.setup import erpnext_phase6_extensions
 
 
 APP_ROOT = Path(__file__).resolve().parents[1]
-REPO_ROOT = APP_ROOT.parents[2]
+REPO_ROOT = APP_ROOT.parents[1]
 
 
 class TestERPNextPhase6ExtensionContract(unittest.TestCase):
@@ -133,7 +133,10 @@ class TestERPNextPhase6ExtensionContract(unittest.TestCase):
         self.assertIn("Authorized B2B price override requires a reason.", source)
         self.assertIn("custom_ledgix_price_override_json", source)
         self.assertIn("if not current:", source)
-        self.assertIn("_persist_override_audit(invoice, audit)", source)
+        self.assertIn(
+            "_persist_override_audit(_invoice_from_result(result), audit)", source
+        )
+        self.assertIn('_persist_override_audit(str(invoice or ""), audit)', source)
         self.assertIn("def preview_b2b_invoice(", source)
         self.assertIn("def create_b2b_invoice(", source)
         self.assertIn("def complete_b2b_sale(", source)
