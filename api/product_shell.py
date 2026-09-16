@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""Phase 11 Ledgix product-shell policy.
+"""Ledgix product-shell policy.
 
 This module controls *navigation only*. ERPNext/Frappe permissions remain the
 security authority and the business-profile flags do not grant access.
@@ -68,6 +68,7 @@ WORKSPACE_LINK_POLICY = {
     "FBR Submission Logs": {"roles": ("manager", "admin", "system"), "all": ("enable_fbr",)},
     "Tax Audit Logs": {"roles": ("admin", "system"), "all": ("enable_fbr",)},
 
+    "Setup Wizard": {"roles": ("admin", "system")},
     "Business Profile": {"roles": ("admin", "system")},
     "Brand Settings": {"roles": ("admin", "system")},
     "User Profiles": {"roles": ("admin", "system")},
@@ -94,7 +95,7 @@ CARD_LINKS = {
     ),
     "Tax & FBR": ("Tax & FBR Center", "Item Tax Profiles", "FBR Submission Logs", "Tax Audit Logs"),
     "Administration": (
-        "Business Profile", "Brand Settings", "User Profiles", "Tax Profile",
+        "Setup Wizard", "Business Profile", "Brand Settings", "User Profiles", "Tax Profile",
         "Tax Categories", "Tax Rates", "FBR Settings",
     ),
 }
