@@ -62,6 +62,12 @@ class TestERPNextPhase7Contract(unittest.TestCase):
         self.assertIn('"Serial No"', source)
         self.assertIn('"Bin"', source)
 
+    def test_default_warehouse_uses_erpnext_v15_stock_settings(self):
+        source = (APP_ROOT / "services" / "erpnext_buying_inventory.py").read_text(encoding="utf-8")
+        self.assertIn('frappe.db.get_single_value("Stock Settings", "default_warehouse")', source)
+        self.assertNotIn('"default_inventory_warehouse"', source)
+        self.assertIn('{"name": default, "company": company, "is_group": 0, "disabled": 0}', source)
+
     def test_manual_stock_compatibility_routes_to_erpnext(self):
         source = (APP_ROOT / "api" / "stock_ops.py").read_text(encoding="utf-8")
         self.assertIn("erpnext_buying_inventory.create_stock_entry", source)
