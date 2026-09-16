@@ -138,7 +138,13 @@
 		return true;
 	}
 
-	const timer = window.setInterval(() => {
-		if (patch_native_fbr_center()) window.clearInterval(timer);
-	}, 250);
+	function schedule_patch() {
+		window.setTimeout(patch_native_fbr_center, 0);
+		window.setTimeout(patch_native_fbr_center, 250);
+		window.setTimeout(patch_native_fbr_center, 750);
+	}
+
+	if (frappe?.router?.on) frappe.router.on("change", schedule_patch);
+	$(document).on("page-change", schedule_patch);
+	schedule_patch();
 })();
