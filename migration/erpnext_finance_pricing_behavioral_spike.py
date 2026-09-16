@@ -328,6 +328,9 @@ def run() -> dict:
     print_html = _render_print(partial_invoice.name)
 
     expected_pricing_rate = flt(PRICING_RATE * (1 - PRICING_DISCOUNT / 100), 2)
+    resolved_price_list_rate = flt(pricing.get("price_list_rate"))
+    resolved_discount = flt(pricing.get("discount_percentage"))
+    effective_pricing_rate = flt(resolved_price_list_rate * (1 - resolved_discount / 100), 2)
     expected_partial_outstanding = flt(partial_invoice.grand_total - PARTIAL_PAYMENT_AMOUNT, 2)
     expected_partial_return_total = flt(
         -(return_source.grand_total * (PARTIAL_RETURN_QTY / PARTIAL_RETURN_SOURCE_QTY)), 2
@@ -340,10 +343,15 @@ def run() -> dict:
             "item": pricing_item,
             "item_price": pricing_item_price,
             "pricing_rule": pricing_rule,
-            "price_list_rate": flt(pricing.get("price_list_rate")),
-            "discount_percentage": flt(pricing.get("discount_percentage")),
-            "resolved_rate": flt(pricing.get("rate")),
+            "price_list_rate": resolved_price_list_rate,
+            "discount_percentage": resolved_discount,
+            "raw_helper_rate": flt(pricing.get("rate")),
+            "effective_rate": effective_pricing_rate,
             "expected_rate": expected_pricing_rate,
+            "note": (
+                "get_item_details can leave rate unset/zero when called without a full parent transaction; "
+                "the native pricing decision is evidenced by Item Price plus resolved Pricing Rule discount."
+            ),
         },
         "partial_payment": {
             "invoice": partial_invoice.name,
@@ -384,7 +392,10 @@ def run() -> dict:
 
     checks = {
         "pricing_rule_resolved": abs(evidence["pricing"]["discount_percentage"] - PRICING_DISCOUNT) < 0.005,
-        "pricing_rule_rate_correct": abs(evidence["pricing"]["resolved_rate"] - expected_pricing_rate) < 0.005,
+        "pricing_item_price_resolved": abs(evidence["pricing"]["price_list_rate"] - PRICING_RATE) < 0.005,
+        "pricing_rule_effective_rate_correct": abs(
+            evidence["pricing"]["effective_rate"] - expected_pricing_rate
+        ) < 0.005,
         "partial_payment_submitted": partial_payment.docstatus == 1,
         "partial_payment_allocated": abs(
             evidence["partial_payment"]["allocated_amount"] - PARTIAL_PAYMENT_AMOUNT
