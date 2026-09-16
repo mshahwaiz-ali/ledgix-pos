@@ -32,11 +32,17 @@ Production/client lifecycle runbook:
 
 - `docs/production/client_lifecycle.md`
 
+Post-migration release workstream:
+
+- `client_acceptance_production_release_hardening.md`
+
 ## Current implementation status
 
-- Phase 0–12: complete on the guarded migration/integration workflow.
-- Phase 13: implemented; final guarded client-profile/SaaS gate pending.
-- After Phase 13: client acceptance, production provisioning and release hardening.
+- **ERPNext Core Migration Phases 0–13: COMPLETE** on the guarded integration workflow.
+- Phase 13 final guarded gate passed at migration implementation HEAD `d813d26d16a11665522da98c7bd542a7cc09c53f` with `phase13_complete=true` and `migration_complete=true`.
+- Phase 12 frozen historical digest remained stable and the integration-site profile/setup state was restored after the gate.
+- The project is now in **Client Acceptance + Production Provisioning + Release Hardening**.
+- Do not create another ERPNext Core Migration phase. Remaining work is release/operations hardening over the completed architecture.
 
 ## Historical plan
 
