@@ -116,9 +116,12 @@ class TestERPNextPhase10Contract(unittest.TestCase):
         hooks = (APP_ROOT / "hooks.py").read_text(encoding="utf-8")
         bridge = (APP_ROOT / "public" / "js" / "ledgix_phase10_native_surfaces.js").read_text(encoding="utf-8")
         self.assertIn("ledgix_phase10_native_surfaces.js", hooks)
-        self.assertIn("result.native_document", bridge)
-        self.assertIn("result.print_doctype", bridge)
-        self.assertIn("result.print_format", bridge)
+        # The bridge intentionally uses optional chaining in the print URL helper.
+        # Accept both null-safe (result?.field) and direct (result.field) access
+        # while still proving that the native print contract fields are consumed.
+        self.assertRegex(bridge, r"result(?:\?\.|\.)native_document")
+        self.assertRegex(bridge, r"result(?:\?\.|\.)print_doctype")
+        self.assertRegex(bridge, r"result(?:\?\.|\.)print_format")
         self.assertIn('options: "Item"', bridge)
         self.assertIn('"Stock Ledger"', bridge)
         self.assertIn('"Stock Balance"', bridge)
