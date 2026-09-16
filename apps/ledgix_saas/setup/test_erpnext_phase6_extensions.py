@@ -3,7 +3,7 @@ from pathlib import Path
 from ledgix_saas.setup import erpnext_phase6_extensions
 
 
-ROOT = Path(__file__).resolve().parents[4]
+APP_ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_phase6_extensions_only_target_native_financial_documents():
@@ -53,7 +53,7 @@ def test_phase6_payment_entry_metadata_contract():
 
 
 def test_phase6_hooks_install_schema_and_compatibility_routes():
-    hooks = (ROOT / "hooks.py").read_text(encoding="utf-8")
+    hooks = (APP_ROOT / "hooks.py").read_text(encoding="utf-8")
     assert "ledgix_saas.setup.erpnext_phase6_extensions.after_migrate" in hooks
     assert "ledgix_saas.api.selling.complete_pos_v2_sale_compat" in hooks
     assert "ledgix_saas.api.selling.preview_pos_v2_checkout_compat" in hooks
@@ -63,7 +63,7 @@ def test_phase6_hooks_install_schema_and_compatibility_routes():
 
 
 def test_native_selling_service_does_not_write_legacy_financial_doctypes():
-    source = (ROOT / "services" / "erpnext_selling.py").read_text(encoding="utf-8")
+    source = (APP_ROOT / "services" / "erpnext_selling.py").read_text(encoding="utf-8")
     assert 'frappe.new_doc("Ledgix Sale")' not in source
     assert 'frappe.new_doc("Ledgix Payment")' not in source
     assert 'frappe.get_doc("Ledgix Sale"' not in source
