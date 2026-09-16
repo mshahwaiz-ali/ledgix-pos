@@ -19,6 +19,7 @@ class TestReleaseHardeningContract(unittest.TestCase):
         self.assertIn("PRODUCTION_URL", source)
         self.assertIn("$HOME/.config/ledgix/production-sites.md", source)
         self.assertIn("relocate_legacy_secrets", source)
+        self.assertIn("provision_client_site_safe.sh", source)
 
     def test_deploy_update_requires_immutable_release_and_fails_closed(self):
         source = (DEPLOY / "deploy_update_safe.sh").read_text(encoding="utf-8")
@@ -34,12 +35,14 @@ class TestReleaseHardeningContract(unittest.TestCase):
             "--online",
             "maintenance mode remains ON",
             "last-successful.env",
-            "LEDGIX_ALLOW_SHARED_BENCH_UPDATE",
+            "single-site updater refuses shared benches",
+            "deploy/deploy_update_shared_safe.sh",
         ):
             self.assertIn(token, source)
         self.assertNotIn("pull --ff-only origin", source)
         self.assertNotIn('SITE="${PRODUCTION_SITE:-ledgix.local}"', source)
         self.assertNotIn("ensure_erpnext.sh", source)
+        self.assertNotIn("LEDGIX_ALLOW_SHARED_BENCH_UPDATE", source)
 
     def test_verified_backup_is_site_explicit_and_records_rollback_metadata(self):
         source = (DEPLOY / "backup_safe.sh").read_text(encoding="utf-8")
