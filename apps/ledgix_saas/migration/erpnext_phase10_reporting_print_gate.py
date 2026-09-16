@@ -14,7 +14,7 @@ from ledgix_saas.migration.erpnext_integration_bootstrap import INTEGRATION_SITE
 from ledgix_saas.services import erpnext_buying_inventory, erpnext_pos, erpnext_reporting, erpnext_selling
 
 
-ITEM = "LEDGIX-P10-NATIVE"
+ITEM = "LEDGIX-P10-STOCK-NATIVE"
 CATEGORY = tax_gate.STANDARD_CATEGORY
 SCENARIO = "SN001"
 SELLING_RATE = 150.0
@@ -114,7 +114,10 @@ def _ensure_fixtures() -> dict:
     tax_gate._ensure_tax_accounts()
     customer = tax_gate._ensure_customer()
     tax_gate._ensure_category(CATEGORY, rate=18)
-    tax_gate._ensure_item(ITEM)
+    # Phase 4 intentionally creates non-stock tax fixtures. Phase 10 exercises
+    # stock reporting and POS, so it must use the Phase 7 stock-item fixture
+    # helper instead of reusing Phase 4's non-stock helper.
+    p7_gate._ensure_item(ITEM, stock=True)
     tax_gate._ensure_profile(
         ITEM,
         tax_gate.ProfileSpec(
@@ -135,7 +138,7 @@ def _ensure_fixtures() -> dict:
         company=TEST_COMPANY,
         target_warehouse=warehouse,
         valuation_rate=VALUATION_RATE,
-        client_stock_id="LEDGIX-P10-STOCK-SEED",
+        client_stock_id="LEDGIX-P10-STOCK-SEED-V2",
         source="Phase 10 Reporting/Print Seed",
     )
     profile = pos_runtime._ensure_pos_profile(customer, warehouse, frappe.db.get_value(
