@@ -74,6 +74,13 @@ class TestERPNextPhase8Contract(unittest.TestCase):
         )
         self.assertIn("closing = make_closing_entry_from_opening(opening)", source)
 
+    def test_pos_profile_lookup_materializes_erpnext_row_by_name(self):
+        source = (APP_ROOT / "services" / "erpnext_pos.py").read_text(encoding="utf-8")
+        self.assertIn("profile_row = get_pos_profile(company, user=user)", source)
+        self.assertIn('profile_row.get("name")', source)
+        self.assertIn('frappe.get_doc("POS Profile", profile_name)', source)
+        self.assertNotIn("frappe.get_doc(doc)", source)
+
     def test_pos_holds_are_native_drafts(self):
         source = (APP_ROOT / "services" / "erpnext_pos.py").read_text(encoding="utf-8")
         self.assertIn("custom_ledgix_hold_status", source)
