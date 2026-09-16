@@ -127,6 +127,13 @@ class TestERPNextPhase10Contract(unittest.TestCase):
         self.assertIn('"Stock Balance"', bridge)
         self.assertNotIn("doctype=Ledgix%20Sale", bridge)
 
+    def test_phase10_runtime_fixture_uses_stock_item_authority(self):
+        gate = (APP_ROOT / "migration" / "erpnext_phase10_reporting_print_gate.py").read_text(encoding="utf-8")
+        self.assertIn('ITEM = "LEDGIX-P10-STOCK-NATIVE"', gate)
+        self.assertIn("p7_gate._ensure_item(ITEM, stock=True)", gate)
+        self.assertNotIn("tax_gate._ensure_item(ITEM)", gate)
+        self.assertIn('client_stock_id="LEDGIX-P10-STOCK-SEED-V2"', gate)
+
     def test_phase10_runner_is_fail_closed(self):
         runner = REPO_ROOT / "scripts" / "run_erpnext_phase10_final_gate.sh"
         if not runner.exists():
