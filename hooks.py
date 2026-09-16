@@ -15,6 +15,7 @@ app_include_css = [
 app_include_js = [
 	"/assets/ledgix_saas/js/ledgix_brand.js",
 	"/assets/ledgix_saas/js/ledgix_sidebar_brand.js",
+	"/assets/ledgix_saas/js/ledgix_fbr_native_center.js",
 ]
 web_include_css = ["/assets/ledgix_saas/css/ledgix_brand.css"]
 web_include_js = ["/assets/ledgix_saas/js/ledgix_brand.js"]
@@ -47,10 +48,7 @@ after_migrate = [
 extend_bootinfo = ["ledgix_saas.api.brand.extend_bootinfo"]
 update_website_context = ["ledgix_saas.api.brand.update_website_context"]
 
-# Keep the Ledgix screen/RPC contracts stable while ERPNext owns the business
-# engine underneath them. Phase 8 routes retail POS boot, catalog, pricing,
-# checkout, shifts, holds and returns through native ERPNext POS documents.
-# B2B continues through the Phase 6 native Sales Invoice compatibility path.
+# Keep Ledgix screen/RPC contracts stable while ERPNext owns the business engine.
 override_whitelisted_methods = {
 	"ledgix_saas.api.tax_center.get_fbr_readiness": "ledgix_saas.api.fbr_preflight.get_fbr_readiness",
 
@@ -79,6 +77,10 @@ override_whitelisted_methods = {
 	"ledgix_saas.api.selling.create_b2b_invoice": "ledgix_saas.api.selling_compat.create_b2b_invoice",
 	"ledgix_saas.api.selling.complete_b2b_sale": "ledgix_saas.api.selling_compat.complete_b2b_sale",
 	"ledgix_saas.api.selling.create_exchange": "ledgix_saas.api.selling_compat.create_exchange",
+
+	# Phase 9 is a hard source cutover. Historical legacy sales stay readable but
+	# can no longer issue a new official FBR invoice through the old POST endpoint.
+	"ledgix_saas.api.fbr_submission.submit_sale_to_fbr": "ledgix_saas.api.fbr_legacy_guard.reject_legacy_sale_submission",
 }
 
 doc_events = {
