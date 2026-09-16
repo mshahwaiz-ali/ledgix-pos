@@ -12,6 +12,9 @@ DEST_APP="$BENCH_DIR/apps/$APP"
 TMP_APP="$BENCH_DIR/apps/.${APP}.site-sync.$$"
 SECRETS_DIR="$ROOT_DIR/.secrets/sites"
 TEMP_REDIS_STARTED=0
+LOCAL_ADMIN_PASSWORD="${LEDGIX_LOCAL_ADMIN_PASSWORD:-admin}"
+LOCAL_USER_PASSWORD="${LEDGIX_LOCAL_USER_PASSWORD:-admin@123}"
+LOCAL_DB_PASSWORD="${LEDGIX_LOCAL_DB_PASSWORD:-admin@123}"
 
 export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
 export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
@@ -35,6 +38,11 @@ Ledgix local development uses one canonical site with the standard stack:
 
 There is no app-selection menu. ERPNext is a required dependency and Ledgix is
 always installed after ERPNext.
+
+Local credential convention:
+  Administrator password: admin
+  Other enabled users:     admin@123
+  Site database password:  admin@123
 
 Actions:
   --ensure              Create/repair the canonical site without deleting data
@@ -130,6 +138,7 @@ save_credentials() {
     printf 'SITE_URL=%s\n' "$(shell_quote "http://$SITE:8000")"
     printf 'ADMIN_USER=Administrator\n'
     printf 'ADMIN_PASSWORD=%s\n' "$(shell_quote "$admin_password")"
+    printf 'DEFAULT_USER_PASSWORD=%s\n' "$(shell_quote "$LOCAL_USER_PASSWORD")"
     printf 'DB_NAME=%s\n' "$(shell_quote "$db_name")"
     printf 'DB_USER=%s\n' "$(shell_quote "$db_name")"
     printf 'DB_PASSWORD=%s\n' "$(shell_quote "$db_password")"
@@ -240,6 +249,25 @@ remove_site() {
   rm -f "$SECRETS_DIR/$site.env" 2>/dev/null || true
 }
 
+apply_local_login_passwords() {
+  local user_list
+  bench_run --site "$SITE" set-admin-password "$LOCAL_ADMIN_PASSWORD"
+  user_list="$(bench_run --site "$SITE" execute frappe.get_all --args '["User"]' --kwargs '{"filters":{"enabled":1},"pluck":"name"}' | tail -n 1)"
+  printf '%s' "$user_list" | "$BENCH_DIR/env/bin/python" -c 'import ast,json,sys
+raw=sys.stdin.read().strip()
+try:
+    users=json.loads(raw)
+except Exception:
+    users=ast.literal_eval(raw)
+for user in users:
+    if user not in {"Administrator","Guest"}:
+        print(user)' | while IFS= read -r user; do
+    [[ -n "$user" ]] || continue
+    bench_run --site "$SITE" set-password "$user" "$LOCAL_USER_PASSWORD"
+  done
+  ok 'local login password convention applied'
+}
+
 install_standard_stack() {
   ensure_erpnext_bench
   sync_ledgix_exact
@@ -264,8 +292,8 @@ create_standard_site() {
   sync_ledgix_exact
 
   local admin_password db_password db_name
-  admin_password="${FRAPPE_ADMIN_PASSWORD:-$(strong_password)}"
-  db_password="$(strong_password)"
+  admin_password="${FRAPPE_ADMIN_PASSWORD:-$LOCAL_ADMIN_PASSWORD}"
+  db_password="$LOCAL_DB_PASSWORD"
   db_name="_ledgix_$(random_hex 6)"
 
   printf '\n===== CREATE STANDARD LEDGIX LOCAL SITE =====\n'
@@ -283,13 +311,14 @@ create_standard_site() {
   fi
 
   install_standard_stack
-  save_credentials "$admin_password" "$db_name" "$db_password"
+  apply_local_login_passwords
+  save_credentials "$LOCAL_ADMIN_PASSWORD" "$db_name" "$db_password"
   ok "standard local site ready: $SITE"
 }
 
 ensure_site() {
   validate_runtime
-  local count
+  local count db_name db_password
   count="$(site_count)"
   if [[ "$count" -gt 1 ]]; then
     die "multiple active local sites found. Run: ./site_setup.sh --reset --site $SITE --confirm \"RESET $SITE\""
@@ -304,6 +333,10 @@ ensure_site() {
 
   printf '\n===== REPAIR STANDARD LEDGIX LOCAL SITE =====\n'
   install_standard_stack
+  apply_local_login_passwords
+  db_name="$(config_value "$SITE" db_name)"
+  db_password="$(config_value "$SITE" db_password)"
+  save_credentials "$LOCAL_ADMIN_PASSWORD" "$db_name" "$db_password"
   ok "canonical local site is ready: $SITE"
 }
 
