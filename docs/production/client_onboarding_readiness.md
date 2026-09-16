@@ -24,7 +24,7 @@ It checks:
 
 ## Configuration boundary
 
-R5 is an evaluator and evidence layer.
+R5 is primarily an evaluator and evidence layer.
 
 It does **not**:
 
@@ -37,6 +37,8 @@ It does **not**:
 - fork code per client.
 
 Client differences remain Business Profile + ERPNext configuration + permissions. There is no client fork.
+
+The local/integration runtime helper has one explicit configuration mutation option: `--apply-setup`. It is fail-closed and runs only when **the sole blocking check** is `client_setup_applied` and the current profile prerequisites are already green. It reuses the already-resolved Company, Selling Price List, Warehouse and POS Profile and calls the existing Phase 13 `apply_client_setup` service. It does not manufacture missing ERPNext masters or bypass readiness checks.
 
 ## Desk workflow
 
@@ -54,22 +56,34 @@ The UI uses the non-strict evidence mode because a development/integration site 
 
 ## Local/integration gate
 
-Run:
+Read-only evaluation:
 
 ```bash
 bash scripts/run_r5_client_readiness_gate.sh ledgix-erpnext.local
 ```
 
-This command:
+If the output proves that `client_setup_applied` is the **only** blocker and all current profile prerequisites pass, the integration setup marker/configuration can be applied safely and then re-evaluated in one run:
+
+```bash
+bash scripts/run_r5_client_readiness_gate.sh ledgix-erpnext.local \
+  --apply-setup \
+  --require-ready
+```
+
+`--apply-setup` refuses to run when any other blocking prerequisite exists.
+
+The runtime gate:
 
 1. runs the R5 static gate;
 2. exact-syncs the repository Ledgix app into the local bench;
 3. runs dependency preflight;
 4. runs ERPNext-native offline smoke checks;
 5. evaluates current onboarding readiness;
-6. writes a private non-secret readiness snapshot.
+6. optionally applies only the already-resolved setup configuration when `--apply-setup` is explicitly requested and safe;
+7. re-evaluates readiness after an apply;
+8. writes a private non-secret readiness snapshot.
 
-It does not delete/reset the site and does not mutate ERPNext business records.
+It never deletes/resets the site and never creates ERPNext business masters.
 
 The gate always prints:
 
@@ -106,6 +120,8 @@ bash scripts/run_r5_client_readiness_gate.sh client.local \
 The repository runtime helper deliberately exact-syncs only `.local` / `.localhost` integration sites. On production, run the equivalent `bench execute` readiness call against the already approved deployed release instead of using a development exact-sync helper.
 
 **Strict evidence** turns missing release/provisioning evidence and missing verified-backup metadata into blocking acceptance checks.
+
+Do not use the integration `--apply-setup` convenience path as a substitute for client approval of their Business Profile in production; production onboarding should use the normal `/app/ledgix-setup` workflow under an authorized operator.
 
 ## Evidence
 
@@ -157,7 +173,7 @@ R5 confirms the site is safe to enter the next compliance workstream. **FBR Prod
 For an FBR-enabled profile, R5:
 
 - verifies `Ledgix FBR Settings` exists;
-- blocks readiness if `production_post_armed` is already enabled prematurely;
+- blocks readiness if Production posting is already armed prematurely;
 - reports missing seller identity fields as warnings/input for the next workstream;
 - does not read or persist token values into readiness evidence.
 
