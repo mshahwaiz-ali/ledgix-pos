@@ -20,14 +20,15 @@ Current direction:
 - Phase 6: `erpnext_phase6_selling_cutover.md`
 - Phase 7: `erpnext_phase7_buying_inventory_cutover.md`
 - Phase 8: `erpnext_phase8_pos_cutover.md`
+- Phase 9: `erpnext_phase9_fbr_cutover.md`
 
 Use **`erpnext_core_migration_progress.md`** for exercised gate status and current handoff state.
 
 ## Current implementation status
 
-- Phase 0–7: complete on the guarded migration/integration workflow.
-- Phase 8: implemented; final guarded runtime gate pending.
-- Next after Phase 8: Phase 9 FBR source cutover.
+- Phase 0–8: complete on the guarded migration/integration workflow.
+- Phase 9: implemented; final guarded runtime gate pending.
+- Next after Phase 9: Phase 10 — Final Print Redesign.
 
 ## Historical plan
 
