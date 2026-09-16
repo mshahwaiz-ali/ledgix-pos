@@ -68,13 +68,11 @@ class TestERPNextPhase6ExtensionContract(unittest.TestCase):
     def test_phase6_hooks_install_schema_and_compatibility_routes(self):
         hooks = (APP_ROOT / "hooks.py").read_text(encoding="utf-8")
         self.assertIn("ledgix_saas.setup.erpnext_phase6_extensions.after_migrate", hooks)
-        self.assertIn("ledgix_saas.api.selling_compat.get_pos_v2_boot", hooks)
-        self.assertIn("ledgix_saas.api.selling_compat.search_pos_v2_items", hooks)
-        self.assertIn("ledgix_saas.api.selling_compat.complete_pos_v2_sale", hooks)
-        self.assertIn("ledgix_saas.api.selling_compat.preview_pos_v2_checkout", hooks)
-        self.assertIn("ledgix_saas.api.selling.get_pos_v2_customer_context_compat", hooks)
-        self.assertIn("ledgix_saas.api.selling.get_pos_return_context_compat", hooks)
-        self.assertIn("ledgix_saas.api.selling.create_pos_return_compat", hooks)
+
+        # Phase 6 owns the native B2B financial compatibility routes. Retail POS
+        # entry points are intentionally superseded by Phase 8 and are covered by
+        # the Phase 8 contract suite, so this regression test must not pin the old
+        # pre-Phase-8 POS routing implementation.
         self.assertIn(
             '"ledgix_saas.api.selling.preview_b2b_invoice": "ledgix_saas.api.selling_compat.preview_b2b_invoice"',
             hooks,
