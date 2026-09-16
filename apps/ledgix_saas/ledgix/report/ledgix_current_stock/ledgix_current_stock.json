@@ -6,23 +6,13 @@
  "doctype": "Report",
  "idx": 0,
  "is_standard": "Yes",
- "modified": "2026-05-15 00:00:00.000000",
+ "modified": "2026-09-16 21:36:00.000000",
  "module": "Ledgix",
  "name": "Ledgix Current Stock",
  "owner": "Administrator",
  "prepared_report": 0,
- "ref_doctype": "Ledgix Item",
+ "ref_doctype": "Item",
  "report_name": "Ledgix Current Stock",
  "report_type": "Script Report",
- "roles": [
-  {
-   "role": "System Manager"
-  },
-  {
-   "role": "Ledgix Admin"
-  },
-  {
-   "role": "Ledgix Manager"
-  }
- ]
+ "roles": [{"role":"System Manager"},{"role":"Ledgix Admin"},{"role":"Ledgix Manager"}]
 }
