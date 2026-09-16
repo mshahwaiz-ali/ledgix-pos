@@ -40,6 +40,7 @@ after_migrate = [
 	"ledgix_saas.setup.erpnext_phase6_extensions.after_migrate",
 	"ledgix_saas.setup.erpnext_phase7_extensions.after_migrate",
 	"ledgix_saas.setup.erpnext_phase8_extensions.after_migrate",
+	"ledgix_saas.setup.erpnext_phase9_extensions.after_migrate",
 	"ledgix_saas.setup.fast_permissions.after_migrate",
 ]
 
@@ -84,10 +85,18 @@ doc_events = {
 	"Payment Entry": {
 		"validate": "ledgix_saas.services.erpnext_payment_policy.validate_ledgix_payment_entry",
 	},
+	"Sales Invoice": {
+		"on_submit": "ledgix_saas.api.fbr_native.on_native_invoice_submit",
+		"before_cancel": "ledgix_saas.api.fbr_native.block_cancel_after_fbr_submission",
+	},
+	"POS Invoice": {
+		"on_submit": "ledgix_saas.api.fbr_native.on_native_invoice_submit",
+		"before_cancel": "ledgix_saas.api.fbr_native.block_cancel_after_fbr_submission",
+	},
 }
 
-# Phase 8 does not switch FBR submission source. Production FBR recovery remains
-# fail-closed until reconciliation-safe status checking is proven in Phase 9.
+# Retransmission remains fail-closed. A production POST with an ambiguous outcome
+# must be externally reconciled before any manual retry; no blind scheduler retry.
 scheduler_events = {}
 
 fixtures = [
