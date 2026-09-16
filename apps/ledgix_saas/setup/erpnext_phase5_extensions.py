@@ -187,6 +187,21 @@ CUSTOM_FIELDS = {
             insert_after="custom_ledgix_priority",
         ),
     ],
+    "Item Price": [
+        _cf(
+            "custom_ledgix_legacy_item_price",
+            "Data",
+            "Legacy Ledgix Item Price",
+            insert_after="reference",
+            read_only=1,
+            no_copy=1,
+            in_standard_filter=1,
+            description=(
+                "One-time migration provenance. ERPNext's standard reference field remains reserved "
+                "for its native Customer/Supplier price semantics."
+            ),
+        ),
+    ],
     "Customer": [
         _cf(
             "custom_ledgix_legacy_customer",
