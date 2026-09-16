@@ -26,7 +26,7 @@ Current direction:
 - Phase 12: `erpnext_phase12_legacy_freeze_retirement.md`
 - Phase 13: `erpnext_phase13_client_profiles_saas.md`
 
-Use **`erpnext_core_migration_progress.md`** for exercised gate status and current handoff state.
+Use **`erpnext_core_migration_progress.md`** for the completed migration evidence.
 
 Production/client lifecycle runbook:
 
@@ -35,13 +35,24 @@ Production/client lifecycle runbook:
 Post-migration release workstream:
 
 - `client_acceptance_production_release_hardening.md`
+- `release_hardening_progress.md` — active execution ledger/status
+
+Production hardening runbooks:
+
+- `docs/production/release_install_update.md`
+- `docs/production/backup_restore_rollback.md`
+- `docs/production/fresh_client_provisioning.md`
+- `docs/production/multi_site_saas.md`
 
 ## Current implementation status
 
 - **ERPNext Core Migration Phases 0–13: COMPLETE** on the guarded integration workflow.
 - Phase 13 final guarded gate passed at migration implementation HEAD `d813d26d16a11665522da98c7bd542a7cc09c53f` with `phase13_complete=true` and `migration_complete=true`.
 - Phase 12 frozen historical digest remained stable and the integration-site profile/setup state was restored after the gate.
-- The project is now in **Client Acceptance + Production Provisioning + Release Hardening**.
+- R0 + R2 production release hardening are complete.
+- R3 destructive backup/restore proof is complete; the same canonical local site was wiped, recreated, restored and its Phase 12 frozen digest reverified.
+- R1 fresh-client provisioning and R4 multi-site SaaS hardening are implemented and awaiting the consolidated static gate `scripts/run_r1_r4_static_gate.sh`.
+- After R1 + R4 are green, continue to R5 client onboarding/readiness.
 - Do not create another ERPNext Core Migration phase. Remaining work is release/operations hardening over the completed architecture.
 
 ## Historical plan
