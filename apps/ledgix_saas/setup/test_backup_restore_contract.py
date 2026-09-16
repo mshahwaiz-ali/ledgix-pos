@@ -147,7 +147,8 @@ class TestBackupRestoreContract(unittest.TestCase):
         self.assertTrue(path.exists())
         source = path.read_text(encoding="utf-8")
         for token in (
-            ".secrets/local-db-admin.env",
+            'SECRETS_DIR="$REPO_ROOT/.secrets"',
+            'ENV_FILE="$SECRETS_DIR/local-db-admin.env"',
             "openssl rand",
             "@'localhost'",
             "WITH GRANT OPTION",
