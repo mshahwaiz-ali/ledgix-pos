@@ -62,7 +62,7 @@ class TestERPNextPhase6ExtensionContract(unittest.TestCase):
     def test_phase6_hooks_install_schema_and_compatibility_routes(self):
         hooks = (APP_ROOT / "hooks.py").read_text(encoding="utf-8")
         self.assertIn("ledgix_saas.setup.erpnext_phase6_extensions.after_migrate", hooks)
-        self.assertIn("ledgix_saas.api.selling.complete_pos_v2_sale_compat", hooks)
+        self.assertIn("ledgix_saas.api.selling_compat.complete_pos_v2_sale", hooks)
         self.assertIn("ledgix_saas.api.selling.preview_pos_v2_checkout_compat", hooks)
         self.assertIn("ledgix_saas.api.selling.get_pos_v2_customer_context_compat", hooks)
         self.assertIn("ledgix_saas.api.selling.get_pos_return_context_compat", hooks)
@@ -86,3 +86,9 @@ class TestERPNextPhase6ExtensionContract(unittest.TestCase):
         source = (APP_ROOT / "api" / "selling.py").read_text(encoding="utf-8")
         self.assertNotIn('"si_detail"', source)
         self.assertIn('fields=["sales_invoice_item", "item_code", "qty"]', source)
+
+    def test_native_b2b_compat_suppresses_legacy_ledgix_sale_print_target(self):
+        source = (APP_ROOT / "api" / "selling_compat.py").read_text(encoding="utf-8")
+        self.assertIn('result["erpnext_sales_invoice"] = invoice', source)
+        self.assertIn('result["sale"] = ""', source)
+        self.assertIn('result["print_deferred"] = True', source)
