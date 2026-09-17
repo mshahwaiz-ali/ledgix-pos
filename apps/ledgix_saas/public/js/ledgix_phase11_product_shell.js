@@ -37,11 +37,22 @@
 		return path === "/app/ledgix";
 	}
 
+	function curateShortcuts(product) {
+		const visibleShortcuts = new Set(product.visible_workspace_shortcuts || []);
+		document.querySelectorAll(".shortcut-widget-box").forEach((shortcut) => {
+			const label = String(shortcut.getAttribute("aria-label") || "").trim();
+			const visible = isSystemManager() || visibleShortcuts.has(label);
+			setVisible(shortcut.closest(".ce-block") || shortcut, visible);
+		});
+	}
+
 	function curateWorkspace() {
 		if (!isLedgixWorkspaceRoute()) return;
 		const product = context();
 		const visibleCards = new Set(product.visible_workspace_cards || []);
 		const visibleLinks = new Set(product.visible_workspace_links || []);
+
+		curateShortcuts(product);
 
 		document.querySelectorAll(".links-widget-box").forEach((widget) => {
 			const title = String(widget.querySelector(".widget-title .ellipsis")?.textContent || "").trim();
