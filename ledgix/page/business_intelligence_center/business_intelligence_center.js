@@ -17,6 +17,16 @@ class LedgixInventoryIntelligence {
 		this.riskPreviewLimit = 8;
 		this.timelinePageSize = 25;
 		this.lotPageSize = 20;
+		this.nativeReferenceDoctypes = new Set([
+			"Sales Invoice",
+			"POS Invoice",
+			"Purchase Invoice",
+			"Purchase Receipt",
+			"Delivery Note",
+			"Stock Entry",
+			"Stock Reconciliation",
+			"Subcontracting Receipt",
+		]);
 		this.requestSerial = 0;
 		this.suppressControlReload = false;
 		this.state = {
@@ -68,11 +78,11 @@ class LedgixInventoryIntelligence {
 					<div>
 						<div class="lx-ii-kicker">Manager investigation</div>
 						<h2>Inventory Intelligence</h2>
-						<p>Trace stock movement, realized margin, returns, lot/serial identity and inventory risks across submitted transactions.</p>
+						<p>Trace stock movement, realized margin, returns, batch/serial identity and inventory risks across submitted ERPNext transactions.</p>
 					</div>
 					<div class="lx-ii-native-actions">
-						<button class="btn btn-default btn-sm" data-route-list="Ledgix Item">Items</button>
-						<button class="btn btn-default btn-sm" data-route-list="Ledgix Stock Movement">Stock Movements</button>
+						<button class="btn btn-default btn-sm" data-route-list="Item">Items</button>
+						<button class="btn btn-default btn-sm" data-route-report="Stock Ledger">Stock Ledger</button>
 						<button class="btn btn-default btn-sm" data-route-report="Ledgix Current Stock">Current Stock</button>
 					</div>
 				</section>
@@ -81,7 +91,7 @@ class LedgixInventoryIntelligence {
 					<div class="lx-ii-control lx-ii-tracking-control"></div>
 					<div class="lx-ii-control lx-ii-from-control"></div>
 					<div class="lx-ii-control lx-ii-to-control"></div>
-					<div class="lx-ii-search-wrap"><label>Search activity</label><input class="form-control lx-ii-search" placeholder="Sale, purchase, lot, serial, customer, supplier…"></div>
+					<div class="lx-ii-search-wrap"><label>Search activity</label><input class="form-control lx-ii-search" placeholder="Sale, purchase, batch, serial, customer, supplier…"></div>
 					<div class="lx-ii-filter-actions"><button class="btn btn-default lx-ii-reset">Reset</button><button class="btn btn-primary lx-ii-refresh">Refresh</button></div>
 				</section>
 				<div class="lx-ii-content"></div>
@@ -92,7 +102,7 @@ class LedgixInventoryIntelligence {
 	make_controls() {
 		this.itemControl = frappe.ui.form.make_control({
 			parent: this.$root.find(".lx-ii-item-control")[0],
-			df: { fieldname: "item", label: "Item", fieldtype: "Link", options: "Ledgix Item", placeholder: "All Items" },
+			df: { fieldname: "item", label: "Item", fieldtype: "Link", options: "Item", placeholder: "All Items" },
 			render_input: true,
 		});
 		this.trackingControl = frappe.ui.form.make_control({
@@ -265,9 +275,9 @@ class LedgixInventoryIntelligence {
 					${this.risks_html(risks)}
 				</div>
 			</section>
-			${identities.length ? `<section class="lx-ii-card"><div class="lx-ii-card-head"><div><h3>Lot performance</h3><p>Lot-level sell-through, margin and return behavior.</p></div><div class="lx-ii-native-actions"><span class="lx-ii-meta">${this.lot_meta_label(identities, meta)}</span><button class="btn btn-default btn-xs" data-route-list="Ledgix Stock Lot">Open Stock Lots</button></div></div>${this.identities_html(identities, meta)}</section>` : ""}
+			${identities.length ? `<section class="lx-ii-card"><div class="lx-ii-card-head"><div><h3>Batch performance</h3><p>ERPNext batch-level sell-through, margin and return behavior.</p></div><div class="lx-ii-native-actions"><span class="lx-ii-meta">${this.lot_meta_label(identities, meta)}</span><button class="btn btn-default btn-xs" data-route-list="Batch">Open Batches</button></div></div>${this.identities_html(identities, meta)}</section>` : ""}
 			<section class="lx-ii-card">
-				<div class="lx-ii-card-head"><div><h3>Transaction timeline</h3><p>Submitted purchase, sale and return events in one traceable view.</p></div><span class="lx-ii-meta">${this.timeline_meta_label(timeline, meta)}</span></div>
+				<div class="lx-ii-card-head"><div><h3>Transaction timeline</h3><p>Submitted ERPNext purchase, sale, return and stock events in one traceable view.</p></div><span class="lx-ii-meta">${this.timeline_meta_label(timeline, meta)}</span></div>
 				${this.timeline_html(timeline, meta)}
 			</section>
 		`);
@@ -301,7 +311,7 @@ class LedgixInventoryIntelligence {
 
 	lot_meta_label(rows, meta) {
 		const loaded = Number(meta.lot_loaded_count ?? rows.length);
-		return this.escape(`${loaded} loaded lot${loaded === 1 ? "" : "s"}`);
+		return this.escape(`${loaded} loaded batch${loaded === 1 ? "" : "es"}`);
 	}
 
 	timeline_meta_label(rows, meta) {
@@ -333,9 +343,9 @@ class LedgixInventoryIntelligence {
 
 	timeline_row_html(row) {
 		const event = row.cycle_status || row.event_type || "Activity";
-		const identity = row.serial_no || row.lot_number || "";
+		const identity = row.serial_no || row.lot_number || row.batch_no || "";
 		const isReturn = ["Return", "Partial Return"].includes(event);
-		const reference = isReturn ? (row.sales_return || row.reference || row.sale || "") : (row.reference || row.sale || row.purchase || row.sales_return || "");
+		const reference = row.reference_name || (isReturn ? (row.sales_return || row.reference || row.sale || "") : (row.reference || row.sale || row.purchase || row.sales_return || ""));
 		let qty = Number(row.qty || 0);
 		if (event === "Sale") qty = -Number(row.sale_qty || row.qty || 0);
 		else if (isReturn) qty = Number(row.return_qty || row.qty || 0);
@@ -343,17 +353,14 @@ class LedgixInventoryIntelligence {
 		else if (event === "Cancel") qty = Number(row.return_qty || 0);
 		const rate = Number(row.sale_rate || 0) || Number(row.cost_rate || row.unit_cost || 0);
 		const profit = Number(row.profit || row.profit_impact || 0) - Number(row.loss || 0);
-		return `<tr><td>${this.escape(row.date || row.purchase_date || row.sale_date || row.return_date || "—")}</td><td><span class="lx-ii-event is-${this.escape(String(event).toLowerCase().replace(/\s+/g, "-"))}">${this.escape(event)}</span></td><td><strong>${this.escape(row.item_name || row.item || "—")}</strong><small>${this.escape(identity)}</small></td><td>${this.reference_button(event, reference)}</td><td>${this.escape(row.customer || row.supplier || "—")}</td><td>${this.number(qty, 2)}</td><td>${this.number(row.current_lot_qty ?? row.running_qty ?? 0, 2)}</td><td>${this.money(rate)}</td><td class="${profit < 0 ? "is-negative" : profit > 0 ? "is-positive" : ""}">${this.money(profit)}</td></tr>`;
+		return `<tr><td>${this.escape(row.date || row.purchase_date || row.sale_date || row.return_date || "—")}</td><td><span class="lx-ii-event is-${this.escape(String(event).toLowerCase().replace(/\s+/g, "-"))}">${this.escape(event)}</span></td><td><strong>${this.escape(row.item_name || row.item || "—")}</strong><small>${this.escape(identity)}</small></td><td>${this.reference_button(row, reference)}</td><td>${this.escape(row.customer || row.supplier || "—")}</td><td>${this.number(qty, 2)}</td><td>${this.number(row.current_lot_qty ?? row.running_qty ?? 0, 2)}</td><td>${this.money(rate)}</td><td class="${profit < 0 ? "is-negative" : profit > 0 ? "is-positive" : ""}">${this.money(profit)}</td></tr>`;
 	}
 
-	reference_button(event, reference) {
+	reference_button(row, reference) {
 		if (!reference) return "—";
 		if (String(reference).includes(",")) return this.escape(reference);
-		let doctype = "";
-		if (event === "Purchase") doctype = "Ledgix Purchase";
-		if (event === "Sale") doctype = "Ledgix Sale";
-		if (["Return", "Partial Return"].includes(event)) doctype = "Ledgix Sales Return";
-		if (!doctype) return this.escape(reference);
+		const doctype = String(row.reference_doctype || "").trim();
+		if (!this.nativeReferenceDoctypes.has(doctype)) return this.escape(reference);
 		return `<button class="lx-ii-link" data-route-doc="${this.escape(doctype)}" data-name="${this.escape(reference)}">${this.escape(reference)}</button>`;
 	}
 
@@ -364,19 +371,19 @@ class LedgixInventoryIntelligence {
 	}
 
 	identities_html(rows, meta = {}) {
-		if (!rows.length) return '<div class="lx-ii-empty">No lot performance matched the current filters.</div>';
+		if (!rows.length) return '<div class="lx-ii-empty">No batch performance matched the current filters.</div>';
 		const pageCount = Math.max(1, Math.ceil(rows.length / this.lotPageSize));
 		const page = Math.min(Math.max(1, Number(this.state.lot_page || 1)), pageCount);
 		this.state.lot_page = page;
 		const start = (page - 1) * this.lotPageSize;
 		const end = Math.min(start + this.lotPageSize, rows.length);
-		const body = rows.slice(start, end).map(row => `<tr><td><strong>${this.escape(row.lot_number || "—")}</strong><small>${this.escape(row.purchase_date || "")}</small></td><td>${this.escape(row.item_name || row.item || "—")}</td><td>${this.escape(row.supplier || "—")}</td><td>${this.number(row.purchased_qty, 2)}</td><td>${this.number(row.remaining_qty, 2)}</td><td>${this.percent(row.sell_through_percent)}</td><td>${this.percent(row.return_rate_percent)}</td><td class="${Number(row.profit || 0) < 0 ? "is-negative" : Number(row.profit || 0) > 0 ? "is-positive" : ""}">${this.money(row.profit)}</td><td><span class="lx-ii-lot-status">${this.escape(row.lot_status || row.source_status || "Open")}</span></td></tr>`).join("");
-		const pagination = `<div class="lx-ii-pagination"><span>Showing ${start + 1}–${end} of ${rows.length} loaded lots</span><span class="lx-ii-pagination-actions"><button class="btn btn-default btn-xs lx-ii-lot-prev" type="button" ${page <= 1 ? "disabled" : ""}>Previous</button><span>Page ${page} of ${pageCount}</span><button class="btn btn-default btn-xs lx-ii-lot-next" type="button" ${page >= pageCount ? "disabled" : ""}>Next</button></span></div>`;
+		const body = rows.slice(start, end).map(row => `<tr><td><strong>${this.escape(row.lot_number || row.batch_no || "—")}</strong><small>${this.escape(row.purchase_date || "")}</small></td><td>${this.escape(row.item_name || row.item || "—")}</td><td>${this.escape(row.supplier || "—")}</td><td>${this.number(row.purchased_qty, 2)}</td><td>${this.number(row.remaining_qty, 2)}</td><td>${this.percent(row.sell_through_percent)}</td><td>${this.percent(row.return_rate_percent)}</td><td class="${Number(row.profit || 0) < 0 ? "is-negative" : Number(row.profit || 0) > 0 ? "is-positive" : ""}">${this.money(row.profit)}</td><td><span class="lx-ii-lot-status">${this.escape(row.lot_status || row.source_status || "Open")}</span></td></tr>`).join("");
+		const pagination = `<div class="lx-ii-pagination"><span>Showing ${start + 1}–${end} of ${rows.length} loaded batches</span><span class="lx-ii-pagination-actions"><button class="btn btn-default btn-xs lx-ii-lot-prev" type="button" ${page <= 1 ? "disabled" : ""}>Previous</button><span>Page ${page} of ${pageCount}</span><button class="btn btn-default btn-xs lx-ii-lot-next" type="button" ${page >= pageCount ? "disabled" : ""}>Next</button></span></div>`;
 		const cap = Number(meta.lot_result_cap || 500);
 		const capNote = meta.lot_cap_reached
-			? `<div class="lx-ii-cap-note">Lot result cap reached at ${this.escape(cap)} loaded lots. Narrow filters to investigate older or more specific lots.</div>`
+			? `<div class="lx-ii-cap-note">Batch result cap reached at ${this.escape(cap)} loaded batches. Narrow filters to investigate older or more specific batches.</div>`
 			: "";
-		return `<div class="lx-ii-table-wrap"><table class="lx-ii-table"><thead><tr><th>Lot</th><th>Item</th><th>Supplier</th><th>Purchased</th><th>Remaining</th><th>Sell-through</th><th>Return Rate</th><th>Profit</th><th>Status</th></tr></thead><tbody>${body}</tbody></table>${pagination}${capNote}</div>`;
+		return `<div class="lx-ii-table-wrap"><table class="lx-ii-table"><thead><tr><th>Batch</th><th>Item</th><th>Supplier</th><th>Purchased</th><th>Remaining</th><th>Sell-through</th><th>Return Rate</th><th>Profit</th><th>Status</th></tr></thead><tbody>${body}</tbody></table>${pagination}${capNote}</div>`;
 	}
 
 	render_error(message) {
