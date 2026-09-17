@@ -1,421 +1,325 @@
 # Ledgix FBR Architecture and Operations
 
+**Status:** CURRENT  
+**ERPNext-core migration:** COMPLETE  
+**FBR Production:** NOT YET PRODUCTION-READY
+
 ## Purpose
 
-This document describes the **current post-migration tax/FBR architecture**. It is operational documentation, not a migration plan.
+This is the current post-migration FBR/tax architecture.
 
-The governing rule is simple:
+> **ERPNext owns the commercial transaction. Ledgix owns FBR/tax mapping, immutable compliance snapshots, guarded transport, audit state and product UX around that transaction.**
 
-> **ERPNext owns the commercial transaction. Ledgix owns the tax/FBR mapping, immutable compliance snapshot, transport controls, audit trail and product UX around that transaction.**
-
-Ledgix must never create a second sale/accounting/stock ledger merely to satisfy FBR integration.
+Ledgix must not create a second sales, accounting, payment or stock ledger to satisfy FBR integration.
 
 ---
 
-## 1. Transaction authority
+## 1. Authority model
 
-### ERPNext is authoritative for
+### ERPNext owns
 
 - `Sales Invoice`
 - `POS Invoice`
-- Sales Invoice returns / credit notes
-- POS Invoice returns
-- item quantities, rates, discounts and invoice totals
+- native Sales Invoice returns / Credit Notes
+- native POS Invoice returns
+- Item, Customer, pricing and invoice totals
 - stock effects and Stock Ledger Entries
-- customer receivables
-- payments / Payment Entries
-- POS opening/closing and ERPNext POS consolidation
+- receivables and Payment Entries
+- POS Opening/Closing and POS consolidation
 
-### Ledgix is authoritative for
+### Ledgix owns
 
-- seller tax/FBR configuration
-- item-to-FBR tax/classification mapping
-- immutable per-line and header FBR snapshots captured on the ERPNext invoice
-- payload construction
-- readiness validation
-- Sandbox validation transport
-- Sandbox POST transport
-- Production validation transport
-- protected Production POST transport
-- `Ledgix FBR Submission Log`
-- invoice FBR status/reference/QR metadata
-- reconciliation-required safeguards
-- correction/reconciliation UX
-- Tax & FBR Center
-- readiness and go-live gates
+- seller FBR configuration;
+- item-to-FBR classification mapping;
+- immutable per-invoice and per-line FBR snapshots;
+- payload construction and readiness validation;
+- Sandbox and protected Production transport;
+- `Ledgix FBR Submission Log`;
+- invoice FBR status/reference/QR metadata;
+- reconciliation-required safeguards;
+- Tax & FBR Center UX;
+- activation/readiness evidence checks.
 
 ### Explicit non-authority
 
-Legacy `Ledgix Sale`, `Ledgix Sales Return`, `Ledgix Payment`, custom stock ledgers and similar retired business DocTypes are **not** FBR transaction sources for new activity.
+Frozen legacy records such as `Ledgix Sale`, `Ledgix Sales Return`, `Ledgix Payment` and custom stock ledgers are **not** current FBR transaction sources.
 
-A consolidated ERPNext Sales Invoice produced by POS Closing is an **accounting consolidation document**, not a second FBR source. The submitted source POS Invoices remain the FBR sources. `fbr_native.is_native_fbr_source()` explicitly excludes the consolidated Sales Invoice path.
+An ERPNext Sales Invoice created by POS Closing is an accounting consolidation document. The underlying submitted POS Invoices remain the legal FBR sources; the consolidation invoice must not be submitted as a second FBR invoice.
 
 ---
 
-## 2. Main components
+## 2. Current components
 
-| Layer | Current responsibility |
+| Component | Responsibility |
 |---|---|
-| ERPNext `Item` | Product authority |
-| `Ledgix Item Tax Profile` | FBR classification mapped by `erpnext_item` |
-| `Ledgix Tax Category` / `Ledgix Tax Rate` / Tax Profile | Ledgix tax policy/configuration |
-| ERPNext invoice rows | Commercial line authority plus immutable Ledgix FBR snapshot fields |
-| `erpnext_tax_foundation.py` | Converts Ledgix tax policy to ERPNext-owned tax rows/totals and writes snapshots |
-| `fbr_native.py` | ERPNext-native readiness, payload, validation/submission and status orchestration |
-| `fbr_payload.py` | FBR payload field mapping and legal-field validation |
-| `fbr_client.py` | Controlled HTTP transport and endpoint/mode gates |
-| `Ledgix FBR Settings` | Mode, tokens, seller identity, arming and safety state |
-| `Ledgix FBR Submission Log` | Durable request/response/status audit trail |
-| ERPNext invoice custom FBR fields | Official FBR number/reference/QR/status/reconciliation state |
-| `ledgix-tax-center` | Operator/manager/admin compliance UX |
+| ERPNext `Item` | Product/master authority |
+| `Ledgix Item Tax Profile` | FBR classification mapped to ERPNext Item |
+| Ledgix tax category/rate/profile records | Product tax/FBR configuration |
+| ERPNext invoice rows | Commercial line authority plus immutable FBR snapshot fields |
+| `erpnext_tax_foundation.py` | Applies the Ledgix tax plan to ERPNext tax rows/totals and snapshots |
+| `fbr_native.py` | Native invoice readiness, validation/submission orchestration and status handling |
+| `fbr_payload.py` | FBR payload and legal-field mapping |
+| `fbr_client.py` | Guarded HTTP transport and endpoint/mode checks |
+| `fbr_activation.py` | Read-only Sandbox/Production readiness evidence evaluation |
+| `Ledgix FBR Settings` | Mode, seller identity, tokens and Production interlock |
+| `Ledgix FBR Submission Log` | Durable compliance attempt/audit record |
+| ERPNext invoice custom fields | FBR status/reference/QR/error/reconciliation state |
+| `ledgix-tax-center` | Compliance operator UI |
 
 ---
 
-## 3. Normal invoice flow
+## 3. Native invoice flow
 
 ```text
-ERPNext Item / Customer / Ledgix tax mapping
-                |
-                v
-Sales Invoice or POS Invoice
-                |
-                v
-ERPNext computes commercial totals and accounting tax rows
-                |
-                v
-Ledgix writes immutable FBR header + line snapshots
-                |
-                v
-ERPNext invoice is submitted
-                |
-                v
-FBR readiness validation
-                |
-                +---- Disabled / Paused / Manual Only --> no network POST
-                |
-                +---- Sandbox --------------------------> validate / optional POST
-                |
-                +---- Production -----------------------> validate / protected POST
-                |
-                v
-Ledgix FBR Submission Log
-                |
-                v
-Official FBR invoice/reference + QR/status stored on the SAME ERPNext invoice
-                |
-                v
-Print/QR reads that authoritative ERPNext invoice
+ERPNext Item / Customer + Ledgix FBR mapping
+        -> Sales Invoice or POS Invoice
+        -> ERPNext commercial/tax totals
+        -> immutable Ledgix FBR snapshots
+        -> ERPNext submit
+        -> FBR readiness checks
+        -> allowed validate / POST operation
+        -> Ledgix FBR Submission Log
+        -> official status/reference/QR on the SAME ERPNext invoice
 ```
 
-### Immutable snapshot rule
+FBR payloads are not reconstructed later from whichever configuration happens to be current. Submitted invoices retain versioned snapshot data so later tax/configuration changes do not silently rewrite historical legal payloads.
 
-FBR payloads are **not reconstructed later from whatever tax settings happen to exist at that time**. Each submitted ERPNext invoice row carries a versioned immutable Ledgix FBR snapshot. `fbr_native` refuses payload generation when the required snapshot is missing/invalid.
-
-This protects historical invoices from later configuration changes.
+A missing or invalid required snapshot is a readiness failure.
 
 ---
 
-## 4. Return / Credit Note flow
+## 4. Returns and Credit Notes
 
-The return authority is still ERPNext:
+Return authority remains ERPNext:
 
-- POS return -> ERPNext `POS Invoice` with `is_return = 1` and `return_against`
-- B2B return -> ERPNext `Sales Invoice` credit note with `is_return = 1` and `return_against`
+- Retail return: return `POS Invoice` with `is_return = 1` and `return_against`.
+- B2B return: return `Sales Invoice` / Credit Note with `is_return = 1` and `return_against`.
 
-For FBR:
+For FBR, the return must resolve a real submitted original transaction. Where the FBR scenario requires it, the original official FBR number becomes the credit-note reference. The return carries its own compliance snapshot, submission log and FBR result state.
 
-1. The return must reference a real original submitted ERPNext invoice.
-2. FBR readiness resolves the original invoice through `return_against`.
-3. In Sandbox/Production the original must already have an official FBR invoice number before the credit note can be submitted.
-4. The outgoing credit-note payload uses the original official FBR reference as `invoiceRefNo`.
-5. A return reason is required.
-6. The return date cannot precede the original invoice date; current validation also enforces the configured FBR age rule used by the implementation.
-7. The credit note receives its own submission log/status/reference on the ERPNext return document.
-
-The original and the credit note therefore remain linked in both ERPNext and the FBR compliance layer.
+Do not recalculate a historical return from a retired `Ledgix Sale` or use a manually entered fake original FBR reference.
 
 ---
 
-## 5. FBR operating modes
-
-`Ledgix FBR Settings.mode` supports:
+## 5. Operating modes
 
 ### Disabled
 
-- No FBR network submission is allowed.
-- Appropriate for local development/demo data and sites that are not yet configured.
-- The ERPNext sale remains a valid ERPNext transaction.
+No FBR network posting. This is the required state for the completed local operating/acceptance dataset.
 
 ### Sandbox
 
-- Requires FBR Settings enabled and a configured **Sandbox token**.
-- Validation can call the Sandbox validation endpoint.
-- POST can call the Sandbox POST endpoint only when the configured workflow permits it.
-- `sandbox_post_on_submit` is a separate explicit control for on-submit Sandbox POST behavior.
+Requires enabled FBR configuration and a real Sandbox token. Validation and POST are permitted only through the configured guarded workflow.
 
 ### Production
 
-- Requires FBR Settings enabled and a configured **Production token**.
-- Production validation is available for controlled checks.
-- Production POST requires the additional `production_post_armed` interlock.
-- Arming Production is a deliberate admin/System Manager go-live action, not an installation default.
+Requires enabled FBR configuration, a real Production token and the separate Production POST interlock. Production activation is never an installation default.
 
 ### Paused
 
-- Network submission is not permitted while paused.
-- Pause metadata records the reason, time and user where supported by the control workflow.
-- Use this state when FBR submission must be deliberately stopped without dismantling configuration.
+Transport is deliberately stopped while preserving configuration and audit state.
 
 ### Manual Only
 
-- Automatic network submission is not permitted by the transport mode gate.
-- It is useful when operators need to prepare/review data without automatic transport.
+Automatic transport is not permitted; operators can prepare/review data through the supported manual workflow.
+
+`submit_trigger` controls when an allowed action is considered. It never bypasses mode, token, readiness, reconciliation or Production-arming rules.
 
 ---
 
-## 6. Submit triggers
+## 6. Production safety model
 
-`submit_trigger` supports:
+Production POST requires the supported native source invoice to pass all configured safety gates, including:
 
-- `Manual`
-- `On Submit`
-- `Validate Only`
-
-The trigger does not bypass mode/token/readiness/arming gates. It controls *when* the allowed FBR action is considered, not whether an unsafe request is allowed.
-
-On-submit integration is attached to ERPNext `Sales Invoice` and `POS Invoice` hooks. The Production network action is performed after commit where configured so a remote transport failure does not invent or roll back a second business ledger.
-
----
-
-## 7. Production safety model
-
-### Production arming
-
-Production POST is rejected unless all of the following are true:
-
-- mode is `Production`;
-- FBR is enabled;
-- a Production token is configured;
+- FBR enabled;
+- mode `Production`;
+- Production token configured;
 - `production_post_armed = 1`;
-- the ERPNext source invoice passes Ledgix/FBR readiness;
-- the document is a supported native FBR source.
+- invoice readiness successful;
+- no unsupported/consolidation source path.
 
-### Token storage
+### Token handling
 
-Sandbox and Production tokens are `Password` fields on `Ledgix FBR Settings`.
+Sandbox and Production tokens are secret settings. Never:
 
-Operational rules:
+- print token values in logs;
+- return raw tokens to browser APIs;
+- store tokens in fixtures/demo data;
+- paste tokens into documentation/evidence;
+- commit tokens to Git.
 
-- never print tokens in logs or docs;
-- never return raw token values to browser APIs;
-- never copy tokens into demo fixtures;
-- never commit tokens to Git;
-- error sanitization must redact bearer credentials.
+---
 
-### Ambiguous Production POST
+## 7. Ambiguous Production response: fail closed
 
-A Production POST can fail in a way where Ledgix cannot prove whether FBR received the request (for example, a network error after request transmission).
-
-In that case Ledgix uses:
+If a Production request may have reached FBR but Ledgix cannot prove the outcome, the invoice becomes:
 
 ```text
 Reconciliation Required
 ```
 
-The invoice is marked accordingly and automatic retransmission is intentionally blocked.
+This is intentionally different from a known rejection.
 
-The operator must reconcile the invoice with FBR/PRAL before any retransmission. The implementation requires an explicit reconciliation confirmation workflow rather than guessing that a failed HTTP response means FBR never accepted the invoice.
+Current `apps/ledgix_saas/hooks.py` defines:
 
-### Why automatic retry is restricted
+```python
+scheduler_events = {}
+```
 
-Blind retry of an ambiguous Production POST can create duplicate/legal ambiguity. For this reason `retry_enabled` is currently reserved/hidden and Production retransmission is deliberately reconciliation-safe rather than automatic.
+There is no blind retry/offline upload scheduler. A timeout or dropped response must **not** be interpreted as proof that FBR did not accept the invoice.
 
----
-
-## 8. Submission log and invoice state
-
-Every real validation/submission attempt that reaches the relevant operation path is represented through Ledgix FBR status/logging controls.
-
-ERPNext source invoices carry Ledgix custom fields for values such as:
-
-- FBR status
-- official FBR invoice number
-- FBR reference
-- QR code
-- submitted timestamp
-- error code/message
-- submission log link
-- reconciliation-required flag
-
-The `Ledgix FBR Submission Log` stores the compliance attempt/audit record. It must not be treated as a replacement Sales Invoice.
-
-Once an official FBR invoice number exists, a repeated submit request is treated as already submitted rather than creating a second network submission.
+The operator must reconcile externally with FBR/PRAL and use the explicit supported reconciliation workflow before any retransmission decision.
 
 ---
 
-## 9. Seller and buyer identity
+## 8. Submission log vs financial record
+
+`Ledgix FBR Submission Log` records compliance attempts, request/response state and audit evidence. It is not a Sales Invoice or accounting ledger.
+
+The authoritative ERPNext source invoice retains current FBR fields such as:
+
+- FBR status;
+- official FBR number/reference;
+- QR data;
+- submitted timestamp;
+- safe error state;
+- submission-log link;
+- reconciliation-required state.
+
+Once a supported invoice has an official accepted FBR identity, repeated submission must not create a second legal invoice.
+
+---
+
+## 9. Seller, buyer and item data
 
 ### Seller
 
-Seller identity comes from configured Ledgix tax/FBR settings/profile data used by `fbr_payload` and `fbr_native`.
+Seller identity is client/legal configuration. Do not seed or invent legal values such as:
 
-Do not seed or guess:
-
-- NTN/CNIC
-- legal seller business name
-- registered province/address
-- software registration number
-- Production token
-
-Those are client/legal configuration inputs.
+- NTN/CNIC;
+- legal business name;
+- registered province/address;
+- registration/software identifiers;
+- Production token.
 
 ### Buyer
 
-Buyer tax identity is resolved from ERPNext `Customer` and Ledgix ERPNext Customer extension fields. Walk-in retail remains a valid ERPNext Customer pattern, but Production validation must use the legally correct buyer data required for the scenario.
+Buyer commercial identity comes from ERPNext `Customer` plus current Ledgix ERPNext extensions where required by the FBR payload.
+
+### Item
+
+ERPNext `Item` is product authority. Current FBR mapping uses the ERPNext-linked item mapping, not historical `Ledgix Item` as a new-business master.
+
+Mappings may include HS code, FBR UOM, sale type, tax classification/rate basis, scenario identifiers and SRO fields where applicable.
 
 ---
 
-## 10. Item tax mapping
+## 10. Accounting relationship
 
-The ERPNext Item is the product authority. New mappings use:
+The Ledgix tax foundation writes/validates tax behavior against the same ERPNext Sales/POS invoice used for accounting.
 
-```text
-Ledgix Item Tax Profile.erpnext_item -> ERPNext Item
-```
+ERPNext remains authoritative for:
 
-The older `item -> Ledgix Item` field is transition/history compatibility only.
+- net total;
+- tax rows;
+- grand total;
+- GL impact;
+- customer receivable;
+- stock/accounting effects.
 
-An item tax mapping can carry, where applicable:
-
-- tax category
-- taxable/zero/exempt classification
-- transaction-value vs notified-retail-price basis
-- HS code
-- FBR UOM
-- sale type
-- FBR rate description
-- Sandbox scenario ID
-- SRO references
-- extra/further/FED/withholding components
-
-The mapping affects the Ledgix FBR snapshot and ERPNext tax adapter. It does not make Ledgix Item the master again.
+A mismatch between the Ledgix FBR snapshot and authoritative ERPNext totals is a readiness error. It must not be silently overwritten after submission.
 
 ---
 
-## 11. ERPNext accounting relationship
+## 11. Sandbox evidence
 
-`erpnext_tax_foundation.py` builds a tax plan from the Ledgix mapping/snapshot and writes **ERPNext Sales/POS invoice tax rows** using configured Company tax accounts.
+Real Sandbox proof must come from real network interactions and persisted evidence.
 
-ERPNext therefore remains authoritative for:
+Depending on client profile, retain successful validation/POST evidence for:
 
-- net total
-- tax rows
-- grand total
-- GL impact
-- customer receivable
+- ERPNext `Sales Invoice`;
+- ERPNext `POS Invoice` when POS is enabled;
+- native return/Credit Note when required by the acceptance scope.
 
-Ledgix snapshot totals are validated against the ERPNext invoice totals. A mismatch is a readiness error, not something Ledgix silently overwrites after submission.
+A mock payload, fabricated response, locally typed FBR number or fake token is not certification evidence.
 
----
-
-## 12. POS consolidation rule
-
-ERPNext may generate a consolidated `Sales Invoice` during `POS Closing Entry`.
-
-That consolidated document:
-
-- is accounting consolidation;
-- is **not** a second FBR source;
-- must not generate another FBR legal invoice for the same underlying POS sales.
-
-`fbr_native._is_consolidated_pos_sales_invoice()` enforces this distinction.
+Detailed go-live requirements are in `docs/fbr/FBR_PRODUCTION_CHECKLIST.md`.
 
 ---
 
-## 13. Sandbox certification evidence
+## 12. Read-only activation evaluator
 
-A valid Sandbox proof package should be based on real FBR network responses and should include, at minimum:
+`apps/ledgix_saas/api/fbr_activation.py` is intentionally separated from transport.
 
-- configured Sandbox token (kept secret; do not paste it into the evidence package);
-- legally correct seller identity;
-- required Item/FBR scenario mappings;
-- successful readiness output;
-- real Sandbox validation response(s);
-- real Sandbox POST response(s) where required;
-- return/Credit Note scenario proof where required;
-- persisted `Ledgix FBR Submission Log` records;
-- corresponding ERPNext invoice/return status fields;
-- QR/reference rendering checks;
-- no Production posting.
+It:
 
-A local/mock payload, a fabricated response or a manually typed FBR number is **not certification evidence**.
+- does not read raw token values;
+- does not send a network request;
+- does not arm Production;
+- evaluates client readiness, Sandbox proof, backup evidence, release identity and unresolved reconciliation state.
 
----
+Key result concepts are:
 
-## 14. Production-switch readiness
+- `sandbox_ready` — prerequisites to exercise Sandbox;
+- `sandbox_proven` — required persisted real Sandbox network proof exists;
+- `production_switch_ready` — Sandbox proof plus strict release/backup/Production prerequisites are green.
 
-Production should remain unarmed until all applicable gates are complete:
-
-1. ERPNext invoice/return workflows pass client UAT.
-2. Tax account mapping is complete.
-3. Item classifications are reviewed.
-4. Seller identity is confirmed by the client.
-5. Real Sandbox certification/proof is accepted.
-6. Production token is installed securely.
-7. Production validation is checked where appropriate.
-8. Backup/recovery and operational ownership are confirmed.
-9. Operators understand `Reconciliation Required` handling.
-10. A Ledgix Admin/System Manager explicitly arms Production POST.
-
-Do not switch to Production merely because application tests pass.
+Even `production_switch_ready=true` is only a readiness result. The Production switch remains a separate explicit action.
 
 ---
 
-## 15. Current project state
+## 13. Local operating dataset
 
-As of the final pre-client-testing cleanup:
+The completed local acceptance dataset `LEDGIX-RETAIL-OPERATING-V1` deliberately keeps FBR transport disabled.
 
-- ERPNext-native Sales Invoice/POS Invoice FBR integration is implemented.
-- Immutable tax/FBR snapshots are implemented.
-- Sandbox/Production validation and POST transport code is implemented.
-- FBR Submission Log, reconciliation-required handling, print/QR metadata and readiness tooling are implemented.
-- Production arming protection is implemented.
-- Software/setup/static/runtime infrastructure is at the code-complete release-hardening stage.
-- **The required real FBR token is currently unavailable for this project session.**
-- Therefore **real Sandbox network certification is still pending**.
-- No fake Sandbox certification, fake official FBR invoice number, fake token or fabricated network-success evidence is to be created.
+It may contain classification/configuration data needed to exercise UI and readiness logic, but it must not contain fabricated:
 
-This distinction must remain visible in handoffs and release documentation.
-
----
-
-## 16. Local demo-data rule
-
-`scripts/prepare_local_demo.sh` and `ledgix_saas.setup.demo_data` deliberately force FBR transport to `Disabled` before generating local demo transactions.
-
-The demo may populate tax/classification fields for UI/workflow testing, but it must not create:
-
-- Sandbox/Production transport success records;
+- Sandbox/Production success logs;
 - official FBR invoice numbers;
-- fake FBR responses;
-- fake legal seller identity;
-- a Production token.
+- network responses;
+- seller legal identity;
+- Production credentials.
+
+Do not casually rebuild/reset the dataset. See `docs/operations/LOCAL_DEMO_DATA.md`.
 
 ---
 
-## 17. Useful source map
+## 14. Current project state
+
+As of 2026-09-17:
+
+| Area | State |
+|---|---|
+| ERPNext-native FBR source integration | IMPLEMENTED |
+| Immutable FBR snapshots | IMPLEMENTED |
+| Sandbox/Production guarded transport code | IMPLEMENTED |
+| Submission Log / QR / status metadata | IMPLEMENTED |
+| Reconciliation-required safeguard | IMPLEMENTED |
+| Production arming interlock | IMPLEMENTED |
+| Local acceptance dataset | COMPLETE; FBR transport disabled |
+| Real client Sandbox credential/evidence | EXTERNAL / PENDING |
+| Real Sandbox certification | NOT YET COMPLETE |
+| Production activation | NOT YET PRODUCTION-READY |
+
+Do not change the final two states without real external evidence.
+
+---
+
+## 15. Current source map
 
 ```text
 apps/ledgix_saas/api/fbr_native.py
 apps/ledgix_saas/api/fbr_client.py
 apps/ledgix_saas/api/fbr_payload.py
 apps/ledgix_saas/api/fbr_settings.py
-apps/ledgix_saas/api/fbr_submission.py
+apps/ledgix_saas/api/fbr_activation.py
+apps/ledgix_saas/api/fbr_preflight.py
+apps/ledgix_saas/api/fbr_legacy_guard.py
 apps/ledgix_saas/setup/erpnext_tax_foundation.py
 apps/ledgix_saas/setup/erpnext_phase9_extensions.py
-apps/ledgix_saas/ledgix/doctype/ledgix_fbr_settings/
-apps/ledgix_saas/ledgix/doctype/ledgix_fbr_submission_log/
-apps/ledgix_saas/ledgix/page/ledgix_tax_center/
+apps/ledgix_saas/hooks.py
 ```
 
-For historical cutover rationale, use `docs/archive/migration/`. For current production switching, use `docs/fbr/FBR_PRODUCTION_CHECKLIST.md` together with this document.
+The old `fbr_submission` entrypoint name remains only as a compatibility/legacy guard path; current new-business submission authority is ERPNext-native.
+
+Historical migration rationale lives under `docs/archive/migration/`.
