@@ -10,12 +10,17 @@ URL=""
 APP="${APP_NAME:-ledgix_saas}"
 TARGET_SHA=""
 TMP_APP=""
+TMP_CONTRACT=""
+TARGET_STAGE=""
 CREATED_DATABASE=0
 CREATED_SITE=0
 ADMIN_PASSWORD=""
 DB_NAME=""
 DB_PASSWORD=""
+REUSE_EXISTING_SHARED_CODE=0
 SECRETS_ROOT="${LEDGIX_SITE_SECRETS_DIR:-$HOME/.config/ledgix/sites}"
+
+declare -a EXISTING_LEDgIX_SITES=()
 
 export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
 export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
@@ -38,6 +43,13 @@ Usage: deploy/provision_client_site_safe.sh --site SITE --release REF [options]
 Creates one fresh isolated Ledgix client site on an already prepared supported
 bench. ERPNext is installed before Ledgix. The script does not create client
 business masters, apply a Business Profile, or activate FBR Production.
+
+On a bench that already has Ledgix tenants, provisioning is code-preserving:
+the requested immutable release must match every existing tenant's recorded
+release and the current bench app must match that release exactly. The helper
+will then reuse the existing shared code instead of syncing or changing it.
+Use deploy/deploy_update_shared_safe.sh first when the shared bench must move to
+a different release.
 
 Options:
   --site SITE          New Frappe site name (required)
@@ -94,8 +106,75 @@ sql_identifier() {
   printf '%s' "$1" | sed 's/`/``/g'
 }
 
+discover_existing_ledgix_sites() {
+  local config candidate apps
+  for config in "$BENCH_DIR"/sites/*/site_config.json; do
+    [[ -f "$config" ]] || continue
+    candidate="$(basename "$(dirname "$config")")"
+    [[ "$candidate" == "$SITE" ]] && continue
+    apps="$(bench_run --site "$candidate" list-apps 2>/dev/null || true)"
+    if printf '%s\n' "$apps" | awk '{print $1}' | grep -Fxq "$APP"; then
+      printf '%s\n' "$candidate"
+    fi
+  done
+}
+
+recorded_release_sha() {
+  local site="$1" record value
+  for record in \
+    "$BENCH_DIR/sites/$site/private/ledgix-release/last-successful.env" \
+    "$BENCH_DIR/sites/$site/private/ledgix-provisioning/initial-provisioning.env"; do
+    [[ -f "$record" ]] || continue
+    value="$(awk -F= '$1=="deployed_sha" || $1=="release_sha" {print substr($0, index($0, "=") + 1); exit}' "$record")"
+    value="${value#\"}"
+    value="${value%\"}"
+    if [[ "$value" =~ ^[0-9a-fA-F]{40}$ ]]; then
+      printf '%s\n' "${value,,}"
+      return 0
+    fi
+  done
+  return 1
+}
+
+verify_existing_shared_code_matches_target() {
+  local site recorded diff_output
+  mapfile -t EXISTING_LEDgIX_SITES < <(discover_existing_ledgix_sites | sort -u)
+  [[ "${#EXISTING_LEDgIX_SITES[@]}" -gt 0 ]] || return 1
+
+  [[ -d "$DEST_APP" ]] || die "existing Ledgix tenants were found but bench app is missing: $DEST_APP"
+  info "existing Ledgix tenants detected: ${EXISTING_LEDgIX_SITES[*]}"
+  for site in "${EXISTING_LEDgIX_SITES[@]}"; do
+    recorded="$(recorded_release_sha "$site" || true)"
+    [[ -n "$recorded" ]] || die "$site has no immutable Ledgix release evidence; run the approved updater before adding another tenant"
+    [[ "$recorded" == "$TARGET_SHA" ]] || die "$site records Ledgix release $recorded, but requested release is $TARGET_SHA. Run deploy/deploy_update_shared_safe.sh for the full tenant cohort first."
+  done
+
+  command -v tar >/dev/null 2>&1 || die 'tar is required to verify existing shared Ledgix code'
+  command -v diff >/dev/null 2>&1 || die 'diff is required to verify existing shared Ledgix code'
+  TARGET_STAGE="$(mktemp -d)"
+  git -C "$REPO_ROOT" archive --format=tar "$TARGET_SHA" "apps/$APP" | tar -xf - -C "$TARGET_STAGE"
+  [[ -d "$TARGET_STAGE/apps/$APP" ]] || die 'could not materialize target Ledgix app for shared-code verification'
+  if ! diff_output="$(diff -qr \
+      --exclude='__pycache__' \
+      --exclude='*.pyc' \
+      --exclude='*.pyo' \
+      --exclude='*.egg-info' \
+      --exclude='.pytest_cache' \
+      --exclude='.ruff_cache' \
+      "$TARGET_STAGE/apps/$APP" "$DEST_APP" 2>&1)"; then
+    [[ -z "$diff_output" ]] || printf '%s\n' "$diff_output" >&2
+    die "existing shared bench Ledgix code does not exactly match requested release $TARGET_SHA; use the approved cohort updater before provisioning"
+  fi
+
+  REUSE_EXISTING_SHARED_CODE=1
+  ok "existing shared bench already runs approved release $TARGET_SHA; code sync will be skipped"
+  return 0
+}
+
 cleanup() {
   rm -rf "$TMP_APP" 2>/dev/null || true
+  [[ -z "$TMP_CONTRACT" ]] || rm -f "$TMP_CONTRACT" 2>/dev/null || true
+  [[ -z "$TARGET_STAGE" ]] || rm -rf "$TARGET_STAGE" 2>/dev/null || true
   if [[ "$CREATED_DATABASE" -eq 1 && "$CREATED_SITE" -eq 0 && -n "$DB_NAME" ]]; then
     warn 'site creation did not complete; cleaning newly-created database/user'
     ident="$(sql_identifier "$DB_NAME")"
@@ -141,16 +220,23 @@ elif git -C "$REPO_ROOT" show-ref --verify --quiet "refs/tags/$RELEASE"; then
 else
   die 'release must be a full 40-character commit SHA or immutable tag'
 fi
+TARGET_SHA="${TARGET_SHA,,}"
 [[ "$TARGET_SHA" =~ ^[0-9a-f]{40}$ ]] || die "could not resolve immutable release: $RELEASE"
 info "approved target SHA: $TARGET_SHA"
 
-git -C "$REPO_ROOT" checkout --detach "$TARGET_SHA"
-[[ "$(git -C "$REPO_ROOT" rev-parse HEAD)" == "$TARGET_SHA" ]] || die 'repository did not land on approved release'
-CONTRACT="$REPO_ROOT/deploy/release_contract.env"
-[[ -f "$CONTRACT" ]] || die 'approved release is missing deploy/release_contract.env'
+TMP_CONTRACT="$(mktemp)"
+git -C "$REPO_ROOT" show "$TARGET_SHA:deploy/release_contract.env" >"$TMP_CONTRACT" \
+  || die 'approved release is missing deploy/release_contract.env'
 # shellcheck disable=SC1090
-source "$CONTRACT"
+source "$TMP_CONTRACT"
 [[ "${LEDGIX_APP:-}" == "$APP" ]] || die "release contract app mismatch: expected ${LEDGIX_APP:-missing}, provisioning $APP"
+
+printf '\n===== EXISTING SHARED-BENCH RELEASE SAFETY =====\n'
+if verify_existing_shared_code_matches_target; then
+  info 'existing Ledgix tenants will keep their current code unchanged'
+else
+  info 'no existing Ledgix tenants detected; approved release will be synced for the first tenant'
+fi
 
 printf '\n===== PINNED BENCH CONTRACT =====\n'
 BENCH_VERSIONS="$(bench_run version)"
@@ -162,16 +248,27 @@ ERPNEXT_VERSION="$(printf '%s\n' "$BENCH_VERSIONS" | awk '$1=="erpnext" {print $
   || die "ERPNext version mismatch: expected ${LEDGIX_EXPECTED_ERPNEXT_VERSION:-unset}, found ${ERPNEXT_VERSION:-missing}"
 ok "supported bench: frappe $FRAPPE_VERSION / erpnext $ERPNEXT_VERSION"
 
-printf '\n===== EXACT LEDGIX APP SYNC =====\n'
-rm -rf "$TMP_APP"
-cp -a "$SRC_APP" "$TMP_APP"
-rm -rf "$DEST_APP"
-mv "$TMP_APP" "$DEST_APP"
-"$BENCH_DIR/env/bin/python" -m pip install -e "$DEST_APP"
-if [[ -f "$SCRIPT_DIR/repair_apps_txt.sh" ]]; then
-  BENCH_DIR="$BENCH_DIR" bash "$SCRIPT_DIR/repair_apps_txt.sh"
+printf '\n===== EXACT LEDGIX APP CONTRACT =====\n'
+if [[ "$REUSE_EXISTING_SHARED_CODE" -eq 0 ]]; then
+  git -C "$REPO_ROOT" checkout --detach "$TARGET_SHA"
+  [[ "$(git -C "$REPO_ROOT" rev-parse HEAD)" == "$TARGET_SHA" ]] || die 'repository did not land on approved release'
+  [[ -d "$SRC_APP" ]] || die "source app missing after checkout: $SRC_APP"
+  rm -rf "$TMP_APP"
+  cp -a "$SRC_APP" "$TMP_APP"
+  rm -rf "$DEST_APP"
+  mv "$TMP_APP" "$DEST_APP"
+  "$BENCH_DIR/env/bin/python" -m pip install -e "$DEST_APP"
+  if [[ -f "$SCRIPT_DIR/repair_apps_txt.sh" ]]; then
+    BENCH_DIR="$BENCH_DIR" bash "$SCRIPT_DIR/repair_apps_txt.sh"
+  fi
+  ok 'bench Ledgix app mirrors approved release exactly for first tenant'
+else
+  "$BENCH_DIR/env/bin/python" -m pip install -e "$DEST_APP"
+  if [[ -f "$SCRIPT_DIR/repair_apps_txt.sh" ]]; then
+    BENCH_DIR="$BENCH_DIR" bash "$SCRIPT_DIR/repair_apps_txt.sh"
+  fi
+  ok 'existing shared Ledgix code preserved; no checkout/sync/replacement performed'
 fi
-ok 'bench Ledgix app mirrors approved release exactly'
 
 printf '\n===== CREATE ISOLATED SITE DATABASE =====\n'
 ADMIN_PASSWORD="$(strong_password)"
@@ -249,6 +346,8 @@ SITE_LEDgIX_VERSION="$(printf '%s\n' "$INSTALLED_APPS" | awk -v app="$APP" '$1==
   printf 'ledgix_version=%q\n' "$SITE_LEDgIX_VERSION"
   printf 'database_isolated=1\n'
   printf 'erpnext_installed_before_ledgix=1\n'
+  printf 'shared_code_reused=%q\n' "$REUSE_EXISTING_SHARED_CODE"
+  printf 'existing_ledgix_tenant_count=%q\n' "${#EXISTING_LEDgIX_SITES[@]}"
   printf 'business_masters_created_by_ledgix_provisioner=0\n'
   printf 'business_profile_applied=0\n'
   printf 'fbr_production_activated=0\n'
