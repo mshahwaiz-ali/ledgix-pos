@@ -3,6 +3,17 @@
 (() => {
     "use strict";
 
+    const NATIVE_INVENTORY_REFERENCE_DOCTYPES = new Set([
+        "Sales Invoice",
+        "POS Invoice",
+        "Purchase Invoice",
+        "Purchase Receipt",
+        "Delivery Note",
+        "Stock Entry",
+        "Stock Reconciliation",
+        "Subcontracting Receipt",
+    ]);
+
     function patch_pos_printing() {
         if (typeof LedgixPOSV2 === "undefined" || LedgixPOSV2.prototype.__ledgix_phase10_print) return false;
         const proto = LedgixPOSV2.prototype;
@@ -66,8 +77,9 @@
         else if (event === "Purchase") qty = Number(row.purchased_qty || row.qty || 0);
         const rate = Number(row.sale_rate || 0) || Number(row.cost_rate || row.valuation_rate || 0);
         const profit = Number(row.profit || 0) - Number(row.loss || 0);
-        const ref = referenceDoctype && reference
-            ? `<button class="lx-ii-link" data-route-doc="${center.escape(referenceDoctype)}" data-name="${center.escape(reference)}">${center.escape(reference)}</button>`
+        const safeDoctype = NATIVE_INVENTORY_REFERENCE_DOCTYPES.has(referenceDoctype) ? referenceDoctype : "";
+        const ref = safeDoctype && reference
+            ? `<button class="lx-ii-link" data-route-doc="${center.escape(safeDoctype)}" data-name="${center.escape(reference)}">${center.escape(reference)}</button>`
             : center.escape(reference || "—");
         return `<tr><td>${center.escape(row.date || row.posting_date || "—")}</td><td><span class="lx-ii-event is-${center.escape(String(event).toLowerCase().replace(/\s+/g, "-"))}">${center.escape(event)}</span></td><td><strong>${center.escape(row.item_name || row.item || "—")}</strong><small>${center.escape(identity)}</small></td><td>${ref}</td><td>${center.escape(row.customer || row.supplier || row.warehouse || "—")}</td><td>${center.number(qty, 2)}</td><td>${center.number(row.running_qty ?? row.qty_after_transaction ?? 0, 2)}</td><td>${center.money(rate)}</td><td class="${profit < 0 ? "is-negative" : profit > 0 ? "is-positive" : ""}">${center.money(profit)}</td></tr>`;
     }
@@ -78,7 +90,7 @@
         center.__ledgix_phase10_native = true;
 
         const holder = center.$root.find(".lx-ii-item-control");
-        if (holder.length) {
+        if (holder.length && center.itemControl?.df?.options !== "Item") {
             const current = center.itemControl?.get_value?.() || center.state.item || "";
             center.itemControl?.$input?.off("change");
             holder.empty();
@@ -94,9 +106,13 @@
             });
         }
 
-        center.timeline_row_html = function (row) {
-            return native_bi_timeline_row(this, row);
-        };
+        // Newer retained Inventory Intelligence source already owns a stricter
+        // native-reference whitelist. Only patch older/cached page versions.
+        if (!center.nativeReferenceDoctypes) {
+            center.timeline_row_html = function (row) {
+                return native_bi_timeline_row(this, row);
+            };
+        }
 
         const rewriteRoutes = () => {
             const $root = center.$root;
