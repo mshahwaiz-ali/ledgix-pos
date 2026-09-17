@@ -160,6 +160,85 @@ def _existing_default_pos_profile(user: str, *, exclude: str | None = None) -> s
     return None
 
 
+def _valid_company_account(company: str, account: str | None) -> str | None:
+    if account and frappe.db.exists(
+        "Account",
+        {"name": account, "company": company, "is_group": 0, "disabled": 0},
+    ):
+        return account
+    return None
+
+
+def _valid_company_cost_center(company: str, cost_center: str | None) -> str | None:
+    if cost_center and frappe.db.exists(
+        "Cost Center",
+        {"name": cost_center, "company": company, "is_group": 0, "disabled": 0},
+    ):
+        return cost_center
+    return None
+
+
+def _pos_accounting_defaults(company: str, source_profile: str | None) -> tuple[str, str]:
+    write_off_account = None
+    write_off_cost_center = None
+
+    if source_profile:
+        values = frappe.db.get_value(
+            "POS Profile",
+            source_profile,
+            ["write_off_account", "write_off_cost_center"],
+            as_dict=True,
+        )
+        if values:
+            write_off_account = _valid_company_account(company, values.write_off_account)
+            write_off_cost_center = _valid_company_cost_center(
+                company, values.write_off_cost_center
+            )
+
+    if not write_off_account:
+        write_off_account = _valid_company_account(
+            company, frappe.db.get_value("Company", company, "write_off_account")
+        )
+    if not write_off_account:
+        write_off_account = _valid_company_account(
+            company, frappe.db.get_value("Company", company, "default_expense_account")
+        )
+    if not write_off_account:
+        write_off_account = frappe.db.get_value(
+            "Account",
+            {
+                "company": company,
+                "root_type": "Expense",
+                "is_group": 0,
+                "disabled": 0,
+            },
+            "name",
+            order_by="name asc",
+        )
+
+    if not write_off_cost_center:
+        write_off_cost_center = _valid_company_cost_center(
+            company, frappe.db.get_value("Company", company, "cost_center")
+        )
+    if not write_off_cost_center:
+        write_off_cost_center = frappe.db.get_value(
+            "Cost Center",
+            {"company": company, "is_group": 0, "disabled": 0},
+            "name",
+            order_by="name asc",
+        )
+
+    if not write_off_account:
+        frappe.throw(
+            f"A leaf Expense/Write Off Account is required for {company} before local retail POS setup."
+        )
+    if not write_off_cost_center:
+        frappe.throw(
+            f"A leaf Cost Center is required for {company} before local retail POS setup."
+        )
+    return write_off_account, write_off_cost_center
+
+
 def ensure_retail_pos_profile(
     company: str,
     warehouse: str,
@@ -172,9 +251,14 @@ def ensure_retail_pos_profile(
     if frappe.db.exists("POS Profile", native.POS_PROFILE):
         return native.POS_PROFILE
 
-    administrator_has_default = bool(
-        _existing_default_pos_profile("Administrator", exclude=native.POS_PROFILE)
+    source_profile = _existing_default_pos_profile(
+        "Administrator", exclude=native.POS_PROFILE
     )
+    administrator_has_default = bool(source_profile)
+    write_off_account, write_off_cost_center = _pos_accounting_defaults(
+        company, source_profile
+    )
+
     doc = frappe.get_doc(
         {
             "doctype": "POS Profile",
@@ -185,6 +269,8 @@ def ensure_retail_pos_profile(
             "selling_price_list": native.RETAIL_PRICE_LIST,
             "currency": "PKR",
             "disabled": 0,
+            "write_off_account": write_off_account,
+            "write_off_cost_center": write_off_cost_center,
             "payments": [
                 {"mode_of_payment": "Cash", "default": 1},
                 {"mode_of_payment": "Card", "default": 0},
