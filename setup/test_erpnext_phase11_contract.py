@@ -9,7 +9,14 @@ from ledgix_saas.setup.erpnext_extensions import PROFILE_DEFAULTS
 
 
 APP_ROOT = Path(__file__).resolve().parents[1]
-REPO_ROOT = APP_ROOT.parents[1]
+REPO_ROOT = next(
+    (
+        parent
+        for parent in APP_ROOT.parents
+        if (parent / "scripts" / "run_erpnext_phase11_final_gate.sh").exists()
+    ),
+    APP_ROOT.parents[1],
+)
 WORKSPACE_PATH = APP_ROOT / "ledgix" / "workspace" / "ledgix" / "ledgix.json"
 
 
