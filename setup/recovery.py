@@ -3,6 +3,7 @@ from __future__ import annotations
 import frappe
 
 from ledgix_saas.api import legacy_retirement
+from ledgix_saas.setup.phase12_read_only import verify_frozen_snapshot_read_only
 
 
 ERP_NEXT_READ_DOCTYPES = (
@@ -30,10 +31,9 @@ def _read_business_profile() -> dict | None:
 def verify_recovery_state(require_phase12_frozen: int | bool = 1) -> dict:
     """Read-only recovery verification for a restored site.
 
-    This intentionally does not call the Phase 12 migration gate or mutate the
-    legacy retirement state. It verifies that required apps can be read,
-    representative ERPNext/Ledgix DocTypes are accessible, and (for migrated
-    sites) the frozen legacy digest still matches the restored database.
+    This intentionally does not call the Phase 12 admin verification/freeze gate.
+    It validates required apps, representative ERPNext/Ledgix reads, and the
+    frozen legacy snapshot through a side-effect-free comparison.
     """
 
     installed_apps = set(frappe.get_installed_apps())
@@ -48,7 +48,7 @@ def verify_recovery_state(require_phase12_frozen: int | bool = 1) -> dict:
 
     require_frozen = str(require_phase12_frozen).strip().lower() not in {"0", "false", "no"}
     phase12_frozen = legacy_retirement.is_frozen()
-    snapshot = legacy_retirement.verify_frozen_snapshot() if phase12_frozen else {"matches": False}
+    snapshot = verify_frozen_snapshot_read_only() if phase12_frozen else {"matches": False, "read_only": True}
 
     checks = {
         "frappe_installed": "frappe" in installed_apps,
@@ -60,6 +60,7 @@ def verify_recovery_state(require_phase12_frozen: int | bool = 1) -> dict:
         "business_profile_read_available": reads.get(LEDGIX_BUSINESS_PROFILE_DOCTYPE) is not None,
         "phase12_frozen_when_required": (not require_frozen) or phase12_frozen,
         "phase12_snapshot_matches_when_required": (not require_frozen) or bool(snapshot.get("matches")),
+        "phase12_verification_is_read_only": bool(snapshot.get("read_only")),
     }
 
     failed = [name for name, passed in checks.items() if not passed]
