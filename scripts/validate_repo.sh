@@ -167,6 +167,15 @@ validate_migration_module_names() {
   local migration_dir="$REPO_ROOT/apps/ledgix_saas/migration"
   local bad_files=""
   local bad_refs=""
+  local grep_targets=(
+    "$REPO_ROOT/apps/ledgix_saas"
+    "$REPO_ROOT/scripts"
+    "$REPO_ROOT/docs/architecture"
+    "$REPO_ROOT/docs/fbr"
+    "$REPO_ROOT/docs/local"
+    "$REPO_ROOT/docs/operations"
+    "$REPO_ROOT/docs/production"
+  )
 
   if [[ -d "$migration_dir" ]]; then
     bad_files="$(find "$migration_dir" -maxdepth 1 -type f -regextype posix-extended -regex '.*_v[0-9]+\.py$' -print || true)"
@@ -178,15 +187,13 @@ validate_migration_module_names() {
   fi
 
   bad_refs="$(grep -R -n -E 'erpnext_[A-Za-z0-9_]+_v[0-9]+' \
-    "$REPO_ROOT/apps/ledgix_saas" \
-    "$REPO_ROOT/scripts" \
-    "$REPO_ROOT/docs/plan" \
+    "${grep_targets[@]}" \
     --exclude-dir='__pycache__' \
     --exclude='*.pyc' || true)"
 
   if [[ -n "$bad_refs" ]]; then
     printf '%s\n' "$bad_refs" >&2
-    die "Version-suffixed migration module references remain in source/scripts/docs."
+    die "Version-suffixed migration module references remain in source/scripts/current docs."
   fi
 
   ok "migration modules use descriptive names without _vN suffixes"
