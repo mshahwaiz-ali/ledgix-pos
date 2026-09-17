@@ -1,9 +1,8 @@
-"""Safe compatibility entrypoint for Ledgix local demo data.
+"""Supported local operating-data entrypoint for Ledgix acceptance testing.
 
-The original pre-cutover seeder wrote legacy Ledgix Item/Sale/Purchase/Payment
-DocTypes. Phase 12 froze those records as historical evidence. This module is the
-single supported demo entrypoint and orchestrates the ERPNext-authoritative V2
-seed without mutating those frozen ledgers.
+The underlying transaction engine remains ERPNext-native. A retail operating
+profile replaces obvious demo masters with a coherent fictional supermarket
+scenario while keeping local-only and FBR safety controls intact.
 """
 
 import frappe
@@ -11,19 +10,65 @@ from frappe.utils import add_days, cint, flt, getdate, today
 
 from ledgix_saas.services import erpnext_selling
 from ledgix_saas.setup import erpnext_demo_data as native
+from ledgix_saas.setup import retail_operating_profile as retail
 
-SEED = native.SEED
+SEED = retail.SEED
 
 
 def inspect_site() -> dict:
-    return native.inspect_site()
+    retail.configure()
+    native._local_only()
+    company = native._company()
+    doctypes = (
+        "Item",
+        "Customer",
+        "Supplier",
+        "Purchase Order",
+        "Purchase Receipt",
+        "Purchase Invoice",
+        "Sales Invoice",
+        "POS Invoice",
+        "Payment Entry",
+        "Stock Entry",
+        "Stock Reconciliation",
+        "POS Opening Entry",
+        "POS Closing Entry",
+        "Ledgix FBR Submission Log",
+    )
+    counts = {
+        doctype: frappe.db.count(doctype)
+        for doctype in doctypes
+        if frappe.db.exists("DocType", doctype)
+    }
+    return {
+        "site": frappe.local.site,
+        "company": company,
+        "counts": counts,
+        "legacy_retirement_status": frappe.db.get_single_value(
+            "Ledgix Legacy Retirement State", "status"
+        )
+        if frappe.db.exists("DocType", "Ledgix Legacy Retirement State")
+        else "Not Installed",
+        "fbr_mode": frappe.db.get_single_value("Ledgix FBR Settings", "mode") or "Disabled",
+        "dataset": SEED,
+        "retail_data_present": bool(
+            frappe.db.exists(
+                "POS Invoice", {"custom_ledgix_client_sale_id": ["like", f"{SEED}-%"]}
+            )
+            or frappe.db.exists(
+                "Sales Invoice", {"custom_ledgix_client_sale_id": ["like", f"{SEED}-%"]}
+            )
+        ),
+    }
 
 
 def cleanup_seed_transactions() -> dict:
+    retail.configure()
     return native.cleanup_seed_transactions()
 
 
 def verify() -> dict:
+    retail.configure()
     native._local_only()
     company = native._company()
     pos_sales = frappe.db.count(
@@ -57,7 +102,7 @@ def verify() -> dict:
 
     trade_outstanding = 0.0
     overdue = 0.0
-    for customer, _customer_type, group, _limit in native.CUSTOMERS:
+    for customer, _customer_type, group, _limit in retail.CUSTOMERS:
         if group != "Demo Trade" or not frappe.db.exists("Customer", customer):
             continue
         values = erpnext_selling.get_customer_receivables(customer, company=company)
@@ -66,14 +111,20 @@ def verify() -> dict:
 
     negative = frappe.get_all(
         "Bin",
-        filters={"warehouse": ["like", "Ledgix Demo%"], "actual_qty": ["<", -0.001]},
+        filters={
+            "warehouse": ["like", f"{retail.WAREHOUSE_POS_NAME}%"],
+            "actual_qty": ["<", -0.001],
+        },
         fields=["item_code", "warehouse", "actual_qty"],
         order_by="item_code asc, warehouse asc",
         limit_page_length=0,
     )
     low_or_out = frappe.get_all(
         "Bin",
-        filters={"warehouse": ["like", "Ledgix Demo POS Floor%"], "actual_qty": ["<=", 5]},
+        filters={
+            "warehouse": ["like", f"{retail.WAREHOUSE_POS_NAME}%"],
+            "actual_qty": ["<=", 5],
+        },
         fields=["item_code", "warehouse", "actual_qty"],
         order_by="actual_qty asc, item_code asc",
         limit_page_length=0,
@@ -99,7 +150,7 @@ def verify() -> dict:
     active_opening = frappe.db.get_value(
         "POS Opening Entry",
         {
-            "pos_profile": native.POS_PROFILE,
+            "pos_profile": retail.POS_PROFILE,
             "user": "Administrator",
             "status": "Open",
             "docstatus": 1,
@@ -108,12 +159,16 @@ def verify() -> dict:
         order_by="period_start_date desc",
     )
     result = {
-        "seed": SEED,
+        "dataset": SEED,
         "company": company,
-        "items": frappe.db.count("Item", {"item_code": ["like", "LXD-%"]}),
-        "customers": sum(1 for row in native.CUSTOMERS if frappe.db.exists("Customer", row[0])),
-        "suppliers": sum(1 for name in native.SUPPLIERS if frappe.db.exists("Supplier", name)),
-        "pos_profile": native.POS_PROFILE if frappe.db.exists("POS Profile", native.POS_PROFILE) else None,
+        "items": frappe.db.count(
+            "Item", {"item_code": ["like", f"{retail.ITEM_CODE_PREFIX}%"]}
+        ),
+        "customers": sum(
+            1 for row in retail.CUSTOMERS if frappe.db.exists("Customer", row[0])
+        ),
+        "suppliers": sum(1 for name in retail.SUPPLIERS if frappe.db.exists("Supplier", name)),
+        "pos_profile": retail.POS_PROFILE if frappe.db.exists("POS Profile", retail.POS_PROFILE) else None,
         "pos_sales": pos_sales,
         "b2b_sales": b2b_sales,
         "total_sales": pos_sales + b2b_sales,
@@ -126,14 +181,14 @@ def verify() -> dict:
         "trade_overdue": flt(overdue, 2),
         "split_payment_invoices": int(split_payment_invoices or 0),
         "low_or_out_stock": [dict(row) for row in low_or_out],
-        "negative_demo_bins": [dict(row) for row in negative],
+        "negative_retail_bins": [dict(row) for row in negative],
         "active_pos_opening": active_opening,
         "fbr_transport_disabled": fbr_safe,
     }
     result["ok"] = bool(
-        result["items"] >= 20
-        and result["customers"] >= 8
-        and result["suppliers"] >= 5
+        result["items"] >= 45
+        and result["customers"] >= 12
+        and result["suppliers"] >= 7
         and result["total_sales"] >= 100
         and result["pos_returns"] >= 3
         and result["b2b_returns"] >= 2
@@ -142,7 +197,7 @@ def verify() -> dict:
         and result["split_payment_invoices"] >= 2
         and result["trade_outstanding"] > 0
         and result["low_or_out_stock"]
-        and not result["negative_demo_bins"]
+        and not result["negative_retail_bins"]
         and result["active_pos_opening"]
         and fbr_safe
     )
@@ -150,7 +205,8 @@ def verify() -> dict:
 
 
 def seed() -> dict:
-    """Create the V2 native demo set; safe to rerun after a successful seed."""
+    """Create the realistic retail operating dataset; safe to rerun locally."""
+    retail.configure()
     native._local_only()
     old_user = frappe.session.user or "Administrator"
     frappe.set_user("Administrator")
@@ -161,17 +217,14 @@ def seed() -> dict:
         native._inventory(
             context["company"], context["main"], context["pos"], context["back"], base_date
         )
-        retail = native._retail_sales(context["company"], context["pos"], base_date)
-        b2b = native._b2b_sales(context["company"], context["pos"], base_date)
+        retail_sales = native._retail_sales(context["company"], context["pos"], base_date)
+        b2b_sales = native._b2b_sales(context["company"], context["pos"], base_date)
 
-        # ERPNext POS returns are posted inside a real current opening. Historical
-        # source invoices remain authoritative; B2B credit notes retain realistic
-        # source-relative dates.
         return_opening = native._opening(context["company"], base_date, 99)
-        for sequence, source in enumerate(retail[8::23][:4], 1):
+        for sequence, source in enumerate(retail_sales[8::23][:4], 1):
             native._pos_return(source, sequence, base_date)
         native._close_opening(return_opening, 99)
-        for sequence, source in enumerate(b2b[2::4][:3], 1):
+        for sequence, source in enumerate(b2b_sales[2::4][:3], 1):
             native._b2b_return(
                 source,
                 sequence,
@@ -179,14 +232,11 @@ def seed() -> dict:
             )
 
         native._shape_stock(context["company"], context["pos"], base_date)
-
-        # Leave a clean current shift open so the seeded site is immediately
-        # usable on the retained Ledgix POS screen.
         native._opening(context["company"], base_date, 100)
 
         result = verify()
         if not result["ok"]:
-            frappe.throw(f"ERPNext demo verification failed: {result}")
+            frappe.throw(f"Retail operating data verification failed: {result}")
         frappe.db.commit()
         return {"created": True, **result}
     except Exception:
