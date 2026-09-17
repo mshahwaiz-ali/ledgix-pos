@@ -10,7 +10,9 @@ Current direction:
 - ERPNext as the authoritative business engine;
 - Ledgix as the product, FBR/compliance, UX, intelligence and branding layer;
 - one business concept = one source of truth;
-- staged migration with reconciliation before legacy retirement.
+- staged migration with reconciliation before legacy retirement;
+- retained Ledgix product Pages are first-class UX, not migration leftovers: `ledgix-pos`, `business-intelligence-center` (Inventory Intelligence), `ledgix-tax-center`, and `ledgix-setup` stay in the product and are modernized over ERPNext-native authority rather than deleted;
+- the retained product Pages are exposed as profile/role-aware Ledgix workspace shortcuts and must not bypass ERPNext/Frappe permissions.
 
 ## Phase documents
 
@@ -56,9 +58,10 @@ Production hardening runbooks:
 - R1 fresh-client provisioning + R4 multi-site SaaS hardening: COMPLETE.
 - R5 client onboarding/readiness: COMPLETE on the canonical local integration site.
 - FBR application/setup tooling: COMPLETE at code/static-contract level. Real seller identity/tokens and real FBR Sandbox/Production certification remain external client inputs and must never be fabricated.
-- Printing/device/profile UAT tooling: IMPLEMENTED; static/local acceptance gate pending exercise.
+- Printing/device/profile UAT tooling: IMPLEMENTED; machine-verifiable release setup is green, while physical device/UAT evidence remains external/manual.
 - Final immutable production release gate: IMPLEMENTED; real production acceptance remains dependent on manual UAT, strict backup/release evidence, online smoke, and FBR certification only when FBR Production is intended.
 - Recovery/final acceptance now use a true read-only Phase 12 snapshot verifier; the administrative Phase 12 verifier remains separate because it intentionally records verification metadata.
+- Retained custom product UX is protected by Phase 10/11 contracts: Inventory Intelligence and Ledgix POS source now navigate/print against ERPNext-native records, while Tax & FBR Center and Setup remain Ledgix-specific orchestration/configuration surfaces.
 
 ## Current gates
 
