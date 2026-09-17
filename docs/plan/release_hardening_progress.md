@@ -14,8 +14,8 @@
 | R1 — Fresh-client provisioning | COMPLETE | immutable isolated provisioner, ERPNext-before-Ledgix install, external generated credentials, preflight/smoke/evidence |
 | R4 — Multi-site SaaS | COMPLETE | shared-bench updater requires exact full tenant cohort with per-site backup/maintenance/migrate/smoke/evidence |
 | R5 — Client onboarding/readiness | COMPLETE | runtime gate green with guarded existing-profile apply; no blocking onboarding checks remain |
-| FBR Sandbox -> Production activation | ACTIVE — READINESS GATE IMPLEMENTED | read-only activation evaluator, Sandbox validate/POST proof, reconciliation safety, strict release/backup gate; awaiting real client seller identity/tokens and Sandbox evidence |
-| Printing/devices/UAT | PLANNED | follows FBR Sandbox/activation proof |
+| FBR Sandbox -> Production activation | ACTIVE — READINESS EXERCISED / SANDBOX TOOLING READY | read-only gate green; current blockers are only real seller identity/tokens, real Sandbox proof, and production backup/release evidence; secure local Sandbox configuration/exercise helpers implemented |
+| Printing/devices/UAT | PLANNED | follows FBR Sandbox/activation proof; implementation can proceed in parallel while waiting for client FBR credentials |
 | Final production release gate | PLANNED | final workstream |
 
 ## R3 exercised recovery evidence
@@ -87,6 +87,48 @@ bash scripts/run_fbr_activation_readiness_gate.sh ledgix-erpnext.local
 
 The gate makes no FBR network call and never arms Production.
 
+### Exercised readiness evidence
+
+The activation audit passed its static/runtime infrastructure gate on `ledgix-erpnext.local` at HEAD `4057d5bab2cc545c1295177b3b4815f831fa106c`.
+
+Exercised evidence:
+
+- 51 shell files passed syntax validation;
+- 281 Python files, 59 JSON files and 1 TOML file passed repository validation;
+- ERPNext dependency and secret scans green;
+- Phase 9 FBR regression contract passed 12/12;
+- R5 regression contract passed 8/8;
+- FBR activation contract passed 6/6;
+- dependency preflight green;
+- ERPNext-native offline smoke: 0 failures / 0 warnings;
+- requests transport available;
+- R5 client readiness green;
+- selected Business Profile `Small Retail` enables FBR and therefore requires Sales Invoice + POS Invoice Sandbox proof;
+- zero `Reconciliation Required` native invoices;
+- Production posting remained unarmed;
+- activation audit made zero FBR network calls;
+- private non-secret FBR readiness evidence written;
+- final marker `fbr_readiness_evaluation_complete=true`.
+
+Expected real-input blockers were reported rather than fabricated:
+
+- seller NTN/CNIC, business name, province and address missing;
+- FBR mode still `Disabled`;
+- Sandbox token not configured;
+- no real Sandbox Sales Invoice validate/POST proof;
+- no real Sandbox POS Invoice validate/POST proof;
+- Production token not configured;
+- strict release/provisioning evidence absent on the local integration site;
+- no current verified backup metadata in the active site backup directory.
+
+Therefore the exercised state correctly reported:
+
+```text
+fbr_sandbox_ready=false
+fbr_sandbox_proven=false
+fbr_production_switch_ready=false
+```
+
 ### Sandbox-ready contract
 
 Requires:
@@ -110,6 +152,29 @@ Persisted `Ledgix FBR Submission Log` evidence must show successful real Sandbox
 
 Proof is derived from persisted `fbr_mode`, `fbr_operation`, `network_call` and `success` metadata in the stored FBR response plus final submission status. Token values are never read into readiness evidence.
 
+### Secure Sandbox operator tooling
+
+Local/integration-only helpers now exist for the real client credential stage:
+
+```text
+scripts/configure_fbr_sandbox_local.sh
+scripts/run_fbr_sandbox_exercise_local.sh
+ledgix_saas.setup.fbr_sandbox_operator
+```
+
+Safety contract:
+
+- seller identity is entered interactively;
+- Sandbox token is read through a hidden prompt and is never accepted as a command-line argument;
+- plaintext token staging is owner-only under the site's private activation directory and removed after Frappe stores the encrypted Password value;
+- helper refuses non-local/non-integration sites;
+- Sandbox configuration forces `Manual` trigger and keeps Production unarmed;
+- Production credentials are not modified;
+- candidate listing makes no network request;
+- real Sandbox traffic requires exact `SEND TO FBR SANDBOX` confirmation;
+- exercise uses only explicit ERPNext `Sales Invoice` / `POS Invoice` references;
+- existing persisted successful Sandbox proof is reused instead of deliberately retransmitting it.
+
 ### Production-switch-ready contract
 
 Requires:
@@ -131,26 +196,18 @@ private/ledgix-fbr-activation/
 
 The readiness implementation deliberately does **not** include a Production-arm action. Real client seller identity and Sandbox credentials must be supplied and the required Sandbox flows must pass first. Production switching/arming remains a later explicit operator/compliance action with observed first-live submission.
 
-## Next gate
+## Next FBR operator sequence
 
-Run the non-network activation audit:
+Once the real client Sandbox details are available:
 
 ```bash
-bash scripts/run_fbr_activation_readiness_gate.sh ledgix-erpnext.local
+bash scripts/configure_fbr_sandbox_local.sh ledgix-erpnext.local
+
+bash scripts/run_fbr_sandbox_exercise_local.sh \
+  ledgix-erpnext.local \
+  --list-candidates
 ```
 
-Expected health marker:
+Then select explicit payload-ready Sales Invoice/POS Invoice references and run the confirmed Sandbox exercise documented in `docs/production/fbr_sandbox_production_activation.md`.
 
-```text
-fbr_readiness_evaluation_complete=true
-```
-
-The same run reports the current real state:
-
-```text
-fbr_sandbox_ready=true|false
-fbr_sandbox_proven=true|false
-fbr_production_switch_ready=true|false
-```
-
-On the current integration site, missing real seller identity/Sandbox credentials are expected to keep Sandbox readiness false until client data is supplied. Do not fabricate these values.
+Do not fabricate seller identity, token, scenario, or official FBR evidence.
