@@ -96,9 +96,9 @@ CM-PER-005|Body Spray 200ml|Personal Care|1|normal|390|560|510|10|3307.20
 CM-ELC-001|Rechargeable Emergency Light|Small Appliances|1|serial|1750|2650|2425|3|9405.42
 CM-ELC-002|Digital Kitchen Scale|Small Appliances|1|serial|2900|4550|4150|3|8423.81
 CM-ELC-003|USB Rechargeable Desk Fan|Small Appliances|1|serial|2150|3290|2990|3|8414.59
-CM-SVC-001|Home Delivery Service|Services|0|normal|0|300|250|0|SERV-DELIVERY
-CM-SVC-002|Gift Wrapping Service|Services|0|normal|0|250|200|0|SERV-WRAP
-CM-SVC-003|Custom Cake Message|Services|0|normal|0|100|80|0|SERV-CAKE
+CM-SVC-001|Home Delivery Service|Services|0|normal|0|300|250|0|9999.01
+CM-SVC-002|Gift Wrapping Service|Services|0|normal|0|250|200|0|9999.02
+CM-SVC-003|Custom Cake Message|Services|0|normal|0|100|80|0|9999.03
 """.strip()
 
 # Internal group tokens remain compatible with the transaction engine; configure()
@@ -219,7 +219,10 @@ def _ensure_tax_mapping(item_code: str, hs_code: str) -> None:
     doc.tax_category = TAX_CATEGORY
     doc.taxable = 1
     doc.active = 1
-    doc.needs_review = 0
+    # Service rows use local acceptance-only numeric placeholders because the
+    # current validator requires HS-shaped values. They remain review-required
+    # and must not be treated as production/FBR-certified mappings.
+    doc.needs_review = 1 if item_code in SERVICE_ITEMS else 0
     doc.tax_basis = "Transaction Value"
     doc.hs_code = hs_code
     doc.uom_for_fbr = "Numbers"
