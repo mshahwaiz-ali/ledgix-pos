@@ -10,6 +10,7 @@ from frappe.utils import add_days, cint, flt, getdate, today
 
 from ledgix_saas.services import erpnext_selling
 from ledgix_saas.setup import erpnext_demo_data as native
+from ledgix_saas.setup import retail_account_setup
 from ledgix_saas.setup import retail_operating_profile as retail
 
 SEED = retail.SEED
@@ -207,6 +208,7 @@ def verify() -> dict:
 def seed() -> dict:
     """Create the realistic retail operating dataset; safe to rerun locally."""
     retail.configure()
+    retail_account_setup.configure()
     native._local_only()
     old_user = frappe.session.user or "Administrator"
     frappe.set_user("Administrator")
