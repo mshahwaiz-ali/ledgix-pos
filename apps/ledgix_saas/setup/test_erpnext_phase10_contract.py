@@ -6,7 +6,14 @@ from pathlib import Path
 
 
 APP_ROOT = Path(__file__).resolve().parents[1]
-REPO_ROOT = APP_ROOT.parents[1]
+REPO_ROOT = next(
+    (
+        parent
+        for parent in APP_ROOT.parents
+        if (parent / "scripts" / "run_erpnext_phase10_final_gate.sh").exists()
+    ),
+    APP_ROOT.parents[1],
+)
 REPORT_ROOT = APP_ROOT / "ledgix" / "report"
 PRINT_ROOT = APP_ROOT / "ledgix" / "print_format"
 
