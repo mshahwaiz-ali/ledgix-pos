@@ -41,6 +41,28 @@ class TestProvisioningAndMultisiteContract(unittest.TestCase):
         self.assertNotIn("LEDGIX_LOCAL_ADMIN_PASSWORD", source)
         self.assertNotIn("LEDGIX_LOCAL_DB_PASSWORD", source)
 
+    def test_existing_shared_tenants_are_never_mutated_by_fresh_provisioning(self):
+        source = (DEPLOY / "provision_client_site_safe.sh").read_text(encoding="utf-8")
+        for token in (
+            "discover_existing_ledgix_sites",
+            "recorded_release_sha",
+            "verify_existing_shared_code_matches_target",
+            "existing Ledgix tenants detected",
+            "Run deploy/deploy_update_shared_safe.sh for the full tenant cohort first.",
+            'git -C "$REPO_ROOT" archive',
+            "diff -qr",
+            "code sync will be skipped",
+            "existing shared Ledgix code preserved; no checkout/sync/replacement performed",
+            "shared_code_reused",
+            "existing_ledgix_tenant_count",
+        ):
+            self.assertIn(token, source)
+
+        self.assertIn('if [[ "$REUSE_EXISTING_SHARED_CODE" -eq 0 ]]', source)
+        guarded_sync = source[source.index('if [[ "$REUSE_EXISTING_SHARED_CODE" -eq 0 ]]'):]
+        self.assertIn('rm -rf "$DEST_APP"', guarded_sync)
+        self.assertIn("REUSE_EXISTING_SHARED_CODE=1", source)
+
     def test_production_setup_routes_site_creation_to_safe_provisioner(self):
         source = (DEPLOY / "production_setup.sh").read_text(encoding="utf-8")
         for token in (
@@ -50,6 +72,8 @@ class TestProvisioningAndMultisiteContract(unittest.TestCase):
             "run_safe_provision_client",
             "run_provision_online_smoke",
             "PRODUCTION_URL not supplied; post-service online smoke skipped",
+            "--action apps is disabled once sites exist",
+            "generic app sync can mutate shared tenant code",
         ):
             self.assertIn(token, source)
         self.assertNotIn('FRAPPE_ADMIN_PASSWORD:-admin', source)
@@ -57,6 +81,8 @@ class TestProvisioningAndMultisiteContract(unittest.TestCase):
         self.assertNotIn('args+=(--url "$PRODUCTION_URL")', source)
 
         full_block = source[source.index('if [[ "$ACTION" == "full" ]]'):]
+        self.assertNotIn('run_ec2 "${base[@]}" --action apps', full_block)
+        self.assertIn("run_safe_provision_client", full_block)
         self.assertLess(full_block.index("run_safe_provision_client"), full_block.index("run_services"))
         self.assertLess(full_block.index("run_services"), full_block.index("run_provision_online_smoke"))
 
