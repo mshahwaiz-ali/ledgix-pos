@@ -17,9 +17,9 @@ ROLE_ORDER = ("cashier", "manager", "admin", "system")
 WORKSPACE_CARDS = (
     "Sales & POS",
     "Catalog & Pricing",
-    "Buying & Suppliers",
+    "Purchasing",
     "Inventory & Stock",
-    "Reports & Insights",
+    "Reports & Accounting",
     "Tax & FBR",
     "Administration",
 )
@@ -41,7 +41,6 @@ WORKSPACE_LINK_POLICY = {
     "POS Invoices": {"roles": ROLE_ORDER, "all": ("enable_pos",)},
     "Customers": {"roles": ROLE_ORDER, "any": ("enable_sales_invoice", "enable_pos", "enable_b2b")},
     "Payment Entries": {"roles": ROLE_ORDER, "all": ("enable_accounting_workspace",)},
-    "Accounts Receivable": {"roles": ("manager", "admin", "system"), "all": ("enable_accounting_workspace",)},
     "POS Openings": {"roles": ("manager", "admin", "system"), "all": ("enable_pos",)},
     "POS Closings": {"roles": ("manager", "admin", "system"), "all": ("enable_pos",)},
 
@@ -49,31 +48,36 @@ WORKSPACE_LINK_POLICY = {
     "Item Groups": {"roles": ("manager", "admin", "system"), "any": ("enable_sales_invoice", "enable_pos", "enable_inventory", "enable_buying", "enable_b2b")},
     "Price Lists": {"roles": ("manager", "admin", "system"), "any": ("enable_sales_invoice", "enable_pos", "enable_b2b")},
     "Item Prices": {"roles": ("manager", "admin", "system"), "any": ("enable_sales_invoice", "enable_pos", "enable_b2b")},
-    "Modes of Payment": {"roles": ("manager", "admin", "system"), "all": ("enable_accounting_workspace",)},
+    "Pricing Rules": {"roles": ("manager", "admin", "system"), "any": ("enable_sales_invoice", "enable_pos", "enable_b2b")},
 
     "Purchase Orders": {"roles": ("manager", "admin", "system"), "all": ("enable_buying",)},
     "Purchase Receipts": {"roles": ("manager", "admin", "system"), "all": ("enable_buying",)},
     "Purchase Invoices": {"roles": ("manager", "admin", "system"), "all": ("enable_buying",)},
     "Suppliers": {"roles": ("manager", "admin", "system"), "all": ("enable_buying",)},
 
+    "Inventory Intelligence": {"roles": ("manager", "admin", "system"), "all": ("enable_inventory",)},
     "Warehouses": {"roles": ("manager", "admin", "system"), "all": ("enable_inventory",)},
     "Stock Entries": {"roles": ("manager", "admin", "system"), "all": ("enable_inventory", "enable_advanced_inventory")},
     "Stock Reconciliation": {"roles": ("manager", "admin", "system"), "all": ("enable_inventory", "enable_advanced_inventory")},
     "Batches": {"roles": ("manager", "admin", "system"), "all": ("enable_inventory", "enable_advanced_inventory")},
     "Serial Numbers": {"roles": ("manager", "admin", "system"), "all": ("enable_inventory", "enable_advanced_inventory")},
-    "Current Stock": {"roles": ("manager", "admin", "system"), "all": ("enable_inventory",)},
-    "Low Stock": {"roles": ("manager", "admin", "system"), "all": ("enable_inventory",)},
-    "Inventory Intelligence": {"roles": ("manager", "admin", "system"), "all": ("enable_inventory",)},
 
     "Sales Report": {"roles": ("manager", "admin", "system"), "any": ("enable_sales_invoice", "enable_pos")},
     "Sales Return Report": {"roles": ("manager", "admin", "system"), "any": ("enable_sales_invoice", "enable_pos")},
     "Purchase Report": {"roles": ("manager", "admin", "system"), "all": ("enable_buying",)},
     "Customer Statement": {"roles": ("manager", "admin", "system"), "all": ("enable_accounting_workspace",)},
-    "Stock Movement Report": {"roles": ("manager", "admin", "system"), "all": ("enable_inventory",)},
-    "Inventory Intelligence Report": {"roles": ("manager", "admin", "system"), "all": ("enable_inventory",)},
+    "Stock Balance": {"roles": ("manager", "admin", "system"), "all": ("enable_inventory",)},
+    "Stock Ledger": {"roles": ("manager", "admin", "system"), "all": ("enable_inventory",)},
+    "Accounts Receivable": {"roles": ("manager", "admin", "system"), "all": ("enable_accounting_workspace",)},
+    "General Ledger": {"roles": ("manager", "admin", "system"), "all": ("enable_accounting_workspace",)},
+    "Profit and Loss Statement": {"roles": ("manager", "admin", "system"), "all": ("enable_accounting_workspace",)},
 
     "Tax & FBR Center": {"roles": ("manager", "admin", "system"), "all": ("enable_fbr",)},
     "Item Tax Profiles": {"roles": ("manager", "admin", "system"), "all": ("enable_fbr",)},
+    "Tax Profile": {"roles": ("admin", "system"), "all": ("enable_fbr",)},
+    "Tax Categories": {"roles": ("admin", "system"), "all": ("enable_fbr",)},
+    "Tax Rates": {"roles": ("admin", "system"), "all": ("enable_fbr",)},
+    "FBR Settings": {"roles": ("admin", "system"), "all": ("enable_fbr",)},
     "FBR Submission Logs": {"roles": ("manager", "admin", "system"), "all": ("enable_fbr",)},
     "Tax Audit Logs": {"roles": ("admin", "system"), "all": ("enable_fbr",)},
 
@@ -81,32 +85,27 @@ WORKSPACE_LINK_POLICY = {
     "Business Profile": {"roles": ("admin", "system")},
     "Brand Settings": {"roles": ("admin", "system")},
     "User Profiles": {"roles": ("admin", "system")},
-    "Tax Profile": {"roles": ("admin", "system"), "all": ("enable_fbr",)},
-    "Tax Categories": {"roles": ("admin", "system"), "all": ("enable_fbr",)},
-    "Tax Rates": {"roles": ("admin", "system"), "all": ("enable_fbr",)},
-    "FBR Settings": {"roles": ("admin", "system"), "all": ("enable_fbr",)},
 }
 
 CARD_LINKS = {
     "Sales & POS": (
         "Ledgix POS", "Sales Invoices", "POS Invoices", "Customers", "Payment Entries",
-        "Accounts Receivable", "POS Openings", "POS Closings",
+        "POS Openings", "POS Closings",
     ),
-    "Catalog & Pricing": ("Items", "Item Groups", "Price Lists", "Item Prices", "Modes of Payment"),
-    "Buying & Suppliers": ("Purchase Orders", "Purchase Receipts", "Purchase Invoices", "Suppliers"),
+    "Catalog & Pricing": ("Items", "Item Groups", "Price Lists", "Item Prices", "Pricing Rules"),
+    "Purchasing": ("Purchase Orders", "Purchase Receipts", "Purchase Invoices", "Suppliers"),
     "Inventory & Stock": (
-        "Warehouses", "Stock Entries", "Stock Reconciliation", "Batches", "Serial Numbers",
-        "Current Stock", "Low Stock", "Inventory Intelligence",
+        "Inventory Intelligence", "Warehouses", "Stock Entries", "Stock Reconciliation", "Batches", "Serial Numbers",
     ),
-    "Reports & Insights": (
-        "Sales Report", "Sales Return Report", "Purchase Report", "Customer Statement",
-        "Stock Movement Report", "Inventory Intelligence Report",
+    "Reports & Accounting": (
+        "Sales Report", "Sales Return Report", "Purchase Report", "Customer Statement", "Stock Balance", "Stock Ledger",
+        "Accounts Receivable", "General Ledger", "Profit and Loss Statement",
     ),
-    "Tax & FBR": ("Tax & FBR Center", "Item Tax Profiles", "FBR Submission Logs", "Tax Audit Logs"),
-    "Administration": (
-        "Setup Wizard", "Business Profile", "Brand Settings", "User Profiles", "Tax Profile",
-        "Tax Categories", "Tax Rates", "FBR Settings",
+    "Tax & FBR": (
+        "Tax & FBR Center", "Item Tax Profiles", "Tax Profile", "Tax Categories", "Tax Rates", "FBR Settings",
+        "FBR Submission Logs", "Tax Audit Logs",
     ),
+    "Administration": ("Setup Wizard", "Business Profile", "Brand Settings", "User Profiles"),
 }
 
 
