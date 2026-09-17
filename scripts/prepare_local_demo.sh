@@ -47,11 +47,17 @@ bench --site "${SITE}" backup --with-files
 echo "== Ledgix retail operating data: pre-load inspection =="
 bench --site "${SITE}" execute ledgix_saas.setup.demo_data.inspect_site
 
-echo "== Ledgix retail operating data: clear only prior managed operating-data transactions =="
+echo "== Ledgix retail operating data: clear prior managed retail transactions =="
 bench --site "${SITE}" execute ledgix_saas.setup.demo_data.cleanup_seed_transactions
+
+echo "== Ledgix retail operating data: remove old Ledgix demo/spike artifacts =="
+bench --site "${SITE}" execute ledgix_saas.setup.demo_data.cleanup_old_local_artifacts
 
 echo "== Ledgix retail operating data: create ERPNext-authoritative operating history =="
 bench --site "${SITE}" execute ledgix_saas.setup.demo_data.seed
+
+echo "== Ledgix retail operating data: post-load old-artifact cleanup =="
+bench --site "${SITE}" execute ledgix_saas.setup.demo_data.cleanup_old_local_artifacts
 
 echo "== Ledgix retail operating data: verify =="
 bench --site "${SITE}" execute ledgix_saas.setup.demo_data.verify
