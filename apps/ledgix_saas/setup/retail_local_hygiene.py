@@ -58,31 +58,48 @@ def _applies_to_company(fiscal_year: str, company: str) -> bool:
     return not companies or company in companies
 
 
-def _covering_fiscal_year(date_value, company: str):
+def _covering_fiscal_year(date_value, company: str, *, include_disabled: bool = False):
+    filters = {
+        "year_start_date": ["<=", date_value],
+        "year_end_date": [">=", date_value],
+    }
+    if not include_disabled:
+        filters["disabled"] = 0
     rows = frappe.get_all(
         "Fiscal Year",
-        filters={
-            "disabled": 0,
-            "year_start_date": ["<=", date_value],
-            "year_end_date": [">=", date_value],
-        },
-        fields=["name", "year_start_date", "year_end_date"],
-        order_by="year_start_date desc",
+        filters=filters,
+        fields=["name", "year_start_date", "year_end_date", "disabled"],
+        order_by="disabled asc, year_start_date desc",
         limit_page_length=0,
     )
     return next((row for row in rows if _applies_to_company(row.name, company)), None)
 
 
+def _activate_covering_fiscal_year(date_value, company: str):
+    active = _covering_fiscal_year(date_value, company)
+    if active:
+        return active
+    existing = _covering_fiscal_year(date_value, company, include_disabled=True)
+    if existing and existing.disabled:
+        frappe.db.set_value("Fiscal Year", existing.name, "disabled", 0, update_modified=False)
+        frappe.cache().delete_key("fiscal_years")
+        existing.disabled = 0
+        return existing
+    return None
+
+
 def _create_company_fiscal_year(company: str, start_date, end_date) -> str:
     start_date = getdate(start_date)
     end_date = getdate(end_date)
-    existing = _covering_fiscal_year(start_date, company)
+    existing = _activate_covering_fiscal_year(start_date, company)
     if existing and getdate(existing.year_end_date) >= end_date:
         return existing.name
 
     abbr = frappe.db.get_value("Company", company, "abbr") or "LOCAL"
     label = f"Local Retail FY {start_date:%Y-%m-%d} to {end_date:%Y-%m-%d} {abbr}"
     if frappe.db.exists("Fiscal Year", label):
+        frappe.db.set_value("Fiscal Year", label, "disabled", 0, update_modified=False)
+        frappe.cache().delete_key("fiscal_years")
         return label
 
     doc = frappe.get_doc(
@@ -105,14 +122,19 @@ def ensure_fiscal_year_window(company: str, required_start, required_end) -> dic
     required_start = getdate(required_start)
     required_end = getdate(required_end)
     created: list[str] = []
+    reused: list[str] = []
 
-    end_fy = _covering_fiscal_year(required_end, company)
+    end_fy = _activate_covering_fiscal_year(required_end, company)
     if end_fy:
+        reused.append(end_fy.name)
         cursor_start = getdate(end_fy.year_start_date)
         while required_start < cursor_start:
             previous_end = cursor_start - timedelta(days=1)
             previous_start = cursor_start - relativedelta(years=1)
-            if not _covering_fiscal_year(previous_end, company):
+            previous = _activate_covering_fiscal_year(previous_end, company)
+            if previous:
+                reused.append(previous.name)
+            else:
                 created.append(
                     _create_company_fiscal_year(company, previous_start, previous_end)
                 )
@@ -123,18 +145,24 @@ def ensure_fiscal_year_window(company: str, required_start, required_end) -> dic
         for year in range(required_start.year, required_end.year + 1):
             start = getdate(f"{year}-01-01")
             end = getdate(f"{year}-12-31")
-            if not _covering_fiscal_year(start, company):
+            existing = _activate_covering_fiscal_year(start, company)
+            if existing:
+                reused.append(existing.name)
+            else:
                 created.append(_create_company_fiscal_year(company, start, end))
 
-    if not _covering_fiscal_year(required_start, company):
+    if not _activate_covering_fiscal_year(required_start, company):
         frappe.throw(
             f"Could not provision an active Fiscal Year covering {required_start} for {company}."
         )
-    if not _covering_fiscal_year(required_end, company):
+    if not _activate_covering_fiscal_year(required_end, company):
         frappe.throw(
             f"Could not provision an active Fiscal Year covering {required_end} for {company}."
         )
-    return {"created_fiscal_years": created}
+    return {
+        "created_fiscal_years": sorted(set(created)),
+        "reused_fiscal_years": sorted(set(reused)),
+    }
 
 
 def _cancel_delete(doctype: str, name: str, removed: list[str], archived: list[str]) -> None:
@@ -150,8 +178,12 @@ def _cancel_delete(doctype: str, name: str, removed: list[str], archived: list[s
         # Do not turn a known old artifact into a seed blocker solely because
         # ERPNext retains historical links. Hide it when the DocType supports it.
         frappe.db.rollback(save_point="old_artifact")
-        if frappe.get_meta(doctype).has_field("disabled"):
+        meta = frappe.get_meta(doctype)
+        if meta.has_field("disabled"):
             frappe.db.set_value(doctype, name, "disabled", 1, update_modified=False)
+            archived.append(f"{doctype}:{name}")
+        elif meta.has_field("enabled"):
+            frappe.db.set_value(doctype, name, "enabled", 0, update_modified=False)
             archived.append(f"{doctype}:{name}")
         else:
             archived.append(f"linked:{doctype}:{name}")
@@ -298,7 +330,7 @@ def cleanup_old_local_artifacts() -> dict:
 
 
 def visible_old_artifacts() -> list[str]:
-    """Return only old artifacts that are still active/visible after cleanup."""
+    """Return old artifacts that would still clutter normal local operation."""
     native._local_only()
     leftovers: list[str] = []
     for name in frappe.get_all(
@@ -308,6 +340,7 @@ def visible_old_artifacts() -> list[str]:
         limit_page_length=0,
     ):
         leftovers.append(f"Item:{name}")
+
     for doctype, names in (
         ("POS Profile", OLD_POS_PROFILES),
         ("Warehouse", OLD_WAREHOUSES),
@@ -322,6 +355,18 @@ def visible_old_artifacts() -> list[str]:
             if meta.has_field("enabled") and not frappe.db.get_value(doctype, name, "enabled"):
                 continue
             leftovers.append(f"{doctype}:{name}")
+
+    # Tree/category artifacts have no disabled flag; if they still exist they
+    # remain visible clutter and must be removed before the final gate passes.
+    for doctype, names in (
+        ("Item Group", OLD_ITEM_GROUPS),
+        ("Customer Group", OLD_CUSTOMER_GROUPS),
+        ("Supplier Group", OLD_SUPPLIER_GROUPS),
+        ("Ledgix Tax Category", OLD_TAX_CATEGORIES),
+    ):
+        for name in names:
+            if frappe.db.exists(doctype, name):
+                leftovers.append(f"{doctype}:{name}")
     return leftovers
 
 
