@@ -1,10 +1,12 @@
 from __future__ import annotations
 
-"""Local-only payment-account provisioning for the retail operating dataset.
+"""Local-only accounting/POS prerequisites for the retail operating dataset.
 
 The production/native seeder intentionally requires accounting ledgers to
-already exist. The local retail acceptance dataset is self-contained, so this
-module fills only missing Cash/Bank ledgers without changing existing accounts.
+already exist and assumes it can claim the default POS profile for the user.
+The local retail acceptance dataset is self-contained, so this module fills
+only missing Cash/Bank ledgers and creates its POS profile without disturbing
+an existing user default.
 """
 
 import frappe
@@ -12,6 +14,7 @@ import frappe
 from ledgix_saas.setup import erpnext_demo_data as native
 
 _ORIGINAL_FIND_LEAF_ACCOUNT = native._find_leaf_account
+_ORIGINAL_ENSURE_POS_PROFILE = native._ensure_pos_profile
 
 
 def _existing_leaf(company: str, account_type: str, fallback_field: str | None) -> str | None:
@@ -136,8 +139,78 @@ def find_or_create_payment_account(
     return account
 
 
+def _existing_default_pos_profile(user: str, *, exclude: str | None = None) -> str | None:
+    filters: dict = {
+        "parenttype": "POS Profile",
+        "user": user,
+        "default": 1,
+    }
+    if exclude:
+        filters["parent"] = ["!=", exclude]
+    profiles = frappe.get_all(
+        "POS Profile User",
+        filters=filters,
+        pluck="parent",
+        order_by="parent asc",
+        limit_page_length=0,
+    )
+    for profile in profiles:
+        if frappe.db.exists("POS Profile", {"name": profile, "disabled": 0}):
+            return profile
+    return None
+
+
+def ensure_retail_pos_profile(
+    company: str,
+    warehouse: str,
+    customer: str,
+    bank_account: str,
+    cash_account: str,
+) -> str:
+    """Create the local retail profile without taking over another user default."""
+    native._local_only()
+    if frappe.db.exists("POS Profile", native.POS_PROFILE):
+        return native.POS_PROFILE
+
+    administrator_has_default = bool(
+        _existing_default_pos_profile("Administrator", exclude=native.POS_PROFILE)
+    )
+    doc = frappe.get_doc(
+        {
+            "doctype": "POS Profile",
+            "name": native.POS_PROFILE,
+            "company": company,
+            "warehouse": warehouse,
+            "customer": customer,
+            "selling_price_list": native.RETAIL_PRICE_LIST,
+            "currency": "PKR",
+            "disabled": 0,
+            "payments": [
+                {"mode_of_payment": "Cash", "default": 1},
+                {"mode_of_payment": "Card", "default": 0},
+                {"mode_of_payment": "Bank Transfer", "default": 0},
+                {"mode_of_payment": "EasyPaisa", "default": 0},
+                {"mode_of_payment": "JazzCash", "default": 0},
+            ],
+            "applicable_for_users": [
+                {
+                    "user": "Administrator",
+                    "default": 0 if administrator_has_default else 1,
+                }
+            ],
+        }
+    )
+    doc.insert(ignore_permissions=True)
+    return doc.name
+
+
 def configure() -> None:
     native._find_leaf_account = find_or_create_payment_account
+    native._ensure_pos_profile = ensure_retail_pos_profile
 
 
-__all__ = ["configure", "find_or_create_payment_account"]
+__all__ = [
+    "configure",
+    "find_or_create_payment_account",
+    "ensure_retail_pos_profile",
+]
