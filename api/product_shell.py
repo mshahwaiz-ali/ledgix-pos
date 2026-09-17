@@ -24,6 +24,15 @@ WORKSPACE_CARDS = (
     "Administration",
 )
 
+# Product pages intentionally retained as first-class Ledgix UX. Their business
+# data remains ERPNext-authoritative; these shortcuts are navigation only.
+WORKSPACE_SHORTCUTS = (
+    "Ledgix POS",
+    "Inventory Intelligence",
+    "Tax & FBR Center",
+    "Setup Wizard",
+)
+
 # Each entry is UX-only visibility policy. Permissions on the target DocType/Page
 # remain authoritative even when a link is visible.
 WORKSPACE_LINK_POLICY = {
@@ -139,6 +148,10 @@ def build_product_context(*, roles=None, features=None) -> dict:
         card for card, links in CARD_LINKS.items()
         if any(label in visible_link_set for label in links)
     ]
+    visible_shortcuts = [
+        label for label in WORKSPACE_SHORTCUTS
+        if label in visible_link_set
+    ]
 
     if role_level == "cashier" and int(features.get("enable_pos") or 0):
         landing_route = "ledgix-pos"
@@ -152,7 +165,8 @@ def build_product_context(*, roles=None, features=None) -> dict:
         "curated_sidebar": role_level in {"cashier", "manager", "admin"},
         "visible_workspace_cards": visible_cards,
         "visible_workspace_links": visible_links,
-        "workspace_authority": "ERPNext native forms/lists + Ledgix-only product pages",
+        "visible_workspace_shortcuts": visible_shortcuts,
+        "workspace_authority": "ERPNext native forms/lists + retained Ledgix product pages",
     }
 
 
