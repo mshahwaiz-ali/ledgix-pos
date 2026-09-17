@@ -47,13 +47,14 @@ bench --site "${SITE}" backup --with-files
 echo "== Ledgix retail operating data: pre-load inspection =="
 bench --site "${SITE}" execute ledgix_saas.setup.demo_data.inspect_site
 
-echo "== Ledgix retail operating data: clear prior managed retail transactions =="
-bench --site "${SITE}" execute ledgix_saas.setup.demo_data.cleanup_seed_transactions
-
+# Do not cancel/delete the current managed retail history on normal reruns.
+# The seed is marker-idempotent and ERPNext POS closings create merge-log/audit
+# links that should be preserved. A destructive reset, if ever required, must be
+# an explicit separate maintenance operation.
 echo "== Ledgix retail operating data: safely retire old Ledgix demo/spike masters =="
 bench --site "${SITE}" execute ledgix_saas.setup.retail_cleanup_safe.cleanup_old_local_artifacts
 
-echo "== Ledgix retail operating data: create ERPNext-authoritative operating history =="
+echo "== Ledgix retail operating data: create/reuse ERPNext-authoritative operating history =="
 bench --site "${SITE}" execute ledgix_saas.setup.retail_v15_compat.seed
 
 echo "== Ledgix retail operating data: post-load old-artifact cleanup =="
