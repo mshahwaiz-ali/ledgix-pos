@@ -45,22 +45,40 @@ Production hardening runbooks:
 - `docs/production/multi_site_saas.md`
 - `docs/production/client_onboarding_readiness.md`
 - `docs/production/fbr_sandbox_production_activation.md`
+- `docs/production/printing_devices_uat.md`
+- `docs/production/final_release_gate.md`
 
 ## Current implementation status
 
-- **ERPNext Core Migration Phases 0–13: COMPLETE** on the guarded integration workflow.
-- Phase 13 final guarded gate passed at migration implementation HEAD `d813d26d16a11665522da98c7bd542a7cc09c53f` with `phase13_complete=true` and `migration_complete=true`.
-- Phase 12 frozen historical digest remained stable through destructive recovery proof.
-- R0 + R2 production release hardening are complete.
-- R3 destructive backup/restore proof is complete.
-- R1 fresh-client provisioning and R4 multi-site SaaS hardening are complete; `r1_r4_static_complete=true`.
-- R5 client onboarding/readiness is complete on the canonical local integration site; the guarded existing-profile apply finished with `r5_client_ready=true` and `r5_readiness_evaluation_complete=true`.
-- **Active workstream:** FBR Sandbox -> Production activation. Readiness/evidence tooling is implemented; real client seller identity/tokens and real Sandbox validate/POST proof must be supplied before Production can proceed.
-- Printing/devices/profile UAT follows FBR proof/activation.
-- Do not create another ERPNext Core Migration phase. Remaining work is release/operations hardening over the completed architecture.
+- **ERPNext Core Migration Phases 0–13: COMPLETE**. Do not create a Phase 14.
+- R0 + R2 production release hardening: COMPLETE.
+- R3 backup/restore proof: COMPLETE.
+- R1 fresh-client provisioning + R4 multi-site SaaS hardening: COMPLETE.
+- R5 client onboarding/readiness: COMPLETE on the canonical local integration site.
+- FBR application/setup tooling: COMPLETE at code/static-contract level. Real seller identity/tokens and real FBR Sandbox/Production certification remain external client inputs and must never be fabricated.
+- Printing/device/profile UAT tooling: IMPLEMENTED; static/local acceptance gate pending exercise.
+- Final immutable production release gate: IMPLEMENTED; real production acceptance remains dependent on manual UAT, strict backup/release evidence, online smoke, and FBR certification only when FBR Production is intended.
+- Recovery/final acceptance now use a true read-only Phase 12 snapshot verifier; the administrative Phase 12 verifier remains separate because it intentionally records verification metadata.
+
+## Current gates
+
+Local machine-verifiable setup/acceptance:
+
+```bash
+bash scripts/run_release_acceptance_readiness_gate.sh ledgix-erpnext.local
+```
+
+Final production acceptance after deployment and real UAT:
+
+```bash
+bash scripts/run_ledgix_production_release_gate.sh \
+  --site <client-site> \
+  --url https://<client-domain> \
+  --release <immutable-sha-or-tag>
+```
+
+Add `--require-fbr-production` only when the client is actually going live with FBR Production.
 
 ## Historical plan
 
-`new_plan.md` is retained as historical design context only.
-
-Its earlier **"No ERPNext dependency"** direction has been superseded by `erpnext_core_migration_plan.md` and must not be used as implementation authority for new work.
+`new_plan.md` is retained as historical design context only. Its earlier **"No ERPNext dependency"** direction has been superseded by `erpnext_core_migration_plan.md` and must not be used as implementation authority for new work.
