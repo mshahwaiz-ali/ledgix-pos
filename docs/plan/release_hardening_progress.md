@@ -12,11 +12,11 @@
 | R2 — Production install / update | COMPLETE | safe single-site updater, verified backup before mutation, fail-closed maintenance, release evidence |
 | R3 — Backup / restore / rollback | COMPLETE | checksum-valid full backup, destructive same-site wipe/recreate/restore, DB identity preservation, Phase 12 digest verification |
 | R1 — Fresh-client provisioning | COMPLETE | immutable isolated provisioner, ERPNext-before-Ledgix install, external generated credentials, preflight/smoke/evidence |
-| R4 — Multi-site SaaS | COMPLETE | shared-bench updater requires exact full tenant cohort with per-site backup/maintenance/migrate/smoke/evidence |
+| R4 — Multi-site SaaS | COMPLETE | shared-bench updater requires exact full tenant cohort; fresh-tenant provisioning cannot silently mutate an existing shared-bench Ledgix release |
 | R5 — Client onboarding/readiness | COMPLETE | runtime gate green with guarded existing-profile apply; no blocking onboarding checks remain |
-| FBR Sandbox -> Production activation | ACTIVE — READINESS EXERCISED / SANDBOX TOOLING READY | read-only gate green; current blockers are only real seller identity/tokens, real Sandbox proof, and production backup/release evidence; secure local Sandbox configuration/exercise helpers implemented |
-| Printing/devices/UAT | PLANNED | follows FBR Sandbox/activation proof; implementation can proceed in parallel while waiting for client FBR credentials |
-| Final production release gate | PLANNED | final workstream |
+| FBR Sandbox -> Production activation | CODE/SETUP COMPLETE — EXTERNAL CERTIFICATION PENDING | read-only gate green; secure Sandbox configuration/exercise helpers ready; remaining inputs are real seller identity/tokens, real Sandbox proof, and production evidence |
+| Printing/devices/UAT | TOOLING + MACHINE SETUP COMPLETE — PHYSICAL UAT PENDING | ERPNext-native A4/thermal print surfaces, device/UAT contract and acceptance evaluator implemented; machine-verifiable setup green |
+| Final production release gate | IMPLEMENTED — REAL PRODUCTION EVIDENCE PENDING | immutable final gate implemented; local release setup readiness green; production verdict intentionally waits for manual UAT, release/backup evidence, online smoke and FBR certification when applicable |
 
 ## R3 exercised recovery evidence
 
@@ -33,6 +33,8 @@ The combined R1 + R4 gate passed on `f54bb336ba17e8e046bc4b46e9a6d22f1466a903` w
 - final marker `r1_r4_static_complete=true`.
 
 Production fresh-site authority is `deploy/provision_client_site_safe.sh`. Shared-bench release authority is `deploy/deploy_update_shared_safe.sh`. There is no per-client application fork.
+
+The later shared-bench safety audit also closed the remaining mutation gap: adding a tenant to an existing shared bench cannot sync the bench to a different Ledgix release. The requested release must already match the deployed shared release or provisioning fails closed and directs the operator to the shared cohort updater. The `production_setup --action full` path no longer performs a generic pre-provision Ledgix code mutation.
 
 ## R5 exercised runtime evidence
 
@@ -195,6 +197,84 @@ private/ledgix-fbr-activation/
 ```
 
 The readiness implementation deliberately does **not** include a Production-arm action. Real client seller identity and Sandbox credentials must be supplied and the required Sandbox flows must pass first. Production switching/arming remains a later explicit operator/compliance action with observed first-live submission.
+
+## Printing / device / UAT acceptance
+
+The printing/device/profile acceptance tooling and runbook are implemented. The local machine-verifiable release acceptance gate has been exercised successfully on `ledgix-erpnext.local`.
+
+Verified setup-side evidence includes:
+
+```text
+release_acceptance_static_complete=true
+release_setup_ready=true
+release_acceptance_readiness_complete=true
+```
+
+The evaluator verifies the native ERPNext print surfaces, Phase 12 frozen snapshot, R5 setup state and profile/device/UAT requirements without fabricating hardware evidence. Physical printer/barcode/payment-terminal observations remain manual acceptance evidence by design.
+
+The expected local state therefore keeps manual acceptance false until a human actually exercises the devices:
+
+```text
+manual_uat_ready=false
+```
+
+This is not a software/setup defect.
+
+## Final production release gate
+
+The immutable production release gate is implemented and intentionally does not deploy code, arm FBR Production or manufacture evidence. It verifies an already-deployed approved release against strict production prerequisites.
+
+Production readiness requires the applicable combination of:
+
+- exact immutable Ledgix release identity;
+- strict release/provisioning evidence;
+- fresh verified backup evidence;
+- online/offline smoke;
+- manual device/UAT evidence;
+- no unresolved reconciliation state;
+- FBR Sandbox/Production certification only when the client is going live with FBR Production.
+
+The canonical final command remains:
+
+```bash
+bash scripts/run_ledgix_production_release_gate.sh \
+  --site <client-site> \
+  --url https://<client-domain> \
+  --release <immutable-sha-or-tag>
+```
+
+Add `--require-fbr-production` only for a client whose go-live scope includes FBR Production.
+
+## Retained Ledgix product Pages
+
+The ERPNext migration does **not** delete the product-specific Ledgix Pages. The retained first-class UX surfaces are:
+
+- `ledgix-pos` — Ledgix POS;
+- `business-intelligence-center` — Inventory Intelligence;
+- `ledgix-tax-center` — Tax & FBR Center;
+- `ledgix-setup` — Setup Wizard.
+
+They are exposed as profile/role-aware shortcuts in the Ledgix workspace. ERPNext remains authoritative underneath them.
+
+The post-migration source alignment now includes:
+
+- Inventory Intelligence item filter -> ERPNext `Item`;
+- Inventory navigation -> ERPNext `Item`, Stock Ledger/Stock Balance and `Batch`;
+- inventory timeline references -> whitelisted ERPNext-native transaction DocTypes;
+- POS customer link -> ERPNext `Customer`;
+- POS post-sale printing -> native `Sales Invoice` / `POS Invoice` + Ledgix ERPNext print formats;
+- legacy `Ledgix Sale` print URLs removed from the active POS source;
+- Tax & FBR Center remains a Ledgix orchestration surface while its active FBR source is ERPNext `Sales Invoice` / `POS Invoice`;
+- Setup Wizard remains the guarded configuration-only onboarding surface.
+
+The combined Phase 10 + Phase 11 custom-page/native-authority contract was re-exercised after these changes and passed:
+
+```text
+Ran 25 tests
+OK
+```
+
+This preservation requirement is regression-tested so later release work must modernize these Pages rather than delete them.
 
 ## Next FBR operator sequence
 
