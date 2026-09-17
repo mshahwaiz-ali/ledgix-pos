@@ -3,6 +3,13 @@ set -Eeuo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+BENCH_DIR="${BENCH_DIR:-$REPO_ROOT/frappe-bench}"
+BENCH_PYTHON="$BENCH_DIR/env/bin/python"
+
+[[ -x "$BENCH_PYTHON" ]] || {
+  printf '[FAIL] bench Python is required for Frappe-aware FBR contract tests: %s\n' "$BENCH_PYTHON" >&2
+  exit 1
+}
 
 printf '==================================================\n'
 printf ' Ledgix FBR Activation Static Gate\n'
@@ -10,21 +17,22 @@ printf '==================================================\n'
 printf 'Repo: %s\n' "$REPO_ROOT"
 printf 'Branch: %s\n' "$(git -C "$REPO_ROOT" branch --show-current)"
 printf 'Commit: %s\n' "$(git -C "$REPO_ROOT" rev-parse HEAD)"
+printf 'Bench Python: %s\n' "$BENCH_PYTHON"
 
 printf '\n===== LOCAL CI =====\n'
 bash "$SCRIPT_DIR/ci_local.sh"
 
 printf '\n===== PHASE 9 FBR REGRESSION CONTRACT =====\n'
 PYTHONPATH="$REPO_ROOT/apps${PYTHONPATH:+:$PYTHONPATH}" \
-  python3 -m unittest -v ledgix_saas.setup.test_erpnext_phase9_contract
+  "$BENCH_PYTHON" -m unittest -v ledgix_saas.setup.test_erpnext_phase9_contract
 
 printf '\n===== R5 REGRESSION CONTRACT =====\n'
 PYTHONPATH="$REPO_ROOT/apps${PYTHONPATH:+:$PYTHONPATH}" \
-  python3 -m unittest -v ledgix_saas.setup.test_client_readiness_contract
+  "$BENCH_PYTHON" -m unittest -v ledgix_saas.setup.test_client_readiness_contract
 
 printf '\n===== FBR ACTIVATION CONTRACT =====\n'
 PYTHONPATH="$REPO_ROOT/apps${PYTHONPATH:+:$PYTHONPATH}" \
-  python3 -m unittest -v ledgix_saas.setup.test_fbr_activation_contract
+  "$BENCH_PYTHON" -m unittest -v ledgix_saas.setup.test_fbr_activation_contract
 
 printf '\n===== FBR ACTIVATION STATIC VERDICT =====\n'
 printf '[PASS] ERPNext-native FBR authority contract\n'
