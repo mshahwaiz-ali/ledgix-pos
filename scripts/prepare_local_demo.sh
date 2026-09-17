@@ -4,9 +4,10 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BENCH_DIR="${ROOT_DIR}/frappe-bench"
 SITE="${1:-ledgix-erpnext.local}"
+APP="ledgix_saas"
 
 if [[ "${SITE}" != *.local ]]; then
-  echo "Refusing demo preparation for non-local site: ${SITE}" >&2
+  echo "Refusing retail operating-data preparation for non-local site: ${SITE}" >&2
   exit 2
 fi
 
@@ -15,24 +16,44 @@ if [[ ! -d "${BENCH_DIR}" ]]; then
   exit 2
 fi
 
+SRC_APP="${ROOT_DIR}/apps/${APP}"
+DEST_APP="${BENCH_DIR}/apps/${APP}"
+TMP_APP="${BENCH_DIR}/apps/.${APP}.retail-data.$$"
+BENCH_PYTHON="${BENCH_DIR}/env/bin/python"
+
+if [[ ! -d "${SRC_APP}" || ! -x "${BENCH_PYTHON}" ]]; then
+  echo "Ledgix source app or bench Python is missing." >&2
+  exit 2
+fi
+
+echo "== Ledgix retail operating data: sync current app =="
+rm -rf "${TMP_APP}"
+cp -a "${SRC_APP}" "${TMP_APP}"
+rm -rf "${DEST_APP}"
+mv "${TMP_APP}" "${DEST_APP}"
+"${BENCH_PYTHON}" -m pip install -e "${DEST_APP}"
+if [[ -f "${ROOT_DIR}/deploy/repair_apps_txt.sh" ]]; then
+  BENCH_DIR="${BENCH_DIR}" bash "${ROOT_DIR}/deploy/repair_apps_txt.sh"
+fi
+
 cd "${BENCH_DIR}"
 
-echo "== Ledgix local demo: preflight =="
+echo "== Ledgix retail operating data: preflight =="
 bench --site "${SITE}" list-apps
 
-echo "== Ledgix local demo: safe backup =="
+echo "== Ledgix retail operating data: safe backup =="
 bench --site "${SITE}" backup --with-files
 
-echo "== Ledgix local demo: pre-seed inspection =="
+echo "== Ledgix retail operating data: pre-load inspection =="
 bench --site "${SITE}" execute ledgix_saas.setup.demo_data.inspect_site
 
-echo "== Ledgix local demo: clear only prior V2 seed transactions =="
+echo "== Ledgix retail operating data: clear only prior managed operating-data transactions =="
 bench --site "${SITE}" execute ledgix_saas.setup.demo_data.cleanup_seed_transactions
 
-echo "== Ledgix local demo: seed ERPNext-authoritative data =="
+echo "== Ledgix retail operating data: create ERPNext-authoritative operating history =="
 bench --site "${SITE}" execute ledgix_saas.setup.demo_data.seed
 
-echo "== Ledgix local demo: verify =="
+echo "== Ledgix retail operating data: verify =="
 bench --site "${SITE}" execute ledgix_saas.setup.demo_data.verify
 
-echo "== Ledgix local demo: complete =="
+echo "== Ledgix retail operating data: complete =="
