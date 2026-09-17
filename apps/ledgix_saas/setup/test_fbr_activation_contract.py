@@ -92,6 +92,67 @@ class TestFBRActivationContract(unittest.TestCase):
         self.assertEqual(source.count('"$BENCH_PYTHON" -m unittest -v'), 3)
         self.assertNotIn("  python3 -m unittest -v", source)
 
+    def test_sandbox_operator_is_local_only_and_production_closed(self):
+        path = APP_ROOT / "setup" / "fbr_sandbox_operator.py"
+        self.assertTrue(path.exists())
+        source = path.read_text(encoding="utf-8")
+        for token in (
+            'site.endswith(".local")',
+            'site.endswith(".localhost")',
+            'SANDBOX_CONFIRMATION = "SEND TO FBR SANDBOX"',
+            'PRIVATE_SUBDIR = "ledgix-fbr-activation"',
+            '"mode": "Sandbox"',
+            '"submit_trigger": "Manual"',
+            '"production_post_armed": 0',
+            'input_path.unlink(missing_ok=True)',
+            'fbr_native.validate_native_with_fbr_internal',
+            'fbr_native.submit_native_to_fbr_internal',
+            '_existing_sandbox_proof',
+            '"production_credentials_changed": False',
+            '"production_armed": False',
+            '"contains_secrets": False',
+        ):
+            self.assertIn(token, source)
+        for forbidden in (
+            '"production_token":',
+            'production_post_armed = 1',
+            'fbr_client.post_invoice',
+            'fbr_client.validate_invoice',
+            'get_active_fbr_token',
+        ):
+            self.assertNotIn(forbidden, source)
+
+    def test_sandbox_shell_helpers_keep_token_out_of_cli_and_require_explicit_send(self):
+        configure = SCRIPTS / "configure_fbr_sandbox_local.sh"
+        exercise = SCRIPTS / "run_fbr_sandbox_exercise_local.sh"
+        self.assertTrue(configure.exists())
+        self.assertTrue(exercise.exists())
+        configure_source = configure.read_text(encoding="utf-8")
+        exercise_source = exercise.read_text(encoding="utf-8")
+
+        for token in (
+            "Sandbox token (hidden)",
+            "read -r -s -p",
+            "sandbox-config-input.$$.json",
+            "chmod 600",
+            "configure_sandbox_from_private_file",
+            "fbr_sandbox_configuration_complete=true",
+        ):
+            self.assertIn(token, configure_source)
+        self.assertNotIn("--sandbox-token", configure_source)
+        self.assertNotIn("--production-token", configure_source)
+
+        for token in (
+            "--list-candidates",
+            '--confirm "SEND TO FBR SANDBOX"',
+            "list_sandbox_candidates",
+            "exercise_sandbox_reference",
+            "fbr_sandbox_exercise_complete=true",
+        ):
+            self.assertIn(token, exercise_source)
+        self.assertNotIn("--production-token", exercise_source)
+        self.assertNotIn("post_invoice(", exercise_source)
+
     def test_static_and_runtime_gates_exist(self):
         static_gate = SCRIPTS / "run_fbr_activation_static_gate.sh"
         runtime_gate = SCRIPTS / "run_fbr_activation_readiness_gate.sh"
