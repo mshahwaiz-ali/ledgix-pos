@@ -32,7 +32,7 @@ RECORD LEDGIX MANUAL UAT
 All profiles:
 
 - `sales_invoice_a4` — render/print the A4 Sales Invoice/Credit Note as applicable;
-- `role_boundary` — verify a lower-privilege user cannot access an admin-only operation.
+- `role_boundary` — verify the **role boundary** by confirming a lower-privilege user cannot access an admin-only operation.
 
 POS-enabled profiles additionally require:
 
