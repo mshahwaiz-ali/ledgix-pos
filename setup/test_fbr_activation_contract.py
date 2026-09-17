@@ -85,6 +85,13 @@ class TestFBRActivationContract(unittest.TestCase):
         self.assertNotIn('settings.get("sandbox_token")', source)
         self.assertNotIn('settings.get("production_token")', source)
 
+    def test_static_gate_uses_bench_python_for_frappe_aware_contracts(self):
+        source = (SCRIPTS / "run_fbr_activation_static_gate.sh").read_text(encoding="utf-8")
+        self.assertIn('BENCH_PYTHON="$BENCH_DIR/env/bin/python"', source)
+        self.assertIn('[[ -x "$BENCH_PYTHON" ]]', source)
+        self.assertEqual(source.count('"$BENCH_PYTHON" -m unittest -v'), 3)
+        self.assertNotIn("  python3 -m unittest -v", source)
+
     def test_static_and_runtime_gates_exist(self):
         static_gate = SCRIPTS / "run_fbr_activation_static_gate.sh"
         runtime_gate = SCRIPTS / "run_fbr_activation_readiness_gate.sh"
