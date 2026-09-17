@@ -354,12 +354,17 @@ def customer_context(customer: str | None, sale_channel: str = "Retail", *, comp
 
 
 def _item_groups() -> list[dict]:
-    rows = frappe.get_all(
-        "Item Group",
-        filters={"is_group": 0},
-        fields=["name", "item_group_name"],
-        order_by="item_group_name asc",
-        limit_page_length=0,
+    rows = frappe.db.sql(
+        """
+        select distinct ig.name, ig.item_group_name
+        from `tabItem Group` ig
+        inner join `tabItem` i on i.item_group = ig.name
+        where ig.is_group = 0
+          and i.disabled = 0
+          and i.is_sales_item = 1
+        order by ig.item_group_name asc, ig.name asc
+        """,
+        as_dict=True,
     )
     return [{"name": row.name, "category_name": row.item_group_name or row.name} for row in rows]
 
