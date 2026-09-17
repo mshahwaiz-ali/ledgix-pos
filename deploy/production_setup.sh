@@ -82,6 +82,14 @@ ensure_erpnext_bench() {
   bash "$SCRIPT_DIR/ensure_erpnext.sh"
 }
 
+bench_has_sites() {
+  local bench_dir="${BENCH_DIR:-$REPO_ROOT/frappe-bench}" config
+  for config in "$bench_dir"/sites/*/site_config.json; do
+    [[ -f "$config" ]] && return 0
+  done
+  return 1
+}
+
 run_services() {
   [[ -f "$SCRIPT_DIR/production_services_fix.sh" ]] || {
     printf '[ERROR] missing production services helper: %s\n' "$SCRIPT_DIR/production_services_fix.sh" >&2
@@ -171,6 +179,9 @@ if [[ "$ACTION" == "site" ]]; then
 fi
 
 if [[ "$ACTION" == "apps" ]]; then
+  if bench_has_sites; then
+    fail '--action apps is disabled once sites exist because generic app sync can mutate shared tenant code. Use deploy_update_safe.sh, deploy_update_shared_safe.sh, or the release-pinned client provisioner.'
+  fi
   ensure_erpnext_bench
   run_ec2 "$@"
   post_build_refresh
@@ -198,9 +209,11 @@ if [[ "$ACTION" == "full" ]]; then
   run_ec2 "${base[@]}" --action packages
   run_ec2 "${base[@]}" --action bench
   ensure_erpnext_bench
-  run_ec2 "${base[@]}" --action apps
-  post_build_refresh
 
+  # Do not run the legacy/generic `apps` sync here. On a bench with existing
+  # Ledgix tenants that could mutate shared code before cohort validation. The
+  # immutable provisioner owns Ledgix code handling and preserves existing
+  # shared code unless the requested release is already an exact match.
   run_safe_provision_client
 
   run_services
