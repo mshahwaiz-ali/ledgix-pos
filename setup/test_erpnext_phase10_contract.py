@@ -142,6 +142,24 @@ class TestERPNextPhase10Contract(unittest.TestCase):
         self.assertIn('"Ledgix ERPNext POS Receipt"', source)
         self.assertIn('result["sale"] = ""', source)
 
+    def test_retained_pos_page_uses_erpnext_customer_and_native_print_result(self):
+        source = (
+            APP_ROOT
+            / "ledgix"
+            / "page"
+            / "ledgix_pos"
+            / "ledgix_pos.js"
+        ).read_text(encoding="utf-8")
+        self.assertIn('options: "Customer"', source)
+        self.assertIn("result.native_document", source)
+        self.assertIn("result?.print_doctype", source)
+        self.assertIn("result?.print_format", source)
+        self.assertIn("result.print_deferred", source)
+        self.assertNotIn('options: "Ledgix Customer"', source)
+        self.assertNotIn("doctype=Ledgix%20Sale", source)
+        self.assertNotIn('"Ledgix B2B Invoice"', source)
+        self.assertNotIn('"Ledgix Thermal Receipt"', source)
+
     def test_phase10_client_bridge_uses_native_print_and_bi_routes(self):
         hooks = (APP_ROOT / "hooks.py").read_text(encoding="utf-8")
         bridge = (APP_ROOT / "public" / "js" / "ledgix_phase10_native_surfaces.js").read_text(encoding="utf-8")
@@ -155,6 +173,8 @@ class TestERPNextPhase10Contract(unittest.TestCase):
         self.assertIn('options: "Item"', bridge)
         self.assertIn('"Stock Ledger"', bridge)
         self.assertIn('"Stock Balance"', bridge)
+        self.assertIn("NATIVE_INVENTORY_REFERENCE_DOCTYPES", bridge)
+        self.assertIn("if (!center.nativeReferenceDoctypes)", bridge)
         self.assertNotIn("doctype=Ledgix%20Sale", bridge)
 
     def test_phase10_runtime_fixture_uses_stock_item_authority(self):
