@@ -10,15 +10,31 @@ APP_ROOT = Path(__file__).resolve().parents[3]
 
 
 class TestV2WorkspaceAndIntelligence(FrappeTestCase):
-    def test_workspace_is_two_column_and_covers_user_facing_navigation(self):
+    def test_workspace_is_compact_and_covers_user_facing_navigation(self):
         path = APP_ROOT / "ledgix" / "workspace" / "ledgix" / "ledgix.json"
         workspace = json.loads(path.read_text(encoding="utf-8"))
         content = json.loads(workspace.get("content") or "[]")
 
         cards = [row for row in content if row.get("type") == "card"]
-        self.assertEqual(len(cards), 8)
-        self.assertTrue(all((row.get("data") or {}).get("col") == 6 for row in cards))
-        self.assertEqual(workspace.get("shortcuts"), [])
+        self.assertEqual(len(cards), 7)
+        self.assertTrue(all((row.get("data") or {}).get("col") in {6, 12} for row in cards))
+        self.assertEqual((cards[-1].get("data") or {}).get("card_name"), "Administration")
+        self.assertEqual((cards[-1].get("data") or {}).get("col"), 12)
+
+        shortcuts = {
+            row.get("label"): row.get("link_to")
+            for row in workspace.get("shortcuts") or []
+            if row.get("type") == "Page"
+        }
+        self.assertEqual(
+            shortcuts,
+            {
+                "Ledgix POS": "ledgix-pos",
+                "Inventory Intelligence": "business-intelligence-center",
+                "Tax & FBR Center": "ledgix-tax-center",
+                "Setup Wizard": "ledgix-setup",
+            },
+        )
 
         targets = {
             row.get("link_to")
@@ -29,14 +45,38 @@ class TestV2WorkspaceAndIntelligence(FrappeTestCase):
             "ledgix-pos",
             "ledgix-tax-center",
             "business-intelligence-center",
-            "Ledgix POS Hold",
-            "Ledgix Stock Lot Allocation",
+            "ledgix-setup",
+            "Item",
+            "Customer",
+            "Supplier",
+            "Sales Invoice",
+            "POS Invoice",
+            "Purchase Invoice",
+            "Stock Entry",
+            "Stock Balance",
+            "Stock Ledger",
+            "Accounts Receivable",
+            "General Ledger",
+            "Profit and Loss Statement",
             "Ledgix Tax Audit Log",
             "Ledgix User Profile",
-            "Inventory Intelligence Report",
-            "Ledgix Stock Movement Report",
         }
         self.assertTrue(required_targets.issubset(targets))
+        retired_targets = {
+            "Ledgix Item",
+            "Ledgix Customer",
+            "Ledgix Supplier",
+            "Ledgix Sale",
+            "Ledgix Purchase",
+            "Ledgix Sales Return",
+            "Ledgix POS Shift",
+            "Ledgix POS Hold",
+            "Ledgix Payment",
+            "Ledgix Stock Movement",
+            "Ledgix Stock Lot",
+            "Ledgix Stock Serial",
+        }
+        self.assertTrue(targets.isdisjoint(retired_targets))
         self.assertNotIn("Item Intelligence Legacy", targets)
 
     def test_inventory_timeline_renders_returns_as_inbound_activity(self):
