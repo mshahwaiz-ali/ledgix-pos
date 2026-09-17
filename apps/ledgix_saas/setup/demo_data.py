@@ -171,7 +171,7 @@ def verify() -> dict:
         select count(*)
         from (
             select parent
-            from `tabPOS Invoice Payment`
+            from `tabSales Invoice Payment`
             where parenttype = 'POS Invoice'
             group by parent
             having count(*) > 1
