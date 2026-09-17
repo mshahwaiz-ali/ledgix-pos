@@ -22,6 +22,36 @@ class TestERPNextPhase10Contract(unittest.TestCase):
         self.assertIn("erpnext_reporting.inventory_intelligence", native)
         self.assertNotIn("business_intelligence", native)
 
+    def test_retained_inventory_page_uses_erpnext_native_routes(self):
+        source = (
+            APP_ROOT
+            / "ledgix"
+            / "page"
+            / "business_intelligence_center"
+            / "business_intelligence_center.js"
+        ).read_text(encoding="utf-8")
+        for token in (
+            'options: "Item"',
+            'data-route-list="Item"',
+            'data-route-report="Stock Ledger"',
+            'data-route-list="Batch"',
+            "row.reference_doctype",
+            '"Sales Invoice"',
+            '"POS Invoice"',
+            '"Purchase Invoice"',
+            '"Purchase Receipt"',
+        ):
+            self.assertIn(token, source)
+        for forbidden in (
+            'data-route-list="Ledgix Item"',
+            "Ledgix Stock Movement",
+            "Ledgix Stock Lot",
+            'doctype = "Ledgix Purchase"',
+            'doctype = "Ledgix Sale"',
+            'doctype = "Ledgix Sales Return"',
+        ):
+            self.assertNotIn(forbidden, source)
+
     def test_active_reporting_service_never_queries_legacy_ledgers(self):
         source = (APP_ROOT / "services" / "erpnext_reporting.py").read_text(encoding="utf-8")
         self.assertNotIn("`tabLedgix", source)
