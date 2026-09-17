@@ -12,9 +12,10 @@ usage() {
   cat <<'EOF'
 Usage: scripts/run_release_acceptance_readiness_gate.sh [SITE]
 
-Local/integration acceptance audit. It exact-syncs Ledgix code, runs static,
-dependency and offline smoke checks, then records non-secret acceptance evidence.
-It makes no FBR network call, never arms Production, and does not claim physical
+Local/integration acceptance audit. It exact-syncs Ledgix code, applies the
+current site migration and client assets, runs static, dependency and offline
+smoke checks, then records non-secret acceptance evidence. It makes no FBR
+network call, never arms Production, and does not claim physical
 printer/scanner/device UAT has passed unless explicit manual evidence exists.
 EOF
 }
@@ -80,6 +81,11 @@ fi
 [[ -f "$DEST_APP/api/release_acceptance.py" ]] || fail 'bench app is missing release acceptance service after sync'
 pass 'bench Ledgix code matches repository source'
 
+printf '\n===== APPLY CURRENT SITE + ASSET STATE =====\n'
+bench_run --site "$SITE" migrate
+bench_run build --app "$APP"
+pass 'site schema/workspace and Ledgix client assets are current'
+
 printf '\n===== RUNTIME DEPENDENCIES =====\n'
 BENCH_DIR="$BENCH_DIR" bash "$REPO_ROOT/deploy/bench_redis.sh" start
 TEMP_REDIS_STARTED=1
@@ -106,6 +112,7 @@ printf 'production_release_ready=%s\n' "$([[ "$PROD_READY" == 1 ]] && printf tru
 
 printf '\n===== ACCEPTANCE READINESS VERDICT =====\n'
 printf '[PASS] machine-verifiable release setup is green\n'
+printf '[PASS] repository code was synced, migrated and built before evidence capture\n'
 printf '[PASS] Phase 12 snapshot verification was read-only\n'
 printf '[PASS] no FBR network call or Production arming occurred\n'
 printf '[INFO] manual device/UAT and external FBR certification may remain pending without blocking code/setup readiness\n'
