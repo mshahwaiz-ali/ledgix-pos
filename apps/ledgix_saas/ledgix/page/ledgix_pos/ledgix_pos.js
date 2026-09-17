@@ -72,7 +72,7 @@ class LedgixPOSV2 {
 			</div>
 		</div>`);
 		this.$root = $(this.page.body).find(".lx-pos-v2");
-		this.customer_control = frappe.ui.form.make_control({ parent: this.$root.find(".lx-customer-control"), df: { fieldtype: "Link", options: "Ledgix Customer", fieldname: "customer", label: "Customer", placeholder: "Walk-in Customer" }, render_input: true });
+		this.customer_control = frappe.ui.form.make_control({ parent: this.$root.find(".lx-customer-control"), df: { fieldtype: "Link", options: "Customer", fieldname: "customer", label: "Customer", placeholder: "Walk-in Customer" }, render_input: true });
 		this.customer_control.$wrapper.addClass("lx-customer-link");
 	}
 
@@ -252,9 +252,10 @@ class LedgixPOSV2 {
 				discount_type: this.state.discount_type, discount_value: this.state.discount_value,
 				client_sale_id: this.ensure_client_sale_id(),
 			});
-			frappe.show_alert({ message: `Sale ${result.invoice_number || result.sale} completed`, indicator: "green" }, 5);
+			const reference = result.native_document || result.invoice_number || result.invoice || "ERPNext invoice";
+			frappe.show_alert({ message: `${reference} completed`, indicator: "green" }, 5);
 			this.clear_cart();
-			if (result.sale) this.handle_post_sale_print(result.sale, result.print_mode);
+			if (!result.print_deferred && result.native_document) this.handle_post_sale_print(result);
 			await this.refresh_context();
 			await this.load_items();
 		} catch (error) {
@@ -264,15 +265,19 @@ class LedgixPOSV2 {
 		}
 	}
 
-	print_url(sale, mode) {
-		const format = mode === "A4" ? "Ledgix B2B Invoice" : "Ledgix Thermal Receipt";
-		return `/printview?doctype=Ledgix%20Sale&name=${encodeURIComponent(sale)}&format=${encodeURIComponent(format)}&no_letterhead=0`;
+	print_url(result) {
+		const doctype = result?.print_doctype || result?.doctype;
+		const name = result?.native_document;
+		const format = result?.print_format;
+		if (!doctype || !name || !format) return "";
+		return `/printview?doctype=${encodeURIComponent(doctype)}&name=${encodeURIComponent(name)}&format=${encodeURIComponent(format)}&no_letterhead=1`;
 	}
 
-	handle_post_sale_print(sale, mode) {
-		const url = this.print_url(sale, mode);
-		if (mode === "A4") {
-			frappe.confirm("Open A4 invoice?", () => window.open(url, "_blank"));
+	handle_post_sale_print(result) {
+		const url = this.print_url(result);
+		if (!url) return frappe.show_alert({ message: "Native invoice posted; print target was unavailable.", indicator: "orange" }, 6);
+		if (result.print_mode === "A4") {
+			frappe.confirm("Open Ledgix A4 invoice?", () => window.open(url, "_blank"));
 			return;
 		}
 		this.auto_print_retail_receipt(url);
