@@ -1,826 +1,325 @@
-# Production Deployment Guide
+# Ledgix Production Deployment
 
-> **Production server / EC2 deployment guide for Ledgix POS and Ledgix SaaS.**
+**Status:** CURRENT  
+**Architecture:** Frappe v15 + ERPNext v15 + `ledgix_saas`  
+**Production release policy:** immutable SHA/tag only
 
----
+## Purpose
 
-<div align="center">
+This is the entrypoint for production deployment after the ERPNext-core migration.
 
-# Ledgix POS Production Deployment
-
-**Server setup. Domain. SSL. Supervisor. Nginx. Backups. Updates.**
-
-</div>
+Production is not a copy of the local development flow. Do not use `bench start`, local default credentials, a moving `main` branch, or a Ledgix-only site for a live client.
 
 ---
 
-## Overview
-
-This guide explains how to deploy **Ledgix SaaS** using the **Ledgix POS** repository on a production server.
-
-Production deployment is different from local development.
-
-Local development uses:
+## 1. Production architecture
 
 ```text
-bench start
+Internet
+  -> DNS / HTTPS
+  -> Nginx
+  -> Frappe production processes managed by Supervisor
+  -> Frappe bench
+      -> ERPNext
+      -> ledgix_saas
+  -> per-client Frappe site/database
+  -> MariaDB / Redis / files
 ```
 
-Production uses:
+Ledgix SaaS uses native Frappe multitenancy:
 
-```text
-Nginx + Supervisor + Redis + MariaDB
-```
+- one site per client;
+- one database per site;
+- one shared Ledgix codebase per bench;
+- separate client configuration, users, business data, FBR credentials and backups;
+- no per-client code forks.
+
+If clients need different Ledgix releases, place them on separate benches rather than forking application code.
 
 ---
 
-## Production Architecture
+## 2. Supported stack and release contract
+
+The current production contract is recorded in:
 
 ```text
-┌─────────────────────────────────────────────────────────────┐
-│                         Internet                            │
-└──────────────────────────────┬──────────────────────────────┘
-                               │
-                               ▼
-┌─────────────────────────────────────────────────────────────┐
-│                          Domain                             │
-│                  erp.yourdomain.com                         │
-└──────────────────────────────┬──────────────────────────────┘
-                               │
-                               ▼
-┌─────────────────────────────────────────────────────────────┐
-│                           Nginx                             │
-│              Handles HTTP / HTTPS traffic                   │
-└──────────────────────────────┬──────────────────────────────┘
-                               │
-                               ▼
-┌─────────────────────────────────────────────────────────────┐
-│                       Frappe Bench                          │
-│             Gunicorn + Socket.IO + Workers                  │
-└──────────────────────────────┬──────────────────────────────┘
-                               │
-        ┌──────────────────────┼──────────────────────┐
-        ▼                      ▼                      ▼
-┌──────────────┐       ┌──────────────┐       ┌──────────────┐
-│  MariaDB     │       │    Redis     │       │  File System │
-│  Database    │       │ Cache/Queue  │       │ Sites/Assets │
-└──────────────┘       └──────────────┘       └──────────────┘
+deploy/release_contract.env
 ```
+
+Current pinned versions:
+
+- Frappe `15.113.4`
+- ERPNext `15.121.3`
+- Ledgix app `ledgix_saas`
+
+Production deployment must resolve Ledgix to:
+
+- a full approved 40-character Git commit SHA; or
+- an approved immutable tag resolving to one commit.
+
+Do not deploy a moving branch name as the production release identity.
 
 ---
 
-## Production Flow
+## 3. Before deployment
 
-```text
-┌──────────────────────┐
-│ 1. Prepare Server    │
-└──────────┬───────────┘
-           │
-           ▼
-┌──────────────────────┐
-│ 2. Point Domain DNS  │
-└──────────┬───────────┘
-           │
-           ▼
-┌──────────────────────┐
-│ 3. Clone Repository  │
-└──────────┬───────────┘
-           │
-           ▼
-┌──────────────────────┐
-│ 4. Run Production    │
-│    Setup             │
-└──────────┬───────────┘
-           │
-           ▼
-┌──────────────────────┐
-│ 5. Create Site       │
-└──────────┬───────────┘
-           │
-           ▼
-┌──────────────────────┐
-│ 6. Install Ledgix    │
-└──────────┬───────────┘
-           │
-           ▼
-┌──────────────────────┐
-│ 7. Enable Nginx      │
-│    + Supervisor      │
-└──────────┬───────────┘
-           │
-           ▼
-┌──────────────────────┐
-│ 8. Enable SSL        │
-└──────────┬───────────┘
-           │
-           ▼
-┌──────────────────────┐
-│ 9. Verify Live Site  │
-└──────────────────────┘
-```
+Confirm:
 
----
+- DNS ownership and intended domain;
+- SSH access through a restricted trusted path;
+- firewall/security-group policy;
+- MariaDB/Redis are not exposed publicly;
+- server sizing is appropriate for the expected client load;
+- the repository is clean and the approved release is known;
+- backup destination/ownership is known;
+- FBR Production is **not** assumed to be ready merely because application deployment is ready.
 
-## Server Requirements
-
-```text
-┌─────────────────────┬────────────────────────────────────┐
-│ Requirement         │ Recommended                        │
-├─────────────────────┼────────────────────────────────────┤
-│ OS                  │ Ubuntu Server                      │
-│ Access              │ SSH with sudo user                 │
-│ RAM                 │ 2 GB minimum, 4 GB+ recommended    │
-│ CPU                 │ 2 vCPU recommended                 │
-│ Storage             │ 20 GB+ recommended                 │
-│ Domain              │ Required for SSL/live deployment   │
-│ Database            │ MariaDB                            │
-│ Cache/Queue         │ Redis                              │
-│ Web Server          │ Nginx                              │
-│ Process Manager     │ Supervisor                         │
-└─────────────────────┴────────────────────────────────────┘
-```
-
----
-
-## Production vs Local
-
-```text
-┌─────────────────────┬─────────────────────┬─────────────────────┐
-│ Area                │ Local Development   │ Production Server   │
-├─────────────────────┼─────────────────────┼─────────────────────┤
-│ Runner              │ bench start         │ Supervisor          │
-│ Web Server          │ Bench dev server    │ Nginx               │
-│ Port                │ 8000                │ 80 / 443            │
-│ SSL                 │ Not required        │ Required            │
-│ Domain              │ Optional            │ Required            │
-│ Logs                │ Terminal/log files  │ Supervisor/Nginx    │
-│ Use Case            │ Development/testing │ Live ERP system     │
-└─────────────────────┴─────────────────────┴─────────────────────┘
-```
-
----
-
-## Step 1: Connect to Server
-
-SSH into your server:
+Run repository/static validation before approving a release:
 
 ```bash
-ssh user@your-server-ip
+bash scripts/ci_local.sh
+bash scripts/run_release_hardening_static_gate.sh
 ```
 
-Example:
-
-```bash
-ssh ubuntu@123.123.123.123
-```
-
-Update packages:
-
-```bash
-sudo apt update && sudo apt upgrade -y
-```
+Use the additional static gates documented in `docs/production/release_install_update.md` when validating backup/provisioning/multisite contracts.
 
 ---
 
-## Step 2: Point Domain to Server
+## 4. Clone repository and select approved release
 
-Before SSL setup, point your domain/subdomain to the server IP.
-
-Example DNS record:
-
-```text
-┌────────────┬──────────────────────┬────────────────────┐
-│ Type       │ Name                 │ Value              │
-├────────────┼──────────────────────┼────────────────────┤
-│ A          │ erp                  │ YOUR_SERVER_IP     │
-└────────────┴──────────────────────┴────────────────────┘
-```
-
-Example final domain:
-
-```text
-erp.yourdomain.com
-```
-
-Check DNS:
-
-```bash
-ping erp.yourdomain.com
-```
-
-Or:
-
-```bash
-nslookup erp.yourdomain.com
-```
-
-The domain should resolve to your server IP.
-
----
-
-## Step 3: Clone Repository
+Example initial checkout:
 
 ```bash
 git clone https://github.com/mshahwaiz-ali/pos.git
 cd pos
+chmod +x install.sh site_setup.sh start.sh deploy/*.sh scripts/*.sh
 ```
 
-Make scripts executable:
-
-```bash
-chmod +x install.sh site_setup.sh start.sh
-chmod +x deploy/*.sh
-```
+The production wrapper resolves/checks the explicit release identity. Do not manually run an unpinned `git pull` immediately before go-live and assume that is an approved release.
 
 ---
 
-## Step 4: Run Production Setup
+## 5. Fresh client provisioning
 
-Run the main installer:
+Preferred site-level provisioning on an already prepared production bench:
 
 ```bash
-./install.sh
+cd /path/to/pos
+
+export PRODUCTION_SITE='client.example.com'
+export DEPLOY_RELEASE='<approved-40-char-sha-or-immutable-tag>'
+
+bash deploy/production_setup.sh --action site
 ```
 
-Choose:
+For a full host/bench/services rollout:
+
+```bash
+export PRODUCTION_SITE='client.example.com'
+export DEPLOY_RELEASE='<approved-40-char-sha-or-immutable-tag>'
+export PRODUCTION_URL='https://client.example.com'
+
+bash deploy/production_setup.sh --yes --action full
+```
+
+The safe provisioner:
+
+- creates an isolated client site/database;
+- installs ERPNext before Ledgix;
+- uses strong generated credentials;
+- stores production credentials outside the repository;
+- migrates/builds;
+- enables the scheduler where required for normal Frappe/ERPNext operation;
+- runs dependency preflight and offline smoke checks;
+- records provisioning evidence;
+- does not create client business masters;
+- does not apply the Business Profile automatically;
+- does not activate FBR Production.
+
+Detailed runbook: `docs/production/fresh_client_provisioning.md`.
+
+---
+
+## 6. Do not manually create a Ledgix-only production site
+
+The following legacy-style pattern is **not** the supported Ledgix production workflow:
 
 ```text
-2) Production / Server Setup
+bench new-site ...
+bench --site ... install-app ledgix_saas
 ```
 
-Or run the production setup directly:
+without first ensuring/installing ERPNext and satisfying the release contract.
 
-```bash
-deploy/production_setup.sh
-```
+ERPNext is a required application and the business authority.
+
+Use the supported production provisioner instead of assembling the stack ad hoc.
 
 ---
 
-## Step 5: Production Scripts
+## 7. Client business onboarding
 
-Production scripts are located inside:
+Provisioning installs infrastructure/application code only.
+
+Before client handover configure the required native ERPNext prerequisites, including as applicable:
+
+- Company and Chart of Accounts;
+- accounting defaults;
+- Selling/Buying Price Lists;
+- Warehouses;
+- Modes of Payment and account mappings;
+- Customers/Suppliers;
+- POS Profile and walk-in/default customer;
+- tax accounts and client tax/FBR mapping inputs.
+
+Then use:
 
 ```text
-deploy/
+/app/ledgix-setup
 ```
+
+and complete the client readiness workflow documented in:
 
 ```text
-┌──────────────────────┬─────────────────────────────────────┐
-│ Script               │ Purpose                             │
-├──────────────────────┼─────────────────────────────────────┤
-│ production_setup.sh  │ Main production setup script         │
-│ deploy_update.sh     │ Pull/update/deploy latest changes    │
-│ backup.sh            │ Create backups                       │
-│ status.sh            │ Check production service status      │
-│ docs/production/DEPLOYMENT.md │ Production deployment guide               │
-└──────────────────────┴─────────────────────────────────────┘
+docs/production/client_lifecycle.md
+docs/production/client_onboarding_readiness.md
 ```
 
 ---
 
-## Step 6: Create Production Site
+## 8. HTTPS, Nginx and Supervisor
 
-Production site name should usually match the real domain.
+Live production must use the production service model, not the development runner.
 
-Example:
+Required principles:
+
+- Nginx terminates/forwards HTTP(S);
+- Supervisor manages Frappe production processes;
+- HTTPS is enabled before sensitive production integrations are activated;
+- production status checks run against the intended host/domain;
+- `bench start` is never the live production process manager.
+
+Use the `deploy/production_setup.sh` workflow rather than maintaining a second undocumented manual service sequence.
+
+---
+
+## 9. Backups before changes
+
+Before every production update, destructive maintenance operation or FBR Production activation:
+
+```bash
+bash deploy/backup_safe.sh --site client.example.com
+```
+
+Verify the backup set and retain the required protected/off-host copy according to client policy.
+
+Detailed runbook:
 
 ```text
-erp.yourdomain.com
+docs/production/backup_restore_rollback.md
 ```
 
-If using bench manually:
+A host snapshot alone is not a substitute for a verified Ledgix site recovery set.
+
+---
+
+## 10. Updating an existing production deployment
+
+### Single-site bench
 
 ```bash
-cd frappe-bench
-bench new-site erp.yourdomain.com
+bash deploy/deploy_update_safe.sh \
+  --site client.example.com \
+  --release '<approved-40-char-sha-or-tag>' \
+  --url 'https://client.example.com'
 ```
 
-Install Ledgix SaaS:
+### Shared multi-site bench
 
-```bash
-bench --site erp.yourdomain.com install-app ledgix_saas
-bench --site erp.yourdomain.com migrate
-```
+Use `deploy/deploy_update_shared_safe.sh` with the complete explicitly approved Ledgix tenant cohort.
 
-Check installed apps:
+Never use the single-site updater to switch shared application code for only one tenant on a multi-site bench.
 
-```bash
-bench --site erp.yourdomain.com list-apps
-```
-
-Expected:
+Detailed runbooks:
 
 ```text
-frappe
-ledgix_saas
+docs/production/release_install_update.md
+docs/production/multi_site_saas.md
 ```
 
 ---
 
-## Step 7: Setup Production Mode
+## 11. Final release acceptance
 
-From inside bench:
+Deployment success alone is not client acceptance.
 
-```bash
-cd frappe-bench
-sudo bench setup production $USER
-```
-
-This prepares Supervisor and Nginx configuration for production usage.
-
-After setup, reload services:
+For final production approval run:
 
 ```bash
-sudo supervisorctl reread
-sudo supervisorctl update
-sudo supervisorctl restart all
-sudo nginx -t
-sudo systemctl reload nginx
+bash scripts/run_ledgix_production_release_gate.sh \
+  --site client.example.com \
+  --url https://client.example.com \
+  --release <full-40-character-SHA-or-immutable-tag>
 ```
+
+Add `--require-fbr-production` only when FBR Production is genuinely part of that go-live and its separate external evidence is complete.
+
+See `docs/production/final_release_gate.md`.
 
 ---
 
-## Step 8: Enable Scheduler
+## 12. FBR production boundary
 
-For ERP background jobs, enable scheduler:
+The FBR application layer is implemented, but the current repository documentation must **not** claim live Production readiness without real client credentials, real Sandbox network proof and the required go-live evidence.
 
-```bash
-cd frappe-bench
-bench --site erp.yourdomain.com enable-scheduler
-bench --site erp.yourdomain.com scheduler status
-```
-
----
-
-## Step 9: Enable SSL
-
-After DNS is correctly pointing to the server:
-
-```bash
-cd frappe-bench
-sudo bench setup lets-encrypt erp.yourdomain.com
-```
-
-Then verify:
-
-```bash
-sudo nginx -t
-sudo systemctl reload nginx
-```
-
-Open:
+Use:
 
 ```text
-https://erp.yourdomain.com
+docs/fbr/FBR_ARCHITECTURE_AND_OPERATIONS.md
+docs/fbr/FBR_PRODUCTION_CHECKLIST.md
+docs/production/fbr_sandbox_production_activation.md
 ```
+
+Production FBR posting remains fail-closed and uses no blind retry scheduler for ambiguous outcomes.
 
 ---
 
-## Step 10: Verify Services
+## 13. Production secrets
 
-Check Supervisor:
-
-```bash
-sudo supervisorctl status
-```
-
-Expected services include:
+Production credentials belong outside the repository. Fresh provisioning uses an owner-only per-site external location, defaulting to:
 
 ```text
-frappe-bench-web
-frappe-bench-workers
+~/.config/ledgix/sites/<site>.env
 ```
 
-Check Nginx:
+Never commit:
 
-```bash
-sudo nginx -t
-sudo systemctl status nginx
-```
+- site/database passwords;
+- Administrator credentials;
+- FBR tokens;
+- API keys/private keys;
+- `site_config.json` or recovery copies;
+- database/file backups;
+- generated production evidence containing secrets.
 
-Check MariaDB:
-
-```bash
-sudo systemctl status mariadb
-```
-
-Check Redis:
-
-```bash
-sudo systemctl status redis-server
-```
+Run the repository secret scan before commits/releases.
 
 ---
 
-## Production Health Check
-
-```text
-┌───────────────────────────────┬─────────────────────────────┐
-│ Check                         │ Command                     │
-├───────────────────────────────┼─────────────────────────────┤
-│ Supervisor status             │ sudo supervisorctl status    │
-│ Nginx config                  │ sudo nginx -t               │
-│ Nginx service                 │ systemctl status nginx       │
-│ MariaDB service               │ systemctl status mariadb     │
-│ Redis service                 │ systemctl status redis-server│
-│ Site apps                     │ bench --site site list-apps  │
-│ Site migration                │ bench --site site migrate    │
-│ Scheduler                     │ bench --site site scheduler status │
-└───────────────────────────────┴─────────────────────────────┘
-```
-
----
-
-## Deployment Update Flow
-
-When new changes are pushed to GitHub, update production with:
-
-```bash
-cd pos
-git pull
-```
-
-Then run:
-
-```bash
-deploy/deploy_update.sh
-```
-
-Manual update flow:
-
-```bash
-cd frappe-bench
-bench --site erp.yourdomain.com maintenance-mode on
-bench --site erp.yourdomain.com migrate
-bench build
-sudo supervisorctl restart all
-sudo systemctl reload nginx
-bench --site erp.yourdomain.com maintenance-mode off
-```
-
----
-
-## Backup Flow
-
-Run backup helper:
-
-```bash
-deploy/backup.sh
-```
-
-Manual backup:
-
-```bash
-cd frappe-bench
-bench --site erp.yourdomain.com backup --with-files
-```
-
-Backups are usually stored under:
-
-```text
-frappe-bench/sites/erp.yourdomain.com/private/backups/
-```
-
-Recommended backup policy:
-
-```text
-┌──────────────────────┬────────────────────────────────────┐
-│ Backup Type          │ Recommended Frequency              │
-├──────────────────────┼────────────────────────────────────┤
-│ Database             │ Daily                              │
-│ Private files        │ Daily                              │
-│ Public files         │ Daily                              │
-│ Full server snapshot │ Weekly                             │
-│ Before deployment    │ Every production update            │
-└──────────────────────┴────────────────────────────────────┘
-```
-
----
-
-## Restore Flow
-
-Move backup files to the site backups folder, then run:
-
-```bash
-cd frappe-bench
-bench --site erp.yourdomain.com restore path/to/database.sql.gz
-```
-
-If restoring with files, restore public/private files according to Frappe backup output.
-
-After restore:
-
-```bash
-bench --site erp.yourdomain.com migrate
-bench --site erp.yourdomain.com clear-cache
-sudo supervisorctl restart all
-```
-
----
-
-## Production Logs
-
-Useful logs:
-
-```text
-┌─────────────────────┬──────────────────────────────────────┐
-│ Log Type            │ Location / Command                   │
-├─────────────────────┼──────────────────────────────────────┤
-│ Supervisor status   │ sudo supervisorctl status             │
-│ Web logs            │ frappe-bench/logs/web.log             │
-│ Worker logs         │ frappe-bench/logs/worker.log          │
-│ Scheduler logs      │ frappe-bench/logs/schedule.log        │
-│ Nginx access logs   │ /var/log/nginx/access.log             │
-│ Nginx error logs    │ /var/log/nginx/error.log              │
-│ MariaDB logs        │ journalctl -u mariadb                 │
-│ Redis logs          │ journalctl -u redis-server            │
-└─────────────────────┴──────────────────────────────────────┘
-```
-
-View logs:
-
-```bash
-tail -f frappe-bench/logs/web.log
-```
-
-```bash
-sudo tail -f /var/log/nginx/error.log
-```
-
-```bash
-journalctl -u mariadb -f
-```
-
-```bash
-journalctl -u redis-server -f
-```
-
----
-
-## Production Security Checklist
-
-```text
-┌──────────────────────────────────────────────┬────────┐
-│ Security Check                               │ Status │
-├──────────────────────────────────────────────┼────────┤
-│ Domain points to server                      │   □    │
-│ HTTPS enabled                                │   □    │
-│ Root SSH login disabled if required          │   □    │
-│ Administrator password entered/generated     │   □    │
-│ Site DB password entered/generated and saved │   □    │
-│ Secrets not committed to Git                 │   □    │
-│ Backups enabled                              │   □    │
-│ Firewall allows only required ports          │   □    │
-│ Supervisor services running                  │   □    │
-│ Nginx config tested                          │   □    │
-└──────────────────────────────────────────────┴────────┘
-```
-
-Recommended open ports:
-
-```text
-┌────────┬──────────────┬──────────────────────────┐
-│ Port   │ Service      │ Purpose                  │
-├────────┼──────────────┼──────────────────────────┤
-│ 22     │ SSH          │ Server access            │
-│ 80     │ HTTP         │ Web / SSL challenge      │
-│ 443    │ HTTPS        │ Secure web access        │
-└────────┴──────────────┴──────────────────────────┘
-```
-
----
-
-## Do Not Use in Production
-
-Do not use this as production process manager:
-
-```bash
-./start.sh
-```
-
-Do not rely on:
-
-```bash
-bench start
-```
-
-for a live server.
-
-Production should run through:
-
-```text
-Supervisor + Nginx
-```
-
----
-
-## Production Troubleshooting
-
-### Nginx Welcome Page Showing
-
-Check enabled site config:
-
-```bash
-sudo nginx -t
-ls -la /etc/nginx/sites-enabled/
-```
-
-Reload Nginx:
-
-```bash
-sudo systemctl reload nginx
-```
-
----
-
-### Site Not Opening
-
-Check services:
-
-```bash
-sudo supervisorctl status
-sudo nginx -t
-sudo systemctl status nginx
-```
-
-Check bench logs:
-
-```bash
-tail -f frappe-bench/logs/web.log
-```
-
----
-
-### SSL Failed
-
-Confirm DNS first:
-
-```bash
-ping erp.yourdomain.com
-```
-
-Then retry:
-
-```bash
-cd frappe-bench
-sudo bench setup lets-encrypt erp.yourdomain.com
-```
-
----
-
-### App Not Installed
-
-Check:
-
-```bash
-cd frappe-bench
-bench --site erp.yourdomain.com list-apps
-```
-
-Install:
-
-```bash
-bench --site erp.yourdomain.com install-app ledgix_saas
-bench --site erp.yourdomain.com migrate
-```
-
----
-
-### Supervisor Services Not Running
-
-Run:
-
-```bash
-sudo supervisorctl reread
-sudo supervisorctl update
-sudo supervisorctl restart all
-sudo supervisorctl status
-```
-
----
-
-### Redis Issue
-
-Check Redis:
-
-```bash
-sudo systemctl status redis-server
-```
-
-Restart:
-
-```bash
-sudo systemctl restart redis-server
-sudo supervisorctl restart all
-```
-
----
-
-### MariaDB Issue
-
-Check MariaDB:
-
-```bash
-sudo systemctl status mariadb
-```
-
-Restart:
-
-```bash
-sudo systemctl restart mariadb
-sudo supervisorctl restart all
-```
-
----
-
-## Production Maintenance Mode
-
-Enable maintenance:
-
-```bash
-cd frappe-bench
-bench --site erp.yourdomain.com maintenance-mode on
-```
-
-Disable maintenance:
-
-```bash
-bench --site erp.yourdomain.com maintenance-mode off
-```
-
-Check current config:
-
-```bash
-bench --site erp.yourdomain.com show-config
-```
-
----
-
-## Final Verification
-
-After production setup, verify:
-
-```bash
-cd frappe-bench
-bench --site erp.yourdomain.com list-apps
-bench --site erp.yourdomain.com migrate
-bench --site erp.yourdomain.com scheduler status
-sudo supervisorctl status
-sudo nginx -t
-```
-
-Expected installed apps:
-
-```text
-frappe
-ledgix_saas
-```
-
-Open:
-
-```text
-https://erp.yourdomain.com
-```
-
----
-
-## Recommended Production Routine
-
-```text
-┌─────────────────────────────────────────────────────────────┐
-│ Recommended Production Routine                              │
-├─────────────────────────────────────────────────────────────┤
-│ 1. Take backup before every update                          │
-│ 2. Pull latest repo changes                                  │
-│ 3. Run migration                                             │
-│ 4. Build assets if frontend/static files changed             │
-│ 5. Restart Supervisor services                               │
-│ 6. Reload Nginx                                              │
-│ 7. Check status.sh                                           │
-│ 8. Test login and main workflows                             │
-└─────────────────────────────────────────────────────────────┘
-```
-
----
-
-## Related Files
-
-```text
-┌────────────────────────┬────────────────────────────────────┐
-│ File                   │ Purpose                            │
-├────────────────────────┼────────────────────────────────────┤
-│ README.md              │ Project overview and quick start    │
-│ docs/local/LOCAL_INSTALLATION.md  │ Local setup guide                   │
-│ docs/production/DEPLOYMENT.md          │ Production deployment guide         │
-│ docs/apps/APPS.md                │ Ledgix SaaS app details             │
-│ docs/commands/COMMANDS.md            │ Useful terminal and bench commands  │
-└────────────────────────┴────────────────────────────────────┘
-```
-
----
-
-## Final Note
-
-Production deployment should be handled carefully.
-
-Always verify domain, backups, secrets, Supervisor, Nginx, MariaDB, Redis, and SSL before using the site as a live ERP system.
+## 14. Current runbook map
+
+| Task | Runbook |
+|---|---|
+| Fresh production client | `fresh_client_provisioning.md` |
+| Client lifecycle | `client_lifecycle.md` |
+| Client readiness | `client_onboarding_readiness.md` |
+| Release/update | `release_install_update.md` |
+| Backup/restore/rollback | `backup_restore_rollback.md` |
+| Multi-site SaaS | `multi_site_saas.md` |
+| FBR activation | `fbr_sandbox_production_activation.md` |
+| Printing/device UAT | `printing_devices_uat.md` |
+| Final production gate | `final_release_gate.md` |
+| Security | `SECURITY.md` |
+| Troubleshooting | `TROUBLESHOOTING.md` |
+
+Use `docs/production/PRODUCTION_CHECKLIST.md` as the concise go-live checklist over these detailed procedures.
