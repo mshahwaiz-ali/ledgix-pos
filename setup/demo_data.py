@@ -1,8 +1,8 @@
 """Supported local operating-data entrypoint for Ledgix acceptance testing.
 
-The underlying transaction engine remains ERPNext-native. A retail operating
-profile replaces obvious demo masters with a coherent fictional supermarket
-scenario while keeping local-only and FBR safety controls intact.
+The transaction engine remains ERPNext-native. This wrapper supplies a
+coherent fictional supermarket dataset, local-only prerequisites, cleanup of
+known older Ledgix demo/spike artifacts, and strict post-load verification.
 """
 
 import frappe
@@ -11,6 +11,7 @@ from frappe.utils import add_days, cint, flt, getdate, today
 from ledgix_saas.services import erpnext_selling
 from ledgix_saas.setup import erpnext_demo_data as native
 from ledgix_saas.setup import retail_account_setup
+from ledgix_saas.setup import retail_local_hygiene
 from ledgix_saas.setup import retail_operating_profile as retail
 
 SEED = retail.SEED
@@ -60,12 +61,47 @@ def inspect_site() -> dict:
                 "Sales Invoice", {"custom_ledgix_client_sale_id": ["like", f"{SEED}-%"]}
             )
         ),
+        "visible_old_artifacts": retail_local_hygiene.visible_old_artifacts(),
     }
 
 
 def cleanup_seed_transactions() -> dict:
     retail.configure()
     return native.cleanup_seed_transactions()
+
+
+def cleanup_old_local_artifacts() -> dict:
+    return retail_local_hygiene.cleanup_old_local_artifacts()
+
+
+def _normalize_retail_customers(company: str) -> None:
+    """Move reused synthetic customers out of historical Demo groups."""
+    for name, customer_type, group_token, credit_limit in retail.CUSTOMERS:
+        if not frappe.db.exists("Customer", name):
+            continue
+        doc = frappe.get_doc("Customer", name)
+        target_group = retail.CUSTOMER_GROUP_MAP.get(group_token, group_token)
+        changed = False
+        if doc.customer_type != customer_type:
+            doc.customer_type = customer_type
+            changed = True
+        if doc.customer_group != target_group:
+            doc.customer_group = target_group
+            changed = True
+        if credit_limit:
+            row = next(
+                (entry for entry in (doc.get("credit_limits") or []) if entry.company == company),
+                None,
+            )
+            if row:
+                if flt(row.credit_limit) != flt(credit_limit):
+                    row.credit_limit = credit_limit
+                    changed = True
+            else:
+                doc.append("credit_limits", {"company": company, "credit_limit": credit_limit})
+                changed = True
+        if changed:
+            doc.save(ignore_permissions=True)
 
 
 def verify() -> dict:
@@ -159,6 +195,7 @@ def verify() -> dict:
         "name",
         order_by="period_start_date desc",
     )
+    old_visible = retail_local_hygiene.visible_old_artifacts()
     result = {
         "dataset": SEED,
         "company": company,
@@ -185,6 +222,7 @@ def verify() -> dict:
         "negative_retail_bins": [dict(row) for row in negative],
         "active_pos_opening": active_opening,
         "fbr_transport_disabled": fbr_safe,
+        "visible_old_artifacts": old_visible,
     }
     result["ok"] = bool(
         result["items"] >= 45
@@ -201,6 +239,7 @@ def verify() -> dict:
         and not result["negative_retail_bins"]
         and result["active_pos_opening"]
         and fbr_safe
+        and not old_visible
     )
     return result
 
@@ -215,7 +254,12 @@ def seed() -> dict:
     base_date = getdate(today())
     try:
         native._disable_fbr_transport()
+        company = native._company()
+        fiscal = retail_local_hygiene.ensure_fiscal_year_window(
+            company, add_days(base_date, -90), base_date
+        )
         context = native._masters()
+        _normalize_retail_customers(context["company"])
         native._inventory(
             context["company"], context["main"], context["pos"], context["back"], base_date
         )
@@ -236,11 +280,31 @@ def seed() -> dict:
         native._shape_stock(context["company"], context["pos"], base_date)
         native._opening(context["company"], base_date, 100)
 
+        # Commit the complete operating dataset first. Old-group cleanup is run
+        # once more by the shell wrapper after reused customers are normalized.
         result = verify()
-        if not result["ok"]:
+        # Old visible artifacts are permitted at this intermediate point only;
+        # all core operating assertions must already be green.
+        core_ok = bool(
+            result["items"] >= 45
+            and result["customers"] >= 12
+            and result["suppliers"] >= 7
+            and result["total_sales"] >= 100
+            and result["pos_returns"] >= 3
+            and result["b2b_returns"] >= 2
+            and result["purchase_invoices"] >= 6
+            and result["payments"] >= 6
+            and result["split_payment_invoices"] >= 2
+            and result["trade_outstanding"] > 0
+            and result["low_or_out_stock"]
+            and not result["negative_retail_bins"]
+            and result["active_pos_opening"]
+            and result["fbr_transport_disabled"]
+        )
+        if not core_ok:
             frappe.throw(f"Retail operating data verification failed: {result}")
         frappe.db.commit()
-        return {"created": True, **result}
+        return {"created": True, **fiscal, **result, "core_ok": True}
     except Exception:
         frappe.db.rollback()
         raise
@@ -248,4 +312,11 @@ def seed() -> dict:
         frappe.set_user(old_user)
 
 
-__all__ = ["SEED", "inspect_site", "cleanup_seed_transactions", "seed", "verify"]
+__all__ = [
+    "SEED",
+    "inspect_site",
+    "cleanup_seed_transactions",
+    "cleanup_old_local_artifacts",
+    "seed",
+    "verify",
+]
