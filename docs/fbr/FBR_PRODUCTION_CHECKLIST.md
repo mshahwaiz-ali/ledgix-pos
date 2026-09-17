@@ -1,33 +1,216 @@
-# FBR Production Checklist
+# Ledgix FBR Sandbox and Production Checklist
 
-## Sandbox First
+**Status:** CURRENT  
+**Production readiness:** NOT YET PRODUCTION-READY  
+**Current transaction sources:** ERPNext `Sales Invoice` / `POS Invoice`
 
-- Configure `Ledgix FBR Settings` in Sandbox mode.
-- Confirm seller NTN/CNIC, business name, province, and address.
-- Confirm item HS codes, FBR UOM, sales type, and tax category mappings.
-- Create a submitted test sale and verify the tax snapshot.
-- Validate the sale against sandbox FBR.
-- Create and validate a sales return where applicable.
+Use this checklist together with `docs/fbr/FBR_ARCHITECTURE_AND_OPERATIONS.md`.
 
-## Health Checks
+## 1. Safety rule
 
-- Run `bench --site SITE execute ledgix_saas.api.fbr_health.check`.
-- Confirm the requests package is available.
-- Confirm FBR Settings and Submission Log DocTypes exist.
-- Confirm retry and offline upload scheduler hooks are registered.
-- Confirm token values are configured without printing the values.
+FBR Production activation is a separate compliance/go-live decision. Passing application tests or local acceptance does **not** mean the site is approved for live FBR posting.
 
-## Production Switch
+Current transport is deliberately fail-closed:
 
-- Enable HTTPS first.
-- Confirm backups and restore instructions.
-- Switch FBR mode to Production only after sandbox tests are reviewed.
-- Keep `submit_trigger` conservative until live behavior is verified.
-- Review `Ledgix FBR Submission Log` after every first live attempt.
+- `scheduler_events = {}`;
+- there is no blind retry/offline upload scheduler;
+- an ambiguous Production POST becomes `Reconciliation Required`;
+- retransmission requires external reconciliation and an explicit operator decision;
+- the read-only activation readiness service never reads token values, never sends a network request and never arms Production.
 
-## Failure Handling
+Do not re-enable legacy automatic retry behavior from older documentation.
 
-- Confirm failed submissions save safe error messages.
-- Confirm retry settings and max retry count.
-- Confirm offline upload window.
-- Confirm duplicate FBR invoice protection before retrying manually.
+---
+
+## 2. Before Sandbox traffic
+
+Confirm all of the following:
+
+- the client/site has passed Ledgix client readiness;
+- the selected `Ledgix Business Profile` enables FBR;
+- seller NTN/CNIC is confirmed by the client;
+- seller legal business name is confirmed;
+- seller province and registered address are confirmed;
+- required software/POS registration information is configured where applicable;
+- ERPNext Customer buyer identity is correct for tested scenarios;
+- Item-to-FBR mappings are reviewed, including HS code, FBR UOM, sale type, tax category/rate and scenario/SRO fields where applicable;
+- ERPNext tax accounts/configuration are correct;
+- the Python HTTP transport dependency is available;
+- FBR mode is `Sandbox`;
+- the real client Sandbox token is stored securely;
+- `production_post_armed` is false;
+- no native invoice is in `Reconciliation Required` state.
+
+Never place token values in Git, screenshots, documentation or copied test evidence.
+
+---
+
+## 3. Read-only activation readiness
+
+The implementation authority is:
+
+```text
+apps/ledgix_saas/api/fbr_activation.py
+```
+
+Its activation evaluator is intentionally read-only. It checks configuration and persisted evidence without sending FBR traffic.
+
+Use the current application/UI wrapper or the method exposed by the installed release to evaluate readiness. Do not substitute a handwritten database flag change for the supported activation process.
+
+Important readiness meanings:
+
+- `sandbox_ready=true` means prerequisites for exercising Sandbox are satisfied;
+- `sandbox_proven=true` requires persisted **real network** success evidence;
+- `production_switch_ready=true` additionally requires Production credential presence plus strict release/backup evidence and no unreconciled Production state.
+
+A local payload preview or mocked HTTP response does not make these states true.
+
+---
+
+## 4. Required Sandbox proof
+
+At minimum retain real successful FBR Sandbox evidence for the applicable client profile.
+
+### Always required for selling/FBR clients
+
+- ERPNext `Sales Invoice` validation success;
+- ERPNext `Sales Invoice` POST success;
+- persisted `Ledgix FBR Submission Log` rows showing Sandbox mode, network call and success;
+- official Sandbox response/reference persisted on the same ERPNext source invoice.
+
+### Required when POS is enabled
+
+- ERPNext `POS Invoice` validation success;
+- ERPNext `POS Invoice` POST success.
+
+### Required when return proof is part of the acceptance scope
+
+- native Sales Invoice/POS Invoice return or Credit Note validation success;
+- native return/Credit Note POST success;
+- correct reference to the original official FBR invoice.
+
+Do not manufacture missing proof by manually typing an FBR number or editing a submission log.
+
+---
+
+## 5. Sandbox acceptance checks
+
+For each tested invoice:
+
+1. create/submit the authoritative ERPNext invoice;
+2. verify the immutable Ledgix FBR header/line snapshot exists;
+3. verify ERPNext commercial totals and tax rows are correct;
+4. run FBR readiness validation;
+5. send the intended Sandbox validation/POST operation;
+6. inspect the actual FBR response;
+7. verify the `Ledgix FBR Submission Log` references the same native invoice;
+8. verify FBR status/reference/QR metadata is stored on that native invoice;
+9. verify print/QR output uses the authoritative invoice metadata;
+10. for returns, verify `return_against` and `invoiceRefNo` resolve to the real original transaction.
+
+The consolidated Sales Invoice generated by ERPNext POS closing is accounting consolidation and must **not** become a second FBR legal invoice source.
+
+---
+
+## 6. Production pre-switch gate
+
+Before any Production activation, all applicable items below must be complete:
+
+- real Sandbox proof is accepted;
+- client/operator UAT for Retail/B2B/returns is complete;
+- seller identity is formally confirmed;
+- item/classification mappings are reviewed;
+- Production token is installed securely;
+- exact approved 40-character release SHA is recorded;
+- strict client release/provisioning evidence is green;
+- a **verified backup** is present and fresh for the configured activation window;
+- backup/restore ownership is assigned;
+- HTTPS and production domain configuration are correct;
+- no invoice remains `Reconciliation Required`;
+- Production is still unarmed while the checklist is being reviewed;
+- operators understand ambiguous-response reconciliation;
+- `System Manager` / `Ledgix Admin` ownership of the final switch is explicit.
+
+Do not treat `production_switch_ready=true` as a network action. Readiness and activation are intentionally separate.
+
+---
+
+## 7. Production activation
+
+Only after the pre-switch gate is approved:
+
+1. take/verify the final backup;
+2. record the exact deployed release SHA and site identity;
+3. confirm Production token/configuration without exposing the secret;
+4. switch through the supported explicit Production activation workflow;
+5. arm Production POST only as part of that deliberate action;
+6. keep the first live transactions tightly controlled;
+7. review the source ERPNext invoice and its FBR Submission Log immediately after each first-live test;
+8. retain the go-live evidence package.
+
+Do not enable Production through direct database manipulation or by copying local/Sandbox settings blindly.
+
+---
+
+## 8. Failure handling
+
+### Known FBR rejection
+
+If FBR clearly returns a rejection:
+
+- preserve the response/log;
+- correct the legal/configuration/data cause through the supported ERPNext/Ledgix workflow;
+- validate again before any new POST;
+- do not edit a submitted financial transaction merely to make the log look successful.
+
+### Ambiguous Production POST
+
+If a request may have reached FBR but Ledgix cannot prove the result:
+
+```text
+Reconciliation Required
+```
+
+Then:
+
+- stop automatic/manual retransmission attempts;
+- preserve request/response/error evidence;
+- reconcile externally with FBR/PRAL using invoice identity and available references;
+- follow the explicit reconciliation workflow;
+- retransmit only when the prior legal state is known and the supported flow permits it.
+
+**Never infer “not submitted” from a timeout or dropped connection.**
+
+---
+
+## 9. Things that must remain disabled/retired
+
+Do not restore any of these older behaviors:
+
+- retry scheduler for FBR POSTs;
+- offline-upload scheduler that blindly posts queued invoices;
+- max-retry loops for ambiguous Production traffic;
+- FBR submission from historical `Ledgix Sale` / `Ledgix Sales Return`;
+- direct operator edits to fake official FBR identifiers;
+- Production posting from the local acceptance dataset;
+- treating a consolidated POS Sales Invoice as another FBR source.
+
+`apps/ledgix_saas/hooks.py` intentionally keeps `scheduler_events = {}` for the current fail-closed design.
+
+---
+
+## 10. Current project state
+
+As of 2026-09-17:
+
+- ERPNext-native FBR integration: **IMPLEMENTED**
+- immutable tax/FBR snapshots: **IMPLEMENTED**
+- Sandbox/Production transport code: **IMPLEMENTED**
+- Submission Log and reconciliation safeguards: **IMPLEMENTED**
+- Production arming interlock: **IMPLEMENTED**
+- local acceptance dataset: **COMPLETE / FBR transport disabled**
+- real client Sandbox token/evidence: **EXTERNAL / PENDING**
+- real Sandbox certification: **NOT YET COMPLETE**
+- Production FBR activation: **NOT YET PRODUCTION-READY**
+
+Do not change the final two states without real external evidence.
