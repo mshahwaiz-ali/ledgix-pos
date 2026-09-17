@@ -1,20 +1,71 @@
-# Ledgix Planning Index
+# Ledgix ERPNext-Core Migration Archive
 
-## Active architecture plan
+**Status:** HISTORICAL / COMPLETE  
+**Migration phases:** 0–13 CLOSED  
+**Do not use this directory as current operating authority.**
 
-Use **`erpnext_core_migration_plan.md`** as the master architecture and implementation authority.
+## Purpose
 
-Current direction:
+This directory preserves the plans, phase notes, progress ledgers and release-hardening evidence produced during the ERPNext-core migration.
 
-- Frappe v15 + ERPNext v15 + `ledgix_saas`;
-- ERPNext as the authoritative business engine;
-- Ledgix as the product, FBR/compliance, UX, intelligence and branding layer;
-- one business concept = one source of truth;
-- staged migration with reconciliation before legacy retirement;
-- retained Ledgix product Pages are first-class UX, not migration leftovers: `ledgix-pos`, `business-intelligence-center` (Inventory Intelligence), `ledgix-tax-center`, and `ledgix-setup` stay in the product and are modernized over ERPNext-native authority rather than deleted;
-- the retained product Pages are exposed as profile/role-aware Ledgix workspace shortcuts and must not bypass ERPNext/Frappe permissions.
+The migration is complete. There is no Phase 14.
 
-## Phase documents
+Some archived files intentionally retain phase-time wording such as `ACTIVE`, `PENDING`, old `docs/plan/...` paths, or intermediate implementation status. Those statements describe the project **at the time the document was written** and must not override current architecture or runbooks.
+
+Do not rewrite historical phase documents merely to make them look current; use the current documentation listed below instead.
+
+---
+
+## Current documentation authority
+
+### Architecture and operating flows
+
+```text
+docs/architecture/CURRENT_ARCHITECTURE.md
+docs/architecture/LEGACY_AUDIT.md
+docs/operations/ERP_WORKFLOWS.md
+docs/operations/LOCAL_DEMO_DATA.md
+```
+
+### Local development
+
+```text
+docs/local/LOCAL_INSTALLATION.md
+```
+
+### FBR
+
+```text
+docs/fbr/FBR_ARCHITECTURE_AND_OPERATIONS.md
+docs/fbr/FBR_PRODUCTION_CHECKLIST.md
+```
+
+### Production
+
+```text
+docs/production/README_PRODUCTION.md
+docs/production/DEPLOYMENT.md
+docs/production/PRODUCTION_CHECKLIST.md
+docs/production/release_install_update.md
+docs/production/backup_restore_rollback.md
+docs/production/final_release_gate.md
+```
+
+Root index: `README.md`.
+
+---
+
+## Archived migration set
+
+Master historical migration plan:
+
+- `erpnext_core_migration_plan.md`
+
+Completed migration progress/evidence:
+
+- `erpnext_core_migration_progress.md`
+
+Phase documents:
 
 - Phase 3: `erpnext_phase3_extension_schema.md`
 - Phase 4: `erpnext_phase4_tax_parity_matrix.md`
@@ -28,60 +79,50 @@ Current direction:
 - Phase 12: `erpnext_phase12_legacy_freeze_retirement.md`
 - Phase 13: `erpnext_phase13_client_profiles_saas.md`
 
-Use **`erpnext_core_migration_progress.md`** for the completed migration evidence.
-
-Production/client lifecycle runbook:
-
-- `docs/production/client_lifecycle.md`
-
-Post-migration release workstream:
+Post-migration release-hardening history:
 
 - `client_acceptance_production_release_hardening.md`
-- `release_hardening_progress.md` — active execution ledger/status
+- `release_hardening_progress.md`
 
-Production hardening runbooks:
+Earlier superseded design context may also remain in this archive. Where an archived document conflicts with current architecture/source, current source and the active docs above win.
 
-- `docs/production/release_install_update.md`
-- `docs/production/backup_restore_rollback.md`
-- `docs/production/fresh_client_provisioning.md`
-- `docs/production/multi_site_saas.md`
-- `docs/production/client_onboarding_readiness.md`
-- `docs/production/fbr_sandbox_production_activation.md`
-- `docs/production/printing_devices_uat.md`
-- `docs/production/final_release_gate.md`
+---
 
-## Current implementation status
+## Final migration outcome
 
-- **ERPNext Core Migration Phases 0–13: COMPLETE**. Do not create a Phase 14.
-- R0 + R2 production release hardening: COMPLETE.
-- R3 backup/restore proof: COMPLETE.
-- R1 fresh-client provisioning + R4 multi-site SaaS hardening: COMPLETE.
-- R5 client onboarding/readiness: COMPLETE on the canonical local integration site.
-- FBR application/setup tooling: COMPLETE at code/static-contract level. Real seller identity/tokens and real FBR Sandbox/Production certification remain external client inputs and must never be fabricated.
-- Printing/device/profile UAT tooling: IMPLEMENTED; machine-verifiable release setup is green, while physical device/UAT evidence remains external/manual.
-- Final immutable production release gate: IMPLEMENTED; real production acceptance remains dependent on manual UAT, strict backup/release evidence, online smoke, and FBR certification only when FBR Production is intended.
-- Recovery/final acceptance now use a true read-only Phase 12 snapshot verifier; the administrative Phase 12 verifier remains separate because it intentionally records verification metadata.
-- Retained custom product UX is protected by Phase 10/11 contracts: Inventory Intelligence and Ledgix POS source now navigate/print against ERPNext-native records, while Tax & FBR Center and Setup remain Ledgix-specific orchestration/configuration surfaces.
+The completed migration established:
 
-## Current gates
+- Frappe v15 + ERPNext v15 + `ledgix_saas`;
+- ERPNext as the active business/master/transaction/accounting/stock authority;
+- retained Ledgix product pages over ERPNext-native data;
+- frozen historical custom Ledgix business ledgers;
+- ERPNext-native Retail POS, B2B, purchasing, inventory and payment workflows;
+- ERPNext-native FBR invoice sources with Ledgix compliance/audit orchestration;
+- Business Profiles and one-codebase/multi-site SaaS deployment boundaries;
+- production release, backup/restore, client readiness and final acceptance tooling.
 
-Local machine-verifiable setup/acceptance:
+The current local acceptance dataset and present-day readiness state were completed after the migration phase documents and therefore belong in current docs, not retroactively in every historical phase note.
 
-```bash
-bash scripts/run_release_acceptance_readiness_gate.sh ledgix-erpnext.local
-```
+---
 
-Final production acceptance after deployment and real UAT:
+## Current external/deferred boundaries
 
-```bash
-bash scripts/run_ledgix_production_release_gate.sh \
-  --site <client-site> \
-  --url https://<client-domain> \
-  --release <immutable-sha-or-tag>
-```
+The archive must not be read as proof that external/manual gates have happened.
 
-Add `--require-fbr-production` only when the client is actually going live with FBR Production.
+Current documentation intentionally distinguishes:
 
-## Historical plan
+- application implementation from real FBR Sandbox certification;
+- FBR readiness from explicit Production activation;
+- machine-verifiable release setup from physical printer/scanner/device UAT;
+- local acceptance from real client production acceptance;
+- frozen legacy retention from a future physical schema-deletion project.
 
-`new_plan.md` is retained as historical design context only. Its earlier **"No ERPNext dependency"** direction has been superseded by `erpnext_core_migration_plan.md` and must not be used as implementation authority for new work.
+Check current docs before making any go-live statement.
+
+---
+
+## Rule for future maintainers
+
+When investigating why a migration decision was made, use this archive.
+
+When operating, developing or deploying the current product, do **not** follow archived phase instructions blindly. Start from `README.md` and the active documentation tree.
