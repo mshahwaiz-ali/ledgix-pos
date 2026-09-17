@@ -181,6 +181,21 @@ def verify() -> dict:
         """,
         (f"{SEED}-%",),
     )[0][0]
+    unconsolidated_pos = frappe.db.sql(
+        """
+        select name, is_return, posting_date, posting_time
+        from `tabPOS Invoice`
+        where docstatus = 1
+          and (
+            custom_ledgix_client_sale_id like %s
+            or custom_ledgix_client_return_id like %s
+          )
+          and ifnull(consolidated_invoice, '') = ''
+        order by posting_date asc, posting_time asc, name asc
+        """,
+        (f"{SEED}-%", f"{SEED}-%"),
+        as_dict=True,
+    )
 
     fbr = frappe.get_single("Ledgix FBR Settings")
     fbr_safe = not cint(fbr.get("enabled")) and str(fbr.get("mode") or "Disabled") == "Disabled"
@@ -220,6 +235,7 @@ def verify() -> dict:
         "split_payment_invoices": int(split_payment_invoices or 0),
         "low_or_out_stock": [dict(row) for row in low_or_out],
         "negative_retail_bins": [dict(row) for row in negative],
+        "unconsolidated_managed_pos": [dict(row) for row in unconsolidated_pos],
         "active_pos_opening": active_opening,
         "fbr_transport_disabled": fbr_safe,
         "visible_old_artifacts": old_visible,
@@ -237,6 +253,7 @@ def verify() -> dict:
         and result["trade_outstanding"] > 0
         and result["low_or_out_stock"]
         and not result["negative_retail_bins"]
+        and not result["unconsolidated_managed_pos"]
         and result["active_pos_opening"]
         and fbr_safe
         and not old_visible
@@ -266,9 +283,14 @@ def seed() -> dict:
         retail_sales = native._retail_sales(context["company"], context["pos"], base_date)
         b2b_sales = native._b2b_sales(context["company"], context["pos"], base_date)
 
-        return_opening = native._opening(context["company"], base_date, 99)
+        # Keep the dedicated return shift fully historical. Native return rows use
+        # a fixed 15:xx posting time; putting both opening and returns yesterday
+        # guarantees they are inside the closing window regardless of when the
+        # loader runs today.
+        return_date = add_days(base_date, -1)
+        return_opening = native._opening(context["company"], return_date, 99)
         for sequence, source in enumerate(retail_sales[8::23][:4], 1):
-            native._pos_return(source, sequence, base_date)
+            native._pos_return(source, sequence, return_date)
         native._close_opening(return_opening, 99)
         for sequence, source in enumerate(b2b_sales[2::4][:3], 1):
             native._b2b_return(
@@ -298,6 +320,7 @@ def seed() -> dict:
             and result["trade_outstanding"] > 0
             and result["low_or_out_stock"]
             and not result["negative_retail_bins"]
+            and not result["unconsolidated_managed_pos"]
             and result["active_pos_opening"]
             and result["fbr_transport_disabled"]
         )
