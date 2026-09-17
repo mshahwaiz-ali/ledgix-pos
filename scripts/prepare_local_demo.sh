@@ -50,14 +50,14 @@ bench --site "${SITE}" execute ledgix_saas.setup.demo_data.inspect_site
 echo "== Ledgix retail operating data: clear prior managed retail transactions =="
 bench --site "${SITE}" execute ledgix_saas.setup.demo_data.cleanup_seed_transactions
 
-echo "== Ledgix retail operating data: remove old Ledgix demo/spike artifacts =="
-bench --site "${SITE}" execute ledgix_saas.setup.demo_data.cleanup_old_local_artifacts
+echo "== Ledgix retail operating data: safely retire old Ledgix demo/spike masters =="
+bench --site "${SITE}" execute ledgix_saas.setup.retail_cleanup_safe.cleanup_old_local_artifacts
 
 echo "== Ledgix retail operating data: create ERPNext-authoritative operating history =="
 bench --site "${SITE}" execute ledgix_saas.setup.demo_data.seed
 
 echo "== Ledgix retail operating data: post-load old-artifact cleanup =="
-bench --site "${SITE}" execute ledgix_saas.setup.demo_data.cleanup_old_local_artifacts
+bench --site "${SITE}" execute ledgix_saas.setup.retail_cleanup_safe.cleanup_old_local_artifacts
 
 echo "== Ledgix retail operating data: verify =="
 bench --site "${SITE}" execute ledgix_saas.setup.demo_data.verify
