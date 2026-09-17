@@ -1,629 +1,335 @@
-# Local Installation Guide
+# Ledgix Local Installation and Development
 
-> **Complete local development setup guide for Ledgix POS and Ledgix SaaS on Ubuntu.**
+**Status:** CURRENT  
+**Canonical local site:** `ledgix-erpnext.local`  
+**Required stack:** Frappe v15 -> ERPNext v15 -> `ledgix_saas`
 
----
+## Purpose
 
-<div align="center">
+This is the supported local setup path for the current ERPNext-core Ledgix repository.
 
-# Ledgix POS Local Setup
-
-**Clone. Install. Create site. Install Ledgix SaaS. Start bench.**
-
-</div>
+Older instructions that create arbitrary Ledgix-only sites or install `ledgix_saas` without ERPNext are obsolete.
 
 ---
 
-## Overview
+## 1. Repository layout
 
-This guide explains how to run **Ledgix POS** locally for development and testing.
-
-The local setup uses:
-
-* Frappe Framework v15
-* Bench CLI
-* MariaDB
-* Redis
-* Node.js
-* Yarn
-* Python
-* Ledgix SaaS custom app
-* Local development runner through `bench start`
-
----
-
-## Local Setup Flow
+Typical local checkout:
 
 ```text
-┌──────────────────────┐
-│ 1. Clone Repository  │
-└──────────┬───────────┘
-           │
-           ▼
-┌──────────────────────┐
-│ 2. Run install.sh    │
-└──────────┬───────────┘
-           │
-           ▼
-┌──────────────────────┐
-│ 3. Create Site       │
-└──────────┬───────────┘
-           │
-           ▼
-┌──────────────────────┐
-│ 4. Install Ledgix    │
-└──────────┬───────────┘
-           │
-           ▼
-┌──────────────────────┐
-│ 5. Start Bench       │
-└──────────┬───────────┘
-           │
-           ▼
-┌──────────────────────┐
-│ 6. Open in Browser   │
-└──────────────────────┘
-```
-
----
-
-## Supported Environment
-
-```text
-┌─────────────────────┬──────────────────────────────┐
-│ Component           │ Recommended                  │
-├─────────────────────┼──────────────────────────────┤
-│ OS                  │ Ubuntu                       │
-│ Framework           │ Frappe v15                   │
-│ Database            │ MariaDB                      │
-│ Cache / Queue       │ Redis                        │
-│ Runtime             │ Python + Node.js             │
-│ Package Manager     │ Yarn                         │
-│ Process Runner      │ bench start                  │
-│ Browser URL         │ http://site.local:8000       │
-└─────────────────────┴──────────────────────────────┘
-```
-
----
-
-## Repository Structure for Local Setup
-
-```text
-pos/
+~/data_drive/pos/
 ├── install.sh
 ├── site_setup.sh
 ├── start.sh
-├── README.md
-├── docs/local/LOCAL_INSTALLATION.md
-├── env/
-│   └── local.example.env
-├── apps/
-│   └── ledgix_saas/
-└── frappe-bench/
-    └── generated during setup
+├── apps/ledgix_saas/
+├── deploy/
+├── docs/
+└── frappe-bench/        # generated/reused locally; not committed
 ```
 
-The `frappe-bench/` directory is generated locally and should not be committed to Git.
+Repository app source remains under `apps/ledgix_saas/`. Local site tooling synchronizes it into the bench application path as required.
 
 ---
 
-## Step 1: Clone the Repository
-
-```bash
-git clone https://github.com/mshahwaiz-ali/pos.git
-cd pos
-```
-
----
-
-## Step 2: Make Scripts Executable
-
-```bash
-chmod +x install.sh site_setup.sh start.sh
-```
-
-If production scripts are also needed later:
-
-```bash
-chmod +x deploy/*.sh
-```
-
----
-
-## Step 3: Run the Installer
-
-```bash
-./install.sh
-```
-
-Select:
-
-```text
-1) Local / Development Setup
-```
-
-The local installer prepares the development environment and creates or reuses the local Frappe bench.
-
----
-
-## Step 4: Create a Site
-
-Run the site setup script:
-
-```bash
-./site_setup.sh
-```
-
-Typical site name:
-
-```text
-ledgix.local
-```
-
-During setup, provide:
-
-```text
-┌──────────────────────┬────────────────────────────────────┐
-│ Input                │ Example                            │
-├──────────────────────┼────────────────────────────────────┤
-│ Site name            │ ledgix.local                       │
-│ Administrator pass   │ Enter one, or press Enter for auto  │
-│ Site DB password     │ Enter one, or press Enter for auto  │
-│ Database admin user  │ Local MariaDB admin user            │
-│ App selection        │ Ledgix SaaS                         │
-└──────────────────────┴────────────────────────────────────┘
-```
-
-Site credentials are saved under that site's section in `secrets.md` with `600` permissions.
-
----
-
-## Step 5: Install Ledgix SaaS
-
-If the site setup script asks for app selection, choose:
-
-```text
-Ledgix SaaS
-```
-
-If you need to install manually:
-
-```bash
-cd frappe-bench
-bench --site ledgix.local install-app ledgix_saas
-bench --site ledgix.local migrate
-```
-
-Check installed apps:
-
-```bash
-bench --site ledgix.local list-apps
-```
-
-Expected result should include:
-
-```text
-frappe
-ledgix_saas
-```
-
----
-
-## Step 6: Start Local Bench
+## 2. First-time setup
 
 From the repository root:
+
+```bash
+cd ~/data_drive/pos
+chmod +x install.sh site_setup.sh start.sh deploy/*.sh
+./install.sh --local
+```
+
+The installer:
+
+- performs a local preflight;
+- installs/reuses required Ubuntu packages;
+- prepares Node/Yarn and Bench tooling;
+- creates or reuses a valid Frappe v15 bench;
+- ensures ERPNext v15 is present in the bench;
+- validates Frappe/ERPNext branch alignment;
+- leaves site creation to `site_setup.sh`.
+
+`install.sh` does **not** start the development server as part of installation.
+
+### Sudo behavior
+
+The installer prefers non-interactive/passwordless sudo. On a trusted local machine only, interactive sudo can be explicitly allowed:
+
+```bash
+ALLOW_INTERACTIVE_SUDO=1 ./install.sh --local
+```
+
+Do not copy that convention into unattended production automation.
+
+---
+
+## 3. Canonical local site
+
+Create or repair the supported integration site:
+
+```bash
+./site_setup.sh --ensure
+```
+
+Default site:
+
+```text
+ledgix-erpnext.local
+```
+
+The site stack is always:
+
+```text
+Frappe -> ERPNext -> ledgix_saas
+```
+
+There is no local app-selection menu. ERPNext is a required dependency of Ledgix.
+
+Check state with:
+
+```bash
+./site_setup.sh --status
+```
+
+---
+
+## 4. What `--ensure` may do
+
+`site_setup.sh --ensure` is the normal safe repair/create path. It can:
+
+- create the canonical local site when none exists;
+- ensure ERPNext exists in the bench and is installed on the site;
+- synchronize the repository Ledgix app into the bench;
+- install `ledgix_saas` if missing;
+- enable local developer mode;
+- run `bench migrate`;
+- build Ledgix assets;
+- set the canonical site as the active bench site;
+- save local credentials under `.secrets/sites/` outside Git.
+
+It is not intended to delete existing business data.
+
+If a different active local site or multiple active local sites exist, the script fails rather than silently deleting them.
+
+---
+
+## 5. Destructive local reset
+
+A reset is explicitly destructive to active local sites and their databases.
+
+Use it only when a clean local environment is intentionally required:
+
+```bash
+./site_setup.sh --reset \
+  --site ledgix-erpnext.local \
+  --confirm "RESET ledgix-erpnext.local"
+```
+
+The reset path requires the exact confirmation phrase.
+
+**Do not use reset as a routine fix for the completed acceptance dataset.** The current `LEDGIX-RETAIL-OPERATING-V1` dataset is verified operating/acceptance data and should not be casually rebuilt. See `docs/operations/LOCAL_DEMO_DATA.md` first.
+
+---
+
+## 6. Start and stop development runtime
+
+Start the local development runtime:
 
 ```bash
 ./start.sh
 ```
 
-Or manually:
+Useful runner actions include:
 
 ```bash
-cd frappe-bench
-bench start
+./start.sh --status
+./start.sh --background
+./start.sh --stop
+./start.sh --smoke --site ledgix-erpnext.local
 ```
+
+`start.sh` is for development/local process management only. It is not the production Supervisor/Nginx service workflow.
+
+Expected URL:
+
+```text
+http://ledgix-erpnext.local:8000
+```
+
+If local hostname resolution is missing, `start.sh` can report/add the required `/etc/hosts` mapping interactively. Under WSL, Windows-side host resolution may also need configuration.
 
 ---
 
-## Step 7: Open Site in Browser
+## 7. Verify the installed stack
 
-Open:
+From the bench:
+
+```bash
+cd ~/data_drive/pos/frappe-bench
+bench --site ledgix-erpnext.local list-apps
+bench version --format plain
+```
+
+The site must include:
 
 ```text
-http://ledgix.local:8000
-```
-
-If browser does not resolve the local site name, add it to `/etc/hosts`.
-
-```bash
-sudo nano /etc/hosts
-```
-
-Add:
-
-```text
-127.0.0.1 ledgix.local
-```
-
-Then open again:
-
-```text
-http://ledgix.local:8000
-```
-
----
-
-## Local URL Pattern
-
-```text
-┌──────────────────────┬────────────────────────────┐
-│ Site Name            │ Local URL                  │
-├──────────────────────┼────────────────────────────┤
-│ ledgix.local         │ http://ledgix.local:8000   │
-│ demo.local           │ http://demo.local:8000     │
-│ client.local         │ http://client.local:8000   │
-└──────────────────────┴────────────────────────────┘
-```
-
----
-
-## Common Local Commands
-
-Go to bench directory:
-
-```bash
-cd frappe-bench
-```
-
-List sites:
-
-```bash
-bench list-sites
-```
-
-Check installed apps:
-
-```bash
-bench --site ledgix.local list-apps
-```
-
-Run migration:
-
-```bash
-bench --site ledgix.local migrate
-```
-
-Clear cache:
-
-```bash
-bench --site ledgix.local clear-cache
-```
-
-Clear website cache:
-
-```bash
-bench --site ledgix.local clear-website-cache
-```
-
-Restart local bench:
-
-```bash
-bench restart
-```
-
-Start development server:
-
-```bash
-bench start
-```
-
----
-
-## Local Development Commands
-
-Run Frappe console:
-
-```bash
-bench --site ledgix.local console
-```
-
-Run a Python import check:
-
-```python
-import ledgix_saas
-```
-
-Run migrations after app changes:
-
-```bash
-bench --site ledgix.local migrate
-```
-
-Build assets:
-
-```bash
-bench build
-```
-
-Watch assets during development:
-
-```bash
-bench watch
-```
-
----
-
-## App Source Location
-
-Ledgix SaaS source app is stored in:
-
-```text
-apps/ledgix_saas/
-```
-
-During setup, it is copied or linked into:
-
-```text
-frappe-bench/apps/ledgix_saas/
-```
-
-Expected bench app path:
-
-```text
-pos/
-└── frappe-bench/
-    └── apps/
-        └── ledgix_saas/
-```
-
----
-
-## App Installation Check
-
-Use this checklist after creating a site:
-
-```text
-┌─────────────────────────────────────────────┬────────┐
-│ Check                                       │ Status │
-├─────────────────────────────────────────────┼────────┤
-│ frappe-bench exists                         │   □    │
-│ ledgix_saas exists in frappe-bench/apps     │   □    │
-│ site exists in frappe-bench/sites           │   □    │
-│ ledgix_saas is installed on site            │   □    │
-│ migrate completed successfully              │   □    │
-│ bench start is running                      │   □    │
-│ site opens on port 8000                     │   □    │
-└─────────────────────────────────────────────┴────────┘
-```
-
----
-
-## Troubleshooting
-
-### Site Does Not Open
-
-Check if bench is running:
-
-```bash
-cd frappe-bench
-bench start
-```
-
-Check if port `8000` is already in use:
-
-```bash
-lsof -i :8000
-```
-
----
-
-### Site Name Does Not Resolve
-
-Add local host entry:
-
-```bash
-sudo nano /etc/hosts
-```
-
-Add:
-
-```text
-127.0.0.1 ledgix.local
-```
-
----
-
-### Ledgix SaaS Not Installed
-
-Check apps:
-
-```bash
-cd frappe-bench
-bench --site ledgix.local list-apps
-```
-
-Install app manually:
-
-```bash
-bench --site ledgix.local install-app ledgix_saas
-bench --site ledgix.local migrate
-```
-
----
-
-### Python Module Import Error
-
-If you see:
-
-```text
-No module named ledgix_saas
-```
-
-Check app path:
-
-```bash
-ls frappe-bench/apps
-```
-
-Expected:
-
-```text
+frappe
+erpnext
 ledgix_saas
 ```
 
-Then from bench directory:
+ERPNext must not be omitted.
+
+Run the client dependency preflight when appropriate:
 
 ```bash
-bench pip install -e apps/ledgix_saas
-bench --site ledgix.local migrate
+cd ~/data_drive/pos
+bash scripts/run_ledgix_client_preflight.sh ledgix-erpnext.local
 ```
 
 ---
 
-### Database Connection Issue
-
-Check MariaDB service:
+## 8. Common development commands
 
 ```bash
-sudo systemctl status mariadb
+cd ~/data_drive/pos/frappe-bench
+
+bench --site ledgix-erpnext.local migrate
+bench --site ledgix-erpnext.local clear-cache
+bench --site ledgix-erpnext.local clear-website-cache
+bench --site ledgix-erpnext.local console
+bench build --app ledgix_saas
 ```
 
-Start MariaDB:
+Run repository validation from the repository root:
 
 ```bash
-sudo systemctl start mariadb
+bash scripts/ci_local.sh
 ```
+
+Use focused tests in addition to the repository gate when changing a specific service or API.
 
 ---
 
-### Redis Connection Issue
+## 9. Local operating/acceptance data
 
-Check Redis service:
-
-```bash
-sudo systemctl status redis-server
-```
-
-Start Redis:
-
-```bash
-sudo systemctl start redis-server
-```
-
----
-
-### Assets Not Loading
-
-Run:
-
-```bash
-cd frappe-bench
-bench build
-bench --site ledgix.local clear-cache
-bench --site ledgix.local clear-website-cache
-```
-
-Then restart bench:
-
-```bash
-bench start
-```
-
----
-
-## Local Script Roles
+The current canonical local dataset is:
 
 ```text
-┌─────────────────┬────────────────────────────────────────┐
-│ Script          │ Purpose                                │
-├─────────────────┼────────────────────────────────────────┤
-│ install.sh      │ Main setup launcher                     │
-│ site_setup.sh   │ Site creation and Ledgix app install    │
-│ start.sh        │ Local bench start/restart helper        │
-└─────────────────┴────────────────────────────────────────┘
+LEDGIX-RETAIL-OPERATING-V1
+```
+
+It is already completed and verified on `ledgix-erpnext.local`.
+
+Normal development should **verify and preserve** it, not automatically reseed it.
+
+See:
+
+```text
+docs/operations/LOCAL_DEMO_DATA.md
+```
+
+for the current verifier, exact dataset contract, safe inspection commands and deliberate rebuild rules.
+
+---
+
+## 10. FBR safety locally
+
+Local operating data deliberately keeps FBR transport disabled.
+
+Do not add real Production credentials to the local acceptance dataset and do not fabricate Sandbox success evidence.
+
+Current FBR documentation:
+
+```text
+docs/fbr/FBR_ARCHITECTURE_AND_OPERATIONS.md
+docs/fbr/FBR_PRODUCTION_CHECKLIST.md
 ```
 
 ---
 
-## Recommended Local Flow
+## 11. Local secrets
+
+Local site credentials are stored under:
 
 ```text
-┌─────────────────────────────────────────────────────────────┐
-│ Recommended First-Time Local Setup                          │
-├─────────────────────────────────────────────────────────────┤
-│ 1. git clone repo                                           │
-│ 2. cd pos                                              │
-│ 3. chmod +x install.sh site_setup.sh start.sh               │
-│ 4. ./install.sh                                             │
-│ 5. choose Local / Development Setup                         │
-│ 6. ./site_setup.sh                                          │
-│ 7. create ledgix.local                                      │
-│ 8. install Ledgix SaaS                                      │
-│ 9. ./start.sh                                               │
-│ 10. open http://ledgix.local:8000                           │
-└─────────────────────────────────────────────────────────────┘
+.secrets/sites/<site>.env
 ```
 
----
+The secrets directory is outside the committed source contract and must remain ignored by Git.
 
-## Do Not Commit Local Files
-
-The following should stay local:
-
-```text
-frappe-bench/
-.env
-*.env.local
-*.log
-*.sql.gz
-*.tar
-*.tgz
-secrets.md
-```
-
-Before pushing:
+Before every push:
 
 ```bash
 git status
 ```
 
-Only commit source code, scripts, docs, and safe configuration templates.
+Do not commit:
+
+- `.secrets/`;
+- site/database passwords;
+- FBR tokens;
+- database dumps/backups;
+- generated `frappe-bench/` runtime contents;
+- local logs unless intentionally curated as safe test evidence.
 
 ---
 
-## Final Verification
+## 12. Common failure boundaries
 
-After local setup, run:
+### Bench missing or invalid
+
+Run:
+
+```bash
+./install.sh --local
+```
+
+The installer reuses a valid bench and moves an incomplete bench aside only through its guarded path.
+
+### ERPNext missing
+
+Do not manually install Ledgix alone. Re-run the supported installer/site ensure path:
+
+```bash
+./install.sh --local
+./site_setup.sh --ensure
+```
+
+### Site needs repair
+
+Use:
+
+```bash
+./site_setup.sh --ensure
+```
+
+before considering any destructive reset.
+
+### Assets stale
 
 ```bash
 cd frappe-bench
-bench list-sites
-bench --site ledgix.local list-apps
-bench --site ledgix.local migrate
+bench build --app ledgix_saas
+bench --site ledgix-erpnext.local clear-cache
 ```
 
-Expected installed apps:
+### Need a clean site
 
-```text
-frappe
-ledgix_saas
-```
-
-Then start:
-
-```bash
-bench start
-```
-
-Open:
-
-```text
-http://ledgix.local:8000
-```
+Use the exact guarded reset command from section 5 only after deciding that local data may be destroyed.
 
 ---
 
-## Next Step
+## 13. Production boundary
 
-After local setup is working, use `docs/production/DEPLOYMENT.md` for production EC2/server deployment.
+Local setup scripts are not the production deployment contract.
+
+For production use the active runbooks under:
+
+```text
+docs/production/
+```
+
+Start with `docs/production/DEPLOYMENT.md` and `docs/production/final_release_gate.md`.
