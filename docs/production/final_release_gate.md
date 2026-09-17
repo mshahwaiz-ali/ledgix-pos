@@ -35,7 +35,7 @@ The gate requires:
 - verified backup evidence present;
 - FBR Production prerequisites only when `--require-fbr-production` is requested.
 
-The gate itself makes **no Production FBR network call**, does not validate/post an FBR invoice, and never arms Production posting.
+The gate itself makes **no Production network call to FBR**, does not validate/post an FBR invoice, and never arms Production posting.
 
 ## External FBR state
 
