@@ -30,57 +30,46 @@ class TestFBRRedesignPhase1TaxAuthorityContract(unittest.TestCase):
                 relative.as_posix(),
             )
 
-    def test_legacy_tax_bridge_is_confined_to_transition_boundary(self):
+    def test_transaction_tax_boundary_is_erpnext_native_only(self):
         boundary = (
             APP_ROOT / "services" / "erpnext_tax_authority.py"
         ).read_text(encoding="utf-8")
-        self.assertIn(
-            'NATIVE_TAX_SITE_CONFIG_KEY = "ledgix_erpnext_native_tax_authority"',
-            boundary,
-        )
         self.assertIn("def native_tax_authority_enabled()", boundary)
         self.assertIn("def evaluate_native_tax_contract(doc)", boundary)
         self.assertIn("def assert_native_tax_contract(doc)", boundary)
         self.assertIn("def prepare_native_tax_state(doc)", boundary)
         self.assertIn("def apply_sales_tax_authority(", boundary)
-        self.assertIn(
-            "from ledgix_saas.setup import erpnext_tax_foundation",
-            boundary,
-        )
+        self.assertNotIn("NATIVE_TAX_SITE_CONFIG_KEY", boundary)
+        self.assertNotIn("ledgix_erpnext_native_tax_authority", boundary)
+        self.assertNotIn("from ledgix_saas.setup import erpnext_tax_foundation", boundary)
+        self.assertNotIn("erpnext_tax_foundation.apply_tax_plan", boundary)
+        self.assertNotIn('"authority": "Legacy Bridge"', boundary)
+        self.assertIn('return "ERPNext Native"', boundary)
 
     def test_native_branch_never_creates_ledgix_managed_tax_rows(self):
         boundary = (
             APP_ROOT / "services" / "erpnext_tax_authority.py"
         ).read_text(encoding="utf-8")
-        native_branch = boundary.split(
-            "# Transitional fallback only. Remove after the Phase 1 native runtime gate.",
-            1,
-        )[0]
-        self.assertNotIn("doc.append(", native_branch)
-        self.assertNotIn('description": "[LEDGIX-TAX]', native_branch)
-        self.assertIn("assert_native_tax_contract(doc)", native_branch)
-        self.assertIn('doc.run_method("calculate_taxes_and_totals")', native_branch)
+        self.assertNotIn("doc.append(", boundary)
+        self.assertNotIn('description": "[LEDGIX-TAX]', boundary)
+        self.assertIn("assert_native_tax_contract(doc)", boundary)
+        self.assertIn('doc.run_method("calculate_taxes_and_totals")', boundary)
 
     def test_native_branch_uses_erpnext_tax_population_before_totals(self):
         boundary = (
             APP_ROOT / "services" / "erpnext_tax_authority.py"
         ).read_text(encoding="utf-8")
-        native_branch = boundary.split(
-            "# Transitional fallback only. Remove after the Phase 1 native runtime gate.",
-            1,
-        )[0]
+        self.assertIn('doc.run_method("set_taxes_and_charges")', boundary)
+        self.assertIn('doc.run_method("calculate_taxes_and_totals")', boundary)
 
-        self.assertIn('doc.run_method("set_taxes_and_charges")', native_branch)
-        self.assertIn('doc.run_method("calculate_taxes_and_totals")', native_branch)
-
-        populate_at = native_branch.index('doc.run_method("set_taxes_and_charges")')
-        calculate_at = native_branch.index('doc.run_method("calculate_taxes_and_totals")')
-        contract_at = native_branch.rindex("assert_native_tax_contract(doc)")
+        populate_at = boundary.index('doc.run_method("set_taxes_and_charges")')
+        calculate_at = boundary.index('doc.run_method("calculate_taxes_and_totals")')
+        contract_at = boundary.rindex("assert_native_tax_contract(doc)")
         self.assertLess(populate_at, calculate_at)
         self.assertLess(calculate_at, contract_at)
 
-        self.assertNotIn("doc.append(", native_branch)
-        self.assertNotIn("erpnext_tax_foundation.apply_tax_plan", native_branch)
+        self.assertNotIn("doc.append(", boundary)
+        self.assertNotIn("erpnext_tax_foundation.apply_tax_plan", boundary)
 
     def test_native_return_paths_recalculate_after_ledgix_row_selection(self):
         selling = (APP_ROOT / "services" / "erpnext_selling.py").read_text(
@@ -91,15 +80,16 @@ class TestFBRRedesignPhase1TaxAuthorityContract(unittest.TestCase):
         )
 
         self.assertIn(
-            "recalculate=erpnext_tax_authority.native_tax_authority_enabled()",
+            "erpnext_tax_authority.apply_sales_tax_authority(credit)",
             selling,
         )
-        self.assertIn(
-            "if erpnext_tax_authority.native_tax_authority_enabled():",
-            pos,
-        )
+        self.assertNotIn("native_tax_authority_enabled()", selling)
         self.assertIn(
             "erpnext_tax_authority.apply_sales_tax_authority(return_doc)",
+            pos,
+        )
+        self.assertNotIn(
+            "if erpnext_tax_authority.native_tax_authority_enabled():",
             pos,
         )
 
@@ -125,18 +115,16 @@ class TestFBRRedesignPhase1TaxAuthorityContract(unittest.TestCase):
         ):
             self.assertIn(marker, source)
 
-    def test_transition_flag_is_documented_as_internal_not_business_config(self):
+    def test_temporary_site_config_switch_and_legacy_fallback_are_removed(self):
         source = (
             APP_ROOT / "services" / "erpnext_tax_authority.py"
         ).read_text(encoding="utf-8")
-        self.assertIn(
-            "This is an engineering migration switch, not client tax configuration.",
-            source,
-        )
-        self.assertIn(
-            "Normal business tax/FBR configuration remains Desk-driven.",
-            source,
-        )
+        self.assertNotIn("NATIVE_TAX_SITE_CONFIG_KEY", source)
+        self.assertNotIn("ledgix_erpnext_native_tax_authority", source)
+        self.assertNotIn("Legacy Bridge", source)
+        self.assertNotIn("erpnext_tax_foundation", source)
+        self.assertIn("return True", source)
+        self.assertIn('return "ERPNext Native"', source)
 
 
 if __name__ == "__main__":

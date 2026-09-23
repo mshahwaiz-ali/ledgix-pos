@@ -17,9 +17,14 @@ app_include_js = [
 	"/assets/ledgix_saas/js/ledgix_sidebar_brand.js",
 	"/assets/ledgix_saas/js/ledgix_phase10_native_surfaces.js",
 	"/assets/ledgix_saas/js/ledgix_phase11_product_shell.js",
+	"/assets/ledgix_saas/js/ledgix_taxable_base.js",
 ]
 web_include_css = ["/assets/ledgix_saas/css/ledgix_brand.css"]
 web_include_js = ["/assets/ledgix_saas/js/ledgix_brand.js"]
+
+erpnext_taxable_base_resolvers = {
+	"On Notified Retail Price": "ledgix_saas.services.erpnext_taxable_base.resolve_notified_retail_price",
+}
 
 # Desk landing is profile-aware in Phase 11. A static role_home_page hook would
 # incorrectly send Invoice-only/B2B Cashiers into POS when POS is disabled.
@@ -89,9 +94,19 @@ override_whitelisted_methods = {
 	"ledgix_saas.api.selling.complete_b2b_sale": "ledgix_saas.api.selling_compat.complete_b2b_sale",
 	"ledgix_saas.api.selling.create_exchange": "ledgix_saas.api.selling_compat.create_exchange",
 
-	# Phase 9 is a hard source cutover. Historical legacy sales stay readable but
-	# can no longer issue a new official FBR invoice through the old POST endpoint.
+	# Phase 9 / Phase-1 consolidation: legacy Sale/Return FBR source remains
+	# historical only. All exposed legacy FBR actions fail closed.
+	"ledgix_saas.api.fbr_preview.get_fbr_sale_preview": "ledgix_saas.api.fbr_legacy_guard.reject_legacy_fbr_action",
+	"ledgix_saas.api.fbr_payload.validate_sale_fbr_readiness": "ledgix_saas.api.fbr_legacy_guard.reject_legacy_fbr_action",
+	"ledgix_saas.api.fbr_payload.build_sale_invoice_payload": "ledgix_saas.api.fbr_legacy_guard.reject_legacy_fbr_action",
+	"ledgix_saas.api.fbr_payload.build_return_invoice_payload": "ledgix_saas.api.fbr_legacy_guard.reject_legacy_fbr_action",
+	"ledgix_saas.api.fbr_submission.dry_run_sale_fbr_payload": "ledgix_saas.api.fbr_legacy_guard.reject_legacy_fbr_action",
+	"ledgix_saas.api.fbr_submission.validate_sale_with_fbr": "ledgix_saas.api.fbr_legacy_guard.reject_legacy_fbr_action",
+	"ledgix_saas.api.fbr_submission.validate_sale_with_fbr_production": "ledgix_saas.api.fbr_legacy_guard.reject_legacy_fbr_action",
 	"ledgix_saas.api.fbr_submission.submit_sale_to_fbr": "ledgix_saas.api.fbr_legacy_guard.reject_legacy_sale_submission",
+	"ledgix_saas.api.fbr_submission.release_sale_after_fbr_reconciliation": "ledgix_saas.api.fbr_legacy_guard.reject_legacy_fbr_action",
+	"ledgix_saas.api.fbr_submission.submit_return_to_fbr": "ledgix_saas.api.fbr_legacy_guard.reject_legacy_fbr_action",
+	"ledgix_saas.api.fbr_submission.release_return_after_fbr_reconciliation": "ledgix_saas.api.fbr_legacy_guard.reject_legacy_fbr_action",
 }
 
 doc_events = {
@@ -99,10 +114,12 @@ doc_events = {
 		"validate": "ledgix_saas.services.erpnext_payment_policy.validate_ledgix_payment_entry",
 	},
 	"Sales Invoice": {
+		"before_validate": "ledgix_saas.services.erpnext_taxable_base.stamp_fbr_taxable_base_inputs",
 		"on_submit": "ledgix_saas.api.fbr_native.on_native_invoice_submit",
 		"before_cancel": "ledgix_saas.api.fbr_native.block_cancel_after_fbr_submission",
 	},
 	"POS Invoice": {
+		"before_validate": "ledgix_saas.services.erpnext_taxable_base.stamp_fbr_taxable_base_inputs",
 		"on_submit": "ledgix_saas.api.fbr_native.on_native_invoice_submit",
 		"before_cancel": "ledgix_saas.api.fbr_native.block_cancel_after_fbr_submission",
 	},

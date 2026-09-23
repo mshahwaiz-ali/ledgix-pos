@@ -265,8 +265,6 @@ class LedgixSalesReturn(Document):
         self.grand_total = flt(self.total_amount, 2) if inclusive_mode else flt(flt(self.total_amount) + flt(total_return_tax), 2)
 
     def queue_fbr_submission_after_return_work(self):
-        from ledgix_saas.api.fbr_submission import queue_return_for_fbr
-        try:
-            queue_return_for_fbr(self.name, reason="Sales return submitted")
-        except Exception:
-            frappe.log_error(frappe.get_traceback(), f"Ledgix FBR queue failed for return {self.name}")
+        """Legacy Sales Return FBR issuance is retired after ERPNext cutover."""
+
+        return None

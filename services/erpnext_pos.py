@@ -1115,8 +1115,7 @@ def create_return(
     return_doc.custom_ledgix_client_return_id = str(client_return_id or f"RET-{frappe.generate_hash(length=16)}").strip()
     return_doc.custom_ledgix_return_reason = str(reason).strip()
     return_doc.remarks = str(reason).strip()
-    if erpnext_tax_authority.native_tax_authority_enabled():
-        erpnext_tax_authority.apply_sales_tax_authority(return_doc)
+    erpnext_tax_authority.apply_sales_tax_authority(return_doc)
     return_doc.insert(ignore_permissions=True)
     return_doc.submit()
     return_doc.reload()
