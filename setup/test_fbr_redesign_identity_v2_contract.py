@@ -10,7 +10,7 @@ APP_ROOT = Path(__file__).resolve().parents[1]
 class TestFBRRedesignIdentityV2Contract(unittest.TestCase):
     def setUp(self):
         self.source = (
-            APP_ROOT / "services" / "erpnext_fbr_identity_v2.py"
+            APP_ROOT / "services" / "erpnext_fbr_identity.py"
         ).read_text(encoding="utf-8")
 
     def test_seller_identity_uses_erpnext_company_and_address(self):
