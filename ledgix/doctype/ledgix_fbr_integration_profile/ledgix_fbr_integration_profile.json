@@ -1,0 +1,330 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "format:FBR-PROFILE-{#####}",
+ "creation": "2026-09-23 00:31:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "identity_section",
+  "company",
+  "enabled",
+  "mode",
+  "submit_trigger",
+  "identity_column",
+  "provider_type",
+  "licensed_integrator_name",
+  "protocol_version",
+  "onboarding_section",
+  "business_natures",
+  "sector",
+  "onboarding_column",
+  "onboarding_status",
+  "ip_whitelist_status",
+  "hosting_notes",
+  "software_section",
+  "erp_system_provider",
+  "software_name",
+  "software_version",
+  "software_registration_number",
+  "technical_contact_section",
+  "technical_contact_name",
+  "technical_contact_email",
+  "technical_contact_column",
+  "technical_contact_phone",
+  "credentials_section",
+  "sandbox_token",
+  "credentials_column",
+  "production_token",
+  "safety_section",
+  "production_post_armed",
+  "block_sale_if_fbr_fails",
+  "safety_column",
+  "pause_reason",
+  "reference_section",
+  "reference_sync_status",
+  "last_reference_sync_at",
+  "reference_version"
+ ],
+ "fields": [
+  {
+   "fieldname": "identity_section",
+   "fieldtype": "Section Break",
+   "label": "Company / FBR Integration"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "ERPNext Company",
+   "options": "Company",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Enabled"
+  },
+  {
+   "default": "Disabled",
+   "fieldname": "mode",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Mode",
+   "options": "Disabled\nSandbox\nProduction\nPaused",
+   "reqd": 1
+  },
+  {
+   "default": "Manual",
+   "fieldname": "submit_trigger",
+   "fieldtype": "Select",
+   "label": "Submit Trigger",
+   "options": "Manual\nOn Submit\nValidate Only",
+   "reqd": 1
+  },
+  {
+   "fieldname": "identity_column",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "provider_type",
+   "fieldtype": "Select",
+   "label": "Integration Provider",
+   "options": "PRAL\nLicensed Integrator\nOther"
+  },
+  {
+   "fieldname": "licensed_integrator_name",
+   "fieldtype": "Data",
+   "label": "Licensed Integrator / Provider Name"
+  },
+  {
+   "default": "DI API V1.12",
+   "fieldname": "protocol_version",
+   "fieldtype": "Data",
+   "label": "DI Protocol Version"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "onboarding_section",
+   "fieldtype": "Section Break",
+   "label": "FBR Onboarding"
+  },
+  {
+   "fieldname": "business_natures",
+   "fieldtype": "Table",
+   "label": "Business Nature(s)",
+   "options": "Ledgix FBR Business Nature"
+  },
+  {
+   "fieldname": "sector",
+   "fieldtype": "Data",
+   "label": "Sector"
+  },
+  {
+   "fieldname": "onboarding_column",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Not Started",
+   "fieldname": "onboarding_status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Onboarding Status",
+   "options": "Not Started\nIn Progress\nSandbox Ready\nCertified\nProduction Ready"
+  },
+  {
+   "default": "Pending",
+   "fieldname": "ip_whitelist_status",
+   "fieldtype": "Select",
+   "label": "Server / IP Whitelist Status",
+   "options": "Not Required\nPending\nConfigured\nVerified"
+  },
+  {
+   "fieldname": "hosting_notes",
+   "fieldtype": "Small Text",
+   "label": "Hosting / Whitelist Notes"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "software_section",
+   "fieldtype": "Section Break",
+   "label": "ERP / Software"
+  },
+  {
+   "default": "Ledgix",
+   "fieldname": "erp_system_provider",
+   "fieldtype": "Data",
+   "label": "ERP / System Provider"
+  },
+  {
+   "default": "Ledgix POS",
+   "fieldname": "software_name",
+   "fieldtype": "Data",
+   "label": "Software Name"
+  },
+  {
+   "fieldname": "software_version",
+   "fieldtype": "Data",
+   "label": "Software Version"
+  },
+  {
+   "fieldname": "software_registration_number",
+   "fieldtype": "Data",
+   "label": "Software / POS Registration Number"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "technical_contact_section",
+   "fieldtype": "Section Break",
+   "label": "Technical Contact"
+  },
+  {
+   "fieldname": "technical_contact_name",
+   "fieldtype": "Data",
+   "label": "Technical Contact Name"
+  },
+  {
+   "fieldname": "technical_contact_email",
+   "fieldtype": "Data",
+   "label": "Technical Contact Email",
+   "options": "Email"
+  },
+  {
+   "fieldname": "technical_contact_column",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "technical_contact_phone",
+   "fieldtype": "Data",
+   "label": "Technical Contact Phone",
+   "options": "Phone"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "credentials_section",
+   "fieldtype": "Section Break",
+   "label": "Credentials"
+  },
+  {
+   "fieldname": "sandbox_token",
+   "fieldtype": "Password",
+   "label": "Sandbox Token"
+  },
+  {
+   "fieldname": "credentials_column",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "production_token",
+   "fieldtype": "Password",
+   "label": "Production Token"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "safety_section",
+   "fieldtype": "Section Break",
+   "label": "Safety Controls"
+  },
+  {
+   "default": "0",
+   "description": "Final fail-closed Production POST interlock.",
+   "fieldname": "production_post_armed",
+   "fieldtype": "Check",
+   "label": "Arm Production Posting"
+  },
+  {
+   "default": "0",
+   "fieldname": "block_sale_if_fbr_fails",
+   "fieldtype": "Check",
+   "label": "Block Submit On FBR Preflight Failure"
+  },
+  {
+   "fieldname": "safety_column",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "pause_reason",
+   "fieldtype": "Small Text",
+   "label": "Pause Reason"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "reference_section",
+   "fieldtype": "Section Break",
+   "label": "Reference Data"
+  },
+  {
+   "default": "Never Synced",
+   "fieldname": "reference_sync_status",
+   "fieldtype": "Select",
+   "label": "Reference Sync Status",
+   "options": "Never Synced\nCurrent\nStale\nFailed",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_reference_sync_at",
+   "fieldtype": "Datetime",
+   "label": "Last Reference Sync At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "reference_version",
+   "fieldtype": "Data",
+   "label": "Reference Version",
+   "read_only": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-09-23 00:31:00.000000",
+ "modified_by": "Administrator",
+ "module": "Ledgix",
+ "name": "Ledgix FBR Integration Profile",
+ "naming_rule": "Expression (old style)",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Ledgix Admin",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Ledgix Manager"
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "search_fields": "company,licensed_integrator_name,sector,software_registration_number",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "company",
+ "track_changes": 1
+}
