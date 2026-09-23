@@ -18,10 +18,14 @@ class TestFBRRedesignPhase3ReferenceContract(unittest.TestCase):
             "https://gw.fbr.gov.pk/pdi/v1/doctypecode",
             "https://gw.fbr.gov.pk/pdi/v1/transtypecode",
             "https://gw.fbr.gov.pk/pdi/v1/uom",
+            "https://gw.fbr.gov.pk/pdi/v1/itemdesccode",
+            "https://gw.fbr.gov.pk/pdi/v1/sroitemcode",
             "https://gw.fbr.gov.pk/pdi/v1/SroSchedule",
             "https://gw.fbr.gov.pk/pdi/v2/SaleTypeToRate",
             "https://gw.fbr.gov.pk/pdi/v2/HS_UOM",
             "https://gw.fbr.gov.pk/pdi/v2/SROItem",
+            "https://gw.fbr.gov.pk/dist/v1/statl",
+            "https://gw.fbr.gov.pk/dist/v1/Get_Reg_Type",
         ):
             self.assertIn(endpoint, source)
 
@@ -58,6 +62,7 @@ class TestFBRRedesignPhase3ReferenceContract(unittest.TestCase):
             "transactiON_TYPE_ID",
             "transactiON_DESC",
             "uoM_ID",
+            "hS_CODE",
             "ratE_ID",
             "ratE_DESC",
             "srO_ID",
@@ -70,6 +75,18 @@ class TestFBRRedesignPhase3ReferenceContract(unittest.TestCase):
 
         self.assertIn("unexpected non-list payload", source)
         self.assertIn("does not match the documented v1.12 response shape", source)
+
+    def test_static_catalog_and_live_registration_lookups_are_modeled(self):
+        source = (APP_ROOT / "api" / "fbr_reference_v2.py").read_text(encoding="utf-8")
+
+        self.assertIn('"Item Code": {', source)
+        self.assertIn('"SRO Item Code": {', source)
+        self.assertIn('CORE_STATIC_REFERENCE_TYPES = ("Province", "Document Type", "Transaction Type", "UOM")', source)
+        self.assertIn("def lookup_sales_tax_registration_status(", source)
+        self.assertIn("def lookup_registration_type(", source)
+        self.assertIn('"regno": registration_no', source)
+        self.assertIn('"Registration_No": registration_no', source)
+        self.assertIn("Taxpayer-specific status is not cached", source)
 
     def test_parameterized_query_contract_matches_fbr_v112(self):
         source = (APP_ROOT / "api" / "fbr_reference_v2.py").read_text(encoding="utf-8")
