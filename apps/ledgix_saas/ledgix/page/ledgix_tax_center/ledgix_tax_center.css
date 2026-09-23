@@ -89,6 +89,9 @@
 .lx-readiness-row strong.is-warning { color: #9a6700; }
 .lx-readiness-row strong.is-missing { color: #c92a2a; }
 
+.lx-v2-readiness-link { flex: 1 1 360px; min-width: 240px; }
+.lx-v2-readiness-link .form-group { margin-bottom: 0; }
+
 .lx-fbr-sale-control { flex: 1 1 360px; min-width: 240px; }
 .lx-fbr-sale-control .form-group { margin-bottom: 0; }
 .lx-fbr-actions { margin-top: 10px; }
