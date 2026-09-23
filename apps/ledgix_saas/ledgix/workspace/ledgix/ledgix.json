@@ -553,6 +553,66 @@
   {
    "hidden": 0,
    "is_query_report": 0,
+   "label": "Tax Categories",
+   "link_count": 0,
+   "link_to": "Tax Category",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Tax Rules",
+   "link_count": 0,
+   "link_to": "Tax Rule",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Sales Taxes and Charges Templates",
+   "link_count": 0,
+   "link_to": "Sales Taxes and Charges Template",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Item Tax Templates",
+   "link_count": 0,
+   "link_to": "Item Tax Template",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Accounts",
+   "link_count": 0,
+   "link_to": "Account",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "description": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "FBR & Compliance",
+   "link_count": 8,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
    "label": "Tax & FBR Center",
    "link_count": 0,
    "link_to": "ledgix-tax-center",
@@ -563,9 +623,9 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "Item Tax Profiles",
+   "label": "FBR Integration Profiles",
    "link_count": 0,
-   "link_to": "Ledgix Item Tax Profile",
+   "link_to": "Ledgix FBR Integration Profile",
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
@@ -573,9 +633,9 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "Tax Profile",
+   "label": "FBR Item Mappings",
    "link_count": 0,
-   "link_to": "Ledgix Tax Profile",
+   "link_to": "Ledgix FBR Item Mapping",
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
@@ -583,9 +643,9 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "Tax Categories",
+   "label": "FBR Tax Component Mappings",
    "link_count": 0,
-   "link_to": "Ledgix Tax Category",
+   "link_to": "Ledgix FBR Tax Component Mapping",
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
@@ -593,29 +653,19 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "Tax Rates",
+   "label": "FBR Reference Data",
    "link_count": 0,
-   "link_to": "Ledgix Tax Rate",
+   "link_to": "Ledgix FBR Reference Data",
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
   },
   {
-   "description": "",
    "hidden": 0,
    "is_query_report": 0,
-   "label": "FBR & Compliance",
-   "link_count": 3,
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Card Break"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "FBR Settings",
+   "label": "FBR Sandbox Certifications",
    "link_count": 0,
-   "link_to": "Ledgix FBR Settings",
+   "link_to": "Ledgix FBR Sandbox Certification",
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
@@ -633,9 +683,9 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "Tax Audit Logs",
+   "label": "FBR Correction Requests",
    "link_count": 0,
-   "link_to": "Ledgix Tax Audit Log",
+   "link_to": "Ledgix FBR Correction Request",
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
@@ -711,7 +761,7 @@
    "role": "Ledgix Cashier"
   }
  ],
- "sequence_id": 1.0,
+ "sequence_id": 1,
  "shortcuts": [
   {
    "label": "Ledgix POS",
