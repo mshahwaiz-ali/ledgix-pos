@@ -1,6 +1,6 @@
 # Ledgix FBR + ERPNext Native Tax Redesign Plan
 
-**Status:** IMPLEMENTATION IN PROGRESS — ADDITIVE PHASES 0–3 STARTED; LOCAL RUNTIME CUTOVER PENDING  
+**Status:** IMPLEMENTATION IN PROGRESS — ADDITIVE PHASES 0–4 STARTED; LOCAL RUNTIME CUTOVER PENDING  
 **Date:** 2026-09-23  
 **Repository:** mshahwaiz-ali/ledgix-pos  
 **Branch / source of truth:** main  
@@ -14,7 +14,8 @@
 - **Phase 0:** static dependency/retirement inventory complete.
 - **Phase 1:** transaction tax authority isolated behind a temporary migration boundary; ERPNext-native runtime parity and final cutover remain pending on `ledgix-erpnext.local`.
 - **Phase 2:** additive FBR V2 compliance schemas complete; no current FBR runtime has been switched to them yet.
-- **Phase 3:** parameter-free Province / Document Type / Transaction Type / UOM reference-sync foundation implemented; live Sandbox GET proof remains pending.
+- **Phase 3:** official v1.12 reference surface foundation implemented: core/static masters, contextual Rate/HS-UOM/SRO lookups, and live registration lookups; real authorized GET proof remains pending.
+- **Phase 4:** non-persisting ERPNext-native per-line tax snapshot collector implemented against the pinned v15.121.3 engine; runtime reconciliation and transaction-lifecycle cutover remain pending.
 - **Production:** remains fail-closed / not ready. No redesign work has armed Production or performed a Production invoice POST.
 - **Old tax/FBR runtime:** not deleted yet. Physical retirement occurs only after native accounting parity, data migration, V2 payload cutover and regression proof.
 
@@ -25,6 +26,7 @@ docs/fbr/FBR_PHASE0_BASELINE_INVENTORY.md
 docs/fbr/FBR_PHASE1_ERPNEXT_NATIVE_TAX_CONTRACT.md
 docs/fbr/FBR_PHASE2_FBR_V2_DATA_MODEL.md
 docs/fbr/FBR_PHASE3_REFERENCE_SYNC_FOUNDATION.md
+docs/fbr/FBR_PHASE4_ERPNEXT_NATIVE_SNAPSHOT_FOUNDATION.md
 ```
 
 ---
