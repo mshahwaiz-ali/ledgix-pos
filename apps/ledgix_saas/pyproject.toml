@@ -5,6 +5,9 @@ description = "POS and inventory platform for retail shops"
 requires-python = ">=3.10"
 dynamic = ["version"]
 
+[tool.setuptools.dynamic]
+version = { attr = "ledgix_saas.__version__" }
+
 [build-system]
 requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
