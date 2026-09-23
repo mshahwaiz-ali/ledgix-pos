@@ -244,6 +244,25 @@ def assert_native_tax_contract(doc) -> dict:
     return result
 
 
+def prepare_native_tax_state(doc) -> None:
+    """Let ERPNext resolve any missing native tax rows before calculation.
+
+    Ledgix does not construct monetary tax rows here. ERPNext's own
+    set_missing_values() has already resolved party/POS/item context; this step
+    invokes the standard server-side tax population hook used during validation
+    so Accounts Settings, Sales Taxes and Charges Templates and Item Tax
+    Templates can populate their native rows before totals are calculated.
+
+    Existing mapped return rows are left intact because callers use
+    recalculate=False for those lifecycle paths.
+    """
+
+    if not doc or doc.doctype not in {"Sales Invoice", "POS Invoice"}:
+        frappe.throw(_("ERPNext native tax preparation requires Sales Invoice or POS Invoice."))
+
+    doc.run_method("set_taxes_and_charges")
+
+
 def apply_sales_tax_authority(
     doc,
     *,
@@ -260,6 +279,7 @@ def apply_sales_tax_authority(
 
     if native_tax_authority_enabled():
         if recalculate:
+            prepare_native_tax_state(doc)
             doc.run_method("calculate_taxes_and_totals")
         contract = assert_native_tax_contract(doc)
         return {
