@@ -10,7 +10,7 @@ APP_ROOT = Path(__file__).resolve().parents[1]
 class TestFBRRedesignPhase4SnapshotContract(unittest.TestCase):
     def test_collector_uses_erpnext_native_tax_engine(self):
         source = (
-            APP_ROOT / "services" / "erpnext_fbr_snapshot_v2.py"
+            APP_ROOT / "services" / "erpnext_fbr_snapshot.py"
         ).read_text(encoding="utf-8")
 
         self.assertIn(
@@ -23,7 +23,7 @@ class TestFBRRedesignPhase4SnapshotContract(unittest.TestCase):
 
     def test_collector_does_not_implement_ledgix_tax_formulas(self):
         source = (
-            APP_ROOT / "services" / "erpnext_fbr_snapshot_v2.py"
+            APP_ROOT / "services" / "erpnext_fbr_snapshot.py"
         ).read_text(encoding="utf-8")
 
         for forbidden in (
@@ -42,7 +42,7 @@ class TestFBRRedesignPhase4SnapshotContract(unittest.TestCase):
 
     def test_duplicate_item_rows_use_unique_row_identity(self):
         source = (
-            APP_ROOT / "services" / "erpnext_fbr_snapshot_v2.py"
+            APP_ROOT / "services" / "erpnext_fbr_snapshot.py"
         ).read_text(encoding="utf-8")
 
         self.assertIn("row.get(\"name\") or f\"{prefix}-{row.get('idx') or 0}\"", source)
@@ -51,7 +51,7 @@ class TestFBRRedesignPhase4SnapshotContract(unittest.TestCase):
 
     def test_pinned_v15_unsupported_rounding_paths_fail_closed(self):
         source = (
-            APP_ROOT / "services" / "erpnext_fbr_snapshot_v2.py"
+            APP_ROOT / "services" / "erpnext_fbr_snapshot.py"
         ).read_text(encoding="utf-8")
 
         self.assertIn('"round_row_wise_tax"', source)
@@ -62,7 +62,7 @@ class TestFBRRedesignPhase4SnapshotContract(unittest.TestCase):
 
     def test_mapped_rows_reconcile_to_authoritative_erpnext_tax_rows(self):
         source = (
-            APP_ROOT / "services" / "erpnext_fbr_snapshot_v2.py"
+            APP_ROOT / "services" / "erpnext_fbr_snapshot.py"
         ).read_text(encoding="utf-8")
 
         self.assertIn('tax.get("tax_amount_after_discount_amount")', source)
@@ -72,7 +72,7 @@ class TestFBRRedesignPhase4SnapshotContract(unittest.TestCase):
 
     def test_v2_uses_fbr_only_mapping_models(self):
         source = (
-            APP_ROOT / "services" / "erpnext_fbr_snapshot_v2.py"
+            APP_ROOT / "services" / "erpnext_fbr_snapshot.py"
         ).read_text(encoding="utf-8")
 
         self.assertIn('MAPPING_DOCTYPE = "Ledgix FBR Item Mapping"', source)
@@ -84,7 +84,7 @@ class TestFBRRedesignPhase4SnapshotContract(unittest.TestCase):
 
     def test_snapshot_foundation_is_non_persisting_and_non_networked(self):
         source = (
-            APP_ROOT / "services" / "erpnext_fbr_snapshot_v2.py"
+            APP_ROOT / "services" / "erpnext_fbr_snapshot.py"
         ).read_text(encoding="utf-8")
 
         for forbidden in (
@@ -103,7 +103,7 @@ class TestFBRRedesignPhase4SnapshotContract(unittest.TestCase):
 
     def test_submitted_return_is_never_reconstructed(self):
         source = (
-            APP_ROOT / "services" / "erpnext_fbr_snapshot_v2.py"
+            APP_ROOT / "services" / "erpnext_fbr_snapshot.py"
         ).read_text(encoding="utf-8")
 
         self.assertIn("Submitted return snapshots must not be reconstructed after the fact", source)
