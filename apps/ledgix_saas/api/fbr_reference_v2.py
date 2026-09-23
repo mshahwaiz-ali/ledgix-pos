@@ -311,6 +311,7 @@ def _upsert_family(
     source_endpoint: str,
     rows: list[dict],
     context: dict | None = None,
+    include_values: bool = False,
 ) -> dict:
     fetched_at = now_datetime()
     context_key, context_json = _canonical_context(context)
@@ -413,10 +414,14 @@ def _sync_reference(
     )
     result.update(
         {
-            "values": [
-                {"fbr_id": row["fbr_id"], "description": row["description"]}
-                for row in rows
-            ],
+            "values": (
+                [
+                    {"fbr_id": row["fbr_id"], "description": row["description"]}
+                    for row in rows
+                ]
+                if include_values
+                else []
+            ),
             "mode": response["mode"],
             "http_status": response["http_status"],
             "protocol_version": _protocol_version(profile),
@@ -460,6 +465,7 @@ def _sync_parameterized(
         spec=spec,
         params=params,
         context=context,
+        include_values=True,
     )
 
 
@@ -595,7 +601,14 @@ def sync_sro_items(profile_name, posting_date, sro_id):
     )
 
 
-def _cached_rows(filters: dict) -> list[dict]:
+def _cached_rows(
+    filters: dict,
+    *,
+    limit_start: int = 0,
+    limit_page_length: int = 100,
+) -> list[dict]:
+    limit_start = max(cint(limit_start), 0)
+    limit_page_length = min(max(cint(limit_page_length), 1), 500)
     return frappe.get_all(
         REFERENCE_DOCTYPE,
         filters=filters,
@@ -612,7 +625,8 @@ def _cached_rows(filters: dict) -> list[dict]:
             "payload_json",
         ],
         order_by="description asc, fbr_id asc",
-        limit_page_length=0,
+        limit_start=limit_start,
+        limit_page_length=limit_page_length,
     )
 
 
@@ -667,7 +681,12 @@ def lookup_registration_type(profile_name, registration_no):
 
 
 @frappe.whitelist()
-def get_cached_reference_data(reference_type, protocol_version=None):
+def get_cached_reference_data(
+    reference_type,
+    protocol_version=None,
+    limit_start=0,
+    limit_page_length=100,
+):
     _assert_view_permission()
     reference_type = str(reference_type or "").strip()
     if reference_type not in STATIC_REFERENCE_FAMILIES:
@@ -682,7 +701,11 @@ def get_cached_reference_data(reference_type, protocol_version=None):
     if protocol_version:
         filters["protocol_version"] = str(protocol_version).strip()
 
-    rows = _cached_rows(filters)
+    rows = _cached_rows(
+        filters,
+        limit_start=limit_start,
+        limit_page_length=limit_page_length,
+    )
     if rows:
         return rows
 
@@ -696,13 +719,23 @@ def get_cached_reference_data(reference_type, protocol_version=None):
         legacy_filters["protocol_version"] = str(protocol_version).strip()
     return [
         row
-        for row in _cached_rows(legacy_filters)
+        for row in _cached_rows(
+            legacy_filters,
+            limit_start=limit_start,
+            limit_page_length=limit_page_length,
+        )
         if not str(row.get("context_key") or "").strip()
     ]
 
 
 @frappe.whitelist()
-def get_cached_contextual_reference_data(reference_type, context_key, protocol_version=None):
+def get_cached_contextual_reference_data(
+    reference_type,
+    context_key,
+    protocol_version=None,
+    limit_start=0,
+    limit_page_length=100,
+):
     _assert_view_permission()
     reference_type = str(reference_type or "").strip()
     context_key = _required_text(context_key, "context_key")
@@ -717,4 +750,8 @@ def get_cached_contextual_reference_data(reference_type, context_key, protocol_v
     }
     if protocol_version:
         filters["protocol_version"] = str(protocol_version).strip()
-    return _cached_rows(filters)
+    return _cached_rows(
+        filters,
+        limit_start=limit_start,
+        limit_page_length=limit_page_length,
+    )
