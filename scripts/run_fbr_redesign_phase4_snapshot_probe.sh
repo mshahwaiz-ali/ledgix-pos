@@ -67,7 +67,7 @@ echo
 
 cd "$ROOT_DIR/frappe-bench"
 
-bench --site "$SITE" execute   ledgix_saas.services.erpnext_fbr_snapshot_v2.build_snapshot_candidate   --kwargs "$KWARGS"   | tee "$RESULT"
+bench --site "$SITE" execute   ledgix_saas.services.erpnext_fbr_snapshot.build_snapshot_candidate   --kwargs "$KWARGS"   | tee "$RESULT"
 
 echo
 echo "[OK] Probe result: $RESULT"
