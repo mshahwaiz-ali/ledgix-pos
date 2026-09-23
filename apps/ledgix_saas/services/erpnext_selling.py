@@ -694,7 +694,10 @@ def create_sales_return(
         frappe.throw(_("ERPNext return mapper could not match every requested source row."))
     credit.set("items", selected)
 
-    erpnext_tax_authority.apply_sales_tax_authority(credit, recalculate=False)
+    erpnext_tax_authority.apply_sales_tax_authority(
+        credit,
+        recalculate=erpnext_tax_authority.native_tax_authority_enabled(),
+    )
     credit.insert(ignore_permissions=True)
     credit.submit()
     credit.reload()
