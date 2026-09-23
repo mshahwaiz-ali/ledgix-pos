@@ -58,7 +58,7 @@ echo
 
 cd "$ROOT_DIR/frappe-bench"
 
-bench --site "$SITE" execute   ledgix_saas.services.erpnext_fbr_identity_v2.build_identity_candidate   --kwargs "$KWARGS"   | tee "$RESULT"
+bench --site "$SITE" execute   ledgix_saas.services.erpnext_fbr_identity.build_identity_candidate   --kwargs "$KWARGS"   | tee "$RESULT"
 
 echo
 echo "[OK] Identity probe result: $RESULT"
