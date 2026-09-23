@@ -1,6 +1,6 @@
 # FBR Redesign — Phase 6 Desk Compliance Center Cutover
 
-**Status:** GITHUB CUTOVER IMPLEMENTED — LOCAL DESK QA PENDING  
+**Status:** GITHUB PAGE + MAIN WORKSPACE CUTOVER IMPLEMENTED — LOCAL DESK QA PENDING  
 **Date:** 2026-09-23  
 **Repository:** `mshahwaiz-ali/ledgix-pos`  
 **Branch:** `main`
@@ -21,7 +21,7 @@ The page itself is now a V2 compliance center built around one rule:
 
 > ERPNext owns monetary tax and accounting. Ledgix owns FBR-specific classification, reference data, certification, readiness, audit and controlled integration workflow.
 
-The page no longer exposes the old Ledgix monetary tax engine as an operator setup path.
+The page and main Ledgix Workspace no longer expose the old Ledgix monetary tax engine or legacy global FBR Settings as normal operator setup paths.
 
 ---
 
@@ -42,6 +42,8 @@ The Tax & FBR Center no longer exposes:
 - old tax-engine readiness score.
 
 These source files/DocTypes may still physically exist during the migration window, but they are no longer the active Desk configuration authority.
+
+The main Ledgix Workspace and its fixture are also cut over. They now expose native ERPNext tax masters plus the FBR V2 compliance DocTypes and no longer link to Ledgix Tax Profile, Ledgix Tax Category, Ledgix Tax Rate, Ledgix Item Tax Profile, or legacy Ledgix FBR Settings.
 
 ---
 
@@ -279,7 +281,7 @@ After laptop pull/migrate:
 
 ### GitHub code cutover
 
-Implemented.
+Implemented for the Tax & FBR Center page, canonical Ledgix Workspace, and Workspace fixture.
 
 ### Local Desk render/behavior proof
 
