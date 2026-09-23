@@ -6,7 +6,8 @@ import frappe
 from frappe import _
 from frappe.utils import cint, flt, getdate, nowdate, today
 
-from ledgix_saas.setup import erpnext_phase6_extensions, erpnext_tax_foundation
+from ledgix_saas.services import erpnext_tax_authority
+from ledgix_saas.setup import erpnext_phase6_extensions
 
 MONEY_TOLERANCE = 0.005
 
@@ -329,8 +330,7 @@ def build_sales_invoice(
     invoice.set_missing_values()
     if due_date:
         invoice.due_date = getdate(due_date)
-    erpnext_tax_foundation.apply_tax_plan(invoice, replace_managed_rows=True)
-    invoice.run_method("calculate_taxes_and_totals")
+    erpnext_tax_authority.apply_sales_tax_authority(invoice)
     invoice._ledgix_discount = discount
     return invoice
 
@@ -694,7 +694,7 @@ def create_sales_return(
         frappe.throw(_("ERPNext return mapper could not match every requested source row."))
     credit.set("items", selected)
 
-    erpnext_tax_foundation.apply_tax_plan(credit, replace_managed_rows=True)
+    erpnext_tax_authority.apply_sales_tax_authority(credit, recalculate=False)
     credit.insert(ignore_permissions=True)
     credit.submit()
     credit.reload()
