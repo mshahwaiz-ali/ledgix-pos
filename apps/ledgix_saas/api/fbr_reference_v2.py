@@ -16,8 +16,12 @@ from frappe.utils import now_datetime
 from frappe.utils.password import get_decrypted_password
 
 from ledgix_saas.api import fbr_client
-from ledgix_saas.api import fbr_reference as legacy_reference
 
+
+PROVINCES_URL = "https://gw.fbr.gov.pk/pdi/v1/provinces"
+DOCUMENT_TYPES_URL = "https://gw.fbr.gov.pk/pdi/v1/doctypecode"
+TRANSACTION_TYPES_URL = "https://gw.fbr.gov.pk/pdi/v1/transtypecode"
+UOM_URL = "https://gw.fbr.gov.pk/pdi/v1/uom"
 
 PROFILE_DOCTYPE = "Ledgix FBR Integration Profile"
 REFERENCE_DOCTYPE = "Ledgix FBR Reference Data"
@@ -28,22 +32,22 @@ FBR_ADMIN_ROLES = {"System Manager", "Ledgix Admin"}
 
 STATIC_REFERENCE_FAMILIES = {
     "Province": {
-        "url": legacy_reference.PROVINCES_URL,
+        "url": PROVINCES_URL,
         "id_keys": ("stateProvinceCode",),
         "description_keys": ("stateProvinceDesc",),
     },
     "Document Type": {
-        "url": legacy_reference.DOCUMENT_TYPES_URL,
+        "url": DOCUMENT_TYPES_URL,
         "id_keys": ("docTypeId",),
         "description_keys": ("docDescription",),
     },
     "Transaction Type": {
-        "url": legacy_reference.TRANSACTION_TYPES_URL,
+        "url": TRANSACTION_TYPES_URL,
         "id_keys": ("transactiON_TYPE_ID", "transaction_type_id"),
         "description_keys": ("transactiON_DESC", "transaction_desc"),
     },
     "UOM": {
-        "url": legacy_reference.UOM_URL,
+        "url": UOM_URL,
         "id_keys": ("uoM_ID", "uom_id"),
         "description_keys": ("description",),
     },
@@ -207,10 +211,10 @@ def _upsert_family(
         },
         pluck="name",
     )
-    if existing:
+    for name in existing:
         frappe.db.set_value(
             REFERENCE_DOCTYPE,
-            {"name": ["in", existing]},
+            name,
             "stale",
             1,
             update_modified=False,
@@ -332,12 +336,15 @@ def sync_core_reference_data(profile_name):
     results = []
     errors = []
 
-    for reference_type in STATIC_REFERENCE_FAMILIES:
+    for index, reference_type in enumerate(STATIC_REFERENCE_FAMILIES, start=1):
+        savepoint = f"fbr_reference_family_{index}"
+        frappe.db.savepoint(savepoint)
         try:
             results.append(
                 sync_reference_family_internal(profile.name, reference_type)
             )
         except Exception as exc:
+            frappe.db.rollback(save_point=savepoint)
             errors.append(
                 {
                     "reference_type": reference_type,
