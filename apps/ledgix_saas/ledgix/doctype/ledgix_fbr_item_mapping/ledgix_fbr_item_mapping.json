@@ -1,0 +1,233 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "format:FBR-ITEM-{#####}",
+ "creation": "2026-09-23 00:32:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "mapping_section",
+  "company",
+  "erpnext_item",
+  "active",
+  "mapping_column",
+  "needs_review",
+  "effective_from",
+  "effective_to",
+  "classification_section",
+  "hs_code",
+  "fbr_uom",
+  "sales_type",
+  "classification_column",
+  "fbr_rate_description",
+  "regulatory_section",
+  "tax_basis",
+  "notified_retail_price",
+  "regulatory_column",
+  "sro_schedule_number",
+  "sro_item_serial_number",
+  "source_section",
+  "reference_version",
+  "last_reviewed_at",
+  "source_notes"
+ ],
+ "fields": [
+  {
+   "fieldname": "mapping_section",
+   "fieldtype": "Section Break",
+   "label": "ERPNext Item / FBR Classification"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Company",
+   "options": "Company",
+   "reqd": 1
+  },
+  {
+   "fieldname": "erpnext_item",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "ERPNext Item",
+   "options": "Item",
+   "reqd": 1
+  },
+  {
+   "default": "1",
+   "fieldname": "active",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Active"
+  },
+  {
+   "fieldname": "mapping_column",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "fieldname": "needs_review",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Needs Review"
+  },
+  {
+   "fieldname": "effective_from",
+   "fieldtype": "Date",
+   "label": "Effective From"
+  },
+  {
+   "fieldname": "effective_to",
+   "fieldtype": "Date",
+   "label": "Effective To"
+  },
+  {
+   "fieldname": "classification_section",
+   "fieldtype": "Section Break",
+   "label": "Official FBR Classification"
+  },
+  {
+   "fieldname": "hs_code",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "HS Code"
+  },
+  {
+   "fieldname": "fbr_uom",
+   "fieldtype": "Data",
+   "label": "FBR UOM"
+  },
+  {
+   "fieldname": "sales_type",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "FBR Sale / Transaction Type"
+  },
+  {
+   "fieldname": "classification_column",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Reference/classification only. This field never calculates ERPNext monetary tax.",
+   "fieldname": "fbr_rate_description",
+   "fieldtype": "Data",
+   "label": "FBR Rate / Reference Description"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "regulatory_section",
+   "fieldtype": "Section Break",
+   "label": "Regulatory References"
+  },
+  {
+   "default": "Transaction Value",
+   "fieldname": "tax_basis",
+   "fieldtype": "Select",
+   "label": "Tax Basis",
+   "options": "Transaction Value\nNotified Retail Price",
+   "reqd": 1
+  },
+  {
+   "depends_on": "eval:doc.tax_basis=='Notified Retail Price'",
+   "fieldname": "notified_retail_price",
+   "fieldtype": "Currency",
+   "label": "Notified Retail Price / MRP",
+   "precision": "2"
+  },
+  {
+   "fieldname": "regulatory_column",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "sro_schedule_number",
+   "fieldtype": "Data",
+   "label": "SRO Schedule Number"
+  },
+  {
+   "fieldname": "sro_item_serial_number",
+   "fieldtype": "Data",
+   "label": "SRO Item Serial Number"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "source_section",
+   "fieldtype": "Section Break",
+   "label": "Source / Review"
+  },
+  {
+   "fieldname": "reference_version",
+   "fieldtype": "Data",
+   "label": "FBR Reference Version",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_reviewed_at",
+   "fieldtype": "Datetime",
+   "label": "Last Reviewed At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "source_notes",
+   "fieldtype": "Small Text",
+   "label": "Source / Review Notes"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-09-23 00:32:00.000000",
+ "modified_by": "Administrator",
+ "module": "Ledgix",
+ "name": "Ledgix FBR Item Mapping",
+ "naming_rule": "Expression (old style)",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Ledgix Admin",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Ledgix Manager",
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "search_fields": "erpnext_item,hs_code,sales_type,sro_schedule_number",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "erpnext_item",
+ "track_changes": 1
+}
