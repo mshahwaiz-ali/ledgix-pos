@@ -15,8 +15,8 @@ class TestFBRRedesignV2ReadinessContract(unittest.TestCase):
 
     def test_readiness_combines_v2_authorities_without_building_payload(self):
         for marker in (
-            "erpnext_fbr_identity_v2.resolve_invoice_identity",
-            "erpnext_fbr_snapshot_v2.build_snapshot_candidate",
+            "erpnext_fbr_identity.resolve_invoice_identity",
+            "erpnext_fbr_snapshot.build_snapshot_candidate",
             'PROFILE_DOCTYPE = "Ledgix FBR Integration Profile"',
             'REFERENCE_DOCTYPE = "Ledgix FBR Reference Data"',
             '"payload_built": False',
