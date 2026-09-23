@@ -45,7 +45,7 @@ class TestFBRRedesignPhase4SnapshotContract(unittest.TestCase):
             APP_ROOT / "services" / "erpnext_fbr_snapshot_v2.py"
         ).read_text(encoding="utf-8")
 
-        self.assertIn('row.get("name") or f"{prefix}-{row.get('idx') or 0}"', source)
+        self.assertIn("row.get(\"name\") or f\"{prefix}-{row.get('idx') or 0}\"", source)
         self.assertNotIn("tax.item_wise_tax_detail", source)
         self.assertNotIn("item_wise_tax_detail.get(item.item_code", source)
 
