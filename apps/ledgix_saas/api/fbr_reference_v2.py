@@ -311,7 +311,6 @@ def _upsert_family(
     source_endpoint: str,
     rows: list[dict],
     context: dict | None = None,
-    include_values: bool = False,
 ) -> dict:
     fetched_at = now_datetime()
     context_key, context_json = _canonical_context(context)
@@ -402,6 +401,7 @@ def _sync_reference(
     spec: dict,
     params: dict | None = None,
     context: dict | None = None,
+    include_values: bool = False,
 ) -> dict:
     response = _reference_get(profile, spec["url"], params=params)
     rows = _normalize_rows(reference_type, response["payload"], spec)
