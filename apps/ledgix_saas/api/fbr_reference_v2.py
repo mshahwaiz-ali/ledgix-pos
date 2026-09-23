@@ -22,10 +22,14 @@ PROVINCES_URL = "https://gw.fbr.gov.pk/pdi/v1/provinces"
 DOCUMENT_TYPES_URL = "https://gw.fbr.gov.pk/pdi/v1/doctypecode"
 TRANSACTION_TYPES_URL = "https://gw.fbr.gov.pk/pdi/v1/transtypecode"
 UOM_URL = "https://gw.fbr.gov.pk/pdi/v1/uom"
+ITEM_CODE_URL = "https://gw.fbr.gov.pk/pdi/v1/itemdesccode"
+SRO_ITEM_CODE_URL = "https://gw.fbr.gov.pk/pdi/v1/sroitemcode"
 SRO_SCHEDULE_URL = "https://gw.fbr.gov.pk/pdi/v1/SroSchedule"
 RATE_URL = "https://gw.fbr.gov.pk/pdi/v2/SaleTypeToRate"
 HS_UOM_URL = "https://gw.fbr.gov.pk/pdi/v2/HS_UOM"
 SRO_ITEM_URL = "https://gw.fbr.gov.pk/pdi/v2/SROItem"
+STATL_URL = "https://gw.fbr.gov.pk/dist/v1/statl"
+REGISTRATION_TYPE_URL = "https://gw.fbr.gov.pk/dist/v1/Get_Reg_Type"
 
 PROFILE_DOCTYPE = "Ledgix FBR Integration Profile"
 REFERENCE_DOCTYPE = "Ledgix FBR Reference Data"
@@ -56,7 +60,19 @@ STATIC_REFERENCE_FAMILIES = {
         "id_keys": ("uoM_ID", "uom_id"),
         "description_keys": ("description",),
     },
+    "Item Code": {
+        "url": ITEM_CODE_URL,
+        "id_keys": ("hS_CODE", "hs_code"),
+        "description_keys": ("description",),
+    },
+    "SRO Item Code": {
+        "url": SRO_ITEM_CODE_URL,
+        "id_keys": ("srO_ITEM_ID", "sro_item_id"),
+        "description_keys": ("srO_ITEM_DESC", "sro_item_desc"),
+    },
 }
+
+CORE_STATIC_REFERENCE_TYPES = ("Province", "Document Type", "Transaction Type", "UOM")
 
 PARAMETERIZED_REFERENCE_FAMILIES = {
     "Rate": {
@@ -397,6 +413,10 @@ def _sync_reference(
     )
     result.update(
         {
+            "values": [
+                {"fbr_id": row["fbr_id"], "description": row["description"]}
+                for row in rows
+            ],
             "mode": response["mode"],
             "http_status": response["http_status"],
             "protocol_version": _protocol_version(profile),
@@ -414,8 +434,7 @@ def sync_reference_family_internal(profile_name: str, reference_type: str) -> di
     spec = STATIC_REFERENCE_FAMILIES.get(reference_type)
     if not spec:
         frappe.throw(
-            "Only Province, Document Type, Transaction Type and UOM are supported "
-            "by the parameter-free Phase 3 sync foundation."
+            "Unsupported parameter-free FBR reference family."
         )
     return _sync_reference(
         profile=profile,
@@ -459,7 +478,7 @@ def sync_core_reference_data(profile_name):
     results = []
     errors = []
 
-    for index, reference_type in enumerate(STATIC_REFERENCE_FAMILIES, start=1):
+    for index, reference_type in enumerate(CORE_STATIC_REFERENCE_TYPES, start=1):
         savepoint = f"fbr_reference_family_{index}"
         frappe.db.savepoint(savepoint)
         try:
@@ -595,6 +614,56 @@ def _cached_rows(filters: dict) -> list[dict]:
         order_by="description asc, fbr_id asc",
         limit_page_length=0,
     )
+
+
+@frappe.whitelist()
+def lookup_sales_tax_registration_status(profile_name, registration_no, posting_date):
+    """Live FBR STATL lookup. Taxpayer-specific status is not cached as reference master data."""
+
+    _assert_view_permission()
+    profile = _profile(profile_name)
+    registration_no = _required_text(registration_no, "registration_no")
+    posting_date = _required_text(posting_date, "posting_date")
+    response = _reference_get(
+        profile,
+        STATL_URL,
+        params={
+            "regno": registration_no,
+            "date": posting_date,
+        },
+    )
+    return {
+        "mode": response["mode"],
+        "http_status": response["http_status"],
+        "data": response["payload"],
+        "network_call": True,
+        "invoice_network_call": False,
+        "production_post_armed_changed": False,
+        "contains_secrets": False,
+    }
+
+
+@frappe.whitelist()
+def lookup_registration_type(profile_name, registration_no):
+    """Live FBR registration-type lookup. Result is deliberately not master-data cached."""
+
+    _assert_view_permission()
+    profile = _profile(profile_name)
+    registration_no = _required_text(registration_no, "registration_no")
+    response = _reference_get(
+        profile,
+        REGISTRATION_TYPE_URL,
+        params={"Registration_No": registration_no},
+    )
+    return {
+        "mode": response["mode"],
+        "http_status": response["http_status"],
+        "data": response["payload"],
+        "network_call": True,
+        "invoice_network_call": False,
+        "production_post_armed_changed": False,
+        "contains_secrets": False,
+    }
 
 
 @frappe.whitelist()
