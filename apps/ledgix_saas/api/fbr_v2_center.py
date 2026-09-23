@@ -48,9 +48,13 @@ def _count(doctype: str, filters: dict | None = None) -> int:
 def _missing_count(doctype: str, fieldname: str, extra_filters: dict | None = None) -> int:
     if not frappe.db.exists("DocType", doctype):
         return 0
-    filters = dict(extra_filters or {})
-    filters[fieldname] = ["in", ["", None]]
-    return _count(doctype, filters)
+    values = frappe.get_all(
+        doctype,
+        filters=dict(extra_filters or {}),
+        pluck=fieldname,
+        limit_page_length=0,
+    )
+    return sum(not str(value or "").strip() for value in values)
 
 
 def _profiles() -> list[dict]:
@@ -88,24 +92,29 @@ def _reference_summary() -> list[dict]:
 
     rows = frappe.get_all(
         REFERENCE_DOCTYPE,
-        fields=[
-            "reference_type",
-            "count(name) as total",
-            "sum(case when stale = 1 then 1 else 0 end) as stale_total",
-        ],
-        group_by="reference_type",
+        fields=["reference_type", "stale"],
         order_by="reference_type asc",
         limit_page_length=0,
     )
-    return [
-        {
-            "reference_type": row.get("reference_type") or "",
-            "total": cint(row.get("total")),
-            "stale_total": cint(row.get("stale_total")),
-            "current_total": max(cint(row.get("total")) - cint(row.get("stale_total")), 0),
-        }
-        for row in rows
-    ]
+    grouped: dict[str, dict] = {}
+    for row in rows:
+        reference_type = row.get("reference_type") or "Unknown"
+        bucket = grouped.setdefault(
+            reference_type,
+            {
+                "reference_type": reference_type,
+                "total": 0,
+                "stale_total": 0,
+                "current_total": 0,
+            },
+        )
+        bucket["total"] += 1
+        if cint(row.get("stale")):
+            bucket["stale_total"] += 1
+        else:
+            bucket["current_total"] += 1
+
+    return [grouped[key] for key in sorted(grouped)]
 
 
 def _certification_summary() -> dict:
