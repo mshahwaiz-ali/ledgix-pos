@@ -57,6 +57,11 @@ PYTHONPATH="$REPO_ROOT/apps${PYTHONPATH:+:$PYTHONPATH}" \
   "$BENCH_PYTHON" -m unittest -v \
   ledgix_saas.setup.test_fbr_redesign_v2_readiness_contract
 
+printf '\n===== PHASE 6 DESK CUTOVER CONTRACT =====\n'
+PYTHONPATH="$REPO_ROOT/apps${PYTHONPATH:+:$PYTHONPATH}" \
+  "$BENCH_PYTHON" -m unittest -v \
+  ledgix_saas.setup.test_fbr_redesign_phase6_desk_contract
+
 printf '\n===== REDESIGN STATIC VERDICT =====\n'
 printf '[PASS] transaction tax authority boundary is isolated\n'
 printf '[PASS] FBR V2 schemas contain no shadow monetary tax engine\n'
@@ -68,4 +73,6 @@ printf '[PASS] unsupported pinned-v15 tax splits fail closed\n'
 printf '[PASS] V2 migration ignores monetary tax authority and remains fail-closed\n'
 printf '[PASS] FBR identity resolves from ERPNext Company/Customer/Address authority\n'
 printf '[PASS] V2 readiness requires native tax + identity + official reference evidence\n'
+printf '[PASS] Desk Tax & FBR Center exposes ERPNext-native tax + FBR V2 only\n'
+printf '[PASS] Desk contains no Production invoice-submit action\n'
 printf 'fbr_redesign_static_complete=true\n'
