@@ -11,10 +11,7 @@ FBR-specific registration-type extension retained.
 import frappe
 from frappe.utils import cint
 
-from frappe.contacts.doctype.address.address import (
-    get_company_address,
-    get_default_address,
-)
+from frappe.contacts.doctype.address.address import get_default_address
 
 
 SUPPORTED_DOCTYPES = {"Sales Invoice", "POS Invoice"}
@@ -30,8 +27,7 @@ def _address_name_for_company(doc) -> str:
     if explicit and frappe.db.exists("Address", explicit):
         return explicit
 
-    resolved = get_company_address(doc.get("company")) or {}
-    candidate = _text(resolved.get("company_address"))
+    candidate = _text(get_default_address("Company", doc.get("company")))
     return candidate if candidate and frappe.db.exists("Address", candidate) else ""
 
 
