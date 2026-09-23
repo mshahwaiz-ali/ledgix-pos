@@ -18,6 +18,12 @@ class TestFBRRedesignPhase6DeskContract(unittest.TestCase):
         ).read_text(encoding="utf-8")
         self.api = (APP_ROOT / "api" / "fbr_v2_center.py").read_text(encoding="utf-8")
         self.hooks = (APP_ROOT / "hooks.py").read_text(encoding="utf-8")
+        self.workspace = (
+            APP_ROOT / "ledgix" / "workspace" / "ledgix" / "ledgix.json"
+        ).read_text(encoding="utf-8")
+        self.workspace_fixture = (
+            APP_ROOT / "fixtures" / "workspace.json"
+        ).read_text(encoding="utf-8")
 
     def test_desk_center_uses_v2_api_only(self):
         for marker in (
@@ -117,6 +123,33 @@ class TestFBRRedesignPhase6DeskContract(unittest.TestCase):
             '"ledgix_saas.api.fbr_preflight.get_fbr_readiness"',
             self.hooks,
         )
+
+
+    def test_main_workspace_and_fixture_use_native_tax_and_fbr_v2(self):
+        for surface in (self.workspace, self.workspace_fixture):
+            for forbidden in (
+                "Ledgix Tax Profile",
+                "Ledgix Tax Category",
+                "Ledgix Tax Rate",
+                "Ledgix Item Tax Profile",
+                "Ledgix FBR Settings",
+            ):
+                self.assertNotIn(forbidden, surface)
+
+            for required in (
+                "Tax Category",
+                "Tax Rule",
+                "Sales Taxes and Charges Template",
+                "Item Tax Template",
+                "Ledgix FBR Integration Profile",
+                "Ledgix FBR Item Mapping",
+                "Ledgix FBR Tax Component Mapping",
+                "Ledgix FBR Reference Data",
+                "Ledgix FBR Sandbox Certification",
+                "Ledgix FBR Submission Log",
+                "Ledgix FBR Correction Request",
+            ):
+                self.assertIn(required, surface)
 
     def test_reference_sync_remains_get_only_from_desk(self):
         self.assertIn("Sync core references", self.page)
