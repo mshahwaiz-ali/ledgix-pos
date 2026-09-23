@@ -27,7 +27,7 @@ This separation prevents a payload builder from becoming another place where mis
 
 New service:
 
-`apps/ledgix_saas/services/erpnext_fbr_identity_v2.py`
+`apps/ledgix_saas/services/erpnext_fbr_identity.py`
 
 ### Seller authority
 
