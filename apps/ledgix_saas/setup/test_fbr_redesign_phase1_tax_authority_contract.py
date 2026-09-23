@@ -41,6 +41,7 @@ class TestFBRRedesignPhase1TaxAuthorityContract(unittest.TestCase):
         self.assertIn("def native_tax_authority_enabled()", boundary)
         self.assertIn("def evaluate_native_tax_contract(doc)", boundary)
         self.assertIn("def assert_native_tax_contract(doc)", boundary)
+        self.assertIn("def prepare_native_tax_state(doc)", boundary)
         self.assertIn("def apply_sales_tax_authority(", boundary)
         self.assertIn(
             "from ledgix_saas.setup import erpnext_tax_foundation",
@@ -59,6 +60,27 @@ class TestFBRRedesignPhase1TaxAuthorityContract(unittest.TestCase):
         self.assertNotIn('description": "[LEDGIX-TAX]', native_branch)
         self.assertIn("assert_native_tax_contract(doc)", native_branch)
         self.assertIn('doc.run_method("calculate_taxes_and_totals")', native_branch)
+
+    def test_native_branch_uses_erpnext_tax_population_before_totals(self):
+        boundary = (
+            APP_ROOT / "services" / "erpnext_tax_authority.py"
+        ).read_text(encoding="utf-8")
+        native_branch = boundary.split(
+            "# Transitional fallback only. Remove after the Phase 1 native runtime gate.",
+            1,
+        )[0]
+
+        self.assertIn('doc.run_method("set_taxes_and_charges")', native_branch)
+        self.assertIn('doc.run_method("calculate_taxes_and_totals")', native_branch)
+
+        populate_at = native_branch.index('doc.run_method("set_taxes_and_charges")')
+        calculate_at = native_branch.index('doc.run_method("calculate_taxes_and_totals")')
+        contract_at = native_branch.rindex("assert_native_tax_contract(doc)")
+        self.assertLess(populate_at, calculate_at)
+        self.assertLess(calculate_at, contract_at)
+
+        self.assertNotIn("doc.append(", native_branch)
+        self.assertNotIn("erpnext_tax_foundation.apply_tax_plan", native_branch)
 
     def test_native_contract_rejects_legacy_managed_rows(self):
         source = (
