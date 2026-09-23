@@ -2,9 +2,9 @@ from __future__ import annotations
 
 """Credential-agnostic HTTP helpers for FBR integration services.
 
-This module knows nothing about Ledgix FBR Settings, Integration Profiles,
-invoice lifecycle, Production arming or accounting. Callers resolve their own
-credentials and policy before invoking transport.
+This module knows nothing about credential-storage models, invoice lifecycle,
+Production arming or accounting. Callers resolve their own credentials and
+policy before invoking transport.
 """
 
 import re
