@@ -97,7 +97,7 @@ class TestFBRRedesignV2MigrationContract(unittest.TestCase):
             'APPLY_CONFIRMATION = "APPLY FBR V2 LOCAL MIGRATION"',
             self.source,
         )
-        self.assertIn("if str(confirmation or "") != APPLY_CONFIRMATION:", self.source)
+        self.assertIn('if str(confirmation or "") != APPLY_CONFIRMATION:', self.source)
         self.assertIn('if preview["blockers"]:', self.source)
         self.assertIn("Resolve the preview blockers before apply", self.source)
         self.assertIn('frappe.db.savepoint(savepoint)', self.source)
