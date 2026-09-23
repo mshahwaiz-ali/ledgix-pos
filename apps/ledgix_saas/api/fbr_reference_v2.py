@@ -7,25 +7,30 @@ requests only and persists official reference values into Ledgix FBR Reference
 Data. It never validates/posts invoices, changes accounting or arms Production.
 """
 
+import hashlib
 import json
-import re
 from typing import Any
 
 import frappe
 from frappe.utils import now_datetime
 from frappe.utils.password import get_decrypted_password
 
-from ledgix_saas.api import fbr_client
+from ledgix_saas.api import fbr_transport
 
 
 PROVINCES_URL = "https://gw.fbr.gov.pk/pdi/v1/provinces"
 DOCUMENT_TYPES_URL = "https://gw.fbr.gov.pk/pdi/v1/doctypecode"
 TRANSACTION_TYPES_URL = "https://gw.fbr.gov.pk/pdi/v1/transtypecode"
 UOM_URL = "https://gw.fbr.gov.pk/pdi/v1/uom"
+SRO_SCHEDULE_URL = "https://gw.fbr.gov.pk/pdi/v1/SroSchedule"
+RATE_URL = "https://gw.fbr.gov.pk/pdi/v2/SaleTypeToRate"
+HS_UOM_URL = "https://gw.fbr.gov.pk/pdi/v2/HS_UOM"
+SRO_ITEM_URL = "https://gw.fbr.gov.pk/pdi/v2/SROItem"
 
 PROFILE_DOCTYPE = "Ledgix FBR Integration Profile"
 REFERENCE_DOCTYPE = "Ledgix FBR Reference Data"
 DEFAULT_PROTOCOL_VERSION = "DI API V1.12"
+GLOBAL_CONTEXT_KEY = "GLOBAL"
 
 FBR_VIEW_ROLES = {"System Manager", "Ledgix Admin", "Ledgix Manager"}
 FBR_ADMIN_ROLES = {"System Manager", "Ledgix Admin"}
@@ -53,6 +58,29 @@ STATIC_REFERENCE_FAMILIES = {
     },
 }
 
+PARAMETERIZED_REFERENCE_FAMILIES = {
+    "Rate": {
+        "url": RATE_URL,
+        "id_keys": ("ratE_ID", "rate_id"),
+        "description_keys": ("ratE_DESC", "rate_desc"),
+    },
+    "HS-UOM": {
+        "url": HS_UOM_URL,
+        "id_keys": ("uoM_ID", "uom_id"),
+        "description_keys": ("description",),
+    },
+    "SRO Schedule": {
+        "url": SRO_SCHEDULE_URL,
+        "id_keys": ("srO_ID", "sro_id"),
+        "description_keys": ("srO_DESC", "sro_desc"),
+    },
+    "SRO Item": {
+        "url": SRO_ITEM_URL,
+        "id_keys": ("srO_ITEM_ID", "sro_item_id"),
+        "description_keys": ("srO_ITEM_DESC", "sro_item_desc"),
+    },
+}
+
 
 def _assert_view_permission() -> None:
     roles = set(frappe.get_roles(frappe.session.user))
@@ -73,14 +101,14 @@ def _assert_admin_permission() -> None:
 
 
 def _safe_error(exc: Exception) -> str:
-    value = str(exc or "")
-    value = re.sub(
-        r"Bearer\s+[^\s,;]+",
-        "Bearer [REDACTED]",
-        value,
-        flags=re.IGNORECASE,
-    )
-    return value or "FBR reference request failed."
+    return fbr_transport.safe_error(exc)
+
+
+def _required_text(value, label: str) -> str:
+    text = str(value or "").strip()
+    if not text:
+        frappe.throw(f"{label} is required.")
+    return text
 
 
 def _profile(profile_name: str):
@@ -111,31 +139,18 @@ def _profile_token(profile) -> tuple[str, str]:
     return mode, token
 
 
-def _reference_get(profile, url: str) -> dict:
-    fbr_client.ensure_requests_available()
+def _reference_get(profile, url: str, params: dict | None = None) -> dict:
     mode, token = _profile_token(profile)
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Accept": "application/json",
-    }
-
-    try:
-        response = fbr_client.requests.get(url, headers=headers, timeout=30)
-        if not (200 <= response.status_code < 300):
-            frappe.throw(f"FBR reference API returned HTTP {response.status_code}.")
-        try:
-            payload = response.json()
-        except Exception:
-            frappe.throw("FBR reference API returned a non-JSON response.")
-    except frappe.ValidationError:
-        raise
-    except Exception as exc:
-        frappe.throw(_safe_error(exc))
-
+    response = fbr_transport.get_json(
+        url=url,
+        token=token,
+        params=params or {},
+        timeout=30,
+    )
     return {
         "mode": mode,
-        "http_status": response.status_code,
-        "payload": payload,
+        "http_status": response["http_status"],
+        "payload": response["payload"],
     }
 
 
@@ -154,11 +169,7 @@ def _value(row: dict, keys: tuple[str, ...]):
     return None
 
 
-def _normalize_rows(reference_type: str, payload: Any) -> list[dict]:
-    spec = STATIC_REFERENCE_FAMILIES.get(reference_type)
-    if not spec:
-        frappe.throw(f"Unsupported static FBR reference family: {reference_type}.")
-
+def _normalize_rows(reference_type: str, payload: Any, spec: dict) -> list[dict]:
     if not isinstance(payload, list):
         frappe.throw(
             f"FBR {reference_type} reference API returned an unexpected non-list payload."
@@ -167,9 +178,7 @@ def _normalize_rows(reference_type: str, payload: Any) -> list[dict]:
     normalized = []
     for index, raw in enumerate(payload, start=1):
         if not isinstance(raw, dict):
-            frappe.throw(
-                f"FBR {reference_type} row {index} is not a JSON object."
-            )
+            frappe.throw(f"FBR {reference_type} row {index} is not a JSON object.")
 
         fbr_id = _value(raw, spec["id_keys"])
         description = _value(raw, spec["description_keys"])
@@ -194,22 +203,106 @@ def _normalize_rows(reference_type: str, payload: Any) -> list[dict]:
     return normalized
 
 
+def _canonical_context(context: dict | None) -> tuple[str, str]:
+    context = dict(context or {})
+    if not context:
+        return GLOBAL_CONTEXT_KEY, "{}"
+
+    canonical = json.dumps(
+        context,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    )
+    digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    return digest, canonical
+
+
+def _protocol_version(profile) -> str:
+    return (
+        str(profile.get("protocol_version") or DEFAULT_PROTOCOL_VERSION).strip()
+        or DEFAULT_PROTOCOL_VERSION
+    )
+
+
+def _context_existing_names(
+    *,
+    reference_type: str,
+    protocol_version: str,
+    context_key: str,
+) -> list[str]:
+    rows = frappe.get_all(
+        REFERENCE_DOCTYPE,
+        filters={
+            "reference_type": reference_type,
+            "protocol_version": protocol_version,
+        },
+        fields=["name", "context_key"],
+        limit_page_length=0,
+    )
+    names = []
+    for row in rows:
+        row_context = str(row.get("context_key") or "").strip()
+        if context_key == GLOBAL_CONTEXT_KEY:
+            if row_context in {"", GLOBAL_CONTEXT_KEY}:
+                names.append(row["name"])
+        elif row_context == context_key:
+            names.append(row["name"])
+    return names
+
+
+def _existing_reference_name(
+    *,
+    reference_type: str,
+    fbr_id: str,
+    protocol_version: str,
+    context_key: str,
+) -> str | None:
+    exact = frappe.db.get_value(
+        REFERENCE_DOCTYPE,
+        {
+            "reference_type": reference_type,
+            "fbr_id": fbr_id,
+            "protocol_version": protocol_version,
+            "context_key": context_key,
+        },
+        "name",
+    )
+    if exact or context_key != GLOBAL_CONTEXT_KEY:
+        return exact
+
+    # Compatibility for rows written before contextual cache keys existed.
+    rows = frappe.get_all(
+        REFERENCE_DOCTYPE,
+        filters={
+            "reference_type": reference_type,
+            "fbr_id": fbr_id,
+            "protocol_version": protocol_version,
+        },
+        fields=["name", "context_key"],
+        limit_page_length=0,
+    )
+    for row in rows:
+        if not str(row.get("context_key") or "").strip():
+            return row["name"]
+    return None
+
+
 def _upsert_family(
     *,
     reference_type: str,
     protocol_version: str,
     source_endpoint: str,
     rows: list[dict],
+    context: dict | None = None,
 ) -> dict:
     fetched_at = now_datetime()
+    context_key, context_json = _canonical_context(context)
 
-    existing = frappe.get_all(
-        REFERENCE_DOCTYPE,
-        filters={
-            "reference_type": reference_type,
-            "protocol_version": protocol_version,
-        },
-        pluck="name",
+    existing = _context_existing_names(
+        reference_type=reference_type,
+        protocol_version=protocol_version,
+        context_key=context_key,
     )
     for name in existing:
         frappe.db.set_value(
@@ -223,17 +316,16 @@ def _upsert_family(
     created = 0
     updated = 0
     for row in rows:
-        name = frappe.db.get_value(
-            REFERENCE_DOCTYPE,
-            {
-                "reference_type": reference_type,
-                "fbr_id": row["fbr_id"],
-                "protocol_version": protocol_version,
-            },
-            "name",
+        name = _existing_reference_name(
+            reference_type=reference_type,
+            fbr_id=row["fbr_id"],
+            protocol_version=protocol_version,
+            context_key=context_key,
         )
         values = {
             "description": row["description"],
+            "context_key": context_key,
+            "context_json": context_json,
             "active": 1,
             "stale": 0,
             "source_endpoint": source_endpoint,
@@ -256,32 +348,65 @@ def _upsert_family(
                     "fbr_id": row["fbr_id"],
                     "description": row["description"],
                     "protocol_version": protocol_version,
-                    "active": 1,
-                    "stale": 0,
-                    "source_endpoint": source_endpoint,
-                    "fetched_at": fetched_at,
-                    "payload_json": row["payload_json"],
+                    **values,
                 }
             )
             doc.insert(ignore_permissions=True)
             created += 1
 
-    stale_count = frappe.db.count(
-        REFERENCE_DOCTYPE,
-        {
-            "reference_type": reference_type,
-            "protocol_version": protocol_version,
-            "stale": 1,
-        },
+    stale_count = len(
+        [
+            name
+            for name in _context_existing_names(
+                reference_type=reference_type,
+                protocol_version=protocol_version,
+                context_key=context_key,
+            )
+            if frappe.db.get_value(REFERENCE_DOCTYPE, name, "stale")
+        ]
     )
+
     return {
         "reference_type": reference_type,
+        "context_key": context_key,
+        "context_json": context_json,
         "fetched": len(rows),
         "created": created,
         "updated": updated,
         "stale": stale_count,
         "source_endpoint": source_endpoint,
     }
+
+
+def _sync_reference(
+    *,
+    profile,
+    reference_type: str,
+    spec: dict,
+    params: dict | None = None,
+    context: dict | None = None,
+) -> dict:
+    response = _reference_get(profile, spec["url"], params=params)
+    rows = _normalize_rows(reference_type, response["payload"], spec)
+    result = _upsert_family(
+        reference_type=reference_type,
+        protocol_version=_protocol_version(profile),
+        source_endpoint=spec["url"],
+        rows=rows,
+        context=context,
+    )
+    result.update(
+        {
+            "mode": response["mode"],
+            "http_status": response["http_status"],
+            "protocol_version": _protocol_version(profile),
+            "network_call": True,
+            "invoice_network_call": False,
+            "production_post_armed_changed": False,
+            "contains_secrets": False,
+        }
+    )
+    return result
 
 
 def sync_reference_family_internal(profile_name: str, reference_type: str) -> dict:
@@ -292,29 +417,31 @@ def sync_reference_family_internal(profile_name: str, reference_type: str) -> di
             "Only Province, Document Type, Transaction Type and UOM are supported "
             "by the parameter-free Phase 3 sync foundation."
         )
-
-    response = _reference_get(profile, spec["url"])
-    rows = _normalize_rows(reference_type, response["payload"])
-    protocol_version = (
-        str(profile.get("protocol_version") or DEFAULT_PROTOCOL_VERSION).strip()
-        or DEFAULT_PROTOCOL_VERSION
-    )
-    result = _upsert_family(
+    return _sync_reference(
+        profile=profile,
         reference_type=reference_type,
-        protocol_version=protocol_version,
-        source_endpoint=spec["url"],
-        rows=rows,
+        spec=spec,
     )
-    result.update(
-        {
-            "mode": response["mode"],
-            "http_status": response["http_status"],
-            "protocol_version": protocol_version,
-            "network_call": True,
-            "invoice_network_call": False,
-        }
+
+
+def _sync_parameterized(
+    *,
+    profile_name: str,
+    reference_type: str,
+    params: dict,
+    context: dict,
+) -> dict:
+    profile = _profile(profile_name)
+    spec = PARAMETERIZED_REFERENCE_FAMILIES.get(reference_type)
+    if not spec:
+        frappe.throw(f"Unsupported parameterized FBR reference family: {reference_type}.")
+    return _sync_reference(
+        profile=profile,
+        reference_type=reference_type,
+        spec=spec,
+        params=params,
+        context=context,
     )
-    return result
 
 
 @frappe.whitelist()
@@ -325,11 +452,7 @@ def sync_reference_family(profile_name, reference_type):
 
 @frappe.whitelist()
 def sync_core_reference_data(profile_name):
-    """Synchronize only parameter-free official DI reference families.
-
-    This method performs authenticated GET requests only. It never validates or
-    posts an invoice and never changes Production arming.
-    """
+    """Synchronize only parameter-free official DI reference families."""
 
     _assert_admin_permission()
     profile = _profile(profile_name)
@@ -353,10 +476,7 @@ def sync_core_reference_data(profile_name):
             )
 
     status = "Failed" if errors else "Current"
-    protocol_version = (
-        str(profile.get("protocol_version") or DEFAULT_PROTOCOL_VERSION).strip()
-        or DEFAULT_PROTOCOL_VERSION
-    )
+    protocol_version = _protocol_version(profile)
     frappe.db.set_value(
         PROFILE_DOCTYPE,
         profile.name,
@@ -382,20 +502,81 @@ def sync_core_reference_data(profile_name):
 
 
 @frappe.whitelist()
-def get_cached_reference_data(reference_type, protocol_version=None):
-    _assert_view_permission()
-    reference_type = str(reference_type or "").strip()
-    if reference_type not in STATIC_REFERENCE_FAMILIES:
-        frappe.throw("Unsupported cached FBR reference family.")
-
-    filters = {
-        "reference_type": reference_type,
-        "active": 1,
-        "stale": 0,
+def sync_rates(profile_name, posting_date, transaction_type_id, origination_supplier):
+    _assert_admin_permission()
+    posting_date = _required_text(posting_date, "posting_date")
+    transaction_type_id = _required_text(transaction_type_id, "transaction_type_id")
+    origination_supplier = _required_text(origination_supplier, "origination_supplier")
+    context = {
+        "date": posting_date,
+        "transTypeId": transaction_type_id,
+        "originationSupplier": origination_supplier,
     }
-    if protocol_version:
-        filters["protocol_version"] = str(protocol_version).strip()
+    return _sync_parameterized(
+        profile_name=profile_name,
+        reference_type="Rate",
+        params=context,
+        context=context,
+    )
 
+
+@frappe.whitelist()
+def sync_hs_uoms(profile_name, hs_code, annexure_id=3):
+    _assert_admin_permission()
+    hs_code = _required_text(hs_code, "hs_code")
+    annexure_id = _required_text(annexure_id, "annexure_id")
+    context = {
+        "hs_code": hs_code,
+        "annexure_id": annexure_id,
+    }
+    return _sync_parameterized(
+        profile_name=profile_name,
+        reference_type="HS-UOM",
+        params=context,
+        context=context,
+    )
+
+
+@frappe.whitelist()
+def sync_sro_schedules(profile_name, rate_id, posting_date, origination_supplier_csv):
+    _assert_admin_permission()
+    rate_id = _required_text(rate_id, "rate_id")
+    posting_date = _required_text(posting_date, "posting_date")
+    origination_supplier_csv = _required_text(
+        origination_supplier_csv,
+        "origination_supplier_csv",
+    )
+    params = {
+        "rate_id": rate_id,
+        "date": posting_date,
+        "origination_supplier_csv": origination_supplier_csv,
+    }
+    return _sync_parameterized(
+        profile_name=profile_name,
+        reference_type="SRO Schedule",
+        params=params,
+        context=params,
+    )
+
+
+@frappe.whitelist()
+def sync_sro_items(profile_name, posting_date, sro_id):
+    _assert_admin_permission()
+    posting_date = _required_text(posting_date, "posting_date")
+    sro_id = _required_text(sro_id, "sro_id")
+    params = {
+        "date": posting_date,
+        "sro_id": sro_id,
+    }
+    return _sync_parameterized(
+        profile_name=profile_name,
+        reference_type="SRO Item",
+        params=params,
+        context=params,
+    )
+
+
+def _cached_rows(filters: dict) -> list[dict]:
     return frappe.get_all(
         REFERENCE_DOCTYPE,
         filters=filters,
@@ -405,9 +586,56 @@ def get_cached_reference_data(reference_type, protocol_version=None):
             "fbr_id",
             "description",
             "protocol_version",
+            "context_key",
+            "context_json",
             "fetched_at",
             "source_endpoint",
+            "payload_json",
         ],
         order_by="description asc, fbr_id asc",
         limit_page_length=0,
     )
+
+
+@frappe.whitelist()
+def get_cached_reference_data(reference_type, protocol_version=None):
+    _assert_view_permission()
+    reference_type = str(reference_type or "").strip()
+    if reference_type not in STATIC_REFERENCE_FAMILIES:
+        frappe.throw("Unsupported cached static FBR reference family.")
+
+    filters = {
+        "reference_type": reference_type,
+        "active": 1,
+        "stale": 0,
+        "context_key": GLOBAL_CONTEXT_KEY,
+    }
+    if protocol_version:
+        filters["protocol_version"] = str(protocol_version).strip()
+
+    rows = _cached_rows(filters)
+    if rows:
+        return rows
+
+    # Compatibility for rows written before contextual cache keys existed.
+    filters["context_key"] = ["in", ["", None]]
+    return _cached_rows(filters)
+
+
+@frappe.whitelist()
+def get_cached_contextual_reference_data(reference_type, context_key, protocol_version=None):
+    _assert_view_permission()
+    reference_type = str(reference_type or "").strip()
+    context_key = _required_text(context_key, "context_key")
+    if reference_type not in PARAMETERIZED_REFERENCE_FAMILIES:
+        frappe.throw("Unsupported cached parameterized FBR reference family.")
+
+    filters = {
+        "reference_type": reference_type,
+        "active": 1,
+        "stale": 0,
+        "context_key": context_key,
+    }
+    if protocol_version:
+        filters["protocol_version"] = str(protocol_version).strip()
+    return _cached_rows(filters)
