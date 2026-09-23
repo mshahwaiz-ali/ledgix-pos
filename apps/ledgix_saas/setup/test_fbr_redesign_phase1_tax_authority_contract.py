@@ -82,6 +82,27 @@ class TestFBRRedesignPhase1TaxAuthorityContract(unittest.TestCase):
         self.assertNotIn("doc.append(", native_branch)
         self.assertNotIn("erpnext_tax_foundation.apply_tax_plan", native_branch)
 
+    def test_native_return_paths_recalculate_after_ledgix_row_selection(self):
+        selling = (APP_ROOT / "services" / "erpnext_selling.py").read_text(
+            encoding="utf-8"
+        )
+        pos = (APP_ROOT / "services" / "erpnext_pos.py").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn(
+            "recalculate=erpnext_tax_authority.native_tax_authority_enabled()",
+            selling,
+        )
+        self.assertIn(
+            "if erpnext_tax_authority.native_tax_authority_enabled():",
+            pos,
+        )
+        self.assertIn(
+            "erpnext_tax_authority.apply_sales_tax_authority(return_doc)",
+            pos,
+        )
+
     def test_native_contract_rejects_legacy_managed_rows(self):
         source = (
             APP_ROOT / "services" / "erpnext_tax_authority.py"
