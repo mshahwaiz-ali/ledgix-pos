@@ -1,0 +1,111 @@
+{
+ "actions": [],
+ "creation": "2026-09-23 00:35:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "scenario_id",
+  "description",
+  "required",
+  "representative_doctype",
+  "representative_name",
+  "validate_status",
+  "validation_log",
+  "post_status",
+  "post_log",
+  "fbr_invoice_number",
+  "completed_at",
+  "last_error"
+ ],
+ "fields": [
+  {
+   "fieldname": "scenario_id",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Scenario ID",
+   "reqd": 1
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Scenario Description"
+  },
+  {
+   "default": "1",
+   "fieldname": "required",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Required"
+  },
+  {
+   "fieldname": "representative_doctype",
+   "fieldtype": "Link",
+   "label": "ERPNext Source DocType",
+   "options": "DocType"
+  },
+  {
+   "fieldname": "representative_name",
+   "fieldtype": "Dynamic Link",
+   "label": "Representative Invoice",
+   "options": "representative_doctype"
+  },
+  {
+   "default": "Pending",
+   "fieldname": "validate_status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Validate Status",
+   "options": "Pending\nValidated\nFailed"
+  },
+  {
+   "fieldname": "validation_log",
+   "fieldtype": "Link",
+   "label": "Validation Log",
+   "options": "Ledgix FBR Submission Log"
+  },
+  {
+   "default": "Pending",
+   "fieldname": "post_status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "POST Status",
+   "options": "Pending\nSubmitted\nFailed"
+  },
+  {
+   "fieldname": "post_log",
+   "fieldtype": "Link",
+   "label": "POST Log",
+   "options": "Ledgix FBR Submission Log"
+  },
+  {
+   "fieldname": "fbr_invoice_number",
+   "fieldtype": "Data",
+   "label": "Sandbox FBR Invoice Number"
+  },
+  {
+   "fieldname": "completed_at",
+   "fieldtype": "Datetime",
+   "label": "Completed At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_error",
+   "fieldtype": "Small Text",
+   "label": "Last Error",
+   "read_only": 1
+  }
+ ],
+ "istable": 1,
+ "links": [],
+ "modified": "2026-09-23 00:35:00.000000",
+ "modified_by": "Administrator",
+ "module": "Ledgix",
+ "name": "Ledgix FBR Sandbox Scenario",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
