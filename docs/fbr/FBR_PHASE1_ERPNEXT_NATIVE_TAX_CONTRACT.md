@@ -1,6 +1,6 @@
 # FBR Redesign — Phase 1 ERPNext-Native Tax Contract
 
-**Status:** IMPLEMENTATION STARTED — ADDITIVE BOUNDARY COMPLETE, RUNTIME CUTOVER PENDING  
+**Status:** IMPLEMENTATION IN PROGRESS — NATIVE SERVER TAX-RESOLUTION BOUNDARY COMPLETE, RUNTIME CUTOVER PENDING  
 **Date:** 2026-09-23  
 **Repository:** `mshahwaiz-ali/ledgix-pos`  
 **Branch:** `main`  
@@ -244,6 +244,25 @@ ERPNext Native only
 
 When the temporary native mode is enabled, Ledgix does not append tax rows.
 
+Before calculating totals, the native boundary now invokes ERPNext's own
+`set_taxes_and_charges()` server method. This is important for the pinned
+ERPNext v15.121.3 lifecycle because native tax rows can be populated there from
+Accounts Settings / Sales Taxes and Charges Templates / Item Tax Templates.
+Ledgix does not reproduce that logic and does not append monetary rows itself.
+
+The native order is now:
+
+```text
+ERPNext set_missing_values()
+    -> ERPNext set_taxes_and_charges()
+    -> ERPNext calculate_taxes_and_totals()
+    -> Ledgix native tax contract validation
+```
+
+Mapped return documents that intentionally preserve the original ERPNext tax
+rows continue to use the non-recalculation path rather than rebuilding return
+taxes in Ledgix.
+
 It inspects the ERPNext document and fails closed if configuration is inconsistent.
 
 Checks include:
@@ -308,6 +327,8 @@ It prevents:
 
 - transaction services from directly importing the old tax foundation again;
 - native branch from creating `[LEDGIX-TAX]` rows;
+- Ledgix from replacing ERPNext's own native tax-row population;
+- calculation from running before ERPNext native tax-row population;
 - removal of the native validation boundary by accident;
 - the temporary switch being presented as normal business configuration.
 
