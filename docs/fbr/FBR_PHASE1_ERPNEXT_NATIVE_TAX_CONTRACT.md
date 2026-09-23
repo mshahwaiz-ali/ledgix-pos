@@ -298,7 +298,7 @@ Changed:
 
 - removed direct transaction-layer import of `erpnext_tax_foundation`;
 - Sales Invoice construction now calls the authority boundary;
-- native return construction now calls the authority boundary.
+- Sales Invoice returns recalculate through ERPNext native tax after Ledgix narrows the mapped return to the selected rows/quantities when native mode is enabled.
 
 Default current behavior remains the old proven bridge until the native gate is run.
 
@@ -311,7 +311,8 @@ File:
 Changed:
 
 - removed direct transaction-layer import of `erpnext_tax_foundation`;
-- POS Invoice construction now calls the authority boundary.
+- POS Invoice construction now calls the authority boundary;
+- POS returns now recalculate and validate through the same native boundary after the selected return rows/quantities are applied, but only when the temporary native mode is enabled so legacy-mode behavior is not changed.
 
 Again, default behavior remains unchanged until the native switch is deliberately enabled for integration testing.
 
