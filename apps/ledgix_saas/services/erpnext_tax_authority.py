@@ -1,15 +1,13 @@
 from __future__ import annotations
 
-"""Transitional tax-authority boundary for the FBR/ERPNext-native redesign.
+"""ERPNext-native monetary tax-authority boundary.
 
-The final product must use ERPNext as the only monetary tax authority. During
-the controlled cutover we keep one narrow compatibility switch so existing
-sites can remain on the proven legacy bridge until the native path is exercised
-against the local integration dataset.
+ERPNext is the sole monetary tax authority for current Sales Invoice and
+POS Invoice transaction paths. Ledgix may stamp approved FBR/legal taxable-base
+inputs, but ERPNext resolves tax rows/rates, calculates totals and posts GL.
 
-This module is intentionally the *only* transaction-layer place that may call
-the old Ledgix tax foundation. Once the native runtime gate passes, the legacy
-branch and the site-config switch are removed.
+The historical caller-compatibility shim remains temporarily, but there is no
+legacy monetary fallback and no site-config engine selector here.
 """
 
 import json
@@ -18,26 +16,24 @@ import frappe
 from frappe import _
 from frappe.utils import cint, flt
 
-NATIVE_TAX_SITE_CONFIG_KEY = "ledgix_erpnext_native_tax_authority"
+from ledgix_saas.services import erpnext_taxable_base
+
 LEGACY_MANAGED_TAX_PREFIX = "[LEDGIX-TAX]"
 NOT_APPLICABLE_TAX = "N/A"
 
 
 def native_tax_authority_enabled() -> bool:
-    """Return the temporary internal cutover flag.
+    """Compatibility shim during staged caller cleanup.
 
-    This is an engineering migration switch, not client tax configuration.
-    Normal business tax/FBR configuration remains Desk-driven.
+    New transaction runtime is ERPNext Native only. The old site-config switch
+    no longer selects a second monetary tax engine.
     """
 
-    try:
-        return bool(cint((frappe.conf or {}).get(NATIVE_TAX_SITE_CONFIG_KEY)))
-    except Exception:
-        return False
+    return True
 
 
 def current_tax_authority() -> str:
-    return "ERPNext Native" if native_tax_authority_enabled() else "Legacy Bridge"
+    return "ERPNext Native"
 
 
 def _parse_item_tax_rate(value) -> dict:
@@ -90,6 +86,31 @@ def _item_template_state(template: str | None) -> dict:
     )
     return dict(row or {})
 
+
+
+def _non_posting_fbr_tax_accounts(company: str) -> set[str]:
+    # Sales Tax Withheld At Source may live in an ERPNext Item Tax Template as
+    # calculation authority, but must never become a financial invoice tax row.
+    if not company or not frappe.db.exists(
+        "DocType", "Ledgix FBR Tax Component Mapping"
+    ):
+        return set()
+
+    rows = frappe.get_all(
+        "Ledgix FBR Tax Component Mapping",
+        filters={
+            "company": company,
+            "component": "Sales Tax Withheld At Source",
+            "active": 1,
+        },
+        pluck="account_head",
+        limit_page_length=0,
+    )
+    return {
+        str(account or "").strip()
+        for account in rows
+        if str(account or "").strip()
+    }
 
 def evaluate_native_tax_contract(doc) -> dict:
     """Inspect an unsaved/saved ERPNext sales document without changing tax rows."""
@@ -205,7 +226,22 @@ def evaluate_native_tax_contract(doc) -> dict:
             if abs(numeric_rate) > 0.000001:
                 positive_item_tax_accounts.add(account)
 
-    missing_tax_rows = sorted(positive_item_tax_accounts - invoice_tax_accounts)
+    non_posting_fbr_accounts = _non_posting_fbr_tax_accounts(company)
+
+    posted_non_posting = sorted(invoice_tax_accounts & non_posting_fbr_accounts)
+    if posted_non_posting:
+        errors.append(
+            "Sales Tax Withheld At Source accounts must remain non-posting FBR evidence "
+            "and cannot appear in Sales Invoice/POS Invoice financial tax rows: "
+            + ", ".join(posted_non_posting)
+            + "."
+        )
+
+    missing_tax_rows = sorted(
+        positive_item_tax_accounts
+        - invoice_tax_accounts
+        - non_posting_fbr_accounts
+    )
     if missing_tax_rows:
         errors.append(
             "Positive Item Tax Template accounts are not represented in invoice taxes: "
@@ -230,6 +266,7 @@ def evaluate_native_tax_contract(doc) -> dict:
         "invoice_tax_accounts": sorted(invoice_tax_accounts),
         "item_tax_templates": sorted(item_templates),
         "positive_item_tax_accounts": sorted(positive_item_tax_accounts),
+        "non_posting_fbr_tax_accounts": sorted(non_posting_fbr_accounts),
     }
 
 
@@ -269,34 +306,23 @@ def apply_sales_tax_authority(
     replace_managed_rows: bool = True,
     recalculate: bool = True,
 ) -> dict:
-    """Apply the currently selected transitional tax authority.
+    """Apply ERPNext-native monetary tax authority.
 
-    Legacy mode preserves the pre-redesign behavior.
-    Native mode never creates Ledgix tax rows; ERPNext's own set_missing_values,
-    Tax Rule, POS Profile, Sales Taxes and Charges Template and Item Tax Template
-    outputs must already be present on the document.
+    ``replace_managed_rows`` is retained temporarily for call compatibility but
+    has no effect. Ledgix never creates or replaces monetary tax rows here.
     """
 
-    if native_tax_authority_enabled():
-        if recalculate:
-            prepare_native_tax_state(doc)
-            doc.run_method("calculate_taxes_and_totals")
-        contract = assert_native_tax_contract(doc)
-        return {
-            "authority": "ERPNext Native",
-            "contract": contract,
-        }
+    _ = replace_managed_rows
 
-    # Transitional fallback only. Remove after the Phase 1 native runtime gate.
-    from ledgix_saas.setup import erpnext_tax_foundation
-
-    plan = erpnext_tax_foundation.apply_tax_plan(
-        doc,
-        replace_managed_rows=replace_managed_rows,
-    )
     if recalculate:
+        # Ledgix supplies only approved legal taxable-base inputs. ERPNext
+        # still resolves tax rows/rates, calculates amounts/totals and posts GL.
+        erpnext_taxable_base.stamp_fbr_taxable_base_inputs(doc)
+        prepare_native_tax_state(doc)
         doc.run_method("calculate_taxes_and_totals")
+
+    contract = assert_native_tax_contract(doc)
     return {
-        "authority": "Legacy Bridge",
-        "plan": plan,
+        "authority": "ERPNext Native",
+        "contract": contract,
     }

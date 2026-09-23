@@ -1,11 +1,11 @@
 # FBR Redesign — Phase 1 ERPNext-Native Tax Contract
 
-**Status:** IMPLEMENTATION IN PROGRESS — NATIVE SERVER TAX-RESOLUTION BOUNDARY COMPLETE, RUNTIME CUTOVER PENDING  
-**Date:** 2026-09-23  
-**Repository:** `mshahwaiz-ali/ledgix-pos`  
-**Branch:** `main`  
-**Parent plan:** `docs/fbr/FBR_ERPNext_NATIVE_REDESIGN_PLAN.md`  
-**Phase 0 inventory:** `docs/fbr/FBR_PHASE0_BASELINE_INVENTORY.md`  
+**Status:** COMPLETE LOCALLY - ERPNext-native monetary authority cut over and parity-proven
+**Date:** 2026-09-24
+**Repository:** `mshahwaiz-ali/ledgix-pos`
+**Branch:** `main`
+**Parent plan:** `docs/fbr/FBR_ERPNext_NATIVE_REDESIGN_PLAN.md`
+**Phase 0 inventory:** `docs/fbr/FBR_PHASE0_BASELINE_INVENTORY.md`
 **Supported ERPNext pin reviewed:** `15.121.3`
 
 ---
@@ -155,336 +155,241 @@ It does **not** require modifying ERPNext core.
 
 ---
 
-## 3. Native financial capability matrix
+## 3. Native financial capability matrix - local closure state
 
-| Tax behavior | ERPNext-native mechanism | Phase 1 decision |
+| Tax behavior | ERPNext-native mechanism | Local Phase 1 result |
 |---|---|---|
-| Ordinary percentage sales tax | Sales Taxes and Charges + Item Tax Template | USE |
-| Different rate per Item | Item Tax Template | USE |
-| Tax Category selection | Tax Category + Tax Rule | USE |
-| Customer/location-specific template | Tax Rule / Address Tax Category | USE |
-| POS tax template | POS Profile | USE |
-| Inclusive tax | `included_in_print_rate` | USE |
-| Zero rate | Item Tax Template rate `0` | USE |
-| Not applicable | Item Tax Template `not_applicable` | USE |
-| Per-unit tax | `On Item Quantity` | USE where legally applicable |
-| Previous-tax-based tax | On Previous Row Amount / Total | USE where legally applicable |
-| Arbitrary fixed invoice charge | Actual | USE only where business/legal rule fits |
-| Notified/MRP taxable base | `erpnext_taxable_base_resolvers` app hook | EXTEND ERPNext, do not create second engine |
-| FBR HS/UOM/Sale Type/SRO | Not accounting tax | Ledgix FBR mapping |
-| Sandbox Scenario ID | Certification context | Not Item tax configuration |
-| Sales-tax-withheld semantics | Legal/accounting meaning still must be verified | DO NOT GUESS |
+| Ordinary percentage sales tax | Sales Taxes and Charges + Item Tax Template | PROVEN |
+| Different rate per Item | Item Tax Template | PROVEN |
+| Tax Category / template selection | Tax Category + Tax Rule / ERPNext setup | PROVEN in native transaction path |
+| POS tax authority | POS Profile + native ERPNext tax lifecycle | PROVEN |
+| Inclusive tax | `included_in_print_rate` | PROVEN |
+| Zero rate | Item Tax Template rate `0` | PROVEN |
+| Not applicable / exempt | native zero/not-applicable treatment plus FBR classification | PROVEN |
+| Mixed standard / zero / exempt | ERPNext native per-item tax resolution | PROVEN |
+| Third Schedule / notified retail value | `erpnext_taxable_base_resolvers` + Ledgix `On Notified Retail Price` extension | PROVEN LOCALLY |
+| Extra Tax | ERPNext `On Item Quantity` with dedicated account/template mapping | PROVEN LOCALLY |
+| Further Tax | ERPNext `On Item Quantity` with dedicated account/template mapping | PROVEN LOCALLY |
+| FED | ERPNext `On Item Quantity` with dedicated account/template mapping | PROVEN LOCALLY |
+| Sales Tax Withheld legal evidence | ERPNext Item Tax Template + native `On Item Quantity` primitive captured as non-posting FBR evidence | PROVEN LOCALLY |
+| Sales Tax Withheld buyer net-payment settlement | Separate legally/accountingly correct settlement design required | UNRESOLVED - DO NOT GUESS |
+| FBR HS/UOM/Sale Type/SRO | Ledgix FBR classification/mapping only | NON-MONETARY |
+| Sandbox Scenario ID | Certification context | NOT ITEM TAX CONFIGURATION |
+
+Client legal rates and mappings remain review-gated. Local parity proves the software/accounting mechanism, not that a particular client's rate or legal classification is correct.
 
 ---
 
-## 4. Phase 1 code boundary now added
+## 4. Final Phase 1 transaction boundary
 
-New module:
-
-`apps/ledgix_saas/services/erpnext_tax_authority.py`
-
-Purpose:
-
-Create one transaction-level tax-authority boundary.
-
-Before this change:
+Current transaction flow is:
 
 ```text
-erpnext_pos.py ----------------------+
-                                     +-> erpnext_tax_foundation.apply_tax_plan()
-erpnext_selling.py ------------------+
+ERPNext Sales Invoice / POS Invoice / native return
+        |
+        v
+ledgix_saas.services.erpnext_tax_authority.apply_sales_tax_authority()
+        |
+        +--> stamp approved FBR taxable-base inputs only
+        +--> ERPNext set_taxes_and_charges()
+        +--> ERPNext calculate_taxes_and_totals()
+        +--> Ledgix validates the native contract
+        |
+        v
+ERPNext authoritative totals / tax rows / GL
 ```
 
-After this change:
+Current active callers are the ERPNext selling/POS services for:
 
-```text
-erpnext_pos.py ----------------------+
-                                     +-> erpnext_tax_authority.apply_sales_tax_authority()
-erpnext_selling.py ------------------+
-```
+- Sales Invoice;
+- Sales Invoice return / Credit Note;
+- POS Invoice;
+- POS Invoice return.
 
-The old tax foundation is now referenced only inside the transitional authority module for these active transaction paths.
+The former `ledgix_erpnext_native_tax_authority` selector is no longer a monetary-engine switch. `native_tax_authority_enabled()` is retained only as a caller-compatibility shim and always resolves to native authority.
 
-This makes final retirement controlled and localized.
+`erpnext_tax_authority.py` has:
 
----
+- no Legacy Bridge branch;
+- no call to `erpnext_tax_foundation.apply_tax_plan()`;
+- no transaction path that creates `[LEDGIX-TAX]` monetary rows.
 
-## 5. Temporary migration switch
+`erpnext_tax_foundation.py` may remain physically present for historical/setup/migration compatibility, but it is not the active transaction monetary authority.
 
-Temporary site-config key:
-
-`ledgix_erpnext_native_tax_authority`
-
-Current behavior:
-
-- missing / `0`: Legacy Bridge;
-- `1`: ERPNext Native.
-
-This is an **engineering migration switch only**.
-
-It is not:
-
-- a client business setting;
-- a final feature flag;
-- a substitute for Desk tax configuration.
-
-It must be removed after native runtime parity passes.
-
-The final product has no choice between two tax engines.
-
-Final state:
-
-```text
-ERPNext Native only
-```
+No ERPNext core file was modified.
 
 ---
 
-## 6. Native contract enforcement
+## 5. Local runtime parity evidence
 
-When the temporary native mode is enabled, Ledgix does not append tax rows.
+Local Phase 1 runtime gates have proven the following against the pinned ERPNext v15.121.3 integration site.
 
-Before calculating totals, the native boundary now invokes ERPNext's own
-`set_taxes_and_charges()` server method. This is important for the pinned
-ERPNext v15.121.3 lifecycle because native tax rows can be populated there from
-Accounts Settings / Sales Taxes and Charges Templates / Item Tax Templates.
-Ledgix does not reproduce that logic and does not append monetary rows itself.
+### Core matrix
 
-The native order is now:
+1. Sales Invoice standard 18%;
+2. Sales Invoice tax-inclusive 18%;
+3. Sales Invoice zero-rated;
+4. Sales Invoice exempt/not-applicable;
+5. Sales Invoice mixed standard/zero/exempt;
+6. POS Invoice standard;
+7. Sales Invoice full native return;
+8. POS Invoice full native return.
 
-```text
-ERPNext set_missing_values()
-    -> ERPNext set_taxes_and_charges()
-    -> ERPNext calculate_taxes_and_totals()
-    -> Ledgix native tax contract validation
-```
+The core gate also proves:
 
-Mapped return documents that intentionally preserve the original ERPNext tax
-rows continue to use the non-recalculation path rather than rebuilding return
-taxes in Ledgix.
+- raw POS Invoice correctly defers GL to POS Closing consolidation;
+- configured GST GL uses the native ERPNext tax account;
+- no `[LEDGIX-TAX]` rows are created.
 
-It inspects the ERPNext document and fails closed if configuration is inconsistent.
+### Dedicated special-case gates
 
-Checks include:
+Separate dedicated gates additionally prove:
 
-- Sales Invoice/POS Invoice only;
-- valid Company;
-- no `[LEDGIX-TAX]` managed rows;
-- Sales Taxes and Charges Template belongs to the same Company;
-- template is enabled;
-- tax accounts exist;
-- tax accounts belong to the same Company;
-- tax accounts are not group/disabled accounts;
-- Item Tax Templates exist;
-- Item Tax Templates belong to the same Company;
-- Item Tax Templates are enabled;
-- positive Item Tax Template accounts have a corresponding invoice tax row.
-
-If no tax configuration resolves at all, the contract emits a warning rather than automatically inventing a tax.
-
-That case is valid only for an intentionally non-taxable/exempt transaction.
-
----
-
-## 7. Active transaction services changed
-
-### 7.1 ERPNext selling
-
-File:
-
-`apps/ledgix_saas/services/erpnext_selling.py`
-
-Changed:
-
-- removed direct transaction-layer import of `erpnext_tax_foundation`;
-- Sales Invoice construction now calls the authority boundary;
-- Sales Invoice returns recalculate through ERPNext native tax after Ledgix narrows the mapped return to the selected rows/quantities when native mode is enabled.
-
-Default current behavior remains the old proven bridge until the native gate is run.
-
-### 7.2 ERPNext POS
-
-File:
-
-`apps/ledgix_saas/services/erpnext_pos.py`
-
-Changed:
-
-- removed direct transaction-layer import of `erpnext_tax_foundation`;
-- POS Invoice construction now calls the authority boundary;
-- POS returns now recalculate and validate through the same native boundary after the selected return rows/quantities are applied, but only when the temporary native mode is enabled so legacy-mode behavior is not changed.
-
-Again, default behavior remains unchanged until the native switch is deliberately enabled for integration testing.
-
----
-
-## 8. Static regression contract
-
-New test:
-
-`apps/ledgix_saas/setup/test_fbr_redesign_phase1_tax_authority_contract.py`
-
-It prevents:
-
-- transaction services from directly importing the old tax foundation again;
-- native branch from creating `[LEDGIX-TAX]` rows;
-- Ledgix from replacing ERPNext's own native tax-row population;
-- calculation from running before ERPNext native tax-row population;
-- removal of the native validation boundary by accident;
-- the temporary switch being presented as normal business configuration.
-
-This test does not replace accounting runtime tests.
-
----
-
-## 9. Read-only runtime probe
-
-New module:
-
-`apps/ledgix_saas/migration/fbr_redesign_phase1_native_tax_probe.py`
-
-Runner:
-
-`scripts/run_fbr_redesign_phase1_native_tax_probe.sh`
-
-The probe is restricted to:
-
-`ledgix-erpnext.local`
-
-It performs no tax writes and no FBR network traffic.
-
-It reports:
-
-- Accounts Settings tax flags;
-- Sales Taxes and Charges Templates;
-- each native tax row;
-- Item Tax Templates;
-- Item/Item Group tax assignments;
-- Sales Tax Rules;
-- POS Profile tax configuration;
-- remaining old Ledgix tax record counts;
-- unmatched Item Tax Template accounts;
-- temporary tax-authority switch state.
-
-Later local command:
-
-```bash
-cd ~/data_drive/pos
-bash scripts/run_fbr_redesign_phase1_native_tax_probe.sh ledgix-erpnext.local
-```
-
-This should be the first runtime command after pulling the GitHub work.
-
----
-
-## 10. What has NOT changed yet
-
-Phase 1 has deliberately **not** yet:
-
-- enabled the native switch;
-- changed client tax rates;
-- created client tax accounts;
-- created Tax Categories;
-- created Sales Taxes and Charges Templates;
-- created Item Tax Templates;
-- created Tax Rules;
-- changed POS Profile tax configuration;
-- migrated old tax records;
-- deleted old tax DocTypes;
-- deleted `erpnext_tax_foundation.py`;
-- changed FBR payload snapshots;
-- changed Production FBR state.
-
-Therefore this GitHub batch is safe to pull before the runtime proof.
-
----
-
-## 11. Required runtime parity before cutover
-
-The integration-site gate must prove at least:
-
-1. Standard taxable Sales Invoice;
-2. Standard taxable POS Invoice;
-3. same tax/accounting result from native configuration;
-4. tax-inclusive case where applicable;
-5. zero-rated case;
-6. exempt/not-applicable case;
-7. mixed-rate items;
-8. native Sales Invoice return;
-9. native POS return;
-10. GL Entries use the configured native tax accounts;
-11. no `[LEDGIX-TAX]` rows in native mode;
-12. FBR snapshot generation is not yet allowed to silently rely on removed old calculation data.
-
-Special cases are added only where actually required:
-
-- Third Schedule/notified retail value;
+- Third Schedule/notified retail base;
 - Extra Tax;
 - Further Tax;
 - FED;
-- sales tax withheld.
+- Sales Tax Withheld FBR evidence treatment;
+- POS Closing consolidated Sales Invoice/Credit Note GL and exact reversal behavior.
 
-Do not create fake complexity for a client that does not legally need those cases.
+Representative local evidence:
 
----
+- Third Schedule: transaction value 1,000; notified retail base 1,200; tax 216; native GL 216; return reverses 216.
+- Extra Tax: GST 180 + Extra Tax 25; total tax 205; dedicated Extra Tax GL; return reversal correct.
+- Further Tax: GST 180 + Further Tax 50; total tax 230; dedicated Further Tax GL; return reversal correct.
+- FED: GST 180 + FED 30; total tax 210; dedicated FED GL; return reversal correct.
+- Sales Tax Withheld: invoice remains 1,180 with GST 180; withheld evidence 40 is not appended as a financial invoice tax row and posts no withheld GL in this Phase 1 treatment; return evidence reverses to zero.
+- POS Closing: raw POS sale/return creates no direct GL; ERPNext closing consolidation creates the accounting Sales Invoice / Credit Note and GST/cash/revenue reverse exactly.
 
-## 12. Cutover sequence from here
-
-### Gate 1 — read-only site inventory
-
-Run the Phase 1 native-tax probe.
-
-### Gate 2 — configure native ERPNext tax masters
-
-Based on actual client/integration requirements, configure:
-
-- Accounts;
-- Tax Category;
-- Sales Taxes and Charges Template;
-- Item Tax Templates;
-- Tax Rules;
-- POS Profile tax fields;
-- Accounts Settings only where required.
-
-### Gate 3 — native parity tests
-
-Enable the temporary native switch **only on `ledgix-erpnext.local`** and run test transactions.
-
-### Gate 4 — make native authority default
-
-Only after parity is green:
-
-- switch the integration runtime to native;
-- remove legacy fallback from the transaction authority module;
-- remove the temporary site-config switch;
-- remove active calls into the old tax calculation engine.
-
-### Gate 5 — old model retirement
-
-Then proceed with:
-
-- old Ledgix Tax Profile retirement;
-- old Ledgix Tax Category retirement;
-- old Ledgix Tax Rate retirement;
-- replacement of Ledgix Item Tax Profile with FBR Item Mapping;
-- removal of Company old tax-account custom fields after migration proof;
-- removal of old tax UI.
+Every parity gate used rollback cleanup and blocked/intercepted FBR submission. No real FBR/PRAL network proof is claimed by these tests.
 
 ---
 
-## 13. Phase 1 definition of done
+## 6. Sales Tax Withheld boundary
 
-Phase 1 is complete only when:
+Sales Tax Withheld must not be modeled as an additive Sales Invoice tax simply to force the FBR field to exist.
+
+The locally proven Phase 1 treatment is:
+
+```text
+ERPNext Item Tax Template rate
+        |
+        v
+ERPNext native On Item Quantity calculation primitive
+        |
+        v
+transient / non-posting FBR evidence
+        |
+        v
+immutable Ledgix FBR snapshot
+```
+
+The reserved withheld account/rate must not be added to the Sales Invoice `.taxes` collection by Ledgix.
+
+Therefore the Phase 1 proof establishes:
+
+- no invoice grand-total inflation;
+- no invented withheld GL posting;
+- no Ledgix `rate * qty` monetary calculation;
+- reproducible immutable FBR evidence;
+- return evidence reversal.
+
+Still unresolved and explicitly outside the proven Phase 1 invoice treatment:
+
+> How payment settlement should be accounted for when a buyer actually remits net of Sales Tax Withheld.
+
+That settlement workflow must be designed from verified legal/accounting requirements before implementation.
+
+---
+
+## 7. Legacy FBR execution isolation
+
+The old Ledgix Sale / Ledgix Sales Return FBR code remains physically present where needed for historical records, tests, migration provenance or shared non-monetary helpers.
+
+It is no longer allowed to become a current FBR issuance source:
+
+- legacy browser/RPC FBR preview/validate/payload/submit/reconciliation actions are routed fail-closed;
+- legacy `Ledgix Sale` submit lifecycle no longer queues FBR;
+- legacy `Ledgix Sales Return` submit lifecycle no longer queues FBR;
+- scheduler retry/offline upload remains disabled;
+- current new-business FBR hooks target ERPNext `Sales Invoice` / `POS Invoice`.
+
+Shared helpers in `fbr_payload.py` and `fbr_submission.py` are intentionally retained where `fbr_native.py` still uses them for formatting, validation, response parsing, locking or submission-log creation. Physical module presence is not evidence of monetary authority.
+
+---
+
+## 8. Static regression closure
+
+After legacy FBR isolation and stale contract refresh, the focused Phase 1 / Phase 6 / Phase 9 / Phase 12 static regression suite passes:
+
+```text
+51 tests
+OK
+```
+
+The suite covers, among other things:
+
+- native monetary-authority boundary;
+- Third Schedule contract;
+- Sales Tax Withheld contract;
+- legacy FBR isolation;
+- ERPNext-native FBR source cutover;
+- legacy retirement/freeze contract;
+- current Desk FBR-V2 surface.
+
+Static tests complement but do not replace the runtime parity gates described above.
+
+---
+
+## 9. What remains after Phase 1
+
+Phase 1 closes the **local monetary tax authority** problem. It does not mean the complete FBR redesign or Production rollout is finished.
+
+Remaining work includes:
+
+- complete/re-validate the FBR V2 data-model and current runtime handoff;
+- move remaining non-monetary defaults still read from old tax-profile helpers into the intended V2/company-scoped configuration;
+- finish the canonical FBR payload-builder/certification path;
+- prove authorized FBR reference-data calls where required;
+- obtain real Sandbox credentials and perform real Sandbox certification;
+- preserve real Sandbox evidence;
+- complete offline/reconciliation workflows required by the final design;
+- finish correction/note behavior against current FBR requirements;
+- retire obsolete physical legacy modules only after dependency proof;
+- resolve buyer net-payment settlement accounting for Sales Tax Withheld;
+- perform explicit Production activation only after all Production gates are green.
+
+Production remains fail-closed and NOT READY.
+
+---
+
+## 10. Phase 1 local definition of done
+
+The Phase 1 monetary-authority definition is satisfied locally because:
 
 - Sales Invoice uses ERPNext-native tax configuration;
 - POS Invoice uses ERPNext-native tax configuration;
-- native returns preserve/reverse the native ERPNext tax result;
+- native returns preserve/reverse ERPNext-native tax results;
 - GL uses native configured accounts;
 - transaction services contain no direct old tax-engine call;
-- `erpnext_tax_authority.py` no longer has a legacy fallback;
-- `ledgix_erpnext_native_tax_authority` switch is removed;
-- no current transaction creates `[LEDGIX-TAX]` rows;
-- required runtime parity cases pass;
-- old financial tax masters are no longer required for new business.
+- `erpnext_tax_authority.py` has no monetary Legacy Bridge fallback;
+- the temporary monetary-authority switch is removed as an engine selector;
+- no current transaction creates `[LEDGIX-TAX]` monetary rows;
+- core and dedicated runtime parity gates pass;
+- legacy FBR Sale/Return execution surfaces are isolated fail-closed.
 
-At that point Phase 2 can safely introduce the clean FBR-only data model without carrying the old monetary tax architecture forward.
+This is a **local Phase 1 closure**, not FBR Sandbox certification and not Production approval.
+
+---
+
+## 11. Safety / evidence statement
+
+Phase 1 evidence does **not** claim:
+
+- a real FBR Sandbox validation;
+- a real FBR Sandbox POST;
+- a real FBR Production POST;
+- approval of any client-specific legal rate;
+- resolution of Sales Tax Withheld net-payment settlement accounting.
+
+Those items require separate evidence and later redesign gates.

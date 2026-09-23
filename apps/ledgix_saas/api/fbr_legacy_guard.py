@@ -3,16 +3,21 @@ from __future__ import annotations
 import frappe
 
 
+LEGACY_FBR_RETIRED_MESSAGE = (
+    "Legacy Ledgix Sale / Sales Return FBR execution is retired. "
+    "Use the authoritative ERPNext Sales Invoice or POS Invoice FBR workflow."
+)
+
+
+@frappe.whitelist()
+def reject_legacy_fbr_action(**kwargs):
+    """Fail closed for every retired legacy FBR RPC surface."""
+
+    frappe.throw(LEGACY_FBR_RETIRED_MESSAGE)
+
+
 @frappe.whitelist()
 def reject_legacy_sale_submission(sale_name=None, **kwargs):
-    """Fail closed after Phase 9 source cutover.
+    """Backward-compatible alias for the retired legacy Sale submit RPC."""
 
-    Historical Ledgix Sale records remain readable for audit, but no new FBR
-    validate/post workflow may issue an official invoice from the retired sales
-    ledger. Use the native ERPNext Sales Invoice / POS Invoice source instead.
-    """
-
-    frappe.throw(
-        "Legacy Ledgix Sale FBR submission is retired. Select the authoritative "
-        "ERPNext Sales Invoice or POS Invoice in Tax & FBR Center."
-    )
+    return reject_legacy_fbr_action(sale_name=sale_name, **kwargs)

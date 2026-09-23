@@ -9,10 +9,7 @@ It performs no configuration writes and never arms or submits FBR.
 import frappe
 
 from ledgix_saas.migration.erpnext_integration_bootstrap import INTEGRATION_SITE
-from ledgix_saas.services.erpnext_tax_authority import (
-    NATIVE_TAX_SITE_CONFIG_KEY,
-    current_tax_authority,
-)
+from ledgix_saas.services.erpnext_tax_authority import current_tax_authority
 
 
 def _assert_safe_site() -> None:
@@ -25,6 +22,8 @@ def _assert_safe_site() -> None:
 
 def _safe_all(doctype: str, *, fields: list[str], filters=None, order_by=None) -> list[dict]:
     if not frappe.db.exists("DocType", doctype):
+        return []
+    if not frappe.db.table_exists(doctype, cached=False):
         return []
     return [
         dict(row)
@@ -147,11 +146,13 @@ def _legacy_counts() -> dict:
     )
     counts = {}
     for doctype in doctypes:
-        counts[doctype] = (
-            frappe.db.count(doctype)
-            if frappe.db.exists("DocType", doctype)
-            else 0
-        )
+        if not frappe.db.exists("DocType", doctype):
+            counts[doctype] = 0
+            continue
+        if not frappe.db.table_exists(doctype, cached=False):
+            counts[doctype] = 0
+            continue
+        counts[doctype] = frappe.db.count(doctype)
     return counts
 
 
@@ -208,9 +209,7 @@ def run() -> dict:
         "site": frappe.local.site,
         "read_only": True,
         "fbr_network_calls": 0,
-        "site_config_native_flag": bool(
-            (frappe.conf or {}).get(NATIVE_TAX_SITE_CONFIG_KEY)
-        ),
+        "source_native_only_cutover": True,
         "current_tax_authority": current_tax_authority(),
         "accounts_settings": accounts_settings,
         "sales_tax_templates": sales_templates,

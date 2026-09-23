@@ -1,7 +1,7 @@
 # Ledgix FBR Architecture and Operations
 
-**Status:** CURRENT  
-**ERPNext-core migration:** COMPLETE  
+**Status:** CURRENT - 2026-09-24
+**ERPNext monetary tax authority:** LOCAL CUTOVER COMPLETE
 **FBR Production:** NOT YET PRODUCTION-READY
 
 ## Purpose
@@ -52,21 +52,23 @@ An ERPNext Sales Invoice created by POS Closing is an accounting consolidation d
 
 | Component | Responsibility |
 |---|---|
-| ERPNext `Item` | Product/master authority |
-| `Ledgix Item Tax Profile` | FBR classification mapped to ERPNext Item |
-| Ledgix tax category/rate/profile records | Product tax/FBR configuration |
-| ERPNext invoice rows | Commercial line authority plus immutable FBR snapshot fields |
-| `erpnext_tax_foundation.py` | Applies the Ledgix tax plan to ERPNext tax rows/totals and snapshots |
-| `fbr_native.py` | Native invoice readiness, validation/submission orchestration and status handling |
-| `fbr_payload.py` | FBR payload and legal-field mapping |
+| ERPNext `Item`, `Customer`, `Company`, `Address` | Commercial/master identity authority |
+| ERPNext Tax Category / Tax Rule / Sales Taxes and Charges Template / Item Tax Template | Financial tax configuration |
+| `erpnext_tax_authority.py` | Active transaction tax-authority boundary; delegates monetary calculation to ERPNext |
+| `erpnext_taxable_base.py` | Supplies approved special taxable-base inputs such as notified retail value without calculating tax itself |
+| ERPNext Sales Invoice / POS Invoice rows and tax rows | Authoritative commercial/tax values |
+| `erpnext_fbr_snapshot.py` | Captures/reconciles immutable FBR evidence from authoritative ERPNext values |
+| `Ledgix FBR Item Mapping` and V2 compliance records | FBR legal classification/mapping only |
+| `fbr_native.py` | Native ERPNext-invoice readiness, payload orchestration, guarded validation/submission and FBR state |
+| `fbr_payload.py` | Shared FBR formatting/validation helpers plus retained legacy code; legacy exposed execution is fail-closed |
+| `fbr_submission.py` | Shared response/log/locking helpers plus retained legacy execution code; old exposed Sale/Return actions are fail-closed |
 | `fbr_client.py` | Guarded HTTP transport and endpoint/mode checks |
 | `fbr_activation.py` | Read-only Sandbox/Production readiness evidence evaluation |
-| `Ledgix FBR Settings` | Mode, seller identity, tokens and Production interlock |
 | `Ledgix FBR Submission Log` | Durable compliance attempt/audit record |
 | ERPNext invoice custom fields | FBR status/reference/QR/error/reconciliation state |
-| `ledgix-tax-center` | Compliance operator UI |
+| Tax & FBR Center | ERPNext-native tax setup + FBR V2 operator/readiness UX |
 
----
+`erpnext_tax_foundation.py` and old Ledgix monetary tax masters may still exist physically for historical/setup/migration compatibility. They are not the active new-business transaction tax authority.
 
 ## 3. Native invoice flow
 
@@ -216,20 +218,26 @@ Mappings may include HS code, FBR UOM, sale type, tax classification/rate basis,
 
 ## 10. Accounting relationship
 
-The Ledgix tax foundation writes/validates tax behavior against the same ERPNext Sales/POS invoice used for accounting.
+ERPNext is the sole current monetary calculator and accounting authority.
+
+The active Ledgix boundary may provide approved legal taxable-base inputs where ERPNext exposes a supported extension hook, but Ledgix does not calculate a competing invoice tax result.
 
 ERPNext remains authoritative for:
 
 - net total;
-- tax rows;
+- native tax rows;
 - grand total;
 - GL impact;
 - customer receivable;
-- stock/accounting effects.
+- Payment Entry;
+- stock/accounting effects;
+- POS Closing consolidation.
 
-A mismatch between the Ledgix FBR snapshot and authoritative ERPNext totals is a readiness error. It must not be silently overwritten after submission.
+Ledgix FBR snapshots must reconcile to those authoritative values. A mismatch is a readiness failure; it must never be "fixed" by rewriting submitted accounting.
 
----
+Special local Phase-1 gates prove Third Schedule/notified retail, Extra Tax, Further Tax, FED and Sales Tax Withheld FBR evidence without restoring a second monetary engine.
+
+Sales Tax Withheld buyer net-payment settlement accounting remains a separate unresolved accounting workflow and must not be inferred from the invoice-evidence gate.
 
 ## 11. Sandbox evidence
 
@@ -286,40 +294,49 @@ Do not casually rebuild/reset the dataset. See `docs/operations/LOCAL_DEMO_DATA.
 
 ## 14. Current project state
 
-As of 2026-09-17:
+As of 2026-09-24:
 
 | Area | State |
 |---|---|
-| ERPNext-native FBR source integration | IMPLEMENTED |
-| Immutable FBR snapshots | IMPLEMENTED |
-| Sandbox/Production guarded transport code | IMPLEMENTED |
-| Submission Log / QR / status metadata | IMPLEMENTED |
-| Reconciliation-required safeguard | IMPLEMENTED |
-| Production arming interlock | IMPLEMENTED |
-| Local acceptance dataset | COMPLETE; FBR transport disabled |
+| ERPNext-native monetary tax authority | **LOCAL CUTOVER COMPLETE** |
+| Core Sales/POS/return parity | **PROVEN LOCALLY** |
+| Third Schedule / Extra Tax / Further Tax / FED parity | **PROVEN LOCALLY** |
+| Sales Tax Withheld invoice/FBR evidence treatment | **PROVEN LOCALLY; PAYMENT SETTLEMENT UNRESOLVED** |
+| POS Closing accounting consolidation parity | **PROVEN LOCALLY** |
+| Legacy Ledgix Sale/Return FBR execution | **FAIL-CLOSED / RETIRED AS CURRENT SOURCE** |
+| Immutable native FBR snapshot foundation | IMPLEMENTED / exercised by local gates |
+| FBR V2 model/reference/readiness foundations | IMPLEMENTED IN PART; FINAL CONSOLIDATION PENDING |
 | Real client Sandbox credential/evidence | EXTERNAL / PENDING |
-| Real Sandbox certification | NOT YET COMPLETE |
-| Production activation | NOT YET PRODUCTION-READY |
+| Real Sandbox certification | **NOT YET COMPLETE** |
+| Production activation | **NOT YET PRODUCTION-READY** |
 
-Do not change the final two states without real external evidence.
-
----
+Local accounting/parity evidence must not be represented as real FBR certification.
 
 ## 15. Current source map
 
 ```text
+apps/ledgix_saas/services/erpnext_tax_authority.py
+apps/ledgix_saas/services/erpnext_taxable_base.py
+apps/ledgix_saas/services/erpnext_fbr_snapshot.py
+apps/ledgix_saas/services/erpnext_selling.py
+apps/ledgix_saas/services/erpnext_pos.py
+
 apps/ledgix_saas/api/fbr_native.py
+apps/ledgix_saas/api/fbr_native_ui.py
 apps/ledgix_saas/api/fbr_client.py
 apps/ledgix_saas/api/fbr_payload.py
-apps/ledgix_saas/api/fbr_settings.py
-apps/ledgix_saas/api/fbr_activation.py
-apps/ledgix_saas/api/fbr_preflight.py
+apps/ledgix_saas/api/fbr_submission.py
 apps/ledgix_saas/api/fbr_legacy_guard.py
-apps/ledgix_saas/setup/erpnext_tax_foundation.py
-apps/ledgix_saas/setup/erpnext_phase9_extensions.py
+apps/ledgix_saas/services/fbr_v2_readiness.py
+
 apps/ledgix_saas/hooks.py
 ```
 
-The old `fbr_submission` entrypoint name remains only as a compatibility/legacy guard path; current new-business submission authority is ERPNext-native.
+Important classification:
+
+- `erpnext_tax_authority.py` / `erpnext_taxable_base.py` / ERPNext documents are current monetary runtime.
+- `erpnext_fbr_snapshot.py` and `fbr_native.py` are current native FBR foundations.
+- `fbr_payload.py` and `fbr_submission.py` are mixed compatibility modules: native code still consumes shared non-monetary helpers, while legacy exposed Sale/Return execution is isolated fail-closed.
+- `erpnext_tax_foundation.py`, `api/taxation.py`, `services/tax.py` and old Ledgix tax/sale modules are not current monetary authority; retain/remove them only according to proven migration/history/dependency needs.
 
 Historical migration rationale lives under `docs/archive/migration/`.

@@ -267,38 +267,10 @@ class LedgixSale(Document):
         shift.save(ignore_permissions=True)
 
     def queue_fbr_submission_after_sale_work(self):
-        from ledgix_saas.api.fbr_payload import _validate_sale_fbr_readiness_internal
-        from ledgix_saas.api.fbr_settings import get_fbr_settings_internal, should_submit_on_sale_submit
-        from ledgix_saas.api.fbr_submission import queue_sale_for_fbr
+        """Legacy Sale FBR issuance is retired after ERPNext source cutover.
 
-        settings = get_fbr_settings_internal()
-        if (
-            settings.get("block_sale_if_fbr_fails")
-            and settings.get("mode") == "Production"
-            and should_submit_on_sale_submit()
-        ):
-            readiness = _validate_sale_fbr_readiness_internal(self.name)
-            if not readiness.get("valid"):
-                frappe.throw(
-                    "FBR readiness failed: "
-                    + "; ".join(readiness.get("errors") or ["Sale is not ready for FBR submission."])
-                )
+        Keep this lifecycle method as a no-op so unresolved historical drafts can
+        be reconciled without ever creating a new official FBR submission.
+        """
 
-        try:
-            result = queue_sale_for_fbr(self.name, reason="Sale submitted")
-            if isinstance(result, dict) and result.get("status") == "Failed":
-                frappe.log_error(
-                    result.get("reason") or result.get("error_message") or "FBR queue failed",
-                    f"Ledgix FBR queue failed for {self.name}",
-                )
-        except Exception:
-            frappe.log_error(frappe.get_traceback(), f"Ledgix FBR queue failed for {self.name}")
-            try:
-                from ledgix_saas.api.fbr_submission import mark_sale_fbr_status
-                mark_sale_fbr_status(
-                    self.name,
-                    "Failed",
-                    error_message="FBR queue failed after sale submit. Retry from Tax Center.",
-                )
-            except Exception:
-                pass
+        return None

@@ -23,6 +23,8 @@ SUPPORTED_DOCTYPES = {"Sales Invoice", "POS Invoice"}
 MAPPING_DOCTYPE = "Ledgix FBR Item Mapping"
 COMPONENT_MAPPING_DOCTYPE = "Ledgix FBR Tax Component Mapping"
 MONEY_TOLERANCE = 0.011
+NOT_APPLICABLE_TAX = "N/A"
+WITHHELD_COMPONENT = "Sales Tax Withheld At Source"
 
 COMPONENT_FIELD = {
     "Sales Tax Applicable": "sales_tax",
@@ -59,6 +61,20 @@ class ERPNextNativeTaxCollector(ERPNextTaxesAndTotals):
             tax,
             item_tax_map,
         )
+
+        # ERPNext custom charge types calculate against get_item_taxable_base()
+        # while the standard method leaves current_net_amount at zero. Capture
+        # that resolver-provided base only as evidence; Ledgix does not calculate tax.
+        capture_taxable_base = current_net_amount
+        if tax.get("charge_type") not in {
+            "Actual",
+            "On Net Total",
+            "On Previous Row Amount",
+            "On Previous Row Total",
+            "On Item Quantity",
+        }:
+            capture_taxable_base = self.get_item_taxable_base(item, tax)
+
         item_key = _row_key(item, "item")
         tax_key = _row_key(tax, "tax")
         self.line_tax_capture.setdefault(item_key, {})[tax_key] = {
@@ -71,7 +87,7 @@ class ERPNextNativeTaxCollector(ERPNextTaxesAndTotals):
             "charge_type": tax.get("charge_type") or "",
             "included_in_print_rate": bool(cint(tax.get("included_in_print_rate"))),
             "tax_rate": flt(self._get_tax_rate(tax, item_tax_map)),
-            "taxable_base": flt(current_net_amount),
+            "taxable_base": flt(capture_taxable_base),
             "tax_amount": flt(current_tax_amount),
         }
         return current_net_amount, current_tax_amount
@@ -113,6 +129,89 @@ def _active_component_mappings(company: str) -> dict[str, str]:
         mappings[account] = component
     return mappings
 
+
+
+def _collect_non_posting_withheld_rows(
+    doc,
+    item,
+    collector,
+    component_mappings: dict[str, str],
+) -> list[dict]:
+    # Rate source: ERPNext Item Tax Template. Amount calculation: ERPNext's
+    # own On Item Quantity primitive. The transient row is never appended to
+    # invoice.taxes, so it cannot affect receivable, grand total, or GL.
+    item_tax_map = collector._load_item_tax_rate(item.get("item_tax_rate"))
+    if not item_tax_map:
+        return []
+
+    financial_accounts = {
+        str(row.get("account_head") or "").strip()
+        for row in doc.get("taxes") or []
+        if str(row.get("account_head") or "").strip()
+    }
+
+    captures = []
+    for account, component in component_mappings.items():
+        if component != WITHHELD_COMPONENT:
+            continue
+
+        if account in financial_accounts:
+            frappe.throw(
+                f"Sales Tax Withheld At Source Account {account} is present in "
+                "financial invoice taxes. Withheld evidence must be non-posting."
+            )
+
+        raw_rate = item_tax_map.get(account)
+        if raw_rate in (None, "", NOT_APPLICABLE_TAX):
+            continue
+        if abs(flt(raw_rate)) <= 0.000001:
+            continue
+
+        tax = frappe.new_doc("Sales Taxes and Charges")
+
+        # This row is intentionally transient/non-posting, but ERPNext's
+        # precision resolver still needs the child-table relationship in
+        # order to resolve Sales Taxes and Charges.rate metadata correctly.
+        tax.parenttype = doc.doctype
+        tax.parentfield = "taxes"
+        tax.parent = doc.name or f"new-{doc.doctype}"
+
+        tax.charge_type = "On Item Quantity"
+        tax.account_head = account
+        tax.rate = 0
+        tax.included_in_print_rate = 0
+        tax.dont_recompute_tax = 1
+
+        current_net_amount, current_tax_amount = (
+            ERPNextTaxesAndTotals.get_current_tax_and_net_amount(
+                collector,
+                item,
+                tax,
+                item_tax_map,
+            )
+        )
+
+        captures.append(
+            {
+                "item_row": _row_key(item, "item"),
+                "item_idx": item.get("idx"),
+                "item_code": item.get("item_code") or "",
+                "tax_row": f"non-posting:{account}",
+                "tax_idx": None,
+                "account_head": account,
+                "charge_type": "On Item Quantity",
+                "included_in_print_rate": False,
+                "tax_rate": flt(collector._get_tax_rate(tax, item_tax_map)),
+                "taxable_base": flt(current_net_amount),
+                "tax_amount": flt(current_tax_amount),
+                "non_posting_fbr_evidence": True,
+                "authority_source": (
+                    "ERPNext Item Tax Template + ERPNext On Item Quantity"
+                ),
+            }
+        )
+
+    return captures
 
 def _matching_item_mapping(company: str, item_code: str, posting_date) -> dict | None:
     rows = frappe.get_all(
@@ -172,6 +271,12 @@ def _reconcile_mapped_tax_rows(doc, collector, component_mappings: dict[str, str
         component = component_mappings.get(account)
         if not component:
             continue
+
+        if component == WITHHELD_COMPONENT:
+            frappe.throw(
+                f"Sales Tax Withheld At Source Account {account} must not be "
+                "present in financial invoice taxes."
+            )
 
         if tax.get("charge_type") == "Actual":
             frappe.throw(
@@ -245,6 +350,23 @@ def collect_native_tax_breakdown(doc) -> dict:
             component = component_mappings.get(capture["account_head"])
             if not component:
                 continue
+            fieldname = COMPONENT_FIELD[component]
+            components[fieldname] += flt(capture["tax_amount"])
+            component_rows.append(
+                {
+                    **capture,
+                    "component": component,
+                    "snapshot_field": fieldname,
+                }
+            )
+
+        for capture in _collect_non_posting_withheld_rows(
+            doc,
+            item,
+            collector,
+            component_mappings,
+        ):
+            component = WITHHELD_COMPONENT
             fieldname = COMPONENT_FIELD[component]
             components[fieldname] += flt(capture["tax_amount"])
             component_rows.append(

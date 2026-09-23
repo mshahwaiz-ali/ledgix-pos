@@ -1,26 +1,44 @@
 # Ledgix FBR + ERPNext Native Tax Redesign Plan
 
-**Status:** IMPLEMENTATION IN PROGRESS — ADDITIVE PHASES 0–6 STARTED; LOCAL RUNTIME CUTOVER PENDING  
-**Date:** 2026-09-23  
-**Repository:** mshahwaiz-ali/ledgix-pos  
-**Branch / source of truth:** main  
-**Baseline inspected:** 32ced967fc72578acd09312b32fdf82411dd7391  
+**Status:** IMPLEMENTATION IN PROGRESS - PHASE 1 LOCAL MONETARY CUTOVER COMPLETE; FBR V2/CERTIFICATION REMAIN
+**Date:** 2026-09-24
+**Repository:** mshahwaiz-ali/ledgix-pos
+**Branch / source of truth:** main
+**Baseline inspected:** 32ced967fc72578acd09312b32fdf82411dd7391
 **Production status:** FBR Production must remain NOT READY until the gates in this document are satisfied.
 
 ---
 
-## Current implementation progress — 2026-09-23
+## Current implementation progress - 2026-09-24
 
 - **Phase 0:** static dependency/retirement inventory complete.
-- **Phase 1:** transaction tax authority is isolated behind a temporary migration boundary; native mode now uses ERPNext server-side tax-row population before totals and covers Sales/POS return recalculation after Ledgix row selection. ERPNext-native runtime parity and final cutover remain pending on `ledgix-erpnext.local`.
-- **Phase 2:** additive FBR V2 compliance schemas complete; no current FBR runtime has been switched to them yet.
-- **Phase 3:** official v1.12 reference surface foundation implemented: core/static masters, contextual Rate/HS-UOM/SRO lookups, and live registration lookups; real authorized GET proof remains pending.
-- **Phase 4:** non-persisting ERPNext-native per-line tax snapshot collector implemented against the pinned v15.121.3 engine; runtime reconciliation and transaction-lifecycle cutover remain pending.
-- **V2 migration gate:** local-only read-only preview + fail-closed apply driver implemented; legacy monetary tax fields and Item-level Sandbox scenarios are explicitly excluded.
-- **Phase 5:** ERPNext Company/Customer/Address identity resolver and read-only payload-input readiness aggregator implemented; final FBR JSON construction remains blocked pending local parity.
-- **Phase 6:** existing Desk Tax & FBR Center cut over to ERPNext-native tax setup + FBR V2 configuration/readiness; old monetary tax masters and Production invoice actions are no longer exposed by the active page.
-- **Production:** remains fail-closed / not ready. No redesign work has armed Production or performed a Production invoice POST.
-- **Old tax/FBR runtime:** not deleted yet. Physical retirement occurs only after native accounting parity, data migration, V2 payload cutover and regression proof.
+- **Phase 1:** **LOCAL MONETARY AUTHORITY COMPLETE.** ERPNext is now the only active transaction tax calculator for Sales Invoice, POS Invoice and their native returns. The temporary engine selector/Legacy Bridge branch is removed from the active authority boundary. Core parity, Third Schedule/notified retail, Extra Tax, Further Tax, FED, Sales Tax Withheld evidence treatment and POS Closing accounting parity are locally proven. Legacy Ledgix Sale/Return FBR execution surfaces are isolated fail-closed. Sales Tax Withheld buyer net-payment settlement accounting remains explicitly unresolved.
+- **Phase 2:** additive FBR V2 compliance schemas exist. Re-evaluate them against the post-Phase-1 runtime before treating the complete V2 path as final.
+- **Phase 3:** official v1.12 reference-surface foundation exists: core/static masters, contextual Rate/HS-UOM/SRO lookups and live registration lookups. Real authorized GET proof remains pending.
+- **Phase 4:** ERPNext-native snapshot collection exists and Phase-1 special-tax gates exercise its tax breakdown. Final V2 payload/certification lifecycle still requires consolidation.
+- **V2 migration gate:** local-only read-only preview + fail-closed apply driver exists; legacy monetary tax fields and Item-level Sandbox scenarios remain excluded.
+- **Phase 5:** ERPNext Company/Customer/Address identity resolver and payload-input readiness foundation exist. Remaining old tax-profile defaults must be moved to the intended V2/company-scoped configuration before final cutover.
+- **Phase 6:** active Desk Tax & FBR Center exposes ERPNext-native tax setup + FBR V2 configuration/readiness and contains no Production invoice-submit action.
+- **Production:** remains fail-closed / **NOT READY**. No Phase-1 parity work armed Production or performed a real FBR/PRAL call.
+- **Legacy code:** old monetary/FBR modules may remain physically present for migration/history/tests or shared helper use, but current transaction monetary authority is native and legacy Sale/Return FBR execution is blocked. Physical deletion is a later dependency-proven retirement task.
+
+### Phase 1 local closure evidence
+
+The local integration evidence currently proves:
+
+- 8-case Sales/POS native core tax/return matrix;
+- Third Schedule/notified retail value;
+- Extra Tax;
+- Further Tax;
+- FED;
+- Sales Tax Withheld non-posting FBR evidence treatment;
+- POS Closing consolidated accounting and reversal;
+- no `[LEDGIX-TAX]` rows in the native transaction path;
+- no ERPNext core modification;
+- no real FBR network call during parity gates;
+- 51/51 focused static contracts after legacy FBR isolation.
+
+This closes Phase 1's local monetary-authority objective only. It does not certify Sandbox or Production.
 
 Current phase documents:
 

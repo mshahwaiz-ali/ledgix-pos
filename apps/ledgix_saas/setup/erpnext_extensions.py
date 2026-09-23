@@ -10,12 +10,16 @@ idempotent so patches and after_migrate can safely call the same synchronizer.
 import frappe
 from frappe.core.doctype.doctype.doctype import validate_permissions_for_doctype
 from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
+from frappe.custom.doctype.property_setter.property_setter import make_property_setter
 from frappe.permissions import setup_custom_perms
 from frappe.utils import cint
 
 from ledgix_saas.setup.permissions import PERM_KEYS
 
 CUSTOM_FIELD_MODULE = "Ledgix"
+THIRD_SCHEDULE_CHARGE_TYPE = "On Notified Retail Price"
+THIRD_SCHEDULE_CHARGE_DOCTYPE = "Sales Taxes and Charges"
+THIRD_SCHEDULE_CHARGE_FIELD = "charge_type"
 LEDGIX_ROLES = ("Ledgix Cashier", "Ledgix Manager", "Ledgix Admin")
 DEFAULT_BUSINESS_PROFILE = "Small Retail"
 FEATURE_FIELDS = (
@@ -689,6 +693,96 @@ def get_effective_business_features() -> dict:
     }
 
 
+
+def sync_sales_tax_charge_type_extension() -> dict:
+    """Expose the ERPNext custom taxable-base charge type without core edits."""
+
+    if not frappe.db.exists("DocType", THIRD_SCHEDULE_CHARGE_DOCTYPE):
+        frappe.throw(f"Missing DocType {THIRD_SCHEDULE_CHARGE_DOCTYPE}.")
+
+    base_options = (
+        frappe.db.get_value(
+            "DocField",
+            {
+                "parent": THIRD_SCHEDULE_CHARGE_DOCTYPE,
+                "fieldname": THIRD_SCHEDULE_CHARGE_FIELD,
+            },
+            "options",
+        )
+        or ""
+    )
+
+    existing = frappe.db.get_value(
+        "Property Setter",
+        {
+            "doc_type": THIRD_SCHEDULE_CHARGE_DOCTYPE,
+            "field_name": THIRD_SCHEDULE_CHARGE_FIELD,
+            "property": "options",
+        },
+        ["name", "value"],
+        as_dict=True,
+    )
+
+    ordered = []
+    for source in (base_options, (existing or {}).get("value") or ""):
+        for raw in str(source).splitlines():
+            value = raw.strip()
+            if value and value not in ordered:
+                ordered.append(value)
+
+    if THIRD_SCHEDULE_CHARGE_TYPE not in ordered:
+        ordered.append(THIRD_SCHEDULE_CHARGE_TYPE)
+
+    options = "\n" + "\n".join(ordered)
+
+    if existing:
+        if str(existing.value or "") != options:
+            frappe.db.set_value(
+                "Property Setter",
+                existing.name,
+                "value",
+                options,
+                update_modified=False,
+            )
+        setter_name = existing.name
+    else:
+        setter = make_property_setter(
+            THIRD_SCHEDULE_CHARGE_DOCTYPE,
+            THIRD_SCHEDULE_CHARGE_FIELD,
+            "options",
+            options,
+            "Text",
+        )
+        setter_name = setter.name
+
+    setter_meta = frappe.get_meta("Property Setter")
+    if setter_meta.has_field("module"):
+        if frappe.db.get_value("Property Setter", setter_name, "module") != CUSTOM_FIELD_MODULE:
+            frappe.db.set_value(
+                "Property Setter",
+                setter_name,
+                "module",
+                CUSTOM_FIELD_MODULE,
+                update_modified=False,
+            )
+
+    frappe.clear_cache(doctype=THIRD_SCHEDULE_CHARGE_DOCTYPE)
+    effective = frappe.get_meta(
+        THIRD_SCHEDULE_CHARGE_DOCTYPE,
+        cached=False,
+    ).get_field(THIRD_SCHEDULE_CHARGE_FIELD)
+
+    if THIRD_SCHEDULE_CHARGE_TYPE not in str(effective.options or "").splitlines():
+        frappe.throw(
+            f"Failed to register ERPNext charge type {THIRD_SCHEDULE_CHARGE_TYPE}."
+        )
+
+    return {
+        "property_setter": setter_name,
+        "charge_type": THIRD_SCHEDULE_CHARGE_TYPE,
+        "effective_options": str(effective.options or ""),
+    }
+
 def sync_custom_fields() -> int:
     missing = [doctype for doctype in CUSTOM_FIELDS if not frappe.db.exists("DocType", doctype)]
     if missing:
@@ -809,12 +903,14 @@ def backfill_erpnext_item_profile_links() -> int:
 def sync_all() -> dict:
     """Install/update the Phase 3 contract without creating duplicate masters."""
 
+    sales_tax_charge_type = sync_sales_tax_charge_type_extension()
     custom_field_count = sync_custom_fields()
     permission_doctypes_changed = sync_erpnext_role_permissions()
     business_profile = sync_business_profile_defaults()
     backfilled_profiles = backfill_erpnext_item_profile_links()
     frappe.clear_cache()
     return {
+        "sales_tax_charge_type": sales_tax_charge_type,
         "custom_fields_expected": custom_field_count,
         "permission_doctypes_changed": permission_doctypes_changed,
         "business_profile": business_profile,

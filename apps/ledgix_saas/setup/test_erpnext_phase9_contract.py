@@ -7,7 +7,18 @@ from ledgix_saas.setup import erpnext_phase9_extensions
 
 
 APP_ROOT = Path(__file__).resolve().parents[1]
-REPO_ROOT = APP_ROOT.parents[1]
+def _find_repo_root() -> Path:
+    # Find the outer Ledgix repository from source or Bench runtime copies.
+    for candidate in APP_ROOT.parents:
+        if (
+            (candidate / "scripts").is_dir()
+            and (candidate / "apps" / "ledgix_saas").is_dir()
+        ):
+            return candidate
+    raise RuntimeError(f"Could not locate Ledgix repository root from {APP_ROOT}")
+
+
+REPO_ROOT = _find_repo_root()
 
 
 class TestERPNextPhase9Contract(unittest.TestCase):
@@ -44,7 +55,7 @@ class TestERPNextPhase9Contract(unittest.TestCase):
             '"ledgix_saas.api.fbr_submission.submit_sale_to_fbr": "ledgix_saas.api.fbr_legacy_guard.reject_legacy_sale_submission"',
             hooks,
         )
-        self.assertIn("/assets/ledgix_saas/js/ledgix_fbr_native_center.js", hooks)
+        self.assertNotIn("/assets/ledgix_saas/js/ledgix_fbr_native_center.js", hooks)
         self.assertIn("scheduler_events = {}", hooks)
 
     def test_native_adapter_never_writes_legacy_business_ledgers(self):
@@ -109,7 +120,8 @@ class TestERPNextPhase9Contract(unittest.TestCase):
 
     def test_legacy_production_submit_is_fail_closed(self):
         source = (APP_ROOT / "api" / "fbr_legacy_guard.py").read_text(encoding="utf-8")
-        self.assertIn("Legacy Ledgix Sale FBR submission is retired", source)
+        self.assertIn("Legacy Ledgix Sale / Sales Return FBR execution is retired", source)
+        self.assertIn("def reject_legacy_fbr_action", source)
         self.assertIn("ERPNext Sales Invoice or POS Invoice", source)
 
     def test_correction_tracker_accepts_native_invoice_reference(self):

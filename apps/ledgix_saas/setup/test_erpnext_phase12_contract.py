@@ -8,7 +8,18 @@ from ledgix_saas.api import legacy_retirement
 
 
 APP_ROOT = Path(__file__).resolve().parents[1]
-REPO_ROOT = APP_ROOT.parents[1]
+def _find_repo_root() -> Path:
+    # Find the outer Ledgix repository from source or Bench runtime copies.
+    for candidate in APP_ROOT.parents:
+        if (
+            (candidate / "scripts").is_dir()
+            and (candidate / "apps" / "ledgix_saas").is_dir()
+        ):
+            return candidate
+    raise RuntimeError(f"Could not locate Ledgix repository root from {APP_ROOT}")
+
+
+REPO_ROOT = _find_repo_root()
 WORKSPACE = APP_ROOT / "ledgix" / "workspace" / "ledgix" / "ledgix.json"
 
 
