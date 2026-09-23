@@ -687,8 +687,18 @@ def get_cached_reference_data(reference_type, protocol_version=None):
         return rows
 
     # Compatibility for rows written before contextual cache keys existed.
-    filters["context_key"] = ["in", ["", None]]
-    return _cached_rows(filters)
+    legacy_filters = {
+        "reference_type": reference_type,
+        "active": 1,
+        "stale": 0,
+    }
+    if protocol_version:
+        legacy_filters["protocol_version"] = str(protocol_version).strip()
+    return [
+        row
+        for row in _cached_rows(legacy_filters)
+        if not str(row.get("context_key") or "").strip()
+    ]
 
 
 @frappe.whitelist()
