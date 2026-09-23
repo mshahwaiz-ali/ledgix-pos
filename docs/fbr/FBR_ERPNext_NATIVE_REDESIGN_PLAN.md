@@ -1,6 +1,6 @@
 # Ledgix FBR + ERPNext Native Tax Redesign Plan
 
-**Status:** IMPLEMENTATION IN PROGRESS — ADDITIVE PHASES 0–5 STARTED; LOCAL RUNTIME CUTOVER PENDING  
+**Status:** IMPLEMENTATION IN PROGRESS — ADDITIVE PHASES 0–6 STARTED; LOCAL RUNTIME CUTOVER PENDING  
 **Date:** 2026-09-23  
 **Repository:** mshahwaiz-ali/ledgix-pos  
 **Branch / source of truth:** main  
@@ -18,6 +18,7 @@
 - **Phase 4:** non-persisting ERPNext-native per-line tax snapshot collector implemented against the pinned v15.121.3 engine; runtime reconciliation and transaction-lifecycle cutover remain pending.
 - **V2 migration gate:** local-only read-only preview + fail-closed apply driver implemented; legacy monetary tax fields and Item-level Sandbox scenarios are explicitly excluded.
 - **Phase 5:** ERPNext Company/Customer/Address identity resolver and read-only payload-input readiness aggregator implemented; final FBR JSON construction remains blocked pending local parity.
+- **Phase 6:** existing Desk Tax & FBR Center cut over to ERPNext-native tax setup + FBR V2 configuration/readiness; old monetary tax masters and Production invoice actions are no longer exposed by the active page.
 - **Production:** remains fail-closed / not ready. No redesign work has armed Production or performed a Production invoice POST.
 - **Old tax/FBR runtime:** not deleted yet. Physical retirement occurs only after native accounting parity, data migration, V2 payload cutover and regression proof.
 
@@ -31,6 +32,7 @@ docs/fbr/FBR_PHASE3_REFERENCE_SYNC_FOUNDATION.md
 docs/fbr/FBR_PHASE4_ERPNEXT_NATIVE_SNAPSHOT_FOUNDATION.md
 docs/fbr/FBR_V2_MIGRATION_AND_READINESS_GATE.md
 docs/fbr/FBR_PHASE5_IDENTITY_AND_READINESS.md
+docs/fbr/FBR_PHASE6_DESK_COMPLIANCE_CENTER_CUTOVER.md
 ```
 
 ---
