@@ -119,7 +119,7 @@ Final return evidence must be captured during the native draft/submission lifecy
 
 New file:
 
-`apps/ledgix_saas/services/erpnext_fbr_snapshot_v2.py`
+`apps/ledgix_saas/services/erpnext_fbr_snapshot.py`
 
 The collector subclasses ERPNext's own:
 
