@@ -578,18 +578,18 @@ class LedgixFBRV2Center {
 				${this.metric("Profile mode", profile.mode || "Disabled")}
 			</div>
 			${errors.length ? `
-				<div class="lx-tax-note is-warn">
+				<div class="lx-callout is-warning">
 					<strong>Blocking gaps</strong>
 					<ul>${errors.map(row => `<li>${this.escape(row)}</li>`).join("")}</ul>
 				</div>
-			` : '<div class="lx-tax-note"><strong>No payload-input blockers detected by the current V2 readiness checks.</strong></div>'}
+			` : '<div class="lx-callout"><strong>No payload-input blockers detected by the current V2 readiness checks.</strong></div>'}
 			${warnings.length ? `
-				<div class="lx-tax-note">
+				<div class="lx-callout">
 					<strong>Warnings</strong>
 					<ul>${warnings.map(row => `<li>${this.escape(row)}</li>`).join("")}</ul>
 				</div>
 			` : ""}
-			<div class="lx-tax-note">
+			<div class="lx-callout">
 				<strong>Safety:</strong> this check builds no FBR payload, performs no FBR network call and changes no invoice.
 			</div>
 		`;
