@@ -15,8 +15,8 @@ import frappe
 from frappe import _
 from frappe.utils import cint, flt, now_datetime, nowdate
 
-from ledgix_saas.services import erpnext_buying_inventory, erpnext_selling
-from ledgix_saas.setup import erpnext_phase8_extensions, erpnext_tax_foundation
+from ledgix_saas.services import erpnext_buying_inventory, erpnext_selling, erpnext_tax_authority
+from ledgix_saas.setup import erpnext_phase8_extensions
 
 MONEY_TOLERANCE = 0.005
 
@@ -621,8 +621,7 @@ def build_pos_invoice(
     )
     invoice.set_missing_values()
     invoice.set("payments", [])
-    erpnext_tax_foundation.apply_tax_plan(invoice, replace_managed_rows=True)
-    invoice.run_method("calculate_taxes_and_totals")
+    erpnext_tax_authority.apply_sales_tax_authority(invoice)
     invoice._ledgix_discount = discount
     return invoice
 
