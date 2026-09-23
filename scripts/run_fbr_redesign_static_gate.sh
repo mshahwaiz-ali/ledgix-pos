@@ -37,10 +37,17 @@ PYTHONPATH="$REPO_ROOT/apps${PYTHONPATH:+:$PYTHONPATH}" \
   "$BENCH_PYTHON" -m unittest -v \
   ledgix_saas.setup.test_fbr_redesign_phase3_reference_contract
 
+printf '\n===== PHASE 4 NATIVE SNAPSHOT CONTRACT =====\n'
+PYTHONPATH="$REPO_ROOT/apps${PYTHONPATH:+:$PYTHONPATH}" \
+  "$BENCH_PYTHON" -m unittest -v \
+  ledgix_saas.setup.test_fbr_redesign_phase4_snapshot_contract
+
 printf '\n===== REDESIGN STATIC VERDICT =====\n'
 printf '[PASS] transaction tax authority boundary is isolated\n'
 printf '[PASS] FBR V2 schemas contain no shadow monetary tax engine\n'
 printf '[PASS] Sandbox scenario is certification-scoped\n'
 printf '[PASS] V2 reference sync is GET-only and non-destructive\n'
 printf '[PASS] Production arming remains outside reference sync\n'
+printf '[PASS] ERPNext-native line snapshot collector has no Ledgix tax formula\n'
+printf '[PASS] unsupported pinned-v15 tax splits fail closed\n'
 printf 'fbr_redesign_static_complete=true\n'
