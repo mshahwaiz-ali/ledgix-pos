@@ -13,8 +13,8 @@ from frappe.utils.password import get_decrypted_password
 
 from ledgix_saas.api import fbr_reference_v2
 from ledgix_saas.services import (
-    erpnext_fbr_identity_v2,
-    erpnext_fbr_snapshot_v2,
+    erpnext_fbr_identity,
+    erpnext_fbr_snapshot,
 )
 
 
@@ -368,14 +368,14 @@ def evaluate_invoice_readiness(reference_doctype: str, reference_name: str) -> d
     if not profile:
         errors.append("Company has no V2 FBR Integration Profile.")
 
-    identity = erpnext_fbr_identity_v2.resolve_invoice_identity(doc)
+    identity = erpnext_fbr_identity.resolve_invoice_identity(doc)
     errors.extend(identity.get("errors") or [])
     warnings.extend(identity.get("warnings") or [])
     identity_references = _check_identity_references(identity, errors)
 
     snapshot = {}
     try:
-        snapshot = erpnext_fbr_snapshot_v2.build_snapshot_candidate(
+        snapshot = erpnext_fbr_snapshot.build_snapshot_candidate(
             reference_doctype,
             reference_name,
         )
