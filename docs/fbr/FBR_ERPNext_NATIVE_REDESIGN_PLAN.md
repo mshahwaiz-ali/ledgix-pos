@@ -12,7 +12,7 @@
 ## Current implementation progress — 2026-09-23
 
 - **Phase 0:** static dependency/retirement inventory complete.
-- **Phase 1:** transaction tax authority isolated behind a temporary migration boundary; ERPNext-native runtime parity and final cutover remain pending on `ledgix-erpnext.local`.
+- **Phase 1:** transaction tax authority is isolated behind a temporary migration boundary; native mode now uses ERPNext server-side tax-row population before totals and covers Sales/POS return recalculation after Ledgix row selection. ERPNext-native runtime parity and final cutover remain pending on `ledgix-erpnext.local`.
 - **Phase 2:** additive FBR V2 compliance schemas complete; no current FBR runtime has been switched to them yet.
 - **Phase 3:** official v1.12 reference surface foundation implemented: core/static masters, contextual Rate/HS-UOM/SRO lookups, and live registration lookups; real authorized GET proof remains pending.
 - **Phase 4:** non-persisting ERPNext-native per-line tax snapshot collector implemented against the pinned v15.121.3 engine; runtime reconciliation and transaction-lifecycle cutover remain pending.
