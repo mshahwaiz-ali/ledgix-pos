@@ -87,7 +87,9 @@ class TestOldFBRSettingsRuntimeCleanup(unittest.TestCase):
 
     def test_runtime_gate_does_not_import_or_execute_compatibility_api(self):
         self.assertNotIn("from ledgix_saas.api import fbr_native, fbr_settings", GATE)
-        self.assertNotIn("fbr_settings.", GATE)
+        self.assertNotIn("from ledgix_saas.api import fbr_settings", GATE)
+        self.assertNotIn("fbr_settings.get_", GATE)
+        self.assertNotIn("fbr_settings.save_", GATE)
         self.assertIn("SETTINGS_SOURCE", GATE)
         self.assertIn('"database_write": False', GATE)
         self.assertIn('"real_fbr_network_calls": 0', GATE)

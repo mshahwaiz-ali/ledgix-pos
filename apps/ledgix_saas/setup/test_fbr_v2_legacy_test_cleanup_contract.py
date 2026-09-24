@@ -46,7 +46,7 @@ class TestLegacyFBRTestCleanup(unittest.TestCase):
             runtime_contract,
         )
         self.assertIn(
-            "test_interim_package_is_preserved_but_migration_authority_is_retired",
+            "test_old_settings_package_registration_is_removed",
             source_contract,
         )
 
