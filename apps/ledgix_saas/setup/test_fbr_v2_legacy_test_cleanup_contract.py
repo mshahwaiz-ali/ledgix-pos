@@ -46,7 +46,11 @@ class TestLegacyFBRTestCleanup(unittest.TestCase):
             runtime_contract,
         )
         self.assertIn(
-            "test_old_settings_package_registration_is_removed",
+            "test_old_settings_doctype_source_is_removed",
+            runtime_contract,
+        )
+        self.assertIn(
+            "test_old_settings_package_and_source_are_removed",
             source_contract,
         )
 

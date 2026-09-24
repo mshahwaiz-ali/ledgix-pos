@@ -1580,19 +1580,22 @@ The redesign is complete only when all of the following are true:
 
 ## 24. Immediate next step
 
-Continue **Phase 9 legacy retirement**, not the old Phase 0 baseline.
+Continue **Phase 9 legacy retirement** from the post-cleanup state.
+
+Local controlled cleanup has removed the old global Settings DocType metadata and related Workspace Link / DocPerm / Custom DocPerm / Singles rows. The V2 profile remains Disabled / Manual / unarmed and Production network cutover remains false.
 
 Current sequence:
 
-1. retire the historical V2 migration helper and preview runner so they cannot read/copy old Settings state;
-2. evolve remaining gates/contracts that still import or require the old Settings compatibility shell;
-3. retire the old Settings test/package assumptions only after equivalent absence proof exists;
-4. prepare a controlled Frappe patch for old Workspace Link, DocPerm, Custom DocPerm, singleton rows and DocType metadata cleanup;
-5. execute DB cleanup only after a fresh local backup and before/after evidence capture;
-6. run the complete zero-dependency/static/runtime/network-safety proof;
-7. keep Production disabled/unarmed until real reference-data and Sandbox-certification readiness is complete.
+1. physically remove the obsolete `ledgix_fbr_settings` controller/schema source package so migrate cannot recreate it;
+2. evolve source/runtime contracts from pre-cleanup presence proof to post-cleanup absence proof;
+3. run the complete static/source retirement gate;
+4. synchronize canonical source into the local Bench runtime and prove parity;
+5. run post-cleanup runtime, activation and health/client-status gates with real FBR network hard-blocked;
+6. prove an ordinary migrate does not recreate the retired singleton;
+7. perform zero-import proof for the inert `api/fbr_settings.py` compatibility shell and retire it only when no live caller remains;
+8. keep Production disabled/unarmed until real reference-data and Sandbox-certification readiness is complete.
 
-Do not resurrect the legacy migration helper or old singleton merely to satisfy tests.
+Do not resurrect the legacy migration helper, source package or singleton merely to satisfy tests.
 
 ---
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""Read-only proof for Patch 5E2B2 old-settings proof dependency retirement."""
+"""Read-only post-cleanup proof for retired global FBR Settings removal."""
 
 from pathlib import Path
 
@@ -14,12 +14,13 @@ PROFILE_DOCTYPE = "Ledgix FBR Integration Profile"
 PROFILE_NAME = "FBR-PROFILE-00094"
 APP_ROOT = Path(__file__).resolve().parents[1]
 SETTINGS_SOURCE = APP_ROOT / "api" / "fbr_settings.py"
+LEGACY_SOURCE_DIR = APP_ROOT / "ledgix" / "doctype" / "ledgix_fbr_settings"
 
 
 def _assert_safe_site() -> None:
     if frappe.local.site != INTEGRATION_SITE:
         frappe.throw(
-            f"Refusing Patch 5E2B2 gate on {frappe.local.site!r}; "
+            f"Refusing post-cleanup old-settings gate on {frappe.local.site!r}; "
             f"expected {INTEGRATION_SITE!r}."
         )
 
@@ -29,17 +30,6 @@ def run():
     frappe.set_user("Administrator")
 
     old_exists = bool(frappe.db.exists("DocType", "Ledgix FBR Settings"))
-    old_mode = (
-        frappe.db.get_single_value("Ledgix FBR Settings", "mode")
-        if old_exists
-        else None
-    )
-    old_submit_trigger = (
-        frappe.db.get_single_value("Ledgix FBR Settings", "submit_trigger")
-        if old_exists
-        else None
-    )
-
     settings_source = SETTINGS_SOURCE.read_text(encoding="utf-8")
     profile = frappe.db.get_value(
         PROFILE_DOCTYPE,
@@ -56,7 +46,8 @@ def run():
     ) or {}
 
     checks = {
-        "legacy_singleton_still_present_for_cleanup": old_exists,
+        "legacy_singleton_removed": not old_exists,
+        "legacy_doctype_source_removed": not LEGACY_SOURCE_DIR.exists(),
         "compatibility_shell_source_is_inert": (
             "LEGACY_SETTINGS_RETIRED_MESSAGE" in settings_source
             and "return dict(DISABLED_DEFAULTS)" in settings_source
@@ -82,14 +73,11 @@ def run():
 
     result = {
         "site": frappe.local.site,
-        "proof_type": "v2_old_settings_proof_dependency_retirement_patch5e2b2",
+        "proof_type": "v2_old_settings_post_cleanup_closure_patch5e2f",
         "real_fbr_network_calls": 0,
         "database_write": False,
-        "old_singleton_evidence": {
-            "exists": old_exists,
-            "mode": old_mode,
-            "submit_trigger": old_submit_trigger,
-        },
+        "old_singleton_evidence": {"exists": old_exists},
+        "legacy_source_dir_exists": LEGACY_SOURCE_DIR.exists(),
         "profile": dict(profile),
         "checks": checks,
         "failed_checks": [key for key, passed in checks.items() if not passed],
@@ -98,7 +86,7 @@ def run():
 
     if not result["gate_passed"]:
         frappe.throw(
-            "Patch 5E2B2 old-settings proof dependency retirement gate failed: "
+            "Post-cleanup old-settings closure gate failed: "
             + frappe.as_json(result["failed_checks"])
         )
 

@@ -1,6 +1,6 @@
 # FBR Redesign — V2 Migration and Readiness Gate
 
-**Status:** LEGACY MIGRATION EXECUTION RETIRED — HISTORICAL DESIGN / COMPATIBILITY TOMBSTONE ONLY  
+**Status:** LEGACY SETTINGS DB CLEANUP COMPLETE LOCALLY — SOURCE TOMBSTONE RETIRED  
 **Date:** 2026-09-25  
 **Repository:** `mshahwaiz-ali/ledgix-pos`  
 **Branch:** `main`
@@ -86,84 +86,90 @@ It must not be converted back into a migration tool.
 
 ---
 
-## 5. What remains intentionally present
+## 5. Current retained compatibility boundary
 
-This phase does **not** physically delete every old artifact.
+Controlled local cleanup has now removed the retired singleton database authority:
 
-Still intentionally deferred:
+- old `Ledgix FBR Settings` DocType metadata is absent;
+- Workspace Link count is zero;
+- old DocPerm count is zero;
+- old Custom DocPerm count is zero;
+- old `tabSingles` rows are zero;
+- V2 profile `FBR-PROFILE-00094` remains Disabled / Manual / unarmed;
+- `V2_NETWORK_CUTOVER_ACTIVE` remains false.
 
-- old `ledgix_fbr_settings` source/controller/schema tombstone;
-- compatibility API shell `api/fbr_settings.py`;
-- local database Workspace Link / DocPerm / Custom DocPerm metadata;
-- singleton rows in `tabSingles`;
-- old DocType metadata/database table cleanup.
+The obsolete `ledgix_fbr_settings` controller/schema source package is now physically removed so a future migrate cannot recreate the singleton.
 
-The old Settings package registration has now been removed from `apps/ledgix_saas/pyproject.toml`.
-The remaining source/controller/schema tombstone exists only until controlled database metadata cleanup proves physical deletion safe.
+Still intentionally retained for one final compatibility-closure step:
 
-These remaining artifacts are not current FBR configuration authority.
+- inert compatibility API shell `api/fbr_settings.py`;
+- retired historical V2 migration tombstone;
+- guarded cleanup helper `patches/v1_0/cleanup_retired_fbr_settings_metadata.py`, still unregistered and idempotent.
+
+None of these retained artifacts is current FBR configuration authority.
 
 ---
 
 ## 6. Static retirement contract
 
-Test:
+The source/runtime retirement contracts now prove:
 
-`apps/ledgix_saas/setup/test_fbr_redesign_v2_migration_contract.py`
-
-It now proves:
-
-- historical entry points remain import-compatible;
-- both entry points fail closed;
-- old Settings and Item Tax Profile literals are absent from the helper;
-- no Password decryption exists;
-- no legacy database reads/writes exist;
-- no profile/item-mapping mutation exists;
-- no transport/network path exists.
-
-The source de-registration contract additionally proves that the old package is temporarily preserved while the migration authority itself is retired.
+- historical migration entry points remain fail-closed;
+- the old Settings package is not registered;
+- the old controller/schema source directory is absent;
+- current product shell, permissions and validation do not expose the old singleton;
+- the compatibility API shell never reads credentials or the retired singleton;
+- the post-cleanup runtime gate requires the old DocType to be absent;
+- V2 remains the only live configuration authority;
+- Production remains disabled/unarmed.
 
 ---
 
 ## 7. Remaining retirement sequence
 
-After 5E2B1:
+After local DB cleanup and source tombstone removal:
 
-1. evolve remaining proof/runtime gates that still import or require the old Settings compatibility API;
-2. replace presence-oriented contracts with absence/retirement contracts;
-3. retire the old Settings test suite once equivalent absence proof exists;
-4. package registration removal is complete; retain the source tombstone only until DB cleanup;
-5. prepare a controlled Frappe patch for database metadata cleanup;
-6. run that cleanup only in the controlled local runtime phase after backup/evidence capture;
-7. prove zero dependency, zero network, source/runtime parity, and safe V2 profile state.
+1. run the complete static/source retirement gate;
+2. synchronize canonical source into the local Bench runtime and prove byte parity;
+3. run the post-cleanup runtime gate and V2 activation/health gates with network hard-blocked;
+4. prove an ordinary migrate does not recreate `Ledgix FBR Settings`;
+5. repeat zero-reference/import proof for `api/fbr_settings.py`;
+6. retire that compatibility API shell only when no live import/caller remains;
+7. keep Production disabled/unarmed until real reference-data and Sandbox-certification readiness is complete.
+
+Do not recreate the old singleton or re-register its package to satisfy any historical test.
 
 ---
 
-## 8. Prepared database cleanup patch
+## 8. Guarded database cleanup record
 
-Patch 5E2D adds:
+Patch 5E2D added:
 
 `apps/ledgix_saas/patches/v1_0/cleanup_retired_fbr_settings_metadata.py`
 
-It is intentionally **not registered in `patches.txt` yet**. Pulling the source or running an ordinary migrate therefore cannot trigger this cleanup.
+It remains intentionally **unregistered in `patches.txt`**. Ordinary migrate therefore does not run it.
 
-The module provides a read-only `preview_cleanup()` and a guarded `execute()`. Execution requires the exact temporary site-config authorization:
+The controlled local cleanup was performed only after:
 
-`ledgix_legacy_fbr_settings_cleanup_authorization = VERIFIED_BACKUP_AND_APPROVED_FBR_SETTINGS_CLEANUP`
+- source/runtime parity proof;
+- read-only inventory;
+- a fresh database + public files + private files + site-config backup;
+- checksum verification and independent re-verification;
+- a secondary backup copy;
+- exact temporary site-config authorization;
+- V2 fail-closed proof.
 
-and refuses cleanup if any V2 Integration Profile is enabled, non-Disabled, or Production-armed.
+The cleanup target was exactly:
 
-The eventual controlled cleanup targets only:
+- 1 Workspace Link;
+- 3 DocPerm rows;
+- 3 Custom DocPerm rows;
+- 28 Singles rows;
+- the retired `Ledgix FBR Settings` DocType metadata.
 
-- Workspace Link rows pointing to `Ledgix FBR Settings`;
-- old Custom DocPerm rows;
-- old DocPerm rows;
-- old `tabSingles` / Singles values;
-- the retired DocType definition through Frappe's `delete_doc` semantics.
+Post-cleanup evidence shows all of those legacy counts at zero while the V2 profile remains Disabled / Manual / unarmed.
 
-No FBR network operation or accounting mutation is part of this patch.
-
-A separate local-runtime phase must first capture a fresh verified backup and before/after evidence. Only after that proof should patch registration/execution and physical source tombstone deletion be considered.
+No FBR network operation or accounting mutation is part of this helper.
 
 ---
 
@@ -176,7 +182,8 @@ This retirement phase does not:
 - perform an FBR/PRAL request;
 - alter ERPNext accounting;
 - fabricate reference data;
-- delete production data;
-- execute database cleanup.
+- alter historical submitted invoice evidence.
+
+The destructive local singleton metadata cleanup is already complete and rollback-protected by the verified backup set. No Production-site cleanup has been performed by this local proof.
 
 Production remains fail closed until the separate real-world readiness and Sandbox certification gates are satisfied.
