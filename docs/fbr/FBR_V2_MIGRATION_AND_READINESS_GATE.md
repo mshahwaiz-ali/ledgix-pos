@@ -139,7 +139,35 @@ After 5E2B1:
 
 ---
 
-## 8. Safety boundary
+## 8. Prepared database cleanup patch
+
+Patch 5E2D adds:
+
+`apps/ledgix_saas/patches/v1_0/cleanup_retired_fbr_settings_metadata.py`
+
+It is intentionally **not registered in `patches.txt` yet**. Pulling the source or running an ordinary migrate therefore cannot trigger this cleanup.
+
+The module provides a read-only `preview_cleanup()` and a guarded `execute()`. Execution requires the exact temporary site-config authorization:
+
+`ledgix_legacy_fbr_settings_cleanup_authorization = VERIFIED_BACKUP_AND_APPROVED_FBR_SETTINGS_CLEANUP`
+
+and refuses cleanup if any V2 Integration Profile is enabled, non-Disabled, or Production-armed.
+
+The eventual controlled cleanup targets only:
+
+- Workspace Link rows pointing to `Ledgix FBR Settings`;
+- old Custom DocPerm rows;
+- old DocPerm rows;
+- old `tabSingles` / Singles values;
+- the retired DocType definition through Frappe's `delete_doc` semantics.
+
+No FBR network operation or accounting mutation is part of this patch.
+
+A separate local-runtime phase must first capture a fresh verified backup and before/after evidence. Only after that proof should patch registration/execution and physical source tombstone deletion be considered.
+
+---
+
+## 9. Safety boundary
 
 This retirement phase does not:
 

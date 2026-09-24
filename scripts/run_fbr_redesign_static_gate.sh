@@ -47,6 +47,14 @@ PYTHONPATH="$REPO_ROOT/apps${PYTHONPATH:+:$PYTHONPATH}" \
   "$BENCH_PYTHON" -m unittest -v \
   ledgix_saas.setup.test_fbr_redesign_v2_migration_contract
 
+printf '\n===== LEGACY SETTINGS RETIREMENT CONTRACTS =====\n'
+PYTHONPATH="$REPO_ROOT/apps${PYTHONPATH:+:$PYTHONPATH}" \
+  "$BENCH_PYTHON" -m unittest -v \
+  ledgix_saas.setup.test_fbr_v2_old_settings_source_deregistration_contract \
+  ledgix_saas.setup.test_fbr_v2_old_settings_runtime_cleanup_contract \
+  ledgix_saas.setup.test_fbr_v2_legacy_test_cleanup_contract \
+  ledgix_saas.setup.test_fbr_v2_retired_settings_db_cleanup_contract
+
 printf '\n===== V2 IDENTITY CONTRACT =====\n'
 PYTHONPATH="$REPO_ROOT/apps${PYTHONPATH:+:$PYTHONPATH}" \
   "$BENCH_PYTHON" -m unittest -v \
@@ -71,6 +79,8 @@ printf '[PASS] Production arming remains outside reference sync\n'
 printf '[PASS] ERPNext-native line snapshot collector has no Ledgix tax formula\n'
 printf '[PASS] unsupported pinned-v15 tax splits fail closed\n'
 printf '[PASS] legacy V2 migration helper is retired and cannot read/copy old FBR state\n'
+printf '[PASS] old FBR Settings package/runtime/test dependencies are retired\n'
+printf '[PASS] destructive DB cleanup remains guarded and unregistered pending local backup proof\n'
 printf '[PASS] FBR identity resolves from ERPNext Company/Customer/Address authority\n'
 printf '[PASS] V2 readiness requires native tax + identity + official reference evidence\n'
 printf '[PASS] Desk Tax & FBR Center exposes ERPNext-native tax + FBR V2 only\n'
