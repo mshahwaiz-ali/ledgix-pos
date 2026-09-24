@@ -102,7 +102,7 @@ class TestOldFBRSettingsSourceDeregistration(unittest.TestCase):
 
         self.assertEqual(offenders, [])
 
-    def test_interim_package_is_preserved_but_migration_authority_is_retired(self):
+    def test_old_settings_package_registration_is_removed(self):
         pyproject = (APP_ROOT / "pyproject.toml").read_text(encoding="utf-8")
         migration = (
             APP_ROOT / "migration/fbr_redesign_v2_migration.py"
@@ -115,7 +115,7 @@ class TestOldFBRSettingsSourceDeregistration(unittest.TestCase):
             / "ledgix_fbr_settings.py"
         )
 
-        self.assertIn(
+        self.assertNotIn(
             '"ledgix.doctype.ledgix_fbr_settings",',
             pyproject,
         )
@@ -127,6 +127,9 @@ class TestOldFBRSettingsSourceDeregistration(unittest.TestCase):
             migration,
         )
         self.assertNotIn("get_decrypted_password(", migration)
+
+        # Source tombstone remains only until the controlled DB metadata cleanup
+        # phase; it is no longer an explicitly packaged application component.
         self.assertTrue(package.exists())
 
 
