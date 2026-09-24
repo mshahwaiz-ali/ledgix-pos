@@ -146,11 +146,8 @@ class TestFBRV2LegacyTransportRetirementContract(unittest.TestCase):
         ):
             self.assertNotIn(forbidden, NATIVE)
 
-    def test_runtime_gate_forbids_old_settings_and_network(self):
-        self.assertIn(
-            "fbr_settings.get_fbr_settings_internal = _forbid_legacy",
-            GATE,
-        )
+    def test_runtime_gate_has_no_old_settings_dependency_and_blocks_network(self):
+        self.assertNotIn("fbr_settings", GATE)
         self.assertIn(
             "fbr_transport.get_json = _forbid_network",
             GATE,

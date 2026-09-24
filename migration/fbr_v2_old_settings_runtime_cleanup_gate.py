@@ -1,21 +1,25 @@
 from __future__ import annotations
 
-"""Read-only proof for Patch 5E1A old-settings runtime retirement."""
+"""Read-only proof for Patch 5E2B2 old-settings proof dependency retirement."""
+
+from pathlib import Path
 
 import frappe
 
-from ledgix_saas.api import fbr_native, fbr_settings
+from ledgix_saas.api import fbr_native
 from ledgix_saas.migration.erpnext_integration_bootstrap import INTEGRATION_SITE
 
 
 PROFILE_DOCTYPE = "Ledgix FBR Integration Profile"
 PROFILE_NAME = "FBR-PROFILE-00094"
+APP_ROOT = Path(__file__).resolve().parents[1]
+SETTINGS_SOURCE = APP_ROOT / "api" / "fbr_settings.py"
 
 
 def _assert_safe_site() -> None:
     if frappe.local.site != INTEGRATION_SITE:
         frappe.throw(
-            f"Refusing Patch 5E1A gate on {frappe.local.site!r}; "
+            f"Refusing Patch 5E2B2 gate on {frappe.local.site!r}; "
             f"expected {INTEGRATION_SITE!r}."
         )
 
@@ -24,29 +28,19 @@ def run():
     _assert_safe_site()
     frappe.set_user("Administrator")
 
+    old_exists = bool(frappe.db.exists("DocType", "Ledgix FBR Settings"))
     old_mode = (
         frappe.db.get_single_value("Ledgix FBR Settings", "mode")
-        if frappe.db.exists("DocType", "Ledgix FBR Settings")
+        if old_exists
         else None
     )
     old_submit_trigger = (
         frappe.db.get_single_value("Ledgix FBR Settings", "submit_trigger")
-        if frappe.db.exists("DocType", "Ledgix FBR Settings")
+        if old_exists
         else None
     )
 
-    compatibility = fbr_settings.get_fbr_settings_internal()
-    control = fbr_settings.get_fbr_control_state_internal()
-    legacy_token = fbr_settings.get_active_fbr_token("Sandbox")
-
-    save_retired = False
-    save_message = ""
-    try:
-        fbr_settings.save_fbr_settings({"mode": "Production"})
-    except Exception as exc:
-        save_message = str(exc)
-        save_retired = "retired" in save_message.lower()
-
+    settings_source = SETTINGS_SOURCE.read_text(encoding="utf-8")
     profile = frappe.db.get_value(
         PROFILE_DOCTYPE,
         PROFILE_NAME,
@@ -62,23 +56,17 @@ def run():
     ) or {}
 
     checks = {
-        "legacy_singleton_still_present_for_compatibility": bool(
-            frappe.db.exists("DocType", "Ledgix FBR Settings")
+        "legacy_singleton_still_present_for_cleanup": old_exists,
+        "compatibility_shell_source_is_inert": (
+            "LEGACY_SETTINGS_RETIRED_MESSAGE" in settings_source
+            and "return dict(DISABLED_DEFAULTS)" in settings_source
+            and "frappe.throw(LEGACY_SETTINGS_RETIRED_MESSAGE)" in settings_source
+            and "return None" in settings_source
+            and "get_decrypted_password" not in settings_source
+            and "frappe.get_single(" not in settings_source
+            and "frappe.db." not in settings_source
+            and ".save(" not in settings_source
         ),
-        "compatibility_state_ignores_stale_singleton": (
-            compatibility.get("retired") is True
-            and compatibility.get("enabled") is False
-            and compatibility.get("mode") == "Disabled"
-            and compatibility.get("submit_trigger") == "Manual"
-        ),
-        "legacy_control_is_fail_closed": (
-            control.get("retired") is True
-            and control.get("enabled") is False
-            and control.get("can_attempt_submission") is False
-            and control.get("can_manual_submit") is False
-        ),
-        "legacy_token_is_never_read": legacy_token is None,
-        "legacy_settings_write_rejected": save_retired,
         "v2_profile_exact_safe_state": (
             profile.get("name") == PROFILE_NAME
             and not bool(profile.get("enabled"))
@@ -94,16 +82,14 @@ def run():
 
     result = {
         "site": frappe.local.site,
-        "proof_type": "v2_old_settings_runtime_cleanup_patch5e1a",
+        "proof_type": "v2_old_settings_proof_dependency_retirement_patch5e2b2",
         "real_fbr_network_calls": 0,
         "database_write": False,
         "old_singleton_evidence": {
+            "exists": old_exists,
             "mode": old_mode,
             "submit_trigger": old_submit_trigger,
         },
-        "compatibility_state": compatibility,
-        "control_state": control,
-        "save_retired_message": save_message,
         "profile": dict(profile),
         "checks": checks,
         "failed_checks": [key for key, passed in checks.items() if not passed],
@@ -112,7 +98,7 @@ def run():
 
     if not result["gate_passed"]:
         frappe.throw(
-            "Patch 5E1A old-settings runtime cleanup gate failed: "
+            "Patch 5E2B2 old-settings proof dependency retirement gate failed: "
             + frappe.as_json(result["failed_checks"])
         )
 

@@ -8,7 +8,6 @@ from ledgix_saas.api import (
     fbr_client,
     fbr_native,
     fbr_payload,
-    fbr_settings,
     fbr_submission,
     fbr_transport,
     fbr_v2_transport,
@@ -32,22 +31,12 @@ def run() -> dict:
         frappe.throw("V2_NETWORK_CUTOVER_ACTIVE must remain False.")
 
     original_user = frappe.session.user
-    original_settings = fbr_settings.get_fbr_settings_internal
-    original_control = fbr_settings.get_fbr_control_state_internal
-    original_token = fbr_settings.get_active_fbr_token
     original_get = fbr_transport.get_json
     original_post = fbr_transport.post_json
     original_v2_validate = fbr_v2_transport.validate_invoice
     original_v2_post = fbr_v2_transport.post_invoice
 
-    legacy_attempts = []
     network_attempts = []
-
-    def _forbid_legacy(*args, **kwargs):
-        legacy_attempts.append(True)
-        frappe.throw(
-            "OLD FBR SETTINGS FORBIDDEN BY PATCH 5D GATE"
-        )
 
     def _forbid_network(*args, **kwargs):
         network_attempts.append(True)
@@ -58,9 +47,6 @@ def run() -> dict:
     try:
         frappe.set_user("Administrator")
 
-        fbr_settings.get_fbr_settings_internal = _forbid_legacy
-        fbr_settings.get_fbr_control_state_internal = _forbid_legacy
-        fbr_settings.get_active_fbr_token = _forbid_legacy
         fbr_transport.get_json = _forbid_network
         fbr_transport.post_json = _forbid_network
         fbr_v2_transport.validate_invoice = _forbid_network
@@ -105,9 +91,6 @@ def run() -> dict:
             )
 
     finally:
-        fbr_settings.get_fbr_settings_internal = original_settings
-        fbr_settings.get_fbr_control_state_internal = original_control
-        fbr_settings.get_active_fbr_token = original_token
         fbr_transport.get_json = original_get
         fbr_transport.post_json = original_post
         fbr_v2_transport.validate_invoice = original_v2_validate
@@ -148,7 +131,6 @@ def run() -> dict:
             fbr_submission.create_submission_log
             is fbr_submission_support.create_submission_log
         ),
-        "old_settings_not_called": not legacy_attempts,
         "no_fbr_network_attempts": not network_attempts,
         "native_cutover_false": (
             getattr(fbr_native, "V2_NETWORK_CUTOVER_ACTIVE", None)

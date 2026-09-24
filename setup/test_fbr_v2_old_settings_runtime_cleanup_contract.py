@@ -19,6 +19,9 @@ DEMO = (APP_ROOT / "setup" / "demo_data.py").read_text(encoding="utf-8")
 NATIVE_DEMO = (APP_ROOT / "setup" / "erpnext_demo_data.py").read_text(encoding="utf-8")
 VALIDATION = (APP_ROOT / "validation.py").read_text(encoding="utf-8")
 PERMISSIONS = (APP_ROOT / "setup" / "permissions.py").read_text(encoding="utf-8")
+GATE = (
+    APP_ROOT / "migration" / "fbr_v2_old_settings_runtime_cleanup_gate.py"
+).read_text(encoding="utf-8")
 
 PRINTS = [
     json.loads(
@@ -81,6 +84,13 @@ class TestOldFBRSettingsRuntimeCleanup(unittest.TestCase):
 
     def test_permission_sync_no_longer_registers_old_settings(self):
         self.assertNotIn('"Ledgix FBR Settings":', PERMISSIONS)
+
+    def test_runtime_gate_does_not_import_or_execute_compatibility_api(self):
+        self.assertNotIn("from ledgix_saas.api import fbr_native, fbr_settings", GATE)
+        self.assertNotIn("fbr_settings.", GATE)
+        self.assertIn("SETTINGS_SOURCE", GATE)
+        self.assertIn('"database_write": False', GATE)
+        self.assertIn('"real_fbr_network_calls": 0', GATE)
 
 
 if __name__ == "__main__":
