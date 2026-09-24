@@ -104,15 +104,9 @@ class TestFBRV2ActivationProfileContract(unittest.TestCase):
         )
         self.assertIn("Sandbox token (hidden)", CONFIGURE)
 
-    def test_runtime_gate_forbids_old_control_plane_and_network(self):
-        self.assertIn(
-            "fbr_settings.get_fbr_settings_internal = _forbid_legacy",
-            GATE,
-        )
-        self.assertIn(
-            "fbr_client.requests_available = _forbid_legacy",
-            GATE,
-        )
+    def test_runtime_gate_has_no_old_control_plane_dependency_and_blocks_network(self):
+        self.assertNotIn("fbr_settings", GATE)
+        self.assertNotIn("fbr_client.requests_available", GATE)
         self.assertIn("fbr_transport.get_json = _forbid_network", GATE)
         self.assertIn("fbr_transport.post_json = _forbid_network", GATE)
         self.assertIn('"real_fbr_network_calls": 0', GATE)

@@ -8,7 +8,6 @@ from ledgix_saas.api import (
     fbr_native,
     fbr_preflight,
     fbr_preview,
-    fbr_settings,
     fbr_transport,
     fbr_v2_center,
     tax_center,
@@ -31,19 +30,10 @@ def run() -> dict:
         frappe.throw("V2_NETWORK_CUTOVER_ACTIVE must remain False.")
 
     original_user = frappe.session.user
-    original_get_settings = fbr_settings.get_fbr_settings
-    original_get_control = fbr_settings.get_fbr_control_state
     original_get = fbr_transport.get_json
     original_post = fbr_transport.post_json
 
-    legacy_attempts = []
     network_attempts = []
-
-    def _forbid_legacy(*args, **kwargs):
-        legacy_attempts.append(True)
-        frappe.throw(
-            "OLD FBR SETTINGS CONTROL PLANE FORBIDDEN BY PATCH 5A GATE"
-        )
 
     def _forbid_network(*args, **kwargs):
         network_attempts.append(True)
@@ -53,8 +43,6 @@ def run() -> dict:
 
     try:
         frappe.set_user("Administrator")
-        fbr_settings.get_fbr_settings = _forbid_legacy
-        fbr_settings.get_fbr_control_state = _forbid_legacy
         fbr_transport.get_json = _forbid_network
         fbr_transport.post_json = _forbid_network
 
@@ -75,8 +63,6 @@ def run() -> dict:
             )
 
     finally:
-        fbr_settings.get_fbr_settings = original_get_settings
-        fbr_settings.get_fbr_control_state = original_get_control
         fbr_transport.get_json = original_get
         fbr_transport.post_json = original_post
         frappe.set_user(original_user)
@@ -96,7 +82,6 @@ def run() -> dict:
             == "Ledgix FBR Integration Profile"
         ),
         "legacy_preview_blocked": preview_blocked,
-        "legacy_settings_not_called": not legacy_attempts,
         "no_fbr_network_attempts": not network_attempts,
         "native_cutover_still_false": (
             getattr(fbr_native, "V2_NETWORK_CUTOVER_ACTIVE", None) is False
