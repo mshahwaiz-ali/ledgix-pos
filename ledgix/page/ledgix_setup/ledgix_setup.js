@@ -115,7 +115,7 @@ class LedgixClientSetup {
     this.page.add_inner_button(__("Check Readiness"), () => this.check(true));
     this.page.add_inner_button(__("Refresh Onboarding"), () => this.refreshOnboarding(true));
     this.page.add_inner_button(__("Business Profile"), () => frappe.set_route("Form", "Ledgix Business Profile"));
-    this.page.add_inner_button(__("FBR Settings"), () => frappe.set_route("Form", "Ledgix FBR Settings"));
+    this.page.add_inner_button(__("Tax & FBR Center"), () => frappe.set_route("ledgix-tax-center"));
   }
 
   payload() {

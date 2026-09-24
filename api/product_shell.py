@@ -77,7 +77,7 @@ WORKSPACE_LINK_POLICY = {
     "Tax Profile": {"roles": ("admin", "system"), "all": ("enable_fbr",)},
     "Tax Categories": {"roles": ("admin", "system"), "all": ("enable_fbr",)},
     "Tax Rates": {"roles": ("admin", "system"), "all": ("enable_fbr",)},
-    "FBR Settings": {"roles": ("admin", "system"), "all": ("enable_fbr",)},
+    "FBR Integration Profiles": {"roles": ("admin", "system"), "all": ("enable_fbr",)},
     "FBR Submission Logs": {"roles": ("manager", "admin", "system"), "all": ("enable_fbr",)},
     "Tax Audit Logs": {"roles": ("admin", "system"), "all": ("enable_fbr",)},
 
@@ -102,7 +102,7 @@ CARD_LINKS = {
         "Accounts Receivable", "General Ledger", "Profit and Loss Statement",
     ),
     "Tax & FBR": (
-        "Tax & FBR Center", "Item Tax Profiles", "Tax Profile", "Tax Categories", "Tax Rates", "FBR Settings",
+        "Tax & FBR Center", "Item Tax Profiles", "Tax Profile", "Tax Categories", "Tax Rates", "FBR Integration Profiles",
         "FBR Submission Logs", "Tax Audit Logs",
     ),
     "Administration": ("Setup Wizard", "Business Profile", "Brand Settings", "User Profiles"),

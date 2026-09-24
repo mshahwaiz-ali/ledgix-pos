@@ -394,19 +394,73 @@ def _ensure_tax_mapping(item_code: str, hs_code: str) -> None:
     doc.insert(ignore_permissions=True)
 
 
+FBR_PROFILE_DOCTYPE = "Ledgix FBR Integration Profile"
+
+
+def _fbr_profile_state(company: str) -> dict:
+    """Return non-secret V2 transport state for local demo safety checks."""
+
+    if not frappe.db.exists("DocType", FBR_PROFILE_DOCTYPE):
+        return {
+            "exists": False,
+            "name": "",
+            "enabled": False,
+            "mode": "Disabled",
+            "submit_trigger": "Manual",
+            "production_post_armed": False,
+        }
+
+    name = frappe.db.get_value(
+        FBR_PROFILE_DOCTYPE,
+        {"company": company},
+        "name",
+    )
+    if not name:
+        return {
+            "exists": False,
+            "name": "",
+            "enabled": False,
+            "mode": "Disabled",
+            "submit_trigger": "Manual",
+            "production_post_armed": False,
+        }
+
+    row = frappe.db.get_value(
+        FBR_PROFILE_DOCTYPE,
+        name,
+        [
+            "name",
+            "enabled",
+            "mode",
+            "submit_trigger",
+            "production_post_armed",
+        ],
+        as_dict=True,
+    ) or {}
+    return {
+        "exists": True,
+        "name": row.get("name") or name,
+        "enabled": bool(cint(row.get("enabled"))),
+        "mode": row.get("mode") or "Disabled",
+        "submit_trigger": row.get("submit_trigger") or "Manual",
+        "production_post_armed": bool(cint(row.get("production_post_armed"))),
+    }
+
+
 def _disable_fbr_transport() -> None:
-    settings = frappe.get_single("Ledgix FBR Settings")
-    for fieldname, value in {
-        "enabled": 0,
-        "mode": "Disabled",
-        "submit_trigger": "Manual",
-        "production_post_armed": 0,
-        "sandbox_post_on_submit": 0,
-        "retry_enabled": 0,
-    }.items():
-        if settings.meta.has_field(fieldname):
-            settings.set(fieldname, value)
-    settings.save(ignore_permissions=True)
+    """Fail-close the company-scoped V2 profile for local demo generation."""
+
+    company = _company()
+    state = _fbr_profile_state(company)
+    if not state["exists"]:
+        return
+
+    profile = frappe.get_doc(FBR_PROFILE_DOCTYPE, state["name"])
+    profile.enabled = 0
+    profile.mode = "Disabled"
+    profile.submit_trigger = "Manual"
+    profile.production_post_armed = 0
+    profile.save(ignore_permissions=True)
 
 
 def _ensure_pos_profile(company: str, warehouse: str, customer: str, bank_account: str, cash_account: str) -> str:
@@ -944,7 +998,7 @@ def inspect_site() -> dict:
         "counts": counts,
         "legacy_retirement_status": frappe.db.get_single_value("Ledgix Legacy Retirement State", "status")
         if frappe.db.exists("DocType", "Ledgix Legacy Retirement State") else "Not Installed",
-        "fbr_mode": frappe.db.get_single_value("Ledgix FBR Settings", "mode") or "Disabled",
+        "fbr_mode": _fbr_profile_state(company)["mode"],
         "demo_seed": SEED,
         "demo_present": bool(
             frappe.db.exists("POS Invoice", {"custom_ledgix_client_sale_id": ["like", f"{SEED}-%"]})
@@ -972,8 +1026,12 @@ def verify() -> dict:
         ("Ledgix Demo%",),
         as_dict=True,
     )
-    fbr_settings = frappe.get_single("Ledgix FBR Settings")
-    fbr_safe = not cint(fbr_settings.get("enabled")) and str(fbr_settings.get("mode") or "Disabled") == "Disabled"
+    fbr_state = _fbr_profile_state(company)
+    fbr_safe = (
+        not fbr_state["enabled"]
+        and fbr_state["mode"] == "Disabled"
+        and not fbr_state["production_post_armed"]
+    )
     result = {
         "seed": SEED,
         "company": company,

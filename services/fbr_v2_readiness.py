@@ -152,6 +152,20 @@ def _sandbox_certification(profile) -> dict:
     }
 
 
+def get_company_profile_state(company: str) -> dict:
+    # Non-secret company-scoped V2 profile/certification state.
+    company = _text(company)
+    profile = _profile(company) if company else None
+    return {
+        "company": company,
+        "profile": _profile_state(profile),
+        "sandbox_certification": _sandbox_certification(profile),
+        "database_write": False,
+        "fbr_network_call": False,
+        "contains_secrets": False,
+    }
+
+
 def _check_identity_references(identity: dict, errors: list[str]) -> dict:
     seller_province = _reference_match(
         "Province",

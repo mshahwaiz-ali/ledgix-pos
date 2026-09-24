@@ -1,25 +1,28 @@
+from __future__ import annotations
+
 import importlib
 
 import frappe
 
-from ledgix_saas.api import fbr_client
-from ledgix_saas.api.fbr_settings import (
-    assert_fbr_view_permission,
-    get_fbr_control_state_internal,
-    get_fbr_settings_internal,
+from ledgix_saas.services.fbr_v2_status import (
+    assert_fbr_v2_view_permission,
+    get_fbr_v2_status_internal,
 )
 
 
 REQUIRED_DOCTYPES = (
-    "Ledgix FBR Settings",
+    "Ledgix FBR Integration Profile",
+    "Ledgix FBR Business Nature",
+    "Ledgix FBR Item Mapping",
+    "Ledgix FBR Tax Component Mapping",
+    "Ledgix FBR Reference Data",
+    "Ledgix FBR Sandbox Scenario",
+    "Ledgix FBR Sandbox Certification",
     "Ledgix FBR Submission Log",
-    "Ledgix Sale",
-    "Ledgix Sales Return",
-    "Ledgix Invoice Tax Detail",
-    "Ledgix Return Tax Detail",
+    "Ledgix FBR Correction Request",
 )
 
-SCHEDULER_METHODS = (
+LEGACY_RECOVERY_METHODS = (
     "ledgix_saas.api.fbr_submission.process_fbr_retry_queue",
     "ledgix_saas.api.fbr_submission.process_fbr_offline_upload_queue",
 )
@@ -37,15 +40,6 @@ def _check(name, passed, detail=""):
 def _doctype_exists(doctype):
     try:
         return bool(frappe.db.exists("DocType", doctype))
-    except Exception:
-        return False
-
-
-def _importable(dotted_path):
-    module_name, _, attr = dotted_path.rpartition(".")
-    try:
-        module = importlib.import_module(module_name)
-        return bool(getattr(module, attr, None))
     except Exception:
         return False
 
@@ -77,41 +71,56 @@ def _scheduler_methods_from_hooks():
 
 @frappe.whitelist()
 def check():
-    """Return safe FBR readiness checks without submitting or leaking tokens."""
-    assert_fbr_view_permission()
+    """Return V2 FBR health without submitting or exposing tokens."""
 
-    settings = get_fbr_settings_internal()
-    control_state = get_fbr_control_state_internal()
-    registered_scheduler_methods = _scheduler_methods_from_hooks()
-    checks = []
+    assert_fbr_v2_view_permission()
+    status = get_fbr_v2_status_internal()
+    registered = _scheduler_methods_from_hooks()
 
-    checks.append(_check("requests package", fbr_client.requests_available()))
+    checks = [
+        _check(
+            "setup company selected",
+            bool(status.get("company")),
+            status.get("company") or "No setup company",
+        ),
+        _check(
+            "V2 integration profile exists",
+            bool(status.get("profile_exists")),
+            status.get("profile_name") or "No V2 profile",
+        ),
+        _check("requests package", bool(status.get("requests_available"))),
+        _check(
+            "legacy recovery schedulers disabled",
+            not any(method in registered for method in LEGACY_RECOVERY_METHODS),
+            "Blind retry/offline recovery must remain disabled.",
+        ),
+    ]
 
     for doctype in REQUIRED_DOCTYPES:
         checks.append(_check(f"DocType: {doctype}", _doctype_exists(doctype)))
 
-    for method in SCHEDULER_METHODS:
-        checks.append(
-            _check(
-                f"scheduler hook: {method}",
-                method in registered_scheduler_methods and _importable(method),
-            )
-        )
-
     checks.append(
         _check(
-            "active mode has token configured",
-            not control_state.get("enabled") or bool(control_state.get("token_configured")),
+            "active V2 mode has token configured",
+            not status.get("enabled") or bool(status.get("token_configured")),
             "Token values are intentionally not returned.",
         )
     )
 
+    if status.get("mode") == "Production" and status.get("enabled"):
+        checks.append(
+            _check(
+                "Production POST certification interlock",
+                (
+                    not status.get("production_post_armed")
+                    or status.get("sandbox_certification_complete")
+                ),
+                "Armed Production requires completed Sandbox certification.",
+            )
+        )
+
     return {
         "ok": all(item["passed"] for item in checks),
-        "mode": settings.get("mode") or "Disabled",
-        "enabled": bool(control_state.get("enabled")),
-        "submit_trigger": settings.get("submit_trigger") or "Manual",
-        "token_configured": bool(control_state.get("token_configured")),
-        "network_call": False,
+        **status,
         "checks": checks,
     }

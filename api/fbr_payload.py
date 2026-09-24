@@ -3,8 +3,8 @@ import re
 import frappe
 from frappe.utils import cint, flt, getdate
 
-from ledgix_saas.api.fbr_settings import get_fbr_control_state_internal, get_fbr_settings_internal
-from ledgix_saas.api.security import has_any_role
+from ledgix_saas.api import fbr_legacy_guard
+from ledgix_saas.services import sales as legacy_sales
 
 
 # -----------------------------------------------------------------------------
@@ -173,12 +173,39 @@ def _validate_sro_fields(row, prefix, errors, warnings):
         )
 
 
+LEGACY_PAYLOAD_AUTHORITY = "Historical Ledgix Snapshot Serializer"
+LEGACY_PAYLOAD_EXECUTION_RETIRED_MESSAGE = (
+    "Legacy Ledgix Sale / Sales Return FBR execution is retired. "
+    "Historical payload serialization is retained for audit/tests only."
+)
+
+
+def _historical_settings(rows=None):
+    scenario_ids = _unique_scenario_ids(rows or [])
+    return {
+        "enabled": False,
+        "mode": "Sandbox" if scenario_ids else "Historical Snapshot",
+        "submit_trigger": "Retired",
+        "sandbox_token_configured": False,
+        "production_token_configured": False,
+        "production_post_armed": False,
+    }
+
+
+def _historical_control_state(settings=None):
+    settings = settings or _historical_settings()
+    return {
+        "enabled": False,
+        "mode": settings.get("mode") or "Historical Snapshot",
+        "submit_trigger": "Retired",
+        "token_configured": False,
+        "production_post_armed": False,
+        "can_attempt_submission": False,
+    }
+
+
 def _require_fbr_view_permission(action="view"):
-    if not has_any_role(("System Manager", "Ledgix Admin", "Ledgix Manager")):
-        frappe.throw(
-            f"Only System Manager, Ledgix Admin, or Ledgix Manager can {action} FBR payload data.",
-            frappe.PermissionError,
-        )
+    return fbr_legacy_guard.reject_legacy_fbr_action(action=action)
 
 
 def _settings_summary(settings, control_state):
@@ -245,15 +272,15 @@ def _return_summary(return_doc=None, return_name=None):
 # -----------------------------------------------------------------------------
 
 def build_fbr_seller_block():
-    settings = get_fbr_settings_internal()
+    identity = legacy_sales.get_seller_identity() or {}
     return {
-        "seller_ntn_cnic": settings.get("seller_ntn_cnic") or "",
-        "seller_strn": "",
-        "seller_business_name": settings.get("seller_business_name") or "",
-        "seller_province": settings.get("seller_province") or "",
-        "seller_address": settings.get("seller_address") or "",
-        "seller_phone": "",
-        "seller_email": "",
+        "seller_ntn_cnic": identity.get("ntn_cnic") or "",
+        "seller_strn": identity.get("strn") or "",
+        "seller_business_name": identity.get("name") or "",
+        "seller_province": identity.get("province") or "",
+        "seller_address": identity.get("address") or "",
+        "seller_phone": identity.get("phone") or "",
+        "seller_email": identity.get("email") or "",
     }
 
 
@@ -453,65 +480,96 @@ def _validate_single_sandbox_scenario(rows, errors):
 
 def _validate_sale_fbr_readiness_internal(sale_name):
     errors, warnings = [], []
-    settings = get_fbr_settings_internal()
-    control_state = get_fbr_control_state_internal()
     sale_doc = get_sale_for_fbr(sale_name)
 
     if not sale_doc:
+        settings = _historical_settings()
         errors.append(f"Ledgix Sale {sale_name or ''} was not found.")
         return {
             "valid": False,
             "errors": errors,
             "warnings": warnings,
             "sale": _sale_summary(sale_name=sale_name),
-            "settings": _settings_summary(settings, control_state),
+            "settings": _settings_summary(
+                settings,
+                _historical_control_state(settings),
+            ),
+            "execution_retired": True,
+            "authority": LEGACY_PAYLOAD_AUTHORITY,
         }
 
     if cint(sale_doc.docstatus) == 0:
-        errors.append("Draft sale cannot be used for FBR payload.")
+        errors.append("Draft sale cannot be used for historical FBR payload.")
     elif cint(sale_doc.docstatus) == 2:
-        errors.append("Cancelled sale cannot be used for FBR payload.")
-
-    mode = settings.get("mode") or "Disabled"
-    production_mode = mode == "Production"
-    seller = build_fbr_seller_block_from_sale(sale_doc)
-    _validate_seller_block(seller, errors, warnings, production_mode=production_mode)
-
-    if mode in {"Sandbox", "Production"} and settings.get("enabled"):
-        token_key = "sandbox_token_configured" if mode == "Sandbox" else "production_token_configured"
-        if not settings.get(token_key):
-            errors.append(f"{mode} FBR token is not configured.")
-
-    buyer = build_fbr_buyer_block_from_sale(sale_doc)
-    _validate_buyer_block(buyer, errors, warnings, production_mode=production_mode)
+        errors.append("Cancelled sale cannot be used for historical FBR payload.")
 
     tax_rows = get_invoice_tax_rows_for_fbr(sale_doc)
+    settings = _historical_settings(tax_rows)
+    mode = settings.get("mode") or "Historical Snapshot"
+
+    seller = build_fbr_seller_block_from_sale(sale_doc)
+    _validate_seller_block(
+        seller,
+        errors,
+        warnings,
+        production_mode=False,
+    )
+
+    buyer = build_fbr_buyer_block_from_sale(sale_doc)
+    _validate_buyer_block(
+        buyer,
+        errors,
+        warnings,
+        production_mode=False,
+    )
+
     if tax_rows:
-        invoice_tax_total = flt(sum(_charged_tax_amount(row) for row in tax_rows), 2)
-        net_total = flt(sum(flt(row.get("net_amount")) for row in tax_rows), 2)
-        if abs(invoice_tax_total - flt(sale_doc.get("tax_amount"), 2)) > 0.05:
-            errors.append("Sale tax_amount does not match immutable FBR tax component total.")
-        if abs(net_total - flt(sale_doc.get("grand_total"), 2)) > 0.05:
-            errors.append("Sale grand_total does not match tax_details net_amount total.")
+        invoice_tax_total = flt(
+            sum(_charged_tax_amount(row) for row in tax_rows),
+            2,
+        )
+        net_total = flt(
+            sum(flt(row.get("net_amount")) for row in tax_rows),
+            2,
+        )
+        if abs(
+            invoice_tax_total - flt(sale_doc.get("tax_amount"), 2)
+        ) > 0.05:
+            errors.append(
+                "Sale tax_amount does not match immutable FBR tax component total."
+            )
+        if abs(
+            net_total - flt(sale_doc.get("grand_total"), 2)
+        ) > 0.05:
+            errors.append(
+                "Sale grand_total does not match tax_details net_amount total."
+            )
+
     _validate_tax_rows(tax_rows, errors, warnings, mode)
     if mode == "Sandbox":
         _validate_single_sandbox_scenario(tax_rows, errors)
 
-    if production_mode:
-        warnings.append("Production mode is selected. Verify credentials and FBR master data before submission.")
+    warnings.append(LEGACY_PAYLOAD_EXECUTION_RETIRED_MESSAGE)
+
     return {
         "valid": not errors,
         "errors": errors,
         "warnings": warnings,
         "sale": _sale_summary(sale_doc=sale_doc),
-        "settings": _settings_summary(settings, control_state),
+        "settings": _settings_summary(
+            settings,
+            _historical_control_state(settings),
+        ),
+        "execution_retired": True,
+        "authority": LEGACY_PAYLOAD_AUTHORITY,
     }
 
 
 @frappe.whitelist()
 def validate_sale_fbr_readiness(sale_name):
-    _require_fbr_view_permission("validate")
-    return _validate_sale_fbr_readiness_internal(sale_name)
+    return fbr_legacy_guard.reject_legacy_fbr_action(
+        sale_name=sale_name,
+    )
 
 
 # -----------------------------------------------------------------------------
@@ -572,12 +630,11 @@ def _payload_totals(items, sale_doc):
 
 
 def build_internal_fbr_payload(sale_doc):
-    settings = get_fbr_settings_internal()
     item_rows = build_fbr_item_rows(sale_doc) if sale_doc else []
     return {
-        "source": "Ledgix",
+        "source": "Ledgix Historical Snapshot",
         "payload_version": "2.1",
-        "environment": settings.get("mode") or "Disabled",
+        "environment": "Historical Snapshot",
         "invoice_type": "Sale Invoice",
         "sale": {
             "name": sale_doc.name if sale_doc else "",
@@ -624,7 +681,6 @@ def _official_item_payload(row, qty_field="qty", discount_field="discount_amount
 def build_official_sale_invoice_payload(sale_doc):
     if not sale_doc:
         return {}
-    settings = get_fbr_settings_internal()
     seller = build_fbr_seller_block_from_sale(sale_doc)
     buyer = build_fbr_buyer_block_from_sale(sale_doc)
     tax_rows = get_invoice_tax_rows_for_fbr(sale_doc)
@@ -645,7 +701,7 @@ def build_official_sale_invoice_payload(sale_doc):
         "items": [_official_item_payload(row) for row in tax_rows],
     }
     scenario_ids = _unique_scenario_ids(tax_rows)
-    if settings.get("mode") == "Sandbox" and len(scenario_ids) == 1:
+    if len(scenario_ids) == 1:
         payload["scenarioId"] = scenario_ids[0]
     return payload
 
@@ -661,8 +717,9 @@ def _build_sale_invoice_payload_internal(sale_name):
 
 @frappe.whitelist()
 def build_sale_invoice_payload(sale_name):
-    _require_fbr_view_permission("view")
-    return _build_sale_invoice_payload_internal(sale_name)
+    return fbr_legacy_guard.reject_legacy_fbr_action(
+        sale_name=sale_name,
+    )
 
 
 # -----------------------------------------------------------------------------
@@ -671,23 +728,35 @@ def build_sale_invoice_payload(sale_name):
 
 def _validate_return_fbr_readiness_internal(return_name):
     errors, warnings = [], []
-    settings = get_fbr_settings_internal()
-    control_state = get_fbr_control_state_internal()
     return_doc = get_return_for_fbr(return_name)
+
     if not return_doc:
-        errors.append(f"Ledgix Sales Return {return_name or ''} was not found.")
+        settings = _historical_settings()
+        errors.append(
+            f"Ledgix Sales Return {return_name or ''} was not found."
+        )
         return {
             "valid": False,
             "errors": errors,
             "warnings": warnings,
             "return_doc": _return_summary(return_name=return_name),
-            "settings": _settings_summary(settings, control_state),
+            "settings": _settings_summary(
+                settings,
+                _historical_control_state(settings),
+            ),
+            "execution_retired": True,
+            "authority": LEGACY_PAYLOAD_AUTHORITY,
         }
 
     if cint(return_doc.docstatus) == 0:
-        errors.append("Draft sales return cannot be used for FBR payload.")
+        errors.append(
+            "Draft sales return cannot be used for historical FBR payload."
+        )
     elif cint(return_doc.docstatus) == 2:
-        errors.append("Cancelled sales return cannot be used for FBR payload.")
+        errors.append(
+            "Cancelled sales return cannot be used for historical FBR payload."
+        )
+
     if not return_doc.get("original_sale"):
         _add_required_error(errors, "Original sale")
     if not return_doc.get("return_date"):
@@ -696,41 +765,87 @@ def _validate_return_fbr_readiness_internal(return_name):
         _add_required_error(errors, "Return reason")
 
     original_sale = get_sale_for_fbr(return_doc.get("original_sale"))
-    original_fbr_invoice = _clean_text(original_sale.get("fbr_invoice_number")) if original_sale else ""
+    original_fbr_invoice = (
+        _clean_text(original_sale.get("fbr_invoice_number"))
+        if original_sale
+        else ""
+    )
     if return_doc.get("original_sale") and not original_sale:
-        errors.append(f"Original sale {return_doc.get('original_sale')} was not found.")
+        errors.append(
+            f"Original sale {return_doc.get('original_sale')} was not found."
+        )
 
-    mode = settings.get("mode") or "Disabled"
-    if original_sale and mode in {"Sandbox", "Production"} and not original_fbr_invoice:
-        errors.append("Original sale must have an FBR invoice number before validating or posting an electronic note.")
-
-    if original_sale and return_doc.get("return_date") and original_sale.get("sale_date"):
+    if (
+        original_sale
+        and return_doc.get("return_date")
+        and original_sale.get("sale_date")
+    ):
         original_date = getdate(original_sale.get("sale_date"))
         note_date = getdate(return_doc.get("return_date"))
         age_days = (note_date - original_date).days
         if age_days < 0:
-            errors.append("Return date cannot be earlier than the original invoice date.")
+            errors.append(
+                "Return date cannot be earlier than the original invoice date."
+            )
         elif age_days > 180:
-            errors.append("FBR electronic note date cannot be more than 180 days after the original invoice date.")
+            errors.append(
+                "FBR electronic note date cannot be more than 180 days "
+                "after the original invoice date."
+            )
 
     if original_sale:
         seller = build_fbr_seller_block_from_sale(original_sale)
         buyer = build_fbr_buyer_block_from_sale(original_sale)
-        _validate_seller_block(seller, errors, warnings, production_mode=(mode == "Production"))
-        _validate_buyer_block(buyer, errors, warnings, production_mode=(mode == "Production"))
+        _validate_seller_block(
+            seller,
+            errors,
+            warnings,
+            production_mode=False,
+        )
+        _validate_buyer_block(
+            buyer,
+            errors,
+            warnings,
+            production_mode=False,
+        )
 
     tax_rows = get_return_tax_rows_for_fbr(return_doc)
-    if tax_rows:
-        invoice_tax_total = flt(sum(_charged_tax_amount(row) for row in tax_rows), 2)
-        net_total = flt(sum(flt(row.get("net_amount")) for row in tax_rows), 2)
-        if abs(invoice_tax_total - flt(return_doc.get("tax_amount"), 2)) > 0.05:
-            errors.append("Return tax_amount does not match immutable FBR tax component total.")
-        if abs(net_total - flt(return_doc.get("grand_total"), 2)) > 0.05:
-            errors.append("Return grand_total does not match tax_details net_amount total.")
+    settings = _historical_settings(tax_rows)
+    mode = settings.get("mode") or "Historical Snapshot"
 
-    _validate_tax_rows(tax_rows, errors, warnings, mode, "Return tax row")
+    if tax_rows:
+        invoice_tax_total = flt(
+            sum(_charged_tax_amount(row) for row in tax_rows),
+            2,
+        )
+        net_total = flt(
+            sum(flt(row.get("net_amount")) for row in tax_rows),
+            2,
+        )
+        if abs(
+            invoice_tax_total - flt(return_doc.get("tax_amount"), 2)
+        ) > 0.05:
+            errors.append(
+                "Return tax_amount does not match immutable FBR tax component total."
+            )
+        if abs(
+            net_total - flt(return_doc.get("grand_total"), 2)
+        ) > 0.05:
+            errors.append(
+                "Return grand_total does not match tax_details net_amount total."
+            )
+
+    _validate_tax_rows(
+        tax_rows,
+        errors,
+        warnings,
+        mode,
+        "Return tax row",
+    )
     if mode == "Sandbox":
         _validate_single_sandbox_scenario(tax_rows, errors)
+
+    warnings.append(LEGACY_PAYLOAD_EXECUTION_RETIRED_MESSAGE)
 
     return {
         "valid": not errors,
@@ -738,14 +853,18 @@ def _validate_return_fbr_readiness_internal(return_name):
         "warnings": warnings,
         "return_doc": _return_summary(return_doc=return_doc),
         "original_sale_fbr_invoice_number": original_fbr_invoice,
-        "settings": _settings_summary(settings, control_state),
+        "settings": _settings_summary(
+            settings,
+            _historical_control_state(settings),
+        ),
+        "execution_retired": True,
+        "authority": LEGACY_PAYLOAD_AUTHORITY,
     }
 
 
 def build_official_return_invoice_payload(return_doc):
     if not return_doc:
         return {}
-    settings = get_fbr_settings_internal()
     original_sale = get_sale_for_fbr(return_doc.get("original_sale"))
     seller = build_fbr_seller_block_from_sale(original_sale)
     buyer = build_fbr_buyer_block_from_sale(original_sale)
@@ -772,7 +891,7 @@ def build_official_return_invoice_payload(return_doc):
         "items": [_official_item_payload(row, qty_field="returned_qty", discount_field="discount_amount") for row in tax_rows],
     }
     scenario_ids = _unique_scenario_ids(tax_rows)
-    if settings.get("mode") == "Sandbox" and len(scenario_ids) == 1:
+    if len(scenario_ids) == 1:
         payload["scenarioId"] = scenario_ids[0]
     return payload
 
@@ -787,5 +906,6 @@ def _build_return_invoice_payload_internal(return_name):
 
 @frappe.whitelist()
 def build_return_invoice_payload(return_name):
-    _require_fbr_view_permission("view")
-    return _build_return_invoice_payload_internal(return_name)
+    return fbr_legacy_guard.reject_legacy_fbr_action(
+        return_name=return_name,
+    )

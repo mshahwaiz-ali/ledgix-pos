@@ -8,15 +8,19 @@ until the company-scoped V2 transport cutover is completed. This module never
 creates a second sales, payment, stock or accounting ledger.
 """
 
-import json
-
 import frappe
 from frappe import _
-from frappe.utils import cint, flt, getdate, now_datetime
+from frappe.utils import cint, flt, now_datetime
 
-from ledgix_saas.api import fbr_payload, fbr_v2_transport
+from ledgix_saas.api import fbr_v2_transport
 from ledgix_saas.setup import erpnext_phase9_extensions
 from ledgix_saas.services import fbr_v2_payload_builder, fbr_v2_readiness
+from ledgix_saas.services.fbr_submission_support import (
+    create_submission_log,
+    parse_fbr_response,
+    resolve_submission_status,
+    submission_lock,
+)
 
 SUPPORTED_DOCTYPES = ("Sales Invoice", "POS Invoice")
 RECONCILIATION_REQUIRED = "Reconciliation Required"
@@ -79,88 +83,6 @@ def is_native_fbr_source(doc) -> bool:
     )
 
 
-def _seller_block() -> dict:
-    return fbr_payload.build_fbr_seller_block()
-
-
-def _buyer_block(customer_name: str) -> dict:
-    defaults = fbr_payload._get_tax_profile_defaults()
-    if not customer_name or not frappe.db.exists("Customer", customer_name):
-        return {
-            "buyer_ntn_cnic": "",
-            "buyer_strn": "",
-            "buyer_registration_type": "Unregistered",
-            "buyer_province": defaults.get("province") or "",
-            "buyer_fbr_address": defaults.get("outlet_address") or "",
-            "buyer_business_name": "Walk-in Customer",
-        }
-    customer = frappe.get_doc("Customer", customer_name)
-    registration_type = fbr_payload._normalize_buyer_registration_type(
-        customer.get("custom_ledgix_buyer_registration_type"),
-        defaults.get("default_buyer_type"),
-    )
-    return {
-        "buyer_ntn_cnic": customer.get("custom_ledgix_buyer_ntn_cnic") or customer.get("tax_id") or "",
-        "buyer_strn": customer.get("custom_ledgix_buyer_strn") or "",
-        "buyer_registration_type": registration_type or "Unregistered",
-        "buyer_province": customer.get("custom_ledgix_buyer_province") or defaults.get("province") or "",
-        "buyer_fbr_address": customer.get("custom_ledgix_buyer_fbr_address") or defaults.get("outlet_address") or "",
-        "buyer_business_name": customer.get("customer_name") or customer.name,
-    }
-
-
-def _line_snapshot(row) -> dict:
-    raw = row.get("custom_ledgix_fbr_snapshot_json")
-    if not raw:
-        frappe.throw(
-            f"ERPNext invoice row {row.name or row.idx} has no immutable Ledgix FBR snapshot. "
-            "Do not reconstruct legal tax data after submission."
-        )
-    try:
-        snapshot = json.loads(raw)
-    except Exception as exc:
-        frappe.throw(f"ERPNext invoice row {row.name or row.idx} has invalid FBR snapshot JSON: {exc}")
-    if cint(snapshot.get("snapshot_version")) <= 0:
-        frappe.throw(f"ERPNext invoice row {row.name or row.idx} has no valid FBR snapshot version.")
-    return snapshot
-
-
-def _tax_rows(doc) -> list[dict]:
-    rows = []
-    for item in doc.get("items") or []:
-        snapshot = _line_snapshot(item)
-        rows.append(
-            {
-                "item": item.item_code,
-                "item_name": item.get("item_name") or item.get("description") or item.item_code,
-                "qty": abs(flt(snapshot.get("qty"))),
-                "returned_qty": abs(flt(snapshot.get("qty"))),
-                "rate": abs(flt(snapshot.get("rate"))),
-                "gross_amount": abs(flt(snapshot.get("gross_amount"), 2)),
-                "discount_amount": abs(flt(item.get("discount_amount"), 2)),
-                "taxable_amount": abs(flt(snapshot.get("taxable_amount"), 2)),
-                "tax_rate": abs(flt(snapshot.get("tax_rate"))),
-                "fbr_rate_description": snapshot.get("fbr_rate_description") or "",
-                "tax_amount": abs(flt(snapshot.get("sales_tax"), 2)),
-                "sales_tax_withheld_at_source": abs(flt(snapshot.get("sales_tax_withheld_at_source"), 2)),
-                "extra_tax": abs(flt(snapshot.get("extra_tax"), 2)),
-                "further_tax": abs(flt(snapshot.get("further_tax"), 2)),
-                "fed_payable": abs(flt(snapshot.get("fed_payable"), 2)),
-                "net_amount": abs(flt(snapshot.get("erpnext_line_total"), 2)),
-                "price_includes_tax": 1 if snapshot.get("price_includes_tax") else 0,
-                "tax_category": snapshot.get("tax_category") or "",
-                "tax_basis": snapshot.get("tax_basis") or "Transaction Value",
-                "notified_retail_price": abs(flt(snapshot.get("notified_retail_price"), 2)),
-                "hs_code": snapshot.get("hs_code") or "",
-                "uom_for_fbr": snapshot.get("uom_for_fbr") or "",
-                "sales_type": snapshot.get("sales_type") or "",
-                "scenario_id": snapshot.get("scenario_id") or "",
-                "sro_schedule_number": snapshot.get("sro_schedule_number") or "",
-                "sro_item_serial_number": snapshot.get("sro_item_serial_number") or "",
-            }
-        )
-    return rows
-
 
 def _summary(doc) -> dict:
     return {
@@ -177,17 +99,6 @@ def _summary(doc) -> dict:
         "fbr_status": doc.get("custom_ledgix_fbr_status") or "Not Submitted",
         "fbr_invoice_number": doc.get("custom_ledgix_fbr_invoice_number") or "",
     }
-
-
-def _original_for_return(doc):
-    if not cint(doc.get("is_return")):
-        return None
-    original_name = str(doc.get("return_against") or "").strip()
-    if not original_name:
-        return None
-    if not frappe.db.exists(doc.doctype, original_name):
-        return None
-    return frappe.get_doc(doc.doctype, original_name)
 
 
 def validate_native_readiness_internal(
@@ -387,8 +298,6 @@ def mark_native_fbr_status(
 
 
 def _create_log(doc, status: str, *, payload=None, response=None, error_code=None, error_message=None, invoice_number=None):
-    from ledgix_saas.api.fbr_submission import create_submission_log
-
     return create_submission_log(
         doc.doctype,
         doc.name,
@@ -444,9 +353,7 @@ def _configured_for_network(settings: dict) -> str:
 
 
 def _lock(doc):
-    from ledgix_saas.api.fbr_submission import _submission_lock
-
-    return _submission_lock(f"{doc.doctype}:{doc.name}")
+    return submission_lock(f"{doc.doctype}:{doc.name}")
 
 
 def _already_submitted(status: dict) -> dict | None:
@@ -477,8 +384,6 @@ def _already_submitted(status: dict) -> dict | None:
 
 
 def validate_native_with_fbr_internal(reference_doctype: str, reference_name: str, mode: str | None = None) -> dict:
-    from ledgix_saas.api.fbr_submission import parse_fbr_response
-
     doc = _reference(reference_doctype, reference_name)
     if not is_native_fbr_source(doc):
         frappe.throw("FBR validation requires a submitted ERPNext source invoice, not a consolidated POS accounting invoice.")
@@ -561,11 +466,6 @@ def validate_native_with_fbr(reference_doctype, reference_name):
 
 
 def submit_native_to_fbr_internal(reference_doctype: str, reference_name: str) -> dict:
-    from ledgix_saas.api.fbr_submission import (
-        _resolve_submission_status,
-        parse_fbr_response,
-    )
-
     doc = _reference(reference_doctype, reference_name)
     if not is_native_fbr_source(doc):
         frappe.throw("FBR submission requires a submitted ERPNext source invoice, not a consolidated POS accounting invoice.")
@@ -623,7 +523,7 @@ def submit_native_to_fbr_internal(reference_doctype: str, reference_name: str) -
             parsed["valid"] = False
             parsed["error_code"] = parsed.get("error_code") or str(client_result.get("http_status") or "")
             parsed["error_message"] = parsed.get("error_message") or client_result.get("error") or "FBR post failed."
-        status_name, invoice_number = _resolve_submission_status(mode, parsed)
+        status_name, invoice_number = resolve_submission_status(mode, parsed)
         qr_code = parsed.get("qr_code") or ""
         if client_result.get("requires_reconciliation"):
             status_name = RECONCILIATION_REQUIRED
