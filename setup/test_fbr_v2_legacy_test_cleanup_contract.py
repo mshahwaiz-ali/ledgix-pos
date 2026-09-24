@@ -27,16 +27,28 @@ class TestLegacyFBRTestCleanup(unittest.TestCase):
         ):
             self.assertNotIn(forbidden, text)
 
-    def test_retired_settings_tests_match_fail_closed_architecture(self):
-        text = SETTINGS_TEST.read_text(encoding="utf-8")
-        self.assertIn("TestLedgixFBRSettingsRetirement", text)
+    def test_old_settings_execution_suite_is_removed_and_replaced(self):
+        self.assertFalse(SETTINGS_TEST.exists())
+
+        runtime_contract = (
+            APP_ROOT / "setup/test_fbr_v2_old_settings_runtime_cleanup_contract.py"
+        ).read_text(encoding="utf-8")
+        source_contract = (
+            APP_ROOT / "setup/test_fbr_v2_old_settings_source_deregistration_contract.py"
+        ).read_text(encoding="utf-8")
+
         self.assertIn(
-            "test_admin_write_is_rejected_because_singleton_is_retired",
-            text,
+            "test_old_settings_api_is_inert_compatibility_shell",
+            runtime_contract,
         )
-        self.assertNotIn("_send_fbr_request", text)
-        self.assertNotIn("PRODUCTION_POST_URL", text)
-        self.assertNotIn("LEGACY_BUSINESS_TEST_RETIRED", text)
+        self.assertIn(
+            "test_runtime_gate_does_not_import_or_execute_compatibility_api",
+            runtime_contract,
+        )
+        self.assertIn(
+            "test_interim_package_is_preserved_but_migration_authority_is_retired",
+            source_contract,
+        )
 
     def test_legacy_business_test_helpers_cannot_reopen_frozen_engine(self):
         text = TEST_UTILS.read_text(encoding="utf-8")
