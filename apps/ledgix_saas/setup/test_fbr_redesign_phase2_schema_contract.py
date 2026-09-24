@@ -143,7 +143,7 @@ class TestFBRRedesignPhase2SchemaContract(unittest.TestCase):
         self.assertIn("post_log", scenario_fields)
         self.assertIn("fbr_invoice_number", scenario_fields)
 
-    def test_phase2_schema_is_additive_and_not_wired_into_current_runtime(self):
+    def test_phase2_schema_is_v2_scoped_and_retired_settings_api_is_absent(self):
         hooks = (APP_ROOT / "hooks.py").read_text(encoding="utf-8")
         for doctype in (
             "Ledgix FBR Integration Profile",
@@ -154,9 +154,12 @@ class TestFBRRedesignPhase2SchemaContract(unittest.TestCase):
         ):
             self.assertNotIn(doctype, hooks)
 
-        settings = (APP_ROOT / "api" / "fbr_settings.py").read_text(encoding="utf-8")
-        self.assertIn('SETTINGS_DOCTYPE = "Ledgix FBR Settings"', settings)
-        self.assertNotIn('SETTINGS_DOCTYPE = "Ledgix FBR Integration Profile"', settings)
+        retired_settings_api = APP_ROOT / "api" / "fbr_settings.py"
+        self.assertFalse(retired_settings_api.exists())
+
+        validation = (APP_ROOT / "validation.py").read_text(encoding="utf-8")
+        self.assertIn('"Ledgix FBR Integration Profile": (', validation)
+        self.assertNotIn('"Ledgix FBR Settings": (', validation)
 
 
 if __name__ == "__main__":
