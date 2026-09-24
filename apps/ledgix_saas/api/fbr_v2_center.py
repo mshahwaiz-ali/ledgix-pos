@@ -176,16 +176,6 @@ def _v2_mapping_summary() -> dict:
     }
 
 
-def _legacy_summary() -> dict:
-    """Visibility only; legacy masters are not configuration authorities here."""
-
-    return {
-        "tax_profiles": _count("Ledgix Item Tax Profile"),
-        "tax_categories": _count("Ledgix Tax Category"),
-        "tax_rates": _count("Ledgix Tax Rate"),
-    }
-
-
 @frappe.whitelist()
 def get_v2_center_boot() -> dict:
     _require_view()
@@ -212,7 +202,6 @@ def get_v2_center_boot() -> dict:
             "stale": stale_reference_rows,
         },
         "certification": certification,
-        "legacy": _legacy_summary(),
         "production_safety": {
             "armed_profiles": sum(bool(cint(row.get("production_post_armed"))) for row in profiles),
             "production_profiles": sum(row.get("mode") == "Production" for row in profiles),

@@ -959,6 +959,12 @@ def sync_business_profile_defaults() -> str:
 
 
 def backfill_erpnext_item_profile_links() -> int:
+    if (
+        frappe.db.exists("DocType", "Ledgix Legacy Retirement State")
+        and frappe.db.get_single_value("Ledgix Legacy Retirement State", "status")
+        == "Frozen"
+    ):
+        return 0
     if not frappe.db.exists("DocType", "Ledgix Item Tax Profile"):
         return 0
     meta = frappe.get_meta("Ledgix Item Tax Profile", cached=False)

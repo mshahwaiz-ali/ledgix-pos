@@ -1580,31 +1580,27 @@ The redesign is complete only when all of the following are true:
 
 ## 24. Immediate next step
 
-Continue **Phase 9 legacy retirement** from the fully retired global FBR Settings state.
+Continue **Phase 9 legacy retirement** with retained legacy tax/classification
+data preserved as audit evidence.
 
-The local proof now includes:
+Current boundary:
 
-- controlled removal of old Settings Workspace Link / DocPerm / Custom DocPerm / Singles / DocType metadata;
-- verified rollback backups before destructive cleanup and before migrate;
-- physical removal of the old Settings controller/schema package;
-- successful ordinary `bench migrate` without singleton resurrection;
-- removal of the final `api/fbr_settings.py` compatibility shell;
-- zero-live-import source enforcement;
-- V2 profile still Disabled / Manual / unarmed;
-- Production network cutover still false.
+- old Tax Center mutation/calculation entry points fail closed;
+- old tax/classification/audit DocTypes are audit-only when retirement is Frozen;
+- current Desk remains ERPNext-native tax + FBR V2 only;
+- V2 Center has no old tax-master dependency;
+- ordinary migrate cannot backfill the Frozen Item Tax Profile archive;
+- old Item Group tax-default fields are hidden/read-only.
 
-Current sequence:
+Physical deletion stays blocked until every active legacy Item Tax Profile row is
+reconciled to company-scoped V2 FBR Item Mapping without loss of required FBR
+classification evidence. Monetary legacy tax authority must not be recreated.
 
-1. run the complete static/source closure for compatibility-shell removal;
-2. synchronize canonical source into the local Bench runtime and prove parity;
-3. run post-retirement old-settings, activation and health/client-status runtime gates with real FBR network hard-blocked;
-4. run normal Ledgix deployment/import validation with the old Settings module physically absent;
-5. close the global FBR Settings retirement branch;
-6. continue Phase 9 dependency/data proof for the remaining legacy tax/FBR components, especially `api/taxation.py`, legacy tax-center authority, old payload/submission compatibility code, and old custom tax masters;
-7. preserve historical legal/audit data where needed and remove only proven obsolete runtime authority;
-8. keep Production disabled/unarmed until real reference-data and Sandbox-certification readiness is complete.
+Next consolidated work: reconcile retained classifications, migrate/review only
+missing V2 evidence, then perform zero-data-loss physical retirement and finally
+zero-caller retirement of remaining legacy payload/submission compatibility.
 
-Do not resurrect any removed Settings artifact merely to preserve stale compatibility.
+Production remains Disabled / Manual / unarmed.
 
 ---
 

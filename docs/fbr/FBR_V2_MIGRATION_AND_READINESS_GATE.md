@@ -129,17 +129,19 @@ The source/runtime retirement contracts now prove:
 
 ## 7. Remaining retirement sequence
 
-After the compatibility API shell removal:
+Global FBR Settings retirement is complete. Remaining Phase 9 tax retirement
+uses a preserve-first boundary:
 
-1. run the complete static/source retirement gate;
-2. synchronize canonical source into the local Bench runtime and prove byte/content parity;
-3. run the full post-retirement old-settings gate plus V2 activation and health/client-status gates with real FBR network hard-blocked;
-4. run normal deployment validation/import smoke against the fully retired Settings boundary;
-5. close the global FBR Settings retirement branch;
-6. continue Phase 9 against the remaining legacy tax/FBR code and DocTypes, using the same prove-before-delete discipline;
-7. keep Production disabled/unarmed until real reference-data and Sandbox-certification readiness is complete.
+- legacy mutation/calculation RPCs fail closed;
+- retained tax/classification data is audit-only when Frozen;
+- V2/current validation no longer depends on historical tax/submission modules;
+- physical deletion is blocked until legacy Item Tax Profile classification is
+  reconciled to V2 FBR Item Mapping.
 
-Do not recreate the old singleton, source package, compatibility API or package registration to satisfy historical callers.
+After reconciliation, remove only proven-obsolete source/DocTypes, then perform
+zero-caller retirement of remaining legacy payload/submission compatibility.
+
+Production remains disabled/unarmed.
 
 ---
 

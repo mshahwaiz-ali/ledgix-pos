@@ -3,7 +3,7 @@ import json
 import frappe
 from frappe.utils import cint, flt, getdate, now_datetime, nowdate
 
-from ledgix_saas.api import fbr_v2_center
+from ledgix_saas.api import fbr_v2_center, legacy_tax_guard
 from ledgix_saas.services.fbr_v2_status import get_fbr_v2_status_internal
 from ledgix_saas.api.taxation import (
     calculate_tax_breakdown,
@@ -429,6 +429,9 @@ def _readiness_check(key, label, ready, value, level=None):
 
 @frappe.whitelist()
 def get_tax_center_boot():
+    return legacy_tax_guard.reject_legacy_tax_action(action="get_tax_center_boot")
+
+    # Historical implementation retained below for frozen audit evidence only.
     _require_tax_view()
     profile = _profile_dict()
     fbr_control_state = get_fbr_v2_status_internal()
@@ -462,6 +465,9 @@ def get_tax_profile_settings():
 
 @frappe.whitelist()
 def save_tax_profile_settings(values):
+    return legacy_tax_guard.reject_legacy_tax_action(action="save_tax_profile_settings")
+
+    # Historical implementation retained below for frozen audit evidence only.
     _require_tax_edit()
     values = _json_values(values)
     doc = frappe.get_single("Ledgix Tax Profile")
@@ -474,6 +480,9 @@ def save_tax_profile_settings(values):
 
 @frappe.whitelist()
 def preview_tax_calculation(amount, tax_category=None, price_includes_tax=None):
+    return legacy_tax_guard.reject_legacy_tax_action(action="preview_tax_calculation")
+
+    # Historical implementation retained below for frozen audit evidence only.
     _require_tax_view()
     profile = _profile_dict()
     tax_category = tax_category or profile.get("default_tax_category")
@@ -500,6 +509,9 @@ def get_tax_categories(page=1, page_size=15, search=None, status=None, tax_type=
 
 @frappe.whitelist()
 def save_tax_category(values):
+    return legacy_tax_guard.reject_legacy_tax_action(action="save_tax_category")
+
+    # Historical implementation retained below for frozen audit evidence only.
     _require_tax_edit()
     values = _json_values(values)
 
@@ -542,6 +554,9 @@ def save_tax_category(values):
 
 @frappe.whitelist()
 def toggle_tax_category(name, active):
+    return legacy_tax_guard.reject_legacy_tax_action(action="toggle_tax_category")
+
+    # Historical implementation retained below for frozen audit evidence only.
     _require_tax_edit()
     frappe.db.set_value("Ledgix Tax Category", name, "active", _bool_int(active), update_modified=True)
     return {"name": name, "active": _bool_int(active)}
@@ -566,6 +581,9 @@ def get_tax_rates(page=1, page_size=15, search=None, tax_category=None, active=N
 
 @frappe.whitelist()
 def save_tax_rate(values):
+    return legacy_tax_guard.reject_legacy_tax_action(action="save_tax_rate")
+
+    # Historical implementation retained below for frozen audit evidence only.
     _require_tax_edit()
     values = _json_values(values)
 
@@ -627,6 +645,9 @@ def save_tax_rate(values):
 
 @frappe.whitelist()
 def close_tax_rate(name, effective_to, reason=None):
+    return legacy_tax_guard.reject_legacy_tax_action(action="close_tax_rate")
+
+    # Historical implementation retained below for frozen audit evidence only.
     _require_tax_edit()
     if not effective_to:
         frappe.throw("Effective To date is required.")
@@ -682,6 +703,9 @@ def _tax_source_label(tax_source):
 
 @frappe.whitelist()
 def get_category_tax_mappings(page=1, page_size=15, search=None, status=None, tax_enabled=None):
+    return legacy_tax_guard.reject_legacy_tax_action(action="get_category_tax_mappings")
+
+    # Historical implementation retained below for frozen audit evidence only.
     _require_tax_view()
     filters = {}
     if status in ("Active", "Inactive"):
@@ -744,6 +768,9 @@ def get_category_tax_mappings(page=1, page_size=15, search=None, status=None, ta
 
 @frappe.whitelist()
 def save_category_tax_defaults(values):
+    return legacy_tax_guard.reject_legacy_tax_action(action="save_category_tax_defaults")
+
+    # Historical implementation retained below for frozen audit evidence only.
     _require_item_mapping_edit()
     values = _json_values(values)
     name = values.get("name") or values.get("category_name")
@@ -774,6 +801,9 @@ def save_category_tax_defaults(values):
 
 @frappe.whitelist()
 def apply_category_tax_to_items(category, only_unmapped=1):
+    return legacy_tax_guard.reject_legacy_tax_action(action="apply_category_tax_to_items")
+
+    # Historical implementation retained below for frozen audit evidence only.
     _require_item_mapping_edit()
     if not category:
         frappe.throw("Category is required.")
@@ -822,6 +852,9 @@ def apply_category_tax_to_items(category, only_unmapped=1):
 
 @frappe.whitelist()
 def preview_item_effective_tax(item):
+    return legacy_tax_guard.reject_legacy_tax_action(action="preview_item_effective_tax")
+
+    # Historical implementation retained below for frozen audit evidence only.
     _require_tax_view()
     if not item:
         frappe.throw("Item is required.")
@@ -956,6 +989,9 @@ def get_item_tax_mappings(page=1, page_size=15, search=None, filter_type=None, a
 
 @frappe.whitelist()
 def save_item_tax_mapping(values):
+    return legacy_tax_guard.reject_legacy_tax_action(action="save_item_tax_mapping")
+
+    # Historical implementation retained below for frozen audit evidence only.
     _require_item_mapping_edit()
     values = _json_values(values)
     item = values.get("item")
@@ -976,6 +1012,9 @@ def save_item_tax_mapping(values):
 
 @frappe.whitelist()
 def mark_item_tax_reviewed(name):
+    return legacy_tax_guard.reject_legacy_tax_action(action="mark_item_tax_reviewed")
+
+    # Historical implementation retained below for frozen audit evidence only.
     _require_item_mapping_edit()
     frappe.db.set_value("Ledgix Item Tax Profile", name, "needs_review", 0, update_modified=True)
     return {"name": name, "needs_review": 0}
@@ -983,6 +1022,9 @@ def mark_item_tax_reviewed(name):
 
 @frappe.whitelist()
 def toggle_item_tax_mapping(name, active):
+    return legacy_tax_guard.reject_legacy_tax_action(action="toggle_item_tax_mapping")
+
+    # Historical implementation retained below for frozen audit evidence only.
     _require_item_mapping_edit()
     frappe.db.set_value("Ledgix Item Tax Profile", name, "active", _bool_int(active), update_modified=True)
     return {"name": name, "active": _bool_int(active)}

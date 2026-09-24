@@ -59,13 +59,14 @@ REQUIRED_DOCTYPE_FIELDS = {
 }
 
 REQUIRED_MODULES = (
-    "ledgix_saas.api.fbr_client",
     "ledgix_saas.api.fbr_health",
     "ledgix_saas.api.fbr_native",
+    "ledgix_saas.api.fbr_v2_center",
+    "ledgix_saas.api.fbr_reference_v2",
     "ledgix_saas.api.fbr_v2_transport",
-    "ledgix_saas.api.fbr_submission",
     "ledgix_saas.services.fbr_v2_status",
-    "ledgix_saas.api.taxation",
+    "ledgix_saas.services.fbr_v2_readiness",
+    "ledgix_saas.services.erpnext_tax_authority",
 )
 
 # Legacy blind retry/offline recovery workers are intentionally retired.

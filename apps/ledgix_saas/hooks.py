@@ -63,6 +63,21 @@ update_website_context = ["ledgix_saas.api.brand.update_website_context"]
 # Keep Ledgix screen/RPC contracts stable while ERPNext owns the business engine.
 override_whitelisted_methods = {
 	"ledgix_saas.api.tax_center.get_fbr_readiness": "ledgix_saas.api.fbr_v2_center.get_fbr_readiness",
+	"ledgix_saas.api.tax_center.get_tax_center_boot": "ledgix_saas.api.legacy_tax_guard.reject_legacy_tax_action",
+	"ledgix_saas.api.tax_center.save_tax_profile_settings": "ledgix_saas.api.legacy_tax_guard.reject_legacy_tax_action",
+	"ledgix_saas.api.tax_center.preview_tax_calculation": "ledgix_saas.api.legacy_tax_guard.reject_legacy_tax_action",
+	"ledgix_saas.api.tax_center.save_tax_category": "ledgix_saas.api.legacy_tax_guard.reject_legacy_tax_action",
+	"ledgix_saas.api.tax_center.toggle_tax_category": "ledgix_saas.api.legacy_tax_guard.reject_legacy_tax_action",
+	"ledgix_saas.api.tax_center.save_tax_rate": "ledgix_saas.api.legacy_tax_guard.reject_legacy_tax_action",
+	"ledgix_saas.api.tax_center.close_tax_rate": "ledgix_saas.api.legacy_tax_guard.reject_legacy_tax_action",
+	"ledgix_saas.api.tax_center.get_category_tax_mappings": "ledgix_saas.api.legacy_tax_guard.reject_legacy_tax_action",
+	"ledgix_saas.api.tax_center.save_category_tax_defaults": "ledgix_saas.api.legacy_tax_guard.reject_legacy_tax_action",
+	"ledgix_saas.api.tax_center.apply_category_tax_to_items": "ledgix_saas.api.legacy_tax_guard.reject_legacy_tax_action",
+	"ledgix_saas.api.tax_center.preview_item_effective_tax": "ledgix_saas.api.legacy_tax_guard.reject_legacy_tax_action",
+	"ledgix_saas.api.tax_center.save_item_tax_mapping": "ledgix_saas.api.legacy_tax_guard.reject_legacy_tax_action",
+	"ledgix_saas.api.tax_center.mark_item_tax_reviewed": "ledgix_saas.api.legacy_tax_guard.reject_legacy_tax_action",
+	"ledgix_saas.api.tax_center.toggle_item_tax_mapping": "ledgix_saas.api.legacy_tax_guard.reject_legacy_tax_action",
+	"ledgix_saas.api.taxation.preview_sale_tax_for_form": "ledgix_saas.api.legacy_tax_guard.reject_legacy_tax_action",
 	"ledgix_saas.api.inventory_intelligence.get_inventory_intelligence_data": "ledgix_saas.api.inventory_intelligence_native.get_inventory_intelligence_data",
 	# The original 79KB BI engine remains historical source code only. Any old RPC
 	# client now receives the same ERPNext-native intelligence result as Phase 10.
@@ -156,6 +171,18 @@ _legacy_freeze_events = {
 	"on_trash": "ledgix_saas.api.legacy_retirement.guard_legacy_write",
 }
 for _legacy_doctype in _legacy_retired_business_doctypes:
+	doc_events[_legacy_doctype] = _legacy_freeze_events
+
+_legacy_retired_tax_doctypes = (
+	"Ledgix Tax Profile",
+	"Ledgix Tax Category",
+	"Ledgix Tax Rate",
+	"Ledgix Item Tax Profile",
+	"Ledgix Tax Audit Log",
+	"Ledgix Invoice Tax Detail",
+	"Ledgix Return Tax Detail",
+)
+for _legacy_doctype in _legacy_retired_tax_doctypes:
 	doc_events[_legacy_doctype] = _legacy_freeze_events
 
 # Retransmission remains fail-closed. A production POST with an ambiguous outcome

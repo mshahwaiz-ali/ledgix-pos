@@ -65,6 +65,11 @@ PYTHONPATH="$REPO_ROOT/apps${PYTHONPATH:+:$PYTHONPATH}" \
   "$BENCH_PYTHON" -m unittest -v \
   ledgix_saas.setup.test_fbr_redesign_v2_readiness_contract
 
+printf '\n===== PHASE 9 LEGACY TAX RETIREMENT CONTRACT =====\n'
+PYTHONPATH="$REPO_ROOT/apps${PYTHONPATH:+:$PYTHONPATH}" \
+  "$BENCH_PYTHON" -m unittest -v \
+  ledgix_saas.setup.test_fbr_phase9_legacy_tax_retirement_contract
+
 printf '\n===== PHASE 6 DESK CUTOVER CONTRACT =====\n'
 PYTHONPATH="$REPO_ROOT/apps${PYTHONPATH:+:$PYTHONPATH}" \
   "$BENCH_PYTHON" -m unittest -v \
@@ -80,6 +85,8 @@ printf '[PASS] ERPNext-native line snapshot collector has no Ledgix tax formula\
 printf '[PASS] unsupported pinned-v15 tax splits fail closed\n'
 printf '[PASS] legacy V2 migration helper is retired and cannot read/copy old FBR state\n'
 printf '[PASS] old FBR Settings package/runtime/test dependencies are retired\n'
+printf '[PASS] legacy monetary tax write/calculation surfaces are fail-closed\n'
+printf '[PASS] retained legacy tax/classification data is audit-only when frozen\n'
 printf '[PASS] old FBR Settings DocType source tombstone is physically removed\n'
 printf '[PASS] retired FBR Settings compatibility API shell is physically removed\n'
 printf '[PASS] zero live Python imports reference the retired Settings API\n'
