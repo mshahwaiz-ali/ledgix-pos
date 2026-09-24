@@ -87,8 +87,6 @@ class TestOldFBRSettingsSourceDeregistration(unittest.TestCase):
 
             if "Ledgix FBR Settings" not in text:
                 continue
-            if rel == "api/fbr_settings.py":
-                continue
             if rel.startswith("migration/"):
                 continue
             if rel.startswith("setup/test_"):
@@ -104,7 +102,33 @@ class TestOldFBRSettingsSourceDeregistration(unittest.TestCase):
 
         self.assertEqual(offenders, [])
 
-    def test_old_settings_package_and_source_are_removed(self):
+    def test_no_live_python_imports_retired_settings_api(self):
+        offenders = []
+        forbidden = (
+            "ledgix_saas.api.fbr_settings",
+            "from ledgix_saas.api import fbr_settings",
+            "import ledgix_saas.api.fbr_settings",
+            "fbr_settings.get_",
+            "fbr_settings.save_",
+        )
+
+        for path in APP_ROOT.rglob("*.py"):
+            if "__pycache__" in path.parts:
+                continue
+
+            rel = str(path.relative_to(APP_ROOT)).replace("\\", "/")
+            if rel.startswith("setup/test_"):
+                continue
+
+            text = path.read_text(encoding="utf-8")
+            ast.parse(text)
+
+            if any(token in text for token in forbidden):
+                offenders.append(rel)
+
+        self.assertEqual(offenders, [])
+
+    def test_old_settings_package_sources_and_api_are_removed(self):
         pyproject = (APP_ROOT / "pyproject.toml").read_text(encoding="utf-8")
         migration = (
             APP_ROOT / "migration/fbr_redesign_v2_migration.py"
@@ -115,6 +139,7 @@ class TestOldFBRSettingsSourceDeregistration(unittest.TestCase):
             / "doctype"
             / "ledgix_fbr_settings"
         )
+        compat_api = APP_ROOT / "api" / "fbr_settings.py"
 
         self.assertNotIn(
             '"ledgix.doctype.ledgix_fbr_settings",',
@@ -133,6 +158,7 @@ class TestOldFBRSettingsSourceDeregistration(unittest.TestCase):
         # controller/schema package must now be physically absent so a future
         # migrate cannot recreate the retired singleton.
         self.assertFalse(package_dir.exists())
+        self.assertFalse(compat_api.exists())
 
 
 if __name__ == "__main__":

@@ -1098,7 +1098,7 @@ The target is zero conflict, not reckless data loss.
 
 - apps/ledgix_saas/api/fbr_native.py
 - apps/ledgix_saas/api/fbr_payload.py
-- apps/ledgix_saas/api/fbr_settings.py
+- ~~apps/ledgix_saas/api/fbr_settings.py~~ — retired and removed after DB cleanup, ordinary migrate resurrection proof, and zero-import proof.
 - apps/ledgix_saas/api/fbr_activation.py
 - apps/ledgix_saas/api/fbr_reference.py
 - apps/ledgix_saas/api/tax_center.py
@@ -1580,22 +1580,31 @@ The redesign is complete only when all of the following are true:
 
 ## 24. Immediate next step
 
-Continue **Phase 9 legacy retirement** from the post-cleanup state.
+Continue **Phase 9 legacy retirement** from the fully retired global FBR Settings state.
 
-Local controlled cleanup has removed the old global Settings DocType metadata and related Workspace Link / DocPerm / Custom DocPerm / Singles rows. The V2 profile remains Disabled / Manual / unarmed and Production network cutover remains false.
+The local proof now includes:
+
+- controlled removal of old Settings Workspace Link / DocPerm / Custom DocPerm / Singles / DocType metadata;
+- verified rollback backups before destructive cleanup and before migrate;
+- physical removal of the old Settings controller/schema package;
+- successful ordinary `bench migrate` without singleton resurrection;
+- removal of the final `api/fbr_settings.py` compatibility shell;
+- zero-live-import source enforcement;
+- V2 profile still Disabled / Manual / unarmed;
+- Production network cutover still false.
 
 Current sequence:
 
-1. physically remove the obsolete `ledgix_fbr_settings` controller/schema source package so migrate cannot recreate it;
-2. evolve source/runtime contracts from pre-cleanup presence proof to post-cleanup absence proof;
-3. run the complete static/source retirement gate;
-4. synchronize canonical source into the local Bench runtime and prove parity;
-5. run post-cleanup runtime, activation and health/client-status gates with real FBR network hard-blocked;
-6. prove an ordinary migrate does not recreate the retired singleton;
-7. perform zero-import proof for the inert `api/fbr_settings.py` compatibility shell and retire it only when no live caller remains;
+1. run the complete static/source closure for compatibility-shell removal;
+2. synchronize canonical source into the local Bench runtime and prove parity;
+3. run post-retirement old-settings, activation and health/client-status runtime gates with real FBR network hard-blocked;
+4. run normal Ledgix deployment/import validation with the old Settings module physically absent;
+5. close the global FBR Settings retirement branch;
+6. continue Phase 9 dependency/data proof for the remaining legacy tax/FBR components, especially `api/taxation.py`, legacy tax-center authority, old payload/submission compatibility code, and old custom tax masters;
+7. preserve historical legal/audit data where needed and remove only proven obsolete runtime authority;
 8. keep Production disabled/unarmed until real reference-data and Sandbox-certification readiness is complete.
 
-Do not resurrect the legacy migration helper, source package or singleton merely to satisfy tests.
+Do not resurrect any removed Settings artifact merely to preserve stale compatibility.
 
 ---
 

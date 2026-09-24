@@ -7,7 +7,7 @@ from pathlib import Path
 
 APP_ROOT = Path(__file__).resolve().parents[1]
 
-SETTINGS = (APP_ROOT / "api" / "fbr_settings.py").read_text(encoding="utf-8")
+SETTINGS_API = APP_ROOT / "api" / "fbr_settings.py"
 SETTINGS_DOCTYPE_DIR = (
     APP_ROOT
     / "ledgix"
@@ -45,15 +45,8 @@ PRINTS = [
 
 
 class TestOldFBRSettingsRuntimeCleanup(unittest.TestCase):
-    def test_old_settings_api_is_inert_compatibility_shell(self):
-        self.assertIn("LEGACY_SETTINGS_RETIRED_MESSAGE", SETTINGS)
-        self.assertIn("return dict(DISABLED_DEFAULTS)", SETTINGS)
-        self.assertIn("def save_fbr_settings(values=None):", SETTINGS)
-        self.assertIn("frappe.throw(LEGACY_SETTINGS_RETIRED_MESSAGE)", SETTINGS)
-        self.assertIn("def get_active_fbr_token(mode=None):", SETTINGS)
-        self.assertNotIn("get_decrypted_password", SETTINGS)
-        self.assertNotIn("frappe.get_single(", SETTINGS)
-        self.assertNotIn("doc.save()", SETTINGS)
+    def test_old_settings_api_source_is_removed(self):
+        self.assertFalse(SETTINGS_API.exists())
 
     def test_old_settings_doctype_source_is_removed(self):
         self.assertFalse(SETTINGS_DOCTYPE_DIR.exists())
@@ -82,15 +75,16 @@ class TestOldFBRSettingsRuntimeCleanup(unittest.TestCase):
     def test_permission_sync_no_longer_registers_old_settings(self):
         self.assertNotIn('"Ledgix FBR Settings":', PERMISSIONS)
 
-    def test_runtime_gate_does_not_import_or_execute_compatibility_api(self):
+    def test_runtime_gate_requires_full_legacy_source_absence(self):
         self.assertNotIn("from ledgix_saas.api import fbr_native, fbr_settings", GATE)
         self.assertNotIn("from ledgix_saas.api import fbr_settings", GATE)
         self.assertNotIn("fbr_settings.get_", GATE)
         self.assertNotIn("fbr_settings.save_", GATE)
-        self.assertIn("SETTINGS_SOURCE", GATE)
+        self.assertIn("COMPAT_API_SOURCE", GATE)
         self.assertIn("LEGACY_SOURCE_DIR", GATE)
         self.assertIn('"legacy_singleton_removed"', GATE)
         self.assertIn('"legacy_doctype_source_removed"', GATE)
+        self.assertIn('"legacy_compat_api_source_removed"', GATE)
         self.assertIn('"database_write": False', GATE)
         self.assertIn('"real_fbr_network_calls": 0', GATE)
 

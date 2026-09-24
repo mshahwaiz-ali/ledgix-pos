@@ -38,11 +38,11 @@ class TestLegacyFBRTestCleanup(unittest.TestCase):
         ).read_text(encoding="utf-8")
 
         self.assertIn(
-            "test_old_settings_api_is_inert_compatibility_shell",
+            "test_old_settings_api_source_is_removed",
             runtime_contract,
         )
         self.assertIn(
-            "test_runtime_gate_does_not_import_or_execute_compatibility_api",
+            "test_runtime_gate_requires_full_legacy_source_absence",
             runtime_contract,
         )
         self.assertIn(
@@ -50,7 +50,7 @@ class TestLegacyFBRTestCleanup(unittest.TestCase):
             runtime_contract,
         )
         self.assertIn(
-            "test_old_settings_package_and_source_are_removed",
+            "test_old_settings_package_sources_and_api_are_removed",
             source_contract,
         )
 

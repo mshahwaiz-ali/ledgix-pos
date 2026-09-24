@@ -1,6 +1,6 @@
 # FBR Redesign — V2 Migration and Readiness Gate
 
-**Status:** LEGACY SETTINGS DB CLEANUP COMPLETE LOCALLY — SOURCE TOMBSTONE RETIRED  
+**Status:** LEGACY SETTINGS + COMPATIBILITY API FULLY RETIRED LOCALLY  
 **Date:** 2026-09-25  
 **Repository:** `mshahwaiz-ali/ledgix-pos`  
 **Branch:** `main`
@@ -86,27 +86,28 @@ It must not be converted back into a migration tool.
 
 ---
 
-## 5. Current retained compatibility boundary
+## 5. Current retirement boundary
 
-Controlled local cleanup has now removed the retired singleton database authority:
+Controlled local cleanup and migration proof have removed the retired global Settings authority completely:
 
 - old `Ledgix FBR Settings` DocType metadata is absent;
 - Workspace Link count is zero;
 - old DocPerm count is zero;
 - old Custom DocPerm count is zero;
 - old `tabSingles` rows are zero;
+- the obsolete `ledgix_fbr_settings` controller/schema source package is absent;
+- the retired `api/fbr_settings.py` compatibility shell is absent;
+- static contracts require zero live Python imports/references to the retired Settings API;
+- an ordinary `bench migrate` completed without recreating the old singleton;
 - V2 profile `FBR-PROFILE-00094` remains Disabled / Manual / unarmed;
 - `V2_NETWORK_CUTOVER_ACTIVE` remains false.
 
-The obsolete `ledgix_fbr_settings` controller/schema source package is now physically removed so a future migrate cannot recreate the singleton.
+Still retained only as non-authoritative historical/safety artifacts:
 
-Still intentionally retained for one final compatibility-closure step:
-
-- inert compatibility API shell `api/fbr_settings.py`;
 - retired historical V2 migration tombstone;
 - guarded cleanup helper `patches/v1_0/cleanup_retired_fbr_settings_metadata.py`, still unregistered and idempotent.
 
-None of these retained artifacts is current FBR configuration authority.
+Neither retained artifact is part of current invoice tax calculation or FBR transport authority.
 
 ---
 
@@ -117,27 +118,28 @@ The source/runtime retirement contracts now prove:
 - historical migration entry points remain fail-closed;
 - the old Settings package is not registered;
 - the old controller/schema source directory is absent;
+- `api/fbr_settings.py` is absent;
+- no live non-test Python source imports or calls the retired Settings API;
 - current product shell, permissions and validation do not expose the old singleton;
-- the compatibility API shell never reads credentials or the retired singleton;
-- the post-cleanup runtime gate requires the old DocType to be absent;
-- V2 remains the only live configuration authority;
+- the runtime gate requires the old DocType, source package and compatibility API source to be absent;
+- V2 remains the only live FBR configuration authority;
 - Production remains disabled/unarmed.
 
 ---
 
 ## 7. Remaining retirement sequence
 
-After local DB cleanup and source tombstone removal:
+After the compatibility API shell removal:
 
 1. run the complete static/source retirement gate;
-2. synchronize canonical source into the local Bench runtime and prove byte parity;
-3. run the post-cleanup runtime gate and V2 activation/health gates with network hard-blocked;
-4. prove an ordinary migrate does not recreate `Ledgix FBR Settings`;
-5. repeat zero-reference/import proof for `api/fbr_settings.py`;
-6. retire that compatibility API shell only when no live import/caller remains;
+2. synchronize canonical source into the local Bench runtime and prove byte/content parity;
+3. run the full post-retirement old-settings gate plus V2 activation and health/client-status gates with real FBR network hard-blocked;
+4. run normal deployment validation/import smoke against the fully retired Settings boundary;
+5. close the global FBR Settings retirement branch;
+6. continue Phase 9 against the remaining legacy tax/FBR code and DocTypes, using the same prove-before-delete discipline;
 7. keep Production disabled/unarmed until real reference-data and Sandbox-certification readiness is complete.
 
-Do not recreate the old singleton or re-register its package to satisfy any historical test.
+Do not recreate the old singleton, source package, compatibility API or package registration to satisfy historical callers.
 
 ---
 
@@ -169,7 +171,9 @@ The cleanup target was exactly:
 
 Post-cleanup evidence shows all of those legacy counts at zero while the V2 profile remains Disabled / Manual / unarmed.
 
-No FBR network operation or accounting mutation is part of this helper.
+A subsequent ordinary `bench migrate` completed successfully and did not recreate the retired DocType or any of its Workspace Link / DocPerm / Custom DocPerm / Singles metadata. The compatibility API shell was then removed under a separate zero-import source contract.
+
+No FBR network operation or accounting mutation is part of the cleanup helper.
 
 ---
 
