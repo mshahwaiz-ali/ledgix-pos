@@ -890,6 +890,13 @@ def apply_tax_snapshot_to_sale_doc(doc):
 
 @frappe.whitelist()
 def preview_sale_tax_for_form(items=None, posting_date=None, sale_date=None, customer=None):
+    from ledgix_saas.api import legacy_tax_guard
+
+    return legacy_tax_guard.reject_legacy_tax_action(
+        action="preview_sale_tax_for_form"
+    )
+
+    # Historical implementation retained below for frozen legacy evidence only.
     from ledgix_saas.api.security import require_ledgix_cashier_or_above
 
     require_ledgix_cashier_or_above()

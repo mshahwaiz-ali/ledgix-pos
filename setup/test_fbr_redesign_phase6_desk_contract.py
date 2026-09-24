@@ -100,6 +100,9 @@ class TestFBRRedesignPhase6DeskContract(unittest.TestCase):
             "further_tax_per_unit",
             "fed_payable_per_unit",
             "Ledgix Tax Profile",
+            "Ledgix Tax Category",
+            "Ledgix Tax Rate",
+            "Ledgix Item Tax Profile",
         ):
             self.assertNotIn(forbidden, self.api)
 

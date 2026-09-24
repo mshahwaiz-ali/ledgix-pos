@@ -131,6 +131,17 @@ class TestERPNextPhase12Contract(unittest.TestCase):
         for doctype in legacy_retirement.LEGACY_TOP_LEVEL_DOCTYPES:
             self.assertIn(f'"{doctype}"', hooks)
 
+        for doctype in (
+            "Ledgix Tax Profile",
+            "Ledgix Tax Category",
+            "Ledgix Tax Rate",
+            "Ledgix Item Tax Profile",
+            "Ledgix Tax Audit Log",
+            "Ledgix Invoice Tax Detail",
+            "Ledgix Return Tax Detail",
+        ):
+            self.assertIn(f'"{doctype}"', hooks)
+
     def test_old_pos_compatibility_surface_reads_native_erpnext_only(self):
         source = (APP_ROOT / "api" / "pos.py").read_text(encoding="utf-8")
         for forbidden in (
