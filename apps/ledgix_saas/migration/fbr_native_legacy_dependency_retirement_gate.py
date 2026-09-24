@@ -153,7 +153,7 @@ def run() -> dict:
             response_json={
                 "validationResponse": {"status": "Valid", "statusCode": "00"}
             },
-            error_message="Probe Bearer SECRET-MUST-NOT-PERSIST",
+            error_message="Probe Bearer EXAMPLE-SECRET-MUST-NOT-PERSIST",
             attempt_count=1,
         )
         log = frappe.get_doc("Ledgix FBR Submission Log", created_log)
