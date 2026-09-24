@@ -8,13 +8,12 @@ from pathlib import Path
 APP_ROOT = Path(__file__).resolve().parents[1]
 
 SETTINGS = (APP_ROOT / "api" / "fbr_settings.py").read_text(encoding="utf-8")
-SETTINGS_DOC = (
+SETTINGS_DOCTYPE_DIR = (
     APP_ROOT
     / "ledgix"
     / "doctype"
     / "ledgix_fbr_settings"
-    / "ledgix_fbr_settings.py"
-).read_text(encoding="utf-8")
+)
 DEMO = (APP_ROOT / "setup" / "demo_data.py").read_text(encoding="utf-8")
 NATIVE_DEMO = (APP_ROOT / "setup" / "erpnext_demo_data.py").read_text(encoding="utf-8")
 VALIDATION = (APP_ROOT / "validation.py").read_text(encoding="utf-8")
@@ -56,10 +55,8 @@ class TestOldFBRSettingsRuntimeCleanup(unittest.TestCase):
         self.assertNotIn("frappe.get_single(", SETTINGS)
         self.assertNotIn("doc.save()", SETTINGS)
 
-    def test_old_settings_doctype_blocks_ordinary_save(self):
-        self.assertIn("class LedgixFBRSettings(Document):", SETTINGS_DOC)
-        self.assertIn("def validate(self):", SETTINGS_DOC)
-        self.assertIn("frappe.throw(RETIRED_MESSAGE)", SETTINGS_DOC)
+    def test_old_settings_doctype_source_is_removed(self):
+        self.assertFalse(SETTINGS_DOCTYPE_DIR.exists())
 
     def test_demo_runtime_uses_company_scoped_v2_profile(self):
         self.assertNotIn("Ledgix FBR Settings", DEMO)
@@ -91,6 +88,9 @@ class TestOldFBRSettingsRuntimeCleanup(unittest.TestCase):
         self.assertNotIn("fbr_settings.get_", GATE)
         self.assertNotIn("fbr_settings.save_", GATE)
         self.assertIn("SETTINGS_SOURCE", GATE)
+        self.assertIn("LEGACY_SOURCE_DIR", GATE)
+        self.assertIn('"legacy_singleton_removed"', GATE)
+        self.assertIn('"legacy_doctype_source_removed"', GATE)
         self.assertIn('"database_write": False', GATE)
         self.assertIn('"real_fbr_network_calls": 0', GATE)
 

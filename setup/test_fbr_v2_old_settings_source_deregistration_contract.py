@@ -89,8 +89,6 @@ class TestOldFBRSettingsSourceDeregistration(unittest.TestCase):
                 continue
             if rel == "api/fbr_settings.py":
                 continue
-            if rel.startswith("ledgix/doctype/ledgix_fbr_settings/"):
-                continue
             if rel.startswith("migration/"):
                 continue
             if rel.startswith("setup/test_"):
@@ -106,17 +104,16 @@ class TestOldFBRSettingsSourceDeregistration(unittest.TestCase):
 
         self.assertEqual(offenders, [])
 
-    def test_old_settings_package_registration_is_removed(self):
+    def test_old_settings_package_and_source_are_removed(self):
         pyproject = (APP_ROOT / "pyproject.toml").read_text(encoding="utf-8")
         migration = (
             APP_ROOT / "migration/fbr_redesign_v2_migration.py"
         ).read_text(encoding="utf-8")
-        package = (
+        package_dir = (
             APP_ROOT
             / "ledgix"
             / "doctype"
             / "ledgix_fbr_settings"
-            / "ledgix_fbr_settings.py"
         )
 
         self.assertNotIn(
@@ -132,9 +129,10 @@ class TestOldFBRSettingsSourceDeregistration(unittest.TestCase):
         )
         self.assertNotIn("get_decrypted_password(", migration)
 
-        # Source tombstone remains only until the controlled DB metadata cleanup
-        # phase; it is no longer an explicitly packaged application component.
-        self.assertTrue(package.exists())
+        # Controlled local DB metadata cleanup is complete. The obsolete
+        # controller/schema package must now be physically absent so a future
+        # migrate cannot recreate the retired singleton.
+        self.assertFalse(package_dir.exists())
 
 
 if __name__ == "__main__":

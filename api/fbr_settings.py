@@ -3,8 +3,9 @@ from __future__ import annotations
 """Fail-closed compatibility shell for the retired pre-V2 FBR Settings API.
 
 The company-scoped Ledgix FBR Integration Profile is the only live FBR
-configuration authority. This module is retained temporarily so historical
-gates/imports fail safely while the old singleton DocType still exists.
+configuration authority. The retired singleton DocType source and local
+metadata have been removed. This module remains temporarily import-compatible
+so stale callers fail closed while final zero-import retirement proof completes.
 """
 
 import frappe
