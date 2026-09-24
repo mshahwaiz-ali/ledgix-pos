@@ -95,6 +95,10 @@ class TestOldFBRSettingsSourceDeregistration(unittest.TestCase):
                 continue
             if rel.startswith("setup/test_"):
                 continue
+            if rel == "patches/v1_0/cleanup_retired_fbr_settings_metadata.py":
+                # Intentional, guarded retirement cleanup source. It must name
+                # the legacy DocType in order to remove only that metadata.
+                continue
             if rel in allowed_comment_only:
                 continue
 
