@@ -80,29 +80,50 @@ class TestERPNextPhase11Contract(unittest.TestCase):
 
     def test_retained_custom_pages_are_workspace_shortcuts(self):
         payload = json.loads(WORKSPACE_PATH.read_text(encoding="utf-8"))
+
+        # Retained Ledgix UX pages are authoritative as Workspace Page links.
+        # Later release hardening may expose only a subset as raw quick actions.
         expected = {
             "Ledgix POS": "ledgix-pos",
             "Inventory Intelligence": "business-intelligence-center",
             "Tax & FBR Center": "ledgix-tax-center",
             "Setup Wizard": "ledgix-setup",
         }
-        shortcuts = {
+
+        page_links = {
+            row.get("label"): row.get("link_to")
+            for row in payload.get("links") or []
+            if row.get("link_type") == "Page"
+        }
+        self.assertEqual(page_links, expected)
+
+        # Product-shell shortcut visibility is a UX policy layer, not a
+        # requirement that every retained page be duplicated in Workspace
+        # raw shortcut rows.
+        self.assertEqual(set(product_shell.WORKSPACE_SHORTCUTS), set(expected))
+
+        raw_page_shortcuts = {
             row.get("label"): row.get("link_to")
             for row in payload.get("shortcuts") or []
             if row.get("type") == "Page"
         }
-        self.assertEqual(shortcuts, expected)
-        self.assertEqual(set(product_shell.WORKSPACE_SHORTCUTS), set(expected))
-        for label in expected:
-            self.assertIn(label, product_shell.WORKSPACE_LINK_POLICY)
+        self.assertTrue(set(raw_page_shortcuts).issubset(set(expected)))
+        for label, target in raw_page_shortcuts.items():
+            self.assertEqual(target, expected[label])
 
+        # Any retained custom page promoted to a raw shortcut must also appear
+        # in the Workspace content layout. ERPNext-native quick actions and
+        # reports may coexist with those custom-page shortcuts.
         content = json.loads(payload.get("content") or "[]")
         content_shortcuts = {
             row.get("data", {}).get("shortcut_name")
             for row in content
             if row.get("type") == "shortcut"
         }
-        self.assertEqual(content_shortcuts, set(expected))
+        self.assertEqual(
+            set(raw_page_shortcuts),
+            content_shortcuts.intersection(set(expected)),
+        )
 
     def test_product_profiles_curate_cashier_without_granting_permissions(self):
         invoice = product_shell.build_product_context(

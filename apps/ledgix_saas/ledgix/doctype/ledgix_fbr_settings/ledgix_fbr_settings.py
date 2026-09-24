@@ -1,9 +1,20 @@
 # Copyright (c) 2026, Ali and contributors
 # For license information, please see license.txt
 
-# import frappe
+from __future__ import annotations
+
+import frappe
 from frappe.model.document import Document
 
 
+RETIRED_MESSAGE = (
+    "Ledgix FBR Settings is retired. "
+    "Use the company-scoped Ledgix FBR Integration Profile in Tax & FBR Center."
+)
+
+
 class LedgixFBRSettings(Document):
-	pass
+    def validate(self):
+        # The old singleton remains installed temporarily for historical
+        # compatibility, but it is no longer a writable configuration authority.
+        frappe.throw(RETIRED_MESSAGE)

@@ -16,19 +16,12 @@ import frappe
 from frappe.utils import cint
 
 from ledgix_saas.api import client_readiness, fbr_activation, fbr_native
-from ledgix_saas.api.fbr_settings import get_fbr_settings_internal, save_fbr_settings
 
 SANDBOX_CONFIRMATION = "SEND TO FBR SANDBOX"
 PRIVATE_SUBDIR = "ledgix-fbr-activation"
 NATIVE_DOCTYPES = ("Sales Invoice", "POS Invoice")
 SUCCESSFUL_SANDBOX_STATUSES = {"Validated", "Submitted"}
-CONFIG_REQUIRED_FIELDS = (
-    "seller_ntn_cnic",
-    "seller_business_name",
-    "seller_province",
-    "seller_address",
-    "sandbox_token",
-)
+CONFIG_REQUIRED_FIELDS = ("sandbox_token",)
 CONFIG_ALLOWED_FIELDS = set(CONFIG_REQUIRED_FIELDS) | {"software_registration_number"}
 
 
@@ -91,65 +84,87 @@ def _load_private_config(path_value: str) -> tuple[Path, dict]:
 
 
 def _safe_settings_summary() -> dict:
-    settings = get_fbr_settings_internal()
-    return {
-        "enabled": bool(settings.get("enabled")),
-        "mode": settings.get("mode") or "Disabled",
-        "submit_trigger": settings.get("submit_trigger") or "Manual",
-        "production_post_armed": bool(settings.get("production_post_armed")),
-        "sandbox_token_configured": bool(settings.get("sandbox_token_configured")),
-        "production_token_configured": bool(settings.get("production_token_configured")),
-    }
+    return fbr_activation.get_v2_configuration_summary_internal()
+
 
 
 def configure_sandbox_from_private_file(config_path: str) -> dict:
-    """Apply real Sandbox identity/token to a local integration site only."""
+    # Configure the setup company's V2 profile for real Sandbox use.
+    # Seller identity remains authoritative in ERPNext Company + Address.
 
     site = _assert_local_integration_site()
     _set_administrator()
 
     operational = client_readiness.evaluate_client_readiness(strict_evidence=0)
     if not operational.get("ready"):
-        frappe.throw("R5 client readiness must be green before Sandbox configuration.")
+        frappe.throw(
+            "R5 client readiness must be green before Sandbox configuration."
+        )
     if not (operational.get("features") or {}).get("enable_fbr"):
-        frappe.throw("The selected Ledgix Business Profile does not enable FBR.")
+        frappe.throw(
+            "The selected Ledgix Business Profile does not enable FBR."
+        )
 
-    before = _safe_settings_summary()
+    before = fbr_activation.get_v2_configuration_summary_internal(
+        operational
+    )
+    if not before.get("profile_exists"):
+        frappe.throw(
+            "The setup company has no Ledgix FBR Integration Profile."
+        )
+    if not before.get("seller_identity_complete"):
+        frappe.throw(
+            "Complete ERPNext Company Tax ID and default Company Address "
+            "before Sandbox configuration: "
+            + ", ".join(
+                before.get("missing_seller_identity_fields") or []
+            )
+        )
     if before["production_post_armed"] or before["mode"] == "Production":
-        frappe.throw("Refusing Sandbox configuration while Production is active or armed.")
+        frappe.throw(
+            "Refusing Sandbox configuration while Production is active or armed."
+        )
 
     input_path, payload = _load_private_config(config_path)
-    values = {
-        "enabled": 1,
-        "mode": "Sandbox",
-        "submit_trigger": "Manual",
-        "production_post_armed": 0,
-        "block_sale_if_fbr_fails": 0,
-        "sandbox_post_on_submit": 0,
-        "retry_enabled": 0,
-        "max_retry_count": 0,
-        "seller_ntn_cnic": str(payload["seller_ntn_cnic"]).strip(),
-        "seller_business_name": str(payload["seller_business_name"]).strip(),
-        "seller_province": str(payload["seller_province"]).strip(),
-        "seller_address": str(payload["seller_address"]).strip(),
-        "software_registration_number": str(payload.get("software_registration_number") or "").strip(),
-        "sandbox_token": str(payload["sandbox_token"]).strip(),
-    }
-    save_fbr_settings(values)
+    profile = frappe.get_doc(
+        fbr_activation.PROFILE_DOCTYPE,
+        before["profile_name"],
+    )
+    profile.enabled = 1
+    profile.mode = "Sandbox"
+    profile.submit_trigger = "Manual"
+    profile.production_post_armed = 0
+    profile.block_sale_if_fbr_fails = 0
+
+    if "software_registration_number" in payload:
+        profile.software_registration_number = str(
+            payload.get("software_registration_number") or ""
+        ).strip()
+
+    sandbox_token = str(payload["sandbox_token"]).strip()
+    if hasattr(profile, "set_password"):
+        profile.set_password("sandbox_token", sandbox_token)
+    else:
+        profile.set("sandbox_token", sandbox_token)
+
+    profile.save()
     frappe.db.commit()
 
-    # Do not retain the plaintext token staging file after Frappe encrypts it.
     input_path.unlink(missing_ok=True)
 
-    after = _safe_settings_summary()
+    after = fbr_activation.get_v2_configuration_summary_internal()
     if not (
-        after["enabled"]
+        after["profile_name"] == before["profile_name"]
+        and after["enabled"]
         and after["mode"] == "Sandbox"
         and after["submit_trigger"] == "Manual"
         and after["sandbox_token_configured"]
         and not after["production_post_armed"]
+        and after["seller_identity_complete"]
     ):
-        frappe.throw("Sandbox settings did not persist in the required fail-closed state.")
+        frappe.throw(
+            "Sandbox V2 profile did not persist in the required fail-closed state."
+        )
 
     readiness = fbr_activation.evaluate_fbr_activation_readiness()
     return {
@@ -157,11 +172,13 @@ def configure_sandbox_from_private_file(config_path: str) -> dict:
         "configured": True,
         "sandbox_ready": bool(readiness.get("sandbox_ready")),
         "settings": after,
+        "seller_identity_source": "ERPNext Company + Company Address",
         "plaintext_input_removed": not input_path.exists(),
         "contains_secrets": False,
         "production_credentials_changed": False,
         "production_armed": False,
     }
+
 
 
 def _parse_log_response(value) -> dict:

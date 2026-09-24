@@ -14,6 +14,7 @@ import frappe
 from frappe import _
 from frappe.utils import cint, now_datetime
 
+from ledgix_saas.services import fbr_v2_readiness
 from ledgix_saas.setup.erpnext_extensions import (
     DEFAULT_BUSINESS_PROFILE,
     PROFILE_DEFAULTS,
@@ -217,22 +218,33 @@ def evaluate_client_setup(payload=None) -> dict:
         checks.extend(_pos_profile_checks(pos_profile, company))
 
     if features.get("enable_fbr"):
+        state = fbr_v2_readiness.get_company_profile_state(company).get(
+            "profile"
+        ) or {}
         checks.append(
             _check(
-                "fbr_settings",
-                frappe.db.exists("DocType", "Ledgix FBR Settings"),
-                "Ledgix FBR Settings must be installed. Tokens/seller details can be completed before FBR activation.",
+                "fbr_integration_profile",
+                bool(state.get("exists")),
+                (
+                    "Company-scoped Ledgix FBR Integration Profile is available."
+                    if state.get("exists")
+                    else "Create a Ledgix FBR Integration Profile for the selected Company."
+                ),
                 blocking=True,
-                target="Ledgix FBR Settings",
+                target="Ledgix FBR Integration Profile",
             )
         )
         checks.append(
             _check(
                 "fbr_activation",
                 False,
-                "Review FBR seller identity, environment and token before enabling live submission.",
+                (
+                    "Complete ERPNext seller identity, V2 mappings, official reference "
+                    "evidence, Sandbox token/certification and the dedicated activation "
+                    "gate before enabling FBR network submission."
+                ),
                 blocking=False,
-                target="Ledgix FBR Settings",
+                target="Tax & FBR Center",
             )
         )
 

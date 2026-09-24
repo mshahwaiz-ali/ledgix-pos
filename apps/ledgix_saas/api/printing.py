@@ -8,6 +8,7 @@ import frappe
 from frappe.utils import cint, flt
 
 from ledgix_saas.api.brand import get_brand_settings, get_print_logo_url
+from ledgix_saas.services import erpnext_fbr_identity, fbr_v2_snapshot_persistence
 
 
 SUPPORTED_PRINT_DOCTYPES = {"Sales Invoice", "POS Invoice"}
@@ -44,48 +45,80 @@ def _json(value) -> dict:
         return {}
 
 
-def _fbr_settings_public() -> dict:
-    if not frappe.db.exists("DocType", "Ledgix FBR Settings"):
-        return {}
-    settings = frappe.get_single("Ledgix FBR Settings")
+def _v2_profile_public(company: str) -> dict:
+    company = str(company or "").strip()
+    if not company or not frappe.db.exists("DocType", "Ledgix FBR Integration Profile"):
+        return {
+            "profile_name": "",
+            "software_registration_number": "",
+            "digital_invoicing_logo": "",
+        }
+
+    row = frappe.db.get_value(
+        "Ledgix FBR Integration Profile",
+        {"company": company},
+        ["name", "software_registration_number"],
+        as_dict=True,
+    )
     return {
-        "seller_business_name": settings.get("seller_business_name") or "",
-        "seller_ntn_cnic": settings.get("seller_ntn_cnic") or "",
-        "seller_province": settings.get("seller_province") or "",
-        "seller_address": settings.get("seller_address") or "",
-        "software_registration_number": settings.get("software_registration_number") or "",
-        "digital_invoicing_logo": settings.get("digital_invoicing_logo") or "",
+        "profile_name": row.name if row else "",
+        "software_registration_number": (
+            row.software_registration_number if row else ""
+        ) or "",
+        # No authoritative V2 FBR-logo field exists yet. Do not reuse the
+        # retired singleton setting or fabricate official artwork.
+        "digital_invoicing_logo": "",
     }
 
 
-def _buyer(doc) -> dict:
-    customer = None
-    if doc.get("customer") and frappe.db.exists("Customer", doc.customer):
-        customer = frappe.get_cached_doc("Customer", doc.customer)
+def _identity_for_print(doc) -> tuple[dict, str, str]:
+    version = cint(doc.get("custom_ledgix_fbr_v2_snapshot_version"))
+    if version == fbr_v2_snapshot_persistence.SNAPSHOT_VERSION:
+        persisted = fbr_v2_snapshot_persistence.read_persisted_v2_snapshot(
+            doc.doctype,
+            doc.name,
+        )
+        return (
+            dict((persisted.get("header") or {}).get("identity") or {}),
+            "persisted_v2",
+            persisted.get("snapshot_hash") or "",
+        )
+
+    return (
+        erpnext_fbr_identity.resolve_invoice_identity(doc),
+        "erpnext_live",
+        "",
+    )
+
+
+def _buyer(doc, identity: dict) -> dict:
+    buyer = dict(identity.get("buyer") or {})
     return {
-        "name": doc.get("customer_name") or (customer.get("customer_name") if customer else "") or doc.get("customer") or "Walk-in Customer",
-        "ntn_cnic": (customer.get("custom_ledgix_buyer_ntn_cnic") if customer else "") or (customer.get("tax_id") if customer else "") or "",
-        "strn": (customer.get("custom_ledgix_buyer_strn") if customer else "") or "",
-        "registration_type": (customer.get("custom_ledgix_buyer_registration_type") if customer else "") or "Unregistered",
-        "province": (customer.get("custom_ledgix_buyer_province") if customer else "") or "",
-        "address": doc.get("address_display") or (customer.get("custom_ledgix_buyer_fbr_address") if customer else "") or "",
+        "name": buyer.get("business_name") or doc.get("customer_name") or doc.get("customer") or "Walk-in Customer",
+        "ntn_cnic": buyer.get("ntn_cnic") or "",
+        "strn": buyer.get("strn") or "",
+        "registration_type": buyer.get("registration_type") or "Unregistered",
+        "province": buyer.get("province") or "",
+        "address": buyer.get("address") or "",
     }
 
 
-def _seller() -> dict:
+def _seller(doc, identity: dict) -> dict:
     brand = get_brand_settings()
-    fbr = _fbr_settings_public()
+    seller = dict(identity.get("seller") or {})
+    profile = _v2_profile_public(doc.get("company"))
     return {
-        "name": fbr.get("seller_business_name") or brand.get("brand_name") or "Ledgix",
-        "address": fbr.get("seller_address") or "",
+        "name": seller.get("business_name") or doc.get("company") or brand.get("brand_name") or "Ledgix",
+        "address": seller.get("address") or "",
         "phone": "",
         "email": "",
-        "ntn": fbr.get("seller_ntn_cnic") or "",
-        "strn": "",
-        "province": fbr.get("seller_province") or "",
+        "ntn": seller.get("ntn_cnic") or "",
+        "strn": seller.get("strn") or "",
+        "province": seller.get("province") or "",
         "logo": get_print_logo_url(),
-        "software_registration_number": fbr.get("software_registration_number") or "",
-        "digital_invoicing_logo": fbr.get("digital_invoicing_logo") or "",
+        "software_registration_number": profile.get("software_registration_number") or "",
+        "digital_invoicing_logo": profile.get("digital_invoicing_logo") or "",
+        "fbr_profile": profile.get("profile_name") or "",
     }
 
 
@@ -143,6 +176,8 @@ def get_native_invoice_print_context(reference_doctype, reference_name) -> dict:
     if is_return and doc.get("return_against") and frappe.db.exists(doctype, doc.return_against):
         original = frappe.get_doc(doctype, doc.return_against)
 
+    identity, identity_source, identity_snapshot_hash = _identity_for_print(doc)
+
     fbr_invoice_number = str(doc.get("custom_ledgix_fbr_invoice_number") or "").strip()
     original_fbr_invoice = str(original.get("custom_ledgix_fbr_invoice_number") or "").strip() if original else ""
     payments = []
@@ -165,8 +200,10 @@ def get_native_invoice_print_context(reference_doctype, reference_name) -> dict:
         "posting_time": doc.get("posting_time"),
         "company": doc.get("company") or "",
         "currency": doc.get("currency") or "PKR",
-        "seller": _seller(),
-        "buyer": _buyer(doc),
+        "identity_source": identity_source,
+        "identity_snapshot_hash": identity_snapshot_hash,
+        "seller": _seller(doc, identity),
+        "buyer": _buyer(doc, identity),
         "items": [_line_context(row) for row in doc.get("items") or []],
         "net_total": abs(flt(doc.get("net_total"), 2)),
         "tax_total": abs(flt(doc.get("total_taxes_and_charges"), 2)),

@@ -17,6 +17,7 @@ from frappe import _
 from frappe.utils import cint, now_datetime
 
 from ledgix_saas.api import client_setup
+from ledgix_saas.services import erpnext_fbr_identity, fbr_v2_readiness
 
 READINESS_SCHEMA_VERSION = 1
 ADMIN_ROLES = {"System Manager", "Ledgix Admin"}
@@ -206,49 +207,73 @@ def _fbr_checks(features: dict) -> list[dict]:
         return []
 
     category = "FBR handoff"
-    if not frappe.db.exists("DocType", "Ledgix FBR Settings"):
+    company = str(
+        frappe.db.get_single_value(
+            "Ledgix Business Profile",
+            "setup_company",
+        )
+        or ""
+    ).strip()
+
+    bundle = fbr_v2_readiness.get_company_profile_state(company)
+    state = dict(bundle.get("profile") or {})
+
+    if not state.get("exists"):
         return [
             _check(
-                "fbr_settings_installed",
+                "fbr_integration_profile",
                 False,
-                "Ledgix FBR Settings must be installed for an FBR-enabled profile.",
+                "Create a company-scoped Ledgix FBR Integration Profile.",
                 category=category,
-                target="Ledgix FBR Settings",
+                target="Ledgix FBR Integration Profile",
+                details={"company": company},
             )
         ]
 
-    doc = frappe.get_single("Ledgix FBR Settings")
-    seller_fields = ("seller_ntn_cnic", "seller_business_name", "seller_province", "seller_address")
-    missing_identity = [fieldname for fieldname in seller_fields if not str(doc.get(fieldname) or "").strip()]
-    armed = bool(cint(doc.get("production_post_armed")))
-    mode = str(doc.get("mode") or "Disabled")
+    identity = erpnext_fbr_identity.resolve_company_seller_identity(company)
+    armed = bool(state.get("production_post_armed"))
+    mode = state.get("mode") or "Disabled"
 
     return [
         _check(
-            "fbr_settings_installed",
+            "fbr_integration_profile",
             True,
-            "Ledgix FBR Settings are installed.",
+            "Company-scoped Ledgix FBR Integration Profile is available.",
             category=category,
-            target="Ledgix FBR Settings",
+            target="Ledgix FBR Integration Profile",
+            details={
+                "company": company,
+                "profile": state.get("name") or "",
+                "mode": mode,
+            },
         ),
         _check(
             "fbr_pre_activation_interlock",
             not armed,
             "FBR Production posting must remain unarmed until the dedicated Sandbox-to-Production activation gate.",
             category=category,
-            target="Ledgix FBR Settings",
-            details={"mode": mode, "production_post_armed": armed},
+            target="Ledgix FBR Integration Profile",
+            details={
+                "mode": mode,
+                "production_post_armed": armed,
+                "profile": state.get("name") or "",
+            },
         ),
         _check(
             "fbr_seller_identity",
-            not missing_identity,
-            "Complete FBR seller identity before the next FBR Sandbox/Production workstream.",
+            bool(identity.get("ready")),
+            "Complete ERPNext Company Tax ID and default Company Address before the next FBR Sandbox/Production workstream.",
             category=category,
             blocking=False,
-            target="Ledgix FBR Settings",
-            details={"missing_fields": missing_identity, "mode": mode},
+            target="Company / Address",
+            details={
+                "authority": identity.get("authority") or "ERPNext",
+                "errors": list(identity.get("errors") or []),
+                "mode": mode,
+            },
         ),
     ]
+
 
 
 def _evidence_checks(strict_evidence: bool) -> tuple[list[dict], dict]:

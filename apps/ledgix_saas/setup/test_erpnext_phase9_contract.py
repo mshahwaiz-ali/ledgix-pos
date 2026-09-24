@@ -112,7 +112,9 @@ class TestERPNextPhase9Contract(unittest.TestCase):
 
     def test_submission_log_remains_ledgix_audit_over_native_dynamic_reference(self):
         source = (APP_ROOT / "api" / "fbr_native.py").read_text(encoding="utf-8")
-        self.assertIn("from ledgix_saas.api.fbr_submission import create_submission_log", source)
+        self.assertIn("from ledgix_saas.services.fbr_submission_support import (", source)
+        self.assertIn("create_submission_log,", source)
+        self.assertNotIn("ledgix_saas.api.fbr_submission", source)
         self.assertIn("doc.doctype,", source)
         self.assertIn("doc.name,", source)
         log_schema = (

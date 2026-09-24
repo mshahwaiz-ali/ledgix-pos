@@ -18,8 +18,10 @@ class TestFBRActivationContract(unittest.TestCase):
         for token in (
             'NATIVE_DOCTYPES = ("Sales Invoice", "POS Invoice")',
             "client_readiness.evaluate_client_readiness",
-            "get_fbr_settings_internal",
-            "fbr_client.requests_available",
+            "fbr_v2_readiness.get_company_profile_state",
+            "fbr_transport.requests_available",
+            '"Ledgix FBR Integration Profile"',
+            '"ERPNext Company + Company Address"',
             '"Reconciliation Required"',
             '"sandbox_ready"',
             '"sandbox_proven"',
@@ -36,6 +38,8 @@ class TestFBRActivationContract(unittest.TestCase):
             "post_invoice(",
             "get_active_fbr_token",
             "save_fbr_settings",
+            "get_fbr_settings_internal",
+            "fbr_client.",
             "production_post_armed = 1",
             "frappe.new_doc",
             ".insert(",
@@ -69,6 +73,7 @@ class TestFBRActivationContract(unittest.TestCase):
             '"production_still_unarmed"',
             '"not_already_production"',
             '"no_unreconciled_production_state"',
+            '"sandbox_certification_complete"',
             'DEFAULT_MAX_BACKUP_AGE_HOURS = 24',
         ):
             self.assertIn(token, source)
@@ -101,9 +106,11 @@ class TestFBRActivationContract(unittest.TestCase):
             'site.endswith(".localhost")',
             'SANDBOX_CONFIRMATION = "SEND TO FBR SANDBOX"',
             'PRIVATE_SUBDIR = "ledgix-fbr-activation"',
-            '"mode": "Sandbox"',
-            '"submit_trigger": "Manual"',
-            '"production_post_armed": 0',
+            'profile.mode = "Sandbox"',
+            'profile.submit_trigger = "Manual"',
+            "profile.production_post_armed = 0",
+            "get_v2_configuration_summary_internal",
+            '"ERPNext Company + Company Address"',
             'input_path.unlink(missing_ok=True)',
             'fbr_native.validate_native_with_fbr_internal',
             'fbr_native.submit_native_to_fbr_internal',
@@ -119,6 +126,12 @@ class TestFBRActivationContract(unittest.TestCase):
             'fbr_client.post_invoice',
             'fbr_client.validate_invoice',
             'get_active_fbr_token',
+            'get_fbr_settings_internal',
+            'save_fbr_settings',
+            '"seller_ntn_cnic"',
+            '"seller_business_name"',
+            '"seller_province"',
+            '"seller_address"',
         ):
             self.assertNotIn(forbidden, source)
 
@@ -139,6 +152,21 @@ class TestFBRActivationContract(unittest.TestCase):
             "fbr_sandbox_configuration_complete=true",
         ):
             self.assertIn(token, configure_source)
+        self.assertIn(
+            "Seller identity will be validated from ERPNext Company + Company Address",
+            configure_source,
+        )
+        for forbidden in (
+            "SELLER_NTN_CNIC",
+            "SELLER_BUSINESS_NAME",
+            "SELLER_PROVINCE",
+            "SELLER_ADDRESS",
+            '"seller_ntn_cnic"',
+            '"seller_business_name"',
+            '"seller_province"',
+            '"seller_address"',
+        ):
+            self.assertNotIn(forbidden, configure_source)
         self.assertNotIn("--sandbox-token", configure_source)
         self.assertNotIn("--production-token", configure_source)
 

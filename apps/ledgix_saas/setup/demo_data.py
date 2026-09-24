@@ -51,7 +51,7 @@ def inspect_site() -> dict:
         )
         if frappe.db.exists("DocType", "Ledgix Legacy Retirement State")
         else "Not Installed",
-        "fbr_mode": frappe.db.get_single_value("Ledgix FBR Settings", "mode") or "Disabled",
+        "fbr_mode": native._fbr_profile_state(company)["mode"],
         "dataset": SEED,
         "retail_data_present": bool(
             frappe.db.exists(
@@ -197,8 +197,12 @@ def verify() -> dict:
         as_dict=True,
     )
 
-    fbr = frappe.get_single("Ledgix FBR Settings")
-    fbr_safe = not cint(fbr.get("enabled")) and str(fbr.get("mode") or "Disabled") == "Disabled"
+    fbr_state = native._fbr_profile_state(company)
+    fbr_safe = (
+        not fbr_state["enabled"]
+        and fbr_state["mode"] == "Disabled"
+        and not fbr_state["production_post_armed"]
+    )
     active_opening = frappe.db.get_value(
         "POS Opening Entry",
         {

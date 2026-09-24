@@ -15,7 +15,7 @@ Usage: scripts/configure_fbr_sandbox_local.sh [SITE]
 
 Interactive local/integration Sandbox configuration helper.
 
-- seller identity is prompted interactively;
+- seller identity is read from ERPNext Company + Company Address;
 - Sandbox token is read silently and is never a command-line argument;
 - plaintext staging JSON is written only under the site's private directory
   with mode 0600 and deleted after Frappe stores the Password field;
@@ -94,18 +94,11 @@ TEMP_REDIS_STARTED=1
 BENCH_DIR="$BENCH_DIR" bash "$REPO_ROOT/scripts/run_ledgix_client_preflight.sh" "$SITE"
 
 printf '\n===== CLIENT SANDBOX INPUT =====\n'
-read -r -p 'Seller NTN/CNIC: ' SELLER_NTN_CNIC
-read -r -p 'Seller business name: ' SELLER_BUSINESS_NAME
-read -r -p 'Seller province: ' SELLER_PROVINCE
-read -r -p 'Seller address: ' SELLER_ADDRESS
+printf '[INFO] Seller identity will be validated from ERPNext Company + Company Address.\n'
 read -r -p 'Software registration number (optional, press Enter to skip): ' SOFTWARE_REGISTRATION_NUMBER
 read -r -s -p 'Sandbox token (hidden): ' SANDBOX_TOKEN
 printf '\n'
 
-[[ -n "${SELLER_NTN_CNIC// }" ]] || fail 'Seller NTN/CNIC is required'
-[[ -n "${SELLER_BUSINESS_NAME// }" ]] || fail 'Seller business name is required'
-[[ -n "${SELLER_PROVINCE// }" ]] || fail 'Seller province is required'
-[[ -n "${SELLER_ADDRESS// }" ]] || fail 'Seller address is required'
 [[ -n "$SANDBOX_TOKEN" ]] || fail 'Sandbox token is required'
 
 PRIVATE_DIR="$BENCH_DIR/sites/$SITE/private/ledgix-fbr-activation"
@@ -114,10 +107,6 @@ chmod 700 "$PRIVATE_DIR"
 INPUT_FILE="$PRIVATE_DIR/sandbox-config-input.$$.json"
 
 printf '%s\0' \
-  "$SELLER_NTN_CNIC" \
-  "$SELLER_BUSINESS_NAME" \
-  "$SELLER_PROVINCE" \
-  "$SELLER_ADDRESS" \
   "$SOFTWARE_REGISTRATION_NUMBER" \
   "$SANDBOX_TOKEN" \
   | "$BENCH_PYTHON" -c '
@@ -129,13 +118,9 @@ path = sys.argv[1]
 values = sys.stdin.buffer.read().decode("utf-8").split("\0")
 while values and values[-1] == "":
     values.pop()
-if len(values) != 6:
+if len(values) != 2:
     raise SystemExit("invalid sandbox configuration input stream")
 keys = [
-    "seller_ntn_cnic",
-    "seller_business_name",
-    "seller_province",
-    "seller_address",
     "software_registration_number",
     "sandbox_token",
 ]
@@ -173,7 +158,7 @@ print("1" if value.get("sandbox_ready") else "0")
 [[ "$SANDBOX_READY" == "1" ]] || fail 'Sandbox settings were saved but Sandbox readiness is still blocked; review the evidence above'
 
 printf '\n===== SANDBOX CONFIGURATION VERDICT =====\n'
-printf '[PASS] seller identity stored\n'
+printf '[PASS] seller identity validated from ERPNext Company + Company Address\n'
 printf '[PASS] Sandbox token stored through Frappe Password handling\n'
 printf '[PASS] plaintext staging file removed\n'
 printf '[PASS] Sandbox mode enabled with Manual trigger\n'

@@ -220,7 +220,6 @@ key_imports = {
         "ledgix_saas",
         "ledgix_saas.hooks",
         "ledgix_saas.api.fbr_client",
-        "ledgix_saas.api.fbr_settings",
         "ledgix_saas.api.fbr_payload",
         "ledgix_saas.api.fbr_submission",
         "ledgix_saas.api.taxation",

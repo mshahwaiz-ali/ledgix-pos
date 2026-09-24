@@ -98,7 +98,6 @@ DOCTYPE_PERMISSIONS = {
 	"Ledgix Tax Profile": _rows(_full("System Manager"), _full("Ledgix Admin"), _read("Ledgix Manager")),
 	"Ledgix Tax Category": _rows(_full("System Manager"), _full("Ledgix Admin"), _read("Ledgix Manager")),
 	"Ledgix Tax Rate": _rows(_full("System Manager"), _full("Ledgix Admin"), _read("Ledgix Manager")),
-	"Ledgix FBR Settings": _rows(_full("System Manager"), _full("Ledgix Admin"), _read("Ledgix Manager")),
 	"Ledgix Item Tax Profile": _rows(_full("System Manager"), _full("Ledgix Admin"), _rw("Ledgix Manager")),
 	"Ledgix FBR Submission Log": _rows(_full("System Manager"), _full("Ledgix Admin"), _read("Ledgix Manager")),
 	"Ledgix Tax Audit Log": _rows(_full("System Manager"), _full("Ledgix Admin")),

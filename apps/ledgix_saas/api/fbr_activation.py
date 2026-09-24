@@ -15,21 +15,17 @@ from pathlib import Path
 
 import frappe
 from frappe import _
+from frappe.contacts.doctype.address.address import get_default_address
 from frappe.utils import cint, now_datetime
 
-from ledgix_saas.api import client_readiness, fbr_client
-from ledgix_saas.api.fbr_settings import get_fbr_settings_internal
+from ledgix_saas.api import client_readiness, fbr_transport
+from ledgix_saas.services import fbr_v2_readiness
 
 ACTIVATION_SCHEMA_VERSION = 1
 ADMIN_ROLES = {"System Manager", "Ledgix Admin"}
 NATIVE_DOCTYPES = ("Sales Invoice", "POS Invoice")
 SUCCESSFUL_SANDBOX_STATUSES = {"Validated", "Submitted"}
-SELLER_IDENTITY_FIELDS = (
-    "seller_ntn_cnic",
-    "seller_business_name",
-    "seller_province",
-    "seller_address",
-)
+PROFILE_DOCTYPE = "Ledgix FBR Integration Profile"
 DEFAULT_MAX_BACKUP_AGE_HOURS = 24
 
 
@@ -62,21 +58,135 @@ def _safe_json(value):
     return parsed if isinstance(parsed, dict) else {}
 
 
-def _settings_summary() -> dict:
-    settings = get_fbr_settings_internal()
-    missing_identity = [field for field in SELLER_IDENTITY_FIELDS if not str(settings.get(field) or "").strip()]
+def _seller_identity_summary(company: str) -> dict:
+    company = str(company or "").strip()
+    if not company or not frappe.db.exists("Company", company):
+        return {
+            "company": company,
+            "complete": False,
+            "missing_fields": [
+                "ERPNext Company",
+                "Company Tax ID",
+                "Company Address",
+                "Company Address State/Province",
+            ],
+            "address_name": "",
+            "contains_secrets": False,
+        }
+
+    company_doc = frappe.get_doc("Company", company)
+    address_name = str(get_default_address("Company", company) or "").strip()
+    address = (
+        frappe.get_cached_doc("Address", address_name)
+        if address_name and frappe.db.exists("Address", address_name)
+        else None
+    )
+
+    tax_id = str(company_doc.get("tax_id") or "").strip()
+    business_name = str(
+        company_doc.get("company_name") or company_doc.name or ""
+    ).strip()
+    province = str(address.get("state") or "").strip() if address else ""
+
+    address_text = ""
+    if address:
+        parts = []
+        for fieldname in (
+            "address_line1",
+            "address_line2",
+            "city",
+            "state",
+            "country",
+        ):
+            value = str(address.get(fieldname) or "").strip()
+            if value and value not in parts:
+                parts.append(value)
+        address_text = ", ".join(parts)
+
+    missing = []
+    if not tax_id:
+        missing.append("Company Tax ID")
+    if not business_name:
+        missing.append("Company Name")
+    if not address_name:
+        missing.append("Company Address")
+    if not province:
+        missing.append("Company Address State/Province")
+    if not address_text:
+        missing.append("Company Address")
+
     return {
-        "enabled": bool(settings.get("enabled")),
-        "mode": settings.get("mode") or "Disabled",
-        "submit_trigger": settings.get("submit_trigger") or "Manual",
-        "production_post_armed": bool(settings.get("production_post_armed")),
-        "sandbox_token_configured": bool(settings.get("sandbox_token_configured")),
-        "production_token_configured": bool(settings.get("production_token_configured")),
-        "seller_identity_complete": not missing_identity,
-        "missing_seller_identity_fields": missing_identity,
-        "software_registration_number_configured": bool(str(settings.get("software_registration_number") or "").strip()),
-        "requests_available": bool(fbr_client.requests_available()),
+        "company": company,
+        "complete": not missing,
+        "missing_fields": missing,
+        "address_name": address_name,
+        "contains_secrets": False,
     }
+
+
+def get_v2_configuration_summary_internal(
+    operational: dict | None = None,
+) -> dict:
+    operational = operational or client_readiness.evaluate_client_readiness(
+        strict_evidence=0
+    )
+    company = str(
+        (operational.get("identity") or {}).get("company") or ""
+    ).strip()
+
+    bundle = fbr_v2_readiness.get_company_profile_state(company)
+    state = dict(bundle.get("profile") or {})
+    certification = dict(bundle.get("sandbox_certification") or {})
+    seller = _seller_identity_summary(company)
+
+    profile_name = state.get("name") or ""
+    profile_doc = (
+        frappe.get_doc(PROFILE_DOCTYPE, profile_name)
+        if profile_name and frappe.db.exists(PROFILE_DOCTYPE, profile_name)
+        else None
+    )
+
+    return {
+        "source": "Ledgix FBR Integration Profile",
+        "company": company,
+        "profile_name": profile_name,
+        "profile_exists": bool(state.get("exists")),
+        "enabled": bool(state.get("enabled")),
+        "mode": state.get("mode") or "Disabled",
+        "submit_trigger": state.get("submit_trigger") or "Manual",
+        "production_post_armed": bool(
+            state.get("production_post_armed")
+        ),
+        "sandbox_token_configured": bool(
+            state.get("sandbox_token_configured")
+        ),
+        "production_token_configured": bool(
+            state.get("production_token_configured")
+        ),
+        "seller_identity_complete": bool(seller.get("complete")),
+        "missing_seller_identity_fields": list(
+            seller.get("missing_fields") or []
+        ),
+        "seller_identity_source": "ERPNext Company + Company Address",
+        "software_registration_number_configured": bool(
+            str(
+                profile_doc.get("software_registration_number")
+                if profile_doc
+                else ""
+            ).strip()
+        ),
+        "requests_available": bool(fbr_transport.requests_available()),
+        "sandbox_certification_name": certification.get("name") or "",
+        "sandbox_certification_status": certification.get("status") or "",
+        "sandbox_certification_evidence_complete": bool(
+            certification.get("evidence_complete")
+        ),
+        "sandbox_certification_complete": bool(
+            certification.get("complete")
+        ),
+        "contains_secrets": False,
+    }
+
 
 
 def _native_reference_is_return(doctype: str, name: str) -> bool:
@@ -191,7 +301,7 @@ def evaluate_fbr_activation_readiness(
     operational = client_readiness.evaluate_client_readiness(strict_evidence=0)
     production_operational = client_readiness.evaluate_client_readiness(strict_evidence=1)
     features = dict(operational.get("features") or {})
-    settings = _settings_summary()
+    settings = get_v2_configuration_summary_internal(operational)
     proof = _sandbox_proof_summary()
     reconciliation = _reconciliation_summary()
     backup = _backup_summary(max_backup_age)
@@ -227,6 +337,7 @@ def evaluate_fbr_activation_readiness(
 
     production_checks = [
         _check("sandbox_proven", sandbox_proven, "Required Sandbox validation/POST evidence must be complete before Production switch.", category="Production gate"),
+        _check("sandbox_certification_complete", settings["sandbox_certification_complete"], "Complete Ledgix FBR Sandbox Certification with complete evidence before Production switch.", category="Production gate", details={"certification": settings["sandbox_certification_name"], "status": settings["sandbox_certification_status"], "evidence_complete": settings["sandbox_certification_evidence_complete"]}),
         _check("production_token_configured", settings["production_token_configured"], "Configure the client Production token securely before activation.", category="FBR credentials"),
         _check("production_still_unarmed", not settings["production_post_armed"], "Production must remain unarmed until the explicit activation action.", category="Production interlock"),
         _check("not_already_production", settings["mode"] != "Production", "The readiness gate expects a pre-Production state; Production switching is a separate explicit action.", category="Production interlock", details={"mode": settings["mode"]}),

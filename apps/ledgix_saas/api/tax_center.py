@@ -3,7 +3,8 @@ import json
 import frappe
 from frappe.utils import cint, flt, getdate, now_datetime, nowdate
 
-from ledgix_saas.api.fbr_settings import get_fbr_control_state, get_fbr_settings
+from ledgix_saas.api import fbr_v2_center
+from ledgix_saas.services.fbr_v2_status import get_fbr_v2_status_internal
 from ledgix_saas.api.taxation import (
     calculate_tax_breakdown,
     get_category_tax_defaults,
@@ -367,31 +368,51 @@ def _date_filter(filters, from_date=None, to_date=None):
 
 
 def _safe_fbr_settings_summary(settings=None):
-    settings = settings or get_fbr_settings()
-    control_state = get_fbr_control_state()
+    # Historical response key retained for compatibility; V2 is authoritative.
+    status = get_fbr_v2_status_internal()
     return {
-        "enabled": bool(settings.get("enabled")),
-        "mode": settings.get("mode") or "Disabled",
-        "submit_trigger": settings.get("submit_trigger") or "Manual",
-        "sandbox_token_configured": bool(settings.get("sandbox_token_configured")),
-        "production_token_configured": bool(settings.get("production_token_configured")),
-        "seller_ntn_cnic": settings.get("seller_ntn_cnic") or "",
-        "seller_business_name": settings.get("seller_business_name") or "",
-        "seller_province": settings.get("seller_province") or "",
-        "seller_address": settings.get("seller_address") or "",
-        "block_sale_if_fbr_fails": bool(settings.get("block_sale_if_fbr_fails")),
-        "retry_enabled": bool(settings.get("retry_enabled")),
-        "max_retry_count": cint(settings.get("max_retry_count") or 0),
-        "pause_reason": settings.get("pause_reason") or "",
-        "paused_at": settings.get("paused_at"),
-        "paused_by": settings.get("paused_by") or "",
-        "last_sync_status": settings.get("last_sync_status") or "",
-        "production_post_connected": bool(control_state.get("production_post_connected")),
-        "auto_submit_active": bool(control_state.get("auto_submit_active")),
-        "retry_worker_active": bool(control_state.get("retry_worker_active")),
-        "can_manual_submit": bool(control_state.get("can_manual_submit")),
-        "can_manual_validate": bool(control_state.get("can_manual_validate")),
+        "source": status.get("source") or "Ledgix FBR Integration Profile",
+        "architecture": status.get("architecture") or "ERPNext Native + FBR V2",
+        "enabled": bool(status.get("enabled")),
+        "mode": status.get("mode") or "Disabled",
+        "submit_trigger": status.get("submit_trigger") or "Manual",
+        "sandbox_token_configured": bool(
+            status.get("sandbox_token_configured")
+        ),
+        "production_token_configured": bool(
+            status.get("production_token_configured")
+        ),
+        "production_post_armed": bool(
+            status.get("production_post_armed")
+        ),
+        "sandbox_certification_complete": bool(
+            status.get("sandbox_certification_complete")
+        ),
+        "production_post_connected": bool(
+            status.get("production_post_connected")
+        ),
+        "auto_submit_active": False,
+        "retry_worker_active": False,
+        "can_manual_submit": bool(
+            status.get("production_post_connected")
+        ),
+        "can_manual_validate": bool(
+            status.get("sandbox_validate_connected")
+            or status.get("production_validate_connected")
+        ),
+        "network_cutover_active": bool(
+            status.get("network_cutover_active")
+        ),
+        "seller_identity_source": "ERPNext Company + Company Address",
+        "block_sale_if_fbr_fails": False,
+        "retry_enabled": False,
+        "max_retry_count": 0,
+        "pause_reason": "",
+        "paused_at": None,
+        "paused_by": "",
+        "last_sync_status": "",
     }
+
 
 
 def _readiness_check(key, label, ready, value, level=None):
@@ -410,8 +431,7 @@ def _readiness_check(key, label, ready, value, level=None):
 def get_tax_center_boot():
     _require_tax_view()
     profile = _profile_dict()
-    fbr_settings = get_fbr_settings()
-    fbr_control_state = get_fbr_control_state()
+    fbr_control_state = get_fbr_v2_status_internal()
     counts = {
         "items_need_review": _get_count("Ledgix Item Tax Profile", {"active": 1, "needs_review": 1}),
         "missing_hs_code": _count_missing_hs_code(),
@@ -429,7 +449,7 @@ def get_tax_center_boot():
         },
         "permissions": _permissions(),
         "counts": counts,
-        "fbr_settings_summary": _safe_fbr_settings_summary(fbr_settings),
+        "fbr_settings_summary": _safe_fbr_settings_summary(),
         "fbr_control_state": fbr_control_state,
     }
 
@@ -1143,94 +1163,9 @@ def get_return_tax_snapshots(page=1, page_size=15, search=None, from_date=None, 
 
 @frappe.whitelist()
 def get_fbr_readiness():
+    # Compatibility RPC: return the authoritative V2 readiness model.
     _require_tax_view()
-    settings = get_fbr_settings()
-    control_state = get_fbr_control_state()
-    settings_summary = _safe_fbr_settings_summary(settings)
-    active_profiles = _get_count("Ledgix Item Tax Profile", {"active": 1})
-    missing_hs = _count_missing_hs_code()
-    missing_uom = _count_missing_item_tax_field("uom_for_fbr")
-    missing_scenario = _count_missing_item_tax_field("scenario_id")
-    needs_review = _get_count("Ledgix Item Tax Profile", {"active": 1, "needs_review": 1})
-    hs_covered = max(active_profiles - missing_hs, 0)
-    uom_covered = max(active_profiles - missing_uom, 0)
-    scenario_covered = max(active_profiles - missing_scenario, 0)
-    coverage = flt((hs_covered / active_profiles) * 100, 2) if active_profiles else 0
-    uom_coverage = flt((uom_covered / active_profiles) * 100, 2) if active_profiles else 0
-    scenario_coverage = flt((scenario_covered / active_profiles) * 100, 2) if active_profiles else 0
-    mode = settings_summary.get("mode") or "Disabled"
-    enabled = bool(settings_summary.get("enabled"))
-    sandbox_token_ready = mode != "Sandbox" or bool(settings_summary.get("sandbox_token_configured"))
-    production_token_ready = mode != "Production" or bool(settings_summary.get("production_token_configured"))
-    scenario_ready = missing_scenario == 0
-    scenario_level = "missing" if mode == "Sandbox" and not scenario_ready else ("warning" if not scenario_ready else "ready")
-    production_post_connected = bool(control_state.get("production_post_connected"))
-    auto_submit_active = bool(control_state.get("auto_submit_active"))
-    retry_worker_active = bool(control_state.get("retry_worker_active"))
-    sales_return_meta = frappe.get_meta("Ledgix Sales Return")
-    return_fbr_ready = bool(
-        sales_return_meta.has_field("fbr_status") and sales_return_meta.has_field("fbr_invoice_number")
-    )
-    qr_logo_ready = True
-    checks = [
-        _readiness_check("fbr_mode", "FBR Mode", mode in ("Sandbox", "Production"), mode),
-        _readiness_check("fbr_enabled", "FBR Enabled", enabled and mode in ("Sandbox", "Production"), "Enabled" if enabled else "Disabled"),
-        _readiness_check("sandbox_token", "Sandbox Token", sandbox_token_ready, "Configured" if settings_summary.get("sandbox_token_configured") else "Missing", "ready" if sandbox_token_ready else "missing"),
-        _readiness_check("production_token", "Production Token", production_token_ready, "Configured" if settings_summary.get("production_token_configured") else "Missing", "ready" if production_token_ready else "warning"),
-        _readiness_check("production_post", "Production Post", production_post_connected, "Connected" if production_post_connected else "Not Active", "ready" if production_post_connected else "warning"),
-        _readiness_check("seller_ntn_cnic", "Seller NTN/CNIC", bool(settings_summary.get("seller_ntn_cnic")), settings_summary.get("seller_ntn_cnic") or "Missing"),
-        _readiness_check("seller_business_name", "Seller Business Name", bool(settings_summary.get("seller_business_name")), settings_summary.get("seller_business_name") or "Missing"),
-        _readiness_check("seller_province", "Seller Province", bool(settings_summary.get("seller_province")), settings_summary.get("seller_province") or "Missing"),
-        _readiness_check("seller_address", "Seller Address", bool(settings_summary.get("seller_address")), settings_summary.get("seller_address") or "Missing"),
-        _readiness_check("hs_code_coverage", "HS Code Coverage", active_profiles > 0 and missing_hs == 0, f"{coverage}%"),
-        _readiness_check("uom_coverage", "UOM for FBR Coverage", active_profiles > 0 and missing_uom == 0, f"{uom_coverage}%"),
-        _readiness_check("scenario_coverage", "Scenario ID Coverage", scenario_ready, f"{scenario_coverage}%", scenario_level),
-        _readiness_check("item_review", "Items Needing Review", needs_review == 0, needs_review, "ready" if needs_review == 0 else "warning"),
-        _readiness_check("auto_submit", "Auto Submit", auto_submit_active, "Active" if auto_submit_active else "Not Active", "ready" if auto_submit_active else "warning"),
-        _readiness_check("retry_worker", "Retry Worker", retry_worker_active, "Active" if retry_worker_active else "Not Active", "ready" if retry_worker_active else "warning"),
-        _readiness_check("reference_api_sync", "Reference API Sync", False, "Manual check required", "warning"),
-        _readiness_check(
-            "qr_logo_printing",
-            "QR / Logo Printing",
-            qr_logo_ready,
-            "POS receipt shows FBR invoice # and QR when FBR returns them.",
-            "ready",
-        ),
-        _readiness_check(
-            "return_debit_note",
-            "Sales Return / Debit Note",
-            return_fbr_ready,
-            "Credit note FBR flow available via Sales Return." if return_fbr_ready else "Sales Return FBR fields missing.",
-            "ready" if return_fbr_ready else "warning",
-        ),
-    ]
-    scorable_checks = [row for row in checks if row.get("key") not in {"production_post", "auto_submit", "retry_worker"}]
-    ready_count = len([row for row in scorable_checks if row.get("ready")])
-    return {
-        "checks": checks,
-        "stats": {
-            "active_item_tax_profiles": active_profiles,
-            "missing_hs_code": missing_hs,
-            "missing_uom_for_fbr": missing_uom,
-            "missing_scenario_id": missing_scenario,
-            "items_needing_review": needs_review,
-            "hs_code_coverage_percent": coverage,
-            "uom_for_fbr_coverage_percent": uom_coverage,
-            "scenario_id_coverage_percent": scenario_coverage,
-            "fbr_enabled": bool(control_state.get("enabled")),
-            "fbr_mode": control_state.get("mode") or "Disabled",
-            "sandbox_token_configured": bool(settings_summary.get("sandbox_token_configured")),
-            "production_token_configured": bool(settings_summary.get("production_token_configured")),
-            "production_post_connected": production_post_connected,
-            "auto_submit_active": auto_submit_active,
-            "retry_worker_active": retry_worker_active,
-            "qr_logo_ready": qr_logo_ready,
-            "submission_status": "Production Post is connected when Production mode is enabled with a configured token.",
-        },
-        "ready_score": flt((ready_count / len(scorable_checks)) * 100, 2) if scorable_checks else 0,
-        "settings_summary": settings_summary,
-        "control_state": control_state,
-    }
+    return fbr_v2_center.get_fbr_readiness()
 
 
 @frappe.whitelist()

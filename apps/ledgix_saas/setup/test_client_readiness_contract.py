@@ -26,7 +26,10 @@ class TestClientReadinessContract(unittest.TestCase):
             '"client_setup_applied"',
             '"payment_account_mapping"',
             '"named_operational_user"',
+            '"fbr_integration_profile"',
             '"fbr_pre_activation_interlock"',
+            "fbr_v2_readiness.get_company_profile_state",
+            "erpnext_fbr_identity.resolve_company_seller_identity",
             '"release_identity_evidence"',
             '"verified_backup_evidence"',
             '"ERPNext business configuration + Ledgix onboarding evidence"',
@@ -45,11 +48,14 @@ class TestClientReadinessContract(unittest.TestCase):
 
     def test_fbr_is_safety_checked_but_not_activated_by_r5(self):
         source = (APP_ROOT / "api" / "client_readiness.py").read_text(encoding="utf-8")
-        self.assertIn('doc.get("production_post_armed")', source)
+        self.assertIn('state.get("production_post_armed")', source)
         self.assertIn("must remain unarmed until the dedicated Sandbox-to-Production activation gate", source)
         self.assertIn('"next_workstream": "FBR Sandbox -> Production activation"', source)
+        self.assertIn("Ledgix FBR Integration Profile", source)
+        self.assertIn("ERPNext Company Tax ID and default Company Address", source)
         self.assertNotIn("production_post_armed = 1", source)
         self.assertNotIn('set_value("Ledgix FBR Settings"', source)
+        self.assertNotIn('frappe.get_single("Ledgix FBR Settings")', source)
 
     def test_evidence_is_private_non_secret_and_release_identified(self):
         source = (APP_ROOT / "api" / "client_readiness.py").read_text(encoding="utf-8")
@@ -73,10 +79,13 @@ class TestClientReadinessContract(unittest.TestCase):
             "ledgix_saas.api.client_readiness.get_client_readiness",
             "strict_evidence: 0",
             "FBR Production remains a separate activation gate",
+            "Tax & FBR Center",
+            'frappe.set_route("ledgix-tax-center")',
             "renderOnboarding",
         ):
             self.assertIn(token, source)
         self.assertNotIn("production_post_armed", source)
+        self.assertNotIn("Ledgix FBR Settings", source)
 
     def test_guarded_local_setup_adapter_reuses_phase13_service(self):
         path = APP_ROOT / "setup" / "r5_local_setup_apply.py"

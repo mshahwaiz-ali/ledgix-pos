@@ -10,19 +10,16 @@ REQUIRED_ROLES = (
 )
 
 REQUIRED_DOCTYPE_FIELDS = {
-    "Ledgix FBR Settings": (
+    "Ledgix FBR Integration Profile": (
+        "company",
         "enabled",
         "mode",
         "submit_trigger",
         "sandbox_token",
         "production_token",
-        "seller_ntn_cnic",
-        "seller_business_name",
-        "seller_province",
-        "seller_address",
-        "retry_enabled",
-        "max_retry_count",
-        "offline_upload_hours",
+        "production_post_armed",
+        "onboarding_status",
+        "reference_sync_status",
     ),
     "Ledgix FBR Submission Log": (
         "reference_doctype",
@@ -64,16 +61,15 @@ REQUIRED_DOCTYPE_FIELDS = {
 REQUIRED_MODULES = (
     "ledgix_saas.api.fbr_client",
     "ledgix_saas.api.fbr_health",
-    "ledgix_saas.api.fbr_payload",
-    "ledgix_saas.api.fbr_settings",
+    "ledgix_saas.api.fbr_native",
+    "ledgix_saas.api.fbr_v2_transport",
     "ledgix_saas.api.fbr_submission",
+    "ledgix_saas.services.fbr_v2_status",
     "ledgix_saas.api.taxation",
 )
 
-REQUIRED_SCHEDULER_METHODS = (
-    "ledgix_saas.api.fbr_submission.process_fbr_retry_queue",
-    "ledgix_saas.api.fbr_submission.process_fbr_offline_upload_queue",
-)
+# Legacy blind retry/offline recovery workers are intentionally retired.
+REQUIRED_SCHEDULER_METHODS = ()
 
 
 def _assert_validation_permission():

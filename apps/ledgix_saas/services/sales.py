@@ -3,6 +3,7 @@ from __future__ import annotations
 import frappe
 from frappe.utils import add_days, cint, getdate, today
 
+from ledgix_saas.services import erpnext_fbr_identity
 from ledgix_saas.services.pricing import resolve_price_list
 
 
@@ -40,26 +41,49 @@ def _brand_identity():
 	}
 
 
-def get_seller_identity():
-	"""Resolve the current site seller identity from canonical Ledgix settings."""
-	from ledgix_saas.api.fbr_settings import get_fbr_settings_internal
+def _setup_company():
+	if not frappe.db.exists("DocType", "Ledgix Business Profile"):
+		return ""
+	return str(
+		frappe.db.get_single_value(
+			"Ledgix Business Profile",
+			"setup_company",
+		)
+		or ""
+	).strip()
 
+
+def get_seller_identity():
+	"""Legacy-only seller snapshot compatibility after ERPNext cutover.
+
+	Active native FBR identity is ERPNext-owned. Frozen historical Ledgix Sale
+	rows keep their persisted seller snapshots. This resolver no longer reads
+	the retired Ledgix FBR Settings singleton.
+	"""
 	brand = _brand_identity()
-	fbr = get_fbr_settings_internal() or {}
-	province = fbr.get("seller_province") or ""
+	company = _setup_company()
+	native = (
+		erpnext_fbr_identity.resolve_company_seller_identity(company)
+		if company
+		else {}
+	)
+	native_seller = dict(native.get("seller") or {}) if native.get("ready") else {}
+
+	province = native_seller.get("province") or ""
 	outlet_address = ""
 	if frappe.db.exists("DocType", "Ledgix Tax Profile"):
 		province = province or frappe.db.get_single_value("Ledgix Tax Profile", "province") or ""
 		outlet_address = frappe.db.get_single_value("Ledgix Tax Profile", "outlet_address") or ""
 
 	return {
-		"name": fbr.get("seller_business_name") or brand.get("legal_business_name") or brand.get("brand_name") or "Ledgix",
-		"address": fbr.get("seller_address") or brand.get("business_address") or outlet_address,
+		"name": native_seller.get("business_name") or brand.get("legal_business_name") or brand.get("brand_name") or "Ledgix",
+		"address": native_seller.get("address") or brand.get("business_address") or outlet_address,
 		"province": province,
-		"ntn_cnic": fbr.get("seller_ntn_cnic") or brand.get("ntn") or "",
+		"ntn_cnic": native_seller.get("ntn_cnic") or brand.get("ntn") or "",
 		"strn": brand.get("strn") or "",
 		"phone": brand.get("business_phone") or "",
 		"email": brand.get("business_email") or "",
+		"authority": "ERPNext" if native_seller else "Legacy Brand Snapshot Fallback",
 	}
 
 

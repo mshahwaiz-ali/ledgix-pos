@@ -183,7 +183,6 @@ def _legacy_summary() -> dict:
         "tax_profiles": _count("Ledgix Item Tax Profile"),
         "tax_categories": _count("Ledgix Tax Category"),
         "tax_rates": _count("Ledgix Tax Rate"),
-        "old_fbr_settings_exists": bool(frappe.db.exists("DocType", "Ledgix FBR Settings")),
     }
 
 

@@ -70,6 +70,67 @@ def _address_values(address_name: str) -> dict:
     }
 
 
+def resolve_company_seller_identity(company_name: str) -> dict:
+    # Resolve FBR seller identity from ERPNext Company + default Address.
+    company_name = _text(company_name)
+    if not company_name or not frappe.db.exists("Company", company_name):
+        return {
+            "authority": "ERPNext",
+            "company": company_name,
+            "seller": {
+                "ntn_cnic": "",
+                "business_name": "",
+                "province": "",
+                "address": "",
+                "address_name": "",
+            },
+            "errors": ["Select an existing ERPNext Company."],
+            "ready": False,
+            "database_write": False,
+            "fbr_network_call": False,
+        }
+
+    company = frappe.get_cached_doc("Company", company_name)
+    address_name = _text(get_default_address("Company", company_name))
+    if address_name and not frappe.db.exists("Address", address_name):
+        address_name = ""
+
+    address = _address_values(address_name)
+    seller = {
+        "ntn_cnic": _text(company.get("tax_id")),
+        "business_name": _text(company.get("company_name") or company.name),
+        "province": address["province"],
+        "address": address["address"],
+        "address_name": address["name"],
+        "tax_id_source": "Company.tax_id",
+        "business_name_source": "Company.company_name",
+        "province_source": "Address.state",
+        "address_source": "Address",
+    }
+
+    errors = []
+    if not seller["ntn_cnic"]:
+        errors.append("ERPNext Company Tax ID is required for FBR seller NTN/CNIC.")
+    if not seller["business_name"]:
+        errors.append("ERPNext Company Name is required for FBR seller business name.")
+    if not seller["address_name"]:
+        errors.append("ERPNext Company requires a linked/default Address for FBR.")
+    if not seller["province"]:
+        errors.append("ERPNext Company Address State/Province is required for FBR.")
+    if not seller["address"]:
+        errors.append("ERPNext Company Address is required for FBR.")
+
+    return {
+        "authority": "ERPNext",
+        "company": company_name,
+        "seller": seller,
+        "errors": errors,
+        "ready": not errors,
+        "database_write": False,
+        "fbr_network_call": False,
+    }
+
+
 def _buyer_registration_type(customer) -> str:
     value = _text(customer.get("custom_ledgix_buyer_registration_type"))
     return value if value in BUYER_REGISTRATION_TYPES else ""
