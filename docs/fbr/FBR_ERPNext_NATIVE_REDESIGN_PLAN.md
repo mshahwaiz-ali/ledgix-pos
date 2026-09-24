@@ -1580,17 +1580,19 @@ The redesign is complete only when all of the following are true:
 
 ## 24. Immediate next step
 
-Do not start by deleting old tax/FBR files.
+Continue **Phase 9 legacy retirement**, not the old Phase 0 baseline.
 
-The next implementation task is **Phase 0 — Baseline and Freeze**:
+Current sequence:
 
-1. inspect every current FBR/tax dependency in main;
-2. produce a precise keep / rewrite / migrate / retire / delete-later inventory;
-3. inspect current ERPNext-native tax configuration hooks and transaction creation paths;
-4. identify historical data dependencies;
-5. add a regression gate that proves the current baseline before replacement begins.
+1. retire the historical V2 migration helper and preview runner so they cannot read/copy old Settings state;
+2. evolve remaining gates/contracts that still import or require the old Settings compatibility shell;
+3. retire the old Settings test/package assumptions only after equivalent absence proof exists;
+4. prepare a controlled Frappe patch for old Workspace Link, DocPerm, Custom DocPerm, singleton rows and DocType metadata cleanup;
+5. execute DB cleanup only after a fresh local backup and before/after evidence capture;
+6. run the complete zero-dependency/static/runtime/network-safety proof;
+7. keep Production disabled/unarmed until real reference-data and Sandbox-certification readiness is complete.
 
-Only after that baseline is complete should Phase 1 replace the financial tax authority with native ERPNext configuration.
+Do not resurrect the legacy migration helper or old singleton merely to satisfy tests.
 
 ---
 
