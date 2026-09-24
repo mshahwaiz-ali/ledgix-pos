@@ -92,16 +92,16 @@ This phase does **not** physically delete every old artifact.
 
 Still intentionally deferred:
 
-- old `ledgix_fbr_settings` source package/controller/schema;
-- package registration in `apps/ledgix_saas/pyproject.toml`;
+- old `ledgix_fbr_settings` source/controller/schema tombstone;
 - compatibility API shell `api/fbr_settings.py`;
 - local database Workspace Link / DocPerm / Custom DocPerm metadata;
 - singleton rows in `tabSingles`;
 - old DocType metadata/database table cleanup.
 
-These remain only until the next dependency-removal and controlled DB-cleanup phases prove they can be removed safely.
+The old Settings package registration has now been removed from `apps/ledgix_saas/pyproject.toml`.
+The remaining source/controller/schema tombstone exists only until controlled database metadata cleanup proves physical deletion safe.
 
-They are not current FBR configuration authority.
+These remaining artifacts are not current FBR configuration authority.
 
 ---
 
@@ -132,7 +132,7 @@ After 5E2B1:
 1. evolve remaining proof/runtime gates that still import or require the old Settings compatibility API;
 2. replace presence-oriented contracts with absence/retirement contracts;
 3. retire the old Settings test suite once equivalent absence proof exists;
-4. remove old package registration/source assumptions;
+4. package registration removal is complete; retain the source tombstone only until DB cleanup;
 5. prepare a controlled Frappe patch for database metadata cleanup;
 6. run that cleanup only in the controlled local runtime phase after backup/evidence capture;
 7. prove zero dependency, zero network, source/runtime parity, and safe V2 profile state.
