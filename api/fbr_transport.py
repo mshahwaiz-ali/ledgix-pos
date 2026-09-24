@@ -84,3 +84,60 @@ def get_json(
         "http_status": response.status_code,
         "payload": payload,
     }
+
+
+def post_json(
+    *,
+    url: str,
+    token: str,
+    payload: dict,
+    timeout: int = 30,
+) -> dict:
+    # Business policy belongs to the caller. This helper only performs the
+    # authenticated JSON POST and returns a redacted structured result.
+    if not requests_available():
+        return {
+            "success": False,
+            "network_call": False,
+            "http_status": None,
+            "status": "Not Ready",
+            "response": None,
+            "error": "Python requests is not available; FBR POST was not sent.",
+        }
+
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+    }
+
+    try:
+        response = requests.post(
+            url,
+            json=payload,
+            headers=headers,
+            timeout=timeout,
+        )
+        try:
+            safe_response = response.json()
+        except Exception:
+            safe_response = response.text
+
+        success = 200 <= response.status_code < 300
+        return {
+            "success": success,
+            "network_call": True,
+            "http_status": response.status_code,
+            "status": "HTTP OK" if success else "HTTP Error",
+            "response": safe_response,
+            "error": "" if success else f"FBR returned HTTP {response.status_code}.",
+        }
+    except Exception as exc:
+        return {
+            "success": False,
+            "network_call": True,
+            "http_status": None,
+            "status": "Network Error",
+            "response": None,
+            "error": safe_error(exc),
+        }

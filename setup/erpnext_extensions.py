@@ -447,12 +447,99 @@ def _invoice_item_fbr_fields() -> list[dict]:
     ]
 
 
+def _invoice_fbr_v2_snapshot_fields() -> list[dict]:
+    return [
+        _cf(
+            "custom_ledgix_fbr_v2_snapshot_section",
+            "Section Break",
+            "FBR V2 Immutable ERPNext Snapshot",
+            insert_after="custom_ledgix_fbr_snapshot_json",
+            collapsible=1,
+        ),
+        _cf(
+            "custom_ledgix_fbr_v2_snapshot_version",
+            "Int",
+            "FBR V2 Snapshot Version",
+            insert_after="custom_ledgix_fbr_v2_snapshot_section",
+            read_only=1,
+            no_copy=1,
+            default="0",
+        ),
+        _cf(
+            "custom_ledgix_fbr_v2_snapshot_hash",
+            "Data",
+            "FBR V2 Snapshot SHA256",
+            insert_after="custom_ledgix_fbr_v2_snapshot_version",
+            read_only=1,
+            no_copy=1,
+            print_hide=1,
+        ),
+        _cf(
+            "custom_ledgix_fbr_v2_snapshot_captured_at",
+            "Datetime",
+            "FBR V2 Snapshot Captured At",
+            insert_after="custom_ledgix_fbr_v2_snapshot_hash",
+            read_only=1,
+            no_copy=1,
+            print_hide=1,
+        ),
+        _cf(
+            "custom_ledgix_fbr_v2_snapshot_json",
+            "Long Text",
+            "FBR V2 Header Snapshot JSON",
+            insert_after="custom_ledgix_fbr_v2_snapshot_captured_at",
+            read_only=1,
+            no_copy=1,
+            print_hide=1,
+        ),
+    ]
+
+
+def _invoice_item_fbr_v2_snapshot_fields() -> list[dict]:
+    return [
+        _cf(
+            "custom_ledgix_fbr_v2_snapshot_section",
+            "Section Break",
+            "FBR V2 Immutable ERPNext Line Snapshot",
+            insert_after="custom_ledgix_fbr_snapshot_json",
+            collapsible=1,
+        ),
+        _cf(
+            "custom_ledgix_fbr_v2_snapshot_version",
+            "Int",
+            "FBR V2 Line Snapshot Version",
+            insert_after="custom_ledgix_fbr_v2_snapshot_section",
+            read_only=1,
+            no_copy=1,
+            default="0",
+        ),
+        _cf(
+            "custom_ledgix_fbr_v2_snapshot_hash",
+            "Data",
+            "FBR V2 Line Snapshot SHA256",
+            insert_after="custom_ledgix_fbr_v2_snapshot_version",
+            read_only=1,
+            no_copy=1,
+            print_hide=1,
+        ),
+        _cf(
+            "custom_ledgix_fbr_v2_snapshot_json",
+            "Long Text",
+            "FBR V2 Line Snapshot JSON",
+            insert_after="custom_ledgix_fbr_v2_snapshot_hash",
+            read_only=1,
+            no_copy=1,
+            print_hide=1,
+        ),
+    ]
+
+
 CUSTOM_FIELDS = {
     "Customer": CUSTOMER_FBR_FIELDS,
-    "Sales Invoice": _invoice_fbr_fields(),
-    "POS Invoice": _invoice_fbr_fields(),
-    "Sales Invoice Item": _invoice_item_fbr_fields(),
-    "POS Invoice Item": _invoice_item_fbr_fields(),
+    "Sales Invoice": _invoice_fbr_fields() + _invoice_fbr_v2_snapshot_fields(),
+    "POS Invoice": _invoice_fbr_fields() + _invoice_fbr_v2_snapshot_fields(),
+    "Sales Invoice Item": _invoice_item_fbr_fields() + _invoice_item_fbr_v2_snapshot_fields(),
+    "POS Invoice Item": _invoice_item_fbr_fields() + _invoice_item_fbr_v2_snapshot_fields(),
 }
 
 

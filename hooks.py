@@ -115,11 +115,13 @@ doc_events = {
 	},
 	"Sales Invoice": {
 		"before_validate": "ledgix_saas.services.erpnext_taxable_base.stamp_fbr_taxable_base_inputs",
+		"before_submit": "ledgix_saas.services.fbr_v2_snapshot_persistence.before_submit_capture",
 		"on_submit": "ledgix_saas.api.fbr_native.on_native_invoice_submit",
 		"before_cancel": "ledgix_saas.api.fbr_native.block_cancel_after_fbr_submission",
 	},
 	"POS Invoice": {
 		"before_validate": "ledgix_saas.services.erpnext_taxable_base.stamp_fbr_taxable_base_inputs",
+		"before_submit": "ledgix_saas.services.fbr_v2_snapshot_persistence.before_submit_capture",
 		"on_submit": "ledgix_saas.api.fbr_native.on_native_invoice_submit",
 		"before_cancel": "ledgix_saas.api.fbr_native.block_cancel_after_fbr_submission",
 	},

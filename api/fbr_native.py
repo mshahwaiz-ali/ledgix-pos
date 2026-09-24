@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-"""FBR payload/submission adapter for ERPNext-native sales authority.
+"""FBR adapter for ERPNext-native invoice compliance.
 
-Phase 9 changes the source transaction from legacy Ledgix Sale/Return records to
-submitted ERPNext Sales Invoice and POS Invoice documents. Ledgix continues to
-own FBR settings, payload validation, transport, submission logs, reconciliation
-safeguards and QR/reference metadata. This module never creates a second sales,
-payment, stock or accounting ledger.
+Canonical payload preview/readiness is V2 and consumes immutable ERPNext-native
+snapshot evidence. Network validation/submission remains explicitly fail-closed
+until the company-scoped V2 transport cutover is completed. This module never
+creates a second sales, payment, stock or accounting ledger.
 """
 
 import json
@@ -15,12 +14,9 @@ import frappe
 from frappe import _
 from frappe.utils import cint, flt, getdate, now_datetime
 
-from ledgix_saas.api import fbr_client, fbr_payload
-from ledgix_saas.api.fbr_settings import (
-    get_fbr_control_state_internal,
-    get_fbr_settings_internal,
-)
+from ledgix_saas.api import fbr_payload, fbr_v2_transport
 from ledgix_saas.setup import erpnext_phase9_extensions
+from ledgix_saas.services import fbr_v2_payload_builder, fbr_v2_readiness
 
 SUPPORTED_DOCTYPES = ("Sales Invoice", "POS Invoice")
 RECONCILIATION_REQUIRED = "Reconciliation Required"
@@ -30,6 +26,15 @@ RECONCILIATION_MESSAGE = (
     "FBR/PRAL before any retransmission."
 )
 TOLERANCE = 0.05
+
+# Deliberately false until the company-scoped V2 transport wiring has passed
+# local runtime proof and authorized Sandbox certification. Keeping this false
+# prevents any invoice Validate/POST from leaving Ledgix during the cutover.
+V2_NETWORK_CUTOVER_ACTIVE = False
+V2_NETWORK_CUTOVER_MESSAGE = (
+    "FBR V2 network validation/submission is not active. "
+    "Complete local V2 transport proof and Sandbox certification first."
+)
 
 
 def _require_role(action: str, *, submit: bool = False) -> None:
@@ -185,74 +190,50 @@ def _original_for_return(doc):
     return frappe.get_doc(doc.doctype, original_name)
 
 
-def validate_native_readiness_internal(reference_doctype: str, reference_name: str) -> dict:
-    errors, warnings = [], []
-    settings = get_fbr_settings_internal()
-    control_state = get_fbr_control_state_internal()
+def validate_native_readiness_internal(
+    reference_doctype: str,
+    reference_name: str,
+) -> dict:
+    """Compatibility wrapper over the canonical V2 readiness service."""
+
     doc = _reference(reference_doctype, reference_name)
+    readiness = fbr_v2_readiness.evaluate_invoice_readiness(
+        reference_doctype,
+        reference_name,
+    )
+
+    errors = list(readiness.get("errors") or [])
+    warnings = list(readiness.get("warnings") or [])
 
     if cint(doc.docstatus) == 0:
-        errors.append("Draft ERPNext invoice cannot be used for FBR payload.")
+        errors.insert(0, "Draft ERPNext invoice cannot be used for FBR payload.")
     elif cint(doc.docstatus) == 2:
-        errors.append("Cancelled ERPNext invoice cannot be used for FBR payload.")
+        errors.insert(0, "Cancelled ERPNext invoice cannot be used for FBR payload.")
+
     if _is_consolidated_pos_sales_invoice(doc):
-        errors.append("Consolidated POS Sales Invoice is accounting-only; source POS Invoices own FBR submission.")
-    if cint(doc.get("custom_ledgix_fbr_snapshot_version")) <= 0:
-        errors.append("ERPNext invoice has no immutable Ledgix FBR header snapshot.")
-
-    mode = settings.get("mode") or "Disabled"
-    production = mode == "Production"
-    seller = _seller_block()
-    buyer = _buyer_block(doc.get("customer"))
-    fbr_payload._validate_seller_block(seller, errors, warnings, production_mode=production)
-    fbr_payload._validate_buyer_block(buyer, errors, warnings, production_mode=production)
-
-    if mode in {"Sandbox", "Production"} and settings.get("enabled"):
-        token_key = "sandbox_token_configured" if mode == "Sandbox" else "production_token_configured"
-        if not settings.get(token_key):
-            errors.append(f"{mode} FBR token is not configured.")
-
-    tax_rows = []
-    try:
-        tax_rows = _tax_rows(doc)
-    except Exception as exc:
-        errors.append(str(exc))
-    if tax_rows:
-        charged_tax = flt(
-            sum(
-                flt(row.get("tax_amount"))
-                + flt(row.get("extra_tax"))
-                + flt(row.get("further_tax"))
-                + flt(row.get("fed_payable"))
-                for row in tax_rows
-            ),
-            2,
+        errors.insert(
+            0,
+            "Consolidated POS Sales Invoice is accounting-only; "
+            "source POS Invoices own FBR submission.",
         )
-        payload_total = flt(sum(flt(row.get("net_amount")) for row in tax_rows), 2)
-        if abs(charged_tax - abs(flt(doc.get("total_taxes_and_charges"), 2))) > TOLERANCE:
-            errors.append("ERPNext tax total does not match immutable FBR tax component total.")
-        if abs(payload_total - abs(flt(doc.get("grand_total"), 2))) > TOLERANCE:
-            errors.append("ERPNext grand total does not match immutable FBR line snapshot total.")
-    fbr_payload._validate_tax_rows(tax_rows, errors, warnings, mode)
-    if mode == "Sandbox":
-        fbr_payload._validate_single_sandbox_scenario(tax_rows, errors)
 
-    original = _original_for_return(doc)
     if cint(doc.get("is_return")):
-        if not original:
-            errors.append("Native Credit Note must reference an existing original ERPNext invoice.")
-        else:
-            original_fbr = str(original.get("custom_ledgix_fbr_invoice_number") or "").strip()
-            if mode in {"Sandbox", "Production"} and not original_fbr:
-                errors.append("Original ERPNext invoice must have an FBR invoice number before Credit Note submission.")
-            if doc.get("posting_date") and original.get("posting_date"):
-                age_days = (getdate(doc.posting_date) - getdate(original.posting_date)).days
-                if age_days < 0:
-                    errors.append("Credit Note date cannot be earlier than the original invoice date.")
-                elif age_days > 180:
-                    errors.append("FBR Credit Note date cannot be more than 180 days after the original invoice date.")
-        if not str(doc.get("custom_ledgix_return_reason") or doc.get("remarks") or "").strip():
-            errors.append("Credit Note reason is required for FBR payload.")
+        errors.append(
+            "FBR V2 return payload is not activated until Debit/Credit Note "
+            "semantics are proven in Sandbox."
+        )
+
+    profile = dict(readiness.get("profile") or {})
+    mode = profile.get("mode") or "Disabled"
+    token_configured = bool(
+        profile.get("sandbox_token_configured")
+        if mode == "Sandbox"
+        else (
+            profile.get("production_token_configured")
+            if mode == "Production"
+            else False
+        )
+    )
 
     return {
         "valid": not errors,
@@ -260,69 +241,77 @@ def validate_native_readiness_internal(reference_doctype: str, reference_name: s
         "warnings": warnings,
         "reference": _summary(doc),
         "settings": {
-            "enabled": bool(control_state.get("enabled")),
-            "mode": settings.get("mode") or "Disabled",
-            "submit_trigger": settings.get("submit_trigger") or "Manual",
-            "token_configured": bool(control_state.get("token_configured")),
+            "source": "Ledgix FBR Integration Profile",
+            "enabled": bool(profile.get("enabled")),
+            "mode": mode,
+            "submit_trigger": profile.get("submit_trigger") or "Manual",
+            "token_configured": token_configured,
+            "production_post_armed": bool(profile.get("production_post_armed")),
+        },
+        "v2": {
+            "payload_input_ready": bool(readiness.get("payload_input_ready")),
+            "sandbox_transport_ready": bool(
+                readiness.get("sandbox_transport_ready")
+            ),
+            "production_transport_ready": bool(
+                readiness.get("production_transport_ready")
+            ),
+            "snapshot_source": (
+                (readiness.get("native_snapshot_candidate") or {}).get(
+                    "snapshot_source"
+                )
+                or ""
+            ),
+            "snapshot_hash_verified": bool(
+                (readiness.get("native_snapshot_candidate") or {}).get(
+                    "hash_verified"
+                )
+            ),
         },
     }
 
 
-def _official_item(row: dict) -> dict:
-    return fbr_payload._official_item_payload(
-        row,
-        qty_field="returned_qty" if row.get("returned_qty") else "qty",
-        discount_field="discount_amount",
+def build_native_payload_internal(
+    reference_doctype: str,
+    reference_name: str,
+) -> dict:
+    """Build native preview exclusively through the canonical V2 builder."""
+
+    validation = validate_native_readiness_internal(
+        reference_doctype,
+        reference_name,
     )
-
-
-def build_native_payload_internal(reference_doctype: str, reference_name: str) -> dict:
-    validation = validate_native_readiness_internal(reference_doctype, reference_name)
     doc = _reference(reference_doctype, reference_name)
-    settings = get_fbr_settings_internal()
-    seller = _seller_block()
-    buyer = _buyer_block(doc.get("customer"))
-    rows = _tax_rows(doc) if validation.get("reference") else []
-    is_return = bool(cint(doc.get("is_return")))
-    original = _original_for_return(doc)
 
-    payload = {
-        "invoiceType": "Credit Note" if is_return else "Sale Invoice",
-        "invoiceDate": fbr_payload._format_invoice_date(doc.get("posting_date")),
-        "sellerNTNCNIC": fbr_payload._clean_identifier(seller.get("seller_ntn_cnic")),
-        "sellerBusinessName": seller.get("seller_business_name") or "",
-        "sellerProvince": seller.get("seller_province") or "",
-        "sellerAddress": seller.get("seller_address") or "",
-        "buyerNTNCNIC": fbr_payload._clean_identifier(buyer.get("buyer_ntn_cnic")),
-        "buyerBusinessName": buyer.get("buyer_business_name") or "",
-        "buyerProvince": buyer.get("buyer_province") or "",
-        "buyerAddress": buyer.get("buyer_fbr_address") or "",
-        "buyerRegistrationType": buyer.get("buyer_registration_type") or "",
-        "invoiceRefNo": (
-            str(original.get("custom_ledgix_fbr_invoice_number") or "").strip()
-            if original
-            else ""
-        ),
-        "items": [_official_item(row) for row in rows],
-    }
-    if is_return:
-        payload["reason"] = str(doc.get("custom_ledgix_return_reason") or doc.get("remarks") or "").strip()
-        payload["reasonRemarks"] = str(doc.get("remarks") or "").strip()
-    scenario_ids = fbr_payload._unique_scenario_ids(rows)
-    if settings.get("mode") == "Sandbox" and len(scenario_ids) == 1:
-        payload["scenarioId"] = scenario_ids[0]
+    if not validation.get("valid"):
+        return {
+            "validation": validation,
+            "payload": None,
+            "source": {
+                "doctype": doc.doctype,
+                "name": doc.name,
+                "is_return": bool(cint(doc.get("is_return"))),
+                "authority": "ERPNext Native",
+                "payload_builder": "FBR V2",
+            },
+            "reconciliation": {},
+            "scenario_context": {
+                "source": "none",
+                "scenario_id": "",
+            },
+        }
 
+    candidate = fbr_v2_payload_builder.build_payload_candidate(
+        reference_doctype,
+        reference_name,
+    )
     return {
         "validation": validation,
-        "payload": payload,
-        "source": {
-            "doctype": doc.doctype,
-            "name": doc.name,
-            "is_return": is_return,
-            "authority": "ERPNext",
-        },
+        "payload": candidate.get("payload"),
+        "source": candidate.get("source") or {},
+        "reconciliation": candidate.get("reconciliation") or {},
+        "scenario_context": candidate.get("scenario_context") or {},
     }
-
 
 @frappe.whitelist()
 def build_native_invoice_payload(reference_doctype, reference_name):
@@ -443,14 +432,12 @@ def _ready_payload(doc):
 
 def _configured_for_network(settings: dict) -> str:
     if not settings.get("enabled"):
-        return "FBR Settings must be enabled for submission."
+        return "FBR Integration Profile must be enabled for submission."
     mode = settings.get("mode")
     if mode not in {"Sandbox", "Production"}:
         return "FBR mode must be Sandbox or Production for submission."
-    if mode == "Sandbox" and not settings.get("sandbox_token_configured"):
-        return "Sandbox token is not configured."
-    if mode == "Production" and not settings.get("production_token_configured"):
-        return "Production token is not configured."
+    if not settings.get("token_configured"):
+        return f"{mode} token is not configured."
     if mode == "Production" and not settings.get("production_post_armed"):
         return "Production posting is not armed."
     return ""
@@ -495,6 +482,15 @@ def validate_native_with_fbr_internal(reference_doctype: str, reference_name: st
     doc = _reference(reference_doctype, reference_name)
     if not is_native_fbr_source(doc):
         frappe.throw("FBR validation requires a submitted ERPNext source invoice, not a consolidated POS accounting invoice.")
+
+    if not V2_NETWORK_CUTOVER_ACTIVE:
+        validation = validate_native_readiness_internal(doc.doctype, doc.name)
+        return _not_ready(
+            doc,
+            validation,
+            V2_NETWORK_CUTOVER_MESSAGE,
+        )
+
     payload, validation, readiness_error = _ready_payload(doc)
     if readiness_error:
         log_name = _create_log(doc, "Failed", payload=payload, error_message=readiness_error)
@@ -507,11 +503,19 @@ def validate_native_with_fbr_internal(reference_doctype: str, reference_name: st
             "response": None,
             "error_message": readiness_error,
         }
-    settings = get_fbr_settings_internal()
+    settings = validation.get("settings") or {}
     actual_mode = mode or settings.get("mode")
     if actual_mode not in {"Sandbox", "Production"}:
-        actual_mode = "Sandbox"
-    client_result = fbr_client.validate_invoice(payload, mode=actual_mode)
+        return _not_ready(
+            doc,
+            validation,
+            "FBR V2 validation requires Sandbox or Production mode.",
+        )
+    client_result = fbr_v2_transport.validate_invoice(
+        company=doc.company,
+        payload=payload,
+        mode=actual_mode,
+    )
     if not client_result.get("network_call"):
         return _not_ready(doc, validation, client_result.get("error") or "FBR validation was not sent.")
     parsed = parse_fbr_response(client_result)
@@ -558,7 +562,6 @@ def validate_native_with_fbr(reference_doctype, reference_name):
 
 def submit_native_to_fbr_internal(reference_doctype: str, reference_name: str) -> dict:
     from ledgix_saas.api.fbr_submission import (
-        _is_ambiguous_production_post,
         _resolve_submission_status,
         parse_fbr_response,
     )
@@ -570,10 +573,24 @@ def submit_native_to_fbr_internal(reference_doctype: str, reference_name: str) -
     already = _already_submitted(current)
     if already:
         return already
-    settings = get_fbr_settings_internal()
+
+    if not V2_NETWORK_CUTOVER_ACTIVE:
+        validation = validate_native_readiness_internal(doc.doctype, doc.name)
+        return _not_ready(
+            doc,
+            validation,
+            V2_NETWORK_CUTOVER_MESSAGE,
+        )
+
+    validation = validate_native_readiness_internal(doc.doctype, doc.name)
+    settings = validation.get("settings") or {}
     config_error = _configured_for_network(settings)
     if config_error:
-        return _not_ready(doc, {"valid": False, "errors": [config_error], "warnings": []}, config_error)
+        return _not_ready(
+            doc,
+            validation,
+            config_error,
+        )
 
     with _lock(doc):
         current = _get_status(doc.doctype, doc.name)
@@ -594,7 +611,11 @@ def submit_native_to_fbr_internal(reference_doctype: str, reference_name: str) -
             }
 
         mode = settings.get("mode")
-        client_result = fbr_client.post_invoice(payload, mode=mode)
+        client_result = fbr_v2_transport.post_invoice(
+            company=doc.company,
+            payload=payload,
+            mode=mode,
+        )
         if not client_result.get("network_call"):
             return _not_ready(doc, validation, client_result.get("error") or "FBR post was not sent.")
         parsed = parse_fbr_response(client_result, require_invoice_number=(mode == "Production"))
@@ -604,7 +625,7 @@ def submit_native_to_fbr_internal(reference_doctype: str, reference_name: str) -
             parsed["error_message"] = parsed.get("error_message") or client_result.get("error") or "FBR post failed."
         status_name, invoice_number = _resolve_submission_status(mode, parsed)
         qr_code = parsed.get("qr_code") or ""
-        if _is_ambiguous_production_post(mode, client_result):
+        if client_result.get("requires_reconciliation"):
             status_name = RECONCILIATION_REQUIRED
             invoice_number = ""
             parsed["error_message"] = client_result.get("error") or RECONCILIATION_MESSAGE
@@ -676,26 +697,57 @@ def queue_native_for_fbr(reference_doctype: str, reference_name: str, reason: st
         already["queued"] = False
         return already
 
-    settings = get_fbr_settings_internal()
-    control = get_fbr_control_state_internal()
-    mode = control.get("mode") or settings.get("mode") or "Disabled"
-    submit_trigger = control.get("submit_trigger") or settings.get("submit_trigger") or "Manual"
-    if mode == "Disabled" or (not settings.get("enabled") and mode not in {"Paused", "Manual Only"}):
-        status = mark_native_fbr_status(doc.doctype, doc.name, "Not Required", submit_trigger=submit_trigger)
-        return {"queued": False, "status": "Not Required", "reason": "FBR disabled", "reference_status": status}
+    if not V2_NETWORK_CUTOVER_ACTIVE:
+        validation = validate_native_readiness_internal(doc.doctype, doc.name)
+        return {
+            "queued": False,
+            "status": "Not Ready",
+            "reason": V2_NETWORK_CUTOVER_MESSAGE,
+            "validation": validation,
+            "reference_status": current,
+        }
+
+    validation = validate_native_readiness_internal(doc.doctype, doc.name)
+    settings = validation.get("settings") or {}
+    mode = settings.get("mode") or "Disabled"
+    submit_trigger = settings.get("submit_trigger") or "Manual"
+    if mode == "Disabled" or (not settings.get("enabled") and mode != "Paused"):
+        status = mark_native_fbr_status(
+            doc.doctype,
+            doc.name,
+            "Not Required",
+            submit_trigger=submit_trigger,
+        )
+        return {
+            "queued": False,
+            "status": "Not Required",
+            "reason": "FBR disabled",
+            "reference_status": status,
+        }
 
     payload, validation, readiness_error = _ready_payload(doc)
     if mode == "Paused":
-        log_name = _create_log(doc, "Paused", payload=payload, error_message=reason or control.get("reason") or "FBR paused")
+        log_name = _create_log(
+            doc,
+            "Paused",
+            payload=payload,
+            error_message=reason or "FBR paused",
+        )
         status = mark_native_fbr_status(
             doc.doctype,
             doc.name,
             "Paused",
-            error_message=reason or control.get("reason") or "FBR paused",
+            error_message=reason or "FBR paused",
             log_name=log_name,
             submit_trigger=submit_trigger,
         )
-        return {"queued": False, "status": "Paused", "log_name": log_name, "validation": validation, "reference_status": status}
+        return {
+            "queued": False,
+            "status": "Paused",
+            "log_name": log_name,
+            "validation": validation,
+            "reference_status": status,
+        }
     if readiness_error:
         log_name = _create_log(doc, "Failed", payload=payload, error_message=readiness_error)
         status = mark_native_fbr_status(
@@ -717,17 +769,39 @@ def queue_native_for_fbr(reference_doctype: str, reference_name: str, reason: st
         log_name=log_name,
         submit_trigger=submit_trigger,
     )
-    if mode == "Manual Only" or submit_trigger == "Manual":
-        return {"queued": True, "status": "Pending", "reason": "Manual FBR submission required", "log_name": log_name, "validation": validation, "reference_status": status}
+    if submit_trigger == "Manual":
+        return {
+            "queued": True,
+            "status": "Pending",
+            "reason": "Manual FBR submission required",
+            "log_name": log_name,
+            "validation": validation,
+            "reference_status": status,
+        }
     if submit_trigger == "Validate Only":
-        result = validate_native_with_fbr_internal(doc.doctype, doc.name, mode if mode in {"Sandbox", "Production"} else "Sandbox")
+        result = validate_native_with_fbr_internal(
+            doc.doctype,
+            doc.name,
+            mode,
+        )
         result.update({"queued": True, "reason": "Validate Only flow completed"})
         return result
-    if submit_trigger == "On Submit" and mode in {"Sandbox", "Production"}:
-        if mode == "Production" or settings.get("sandbox_post_on_submit"):
-            _after_commit_submit(doc.doctype, doc.name)
-            return {"queued": True, "status": "Pending", "reason": f"{mode} FBR post queued after commit", "log_name": log_name, "validation": validation, "reference_status": status}
-        result = validate_native_with_fbr_internal(doc.doctype, doc.name, "Sandbox")
+    if submit_trigger == "On Submit" and mode == "Production":
+        _after_commit_submit(doc.doctype, doc.name)
+        return {
+            "queued": True,
+            "status": "Pending",
+            "reason": "Production FBR post queued after commit",
+            "log_name": log_name,
+            "validation": validation,
+            "reference_status": status,
+        }
+    if submit_trigger == "On Submit" and mode == "Sandbox":
+        result = validate_native_with_fbr_internal(
+            doc.doctype,
+            doc.name,
+            "Sandbox",
+        )
         result.update({"queued": True, "reason": "Sandbox validation completed"})
         return result
     return {"queued": True, "status": "Pending", "reason": "FBR submission queued", "log_name": log_name, "validation": validation, "reference_status": status}

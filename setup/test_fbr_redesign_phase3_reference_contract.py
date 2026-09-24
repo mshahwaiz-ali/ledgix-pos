@@ -31,7 +31,8 @@ class TestFBRRedesignPhase3ReferenceContract(unittest.TestCase):
 
         transport = (APP_ROOT / "api" / "fbr_transport.py").read_text(encoding="utf-8")
         self.assertIn("requests.get(", transport)
-        self.assertNotIn("requests.post(", transport)
+        self.assertIn("def post_json(", transport)
+        self.assertNotIn("requests.post(", source)
         self.assertNotIn("post_invoice(", source)
         self.assertNotIn("validate_invoice(", source)
 

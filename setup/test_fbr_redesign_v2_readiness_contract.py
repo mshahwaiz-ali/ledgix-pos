@@ -16,7 +16,9 @@ class TestFBRRedesignV2ReadinessContract(unittest.TestCase):
     def test_readiness_combines_v2_authorities_without_building_payload(self):
         for marker in (
             "erpnext_fbr_identity.resolve_invoice_identity",
-            "erpnext_fbr_snapshot.build_snapshot_candidate",
+            "fbr_v2_snapshot_persistence.read_persisted_v2_snapshot",
+            '"snapshot_source": "persisted_v2"',
+            '"hash_verified": bool(persisted.get("hash_verified"))',
             'PROFILE_DOCTYPE = "Ledgix FBR Integration Profile"',
             'REFERENCE_DOCTYPE = "Ledgix FBR Reference Data"',
             '"payload_built": False',
@@ -24,12 +26,22 @@ class TestFBRRedesignV2ReadinessContract(unittest.TestCase):
             self.assertIn(marker, self.source)
 
         for forbidden in (
+            "erpnext_fbr_snapshot.build_snapshot_candidate",
             "build_official_sale_invoice_payload",
             "post_invoice(",
             "validate_invoice(",
             "_send_fbr_request",
         ):
             self.assertNotIn(forbidden, self.source)
+
+    def test_submitted_identity_prefers_hash_protected_snapshot_evidence(self):
+        for marker in (
+            'identity = dict(snapshot.get("identity") or {})',
+            'identity["snapshot_source"] = "persisted_v2"',
+            'identity["snapshot_source"] = "live_diagnostic_only"',
+            "Immutable FBR V2 snapshot has no invoice-time identity evidence.",
+        ):
+            self.assertIn(marker, self.source)
 
     def test_readiness_is_read_only_and_non_secret(self):
         for forbidden in (
