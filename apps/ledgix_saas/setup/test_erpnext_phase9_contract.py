@@ -70,14 +70,24 @@ class TestERPNextPhase9Contract(unittest.TestCase):
         ):
             self.assertNotIn(forbidden, source)
         self.assertIn('SUPPORTED_DOCTYPES = ("Sales Invoice", "POS Invoice")', source)
-        self.assertIn('"authority": "ERPNext"', source)
+        self.assertIn("fbr_v2_payload_builder", source)
+        self.assertIn('"authority": "ERPNext Native"', source)
 
-    def test_payload_requires_immutable_native_line_snapshot(self):
-        source = (APP_ROOT / "api" / "fbr_native.py").read_text(encoding="utf-8")
-        self.assertIn('custom_ledgix_fbr_snapshot_json', source)
-        self.assertIn("Do not reconstruct legal tax data after submission", source)
-        self.assertIn('snapshot = json.loads(raw)', source)
-        self.assertIn('custom_ledgix_fbr_snapshot_version', source)
+    def test_payload_requires_hash_verified_v2_snapshot(self):
+        native = (APP_ROOT / "api" / "fbr_native.py").read_text(encoding="utf-8")
+        readiness = (
+            APP_ROOT / "services" / "fbr_v2_readiness.py"
+        ).read_text(encoding="utf-8")
+        persistence = (
+            APP_ROOT / "services" / "fbr_v2_snapshot_persistence.py"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("fbr_v2_readiness.evaluate_invoice_readiness(", native)
+        self.assertIn("_persisted_snapshot_candidate(", readiness)
+        self.assertIn("read_persisted_v2_snapshot(", readiness)
+        self.assertIn('"snapshot_source": "persisted_v2"', readiness)
+        self.assertIn("hash_verified", persistence)
+
 
     def test_consolidated_pos_sales_invoice_is_not_second_fbr_source(self):
         source = (APP_ROOT / "api" / "fbr_native.py").read_text(encoding="utf-8")
@@ -86,12 +96,19 @@ class TestERPNextPhase9Contract(unittest.TestCase):
         self.assertIn("and not _is_consolidated_pos_sales_invoice(doc)", source)
         self.assertIn("source POS Invoices own FBR submission", source)
 
-    def test_native_credit_note_references_original_fbr_invoice(self):
-        source = (APP_ROOT / "api" / "fbr_native.py").read_text(encoding="utf-8")
-        self.assertIn('"invoiceType": "Credit Note" if is_return else "Sale Invoice"', source)
-        self.assertIn('original.get("custom_ledgix_fbr_invoice_number")', source)
-        self.assertIn('"invoiceRefNo": (', source)
-        self.assertIn("180 days", source)
+    def test_v2_return_payload_remains_fail_closed_until_sandbox_proof(self):
+        source = (
+            APP_ROOT / "services" / "fbr_v2_payload_builder.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn(
+            "FBR V2 return payload is not activated until Debit/Credit Note semantics",
+            source,
+        )
+        self.assertNotIn(
+            '"invoiceType": "Credit Note" if is_return else "Sale Invoice"',
+            source,
+        )
+
 
     def test_submission_log_remains_ledgix_audit_over_native_dynamic_reference(self):
         source = (APP_ROOT / "api" / "fbr_native.py").read_text(encoding="utf-8")

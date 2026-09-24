@@ -14,7 +14,7 @@ from frappe.utils.password import get_decrypted_password
 from ledgix_saas.api import fbr_reference_v2
 from ledgix_saas.services import (
     erpnext_fbr_identity,
-    erpnext_fbr_snapshot,
+    fbr_v2_snapshot_persistence,
 )
 
 
@@ -308,6 +308,40 @@ def _check_line_references(
     }
 
 
+def _persisted_snapshot_candidate(reference_doctype: str, reference_name: str) -> dict:
+    """Adapt hash-verified immutable V2 evidence to the readiness snapshot shape."""
+
+    persisted = fbr_v2_snapshot_persistence.read_persisted_v2_snapshot(
+        reference_doctype,
+        reference_name,
+    )
+    header = dict(persisted.get("header") or {})
+    line_payloads = persisted.get("lines") or {}
+
+    lines = []
+    for item_row, payload in line_payloads.items():
+        line = dict((payload or {}).get("line") or {})
+        if not line:
+            frappe.throw(
+                f"FBR V2 immutable snapshot row {item_row} has no native line evidence."
+            )
+        lines.append(line)
+
+    lines.sort(key=lambda row: cint(row.get("idx")))
+    if cint(header.get("line_count")) != len(lines):
+        frappe.throw("FBR V2 immutable snapshot line count is inconsistent.")
+
+    return {
+        **header,
+        "lines": lines,
+        "snapshot_hash": persisted.get("snapshot_hash") or "",
+        "hash_verified": bool(persisted.get("hash_verified")),
+        "snapshot_source": "persisted_v2",
+        "database_write": False,
+        "fbr_network_call": False,
+    }
+
+
 def _classify_tax_rows(doc, snapshot: dict, errors: list[str]) -> dict:
     mappings = snapshot.get("component_mappings") or {}
     classified = []
@@ -368,19 +402,40 @@ def evaluate_invoice_readiness(reference_doctype: str, reference_name: str) -> d
     if not profile:
         errors.append("Company has no V2 FBR Integration Profile.")
 
-    identity = erpnext_fbr_identity.resolve_invoice_identity(doc)
-    errors.extend(identity.get("errors") or [])
-    warnings.extend(identity.get("warnings") or [])
-    identity_references = _check_identity_references(identity, errors)
-
     snapshot = {}
     try:
-        snapshot = erpnext_fbr_snapshot.build_snapshot_candidate(
+        snapshot = _persisted_snapshot_candidate(
             reference_doctype,
             reference_name,
         )
     except Exception as exc:
-        errors.append(f"Native tax snapshot candidate failed: {exc}")
+        errors.append(f"Immutable FBR V2 snapshot read failed: {exc}")
+
+    if snapshot:
+        identity = dict(snapshot.get("identity") or {})
+        if identity:
+            identity["snapshot_source"] = "persisted_v2"
+        else:
+            identity = {
+                "ready": False,
+                "errors": [
+                    "Immutable FBR V2 snapshot has no invoice-time identity evidence."
+                ],
+                "warnings": [],
+                "seller": {},
+                "buyer": {},
+                "snapshot_source": "missing",
+            }
+    else:
+        # Diagnostic fallback only. Payload building remains blocked because the
+        # immutable V2 snapshot read error above is part of readiness errors.
+        identity = erpnext_fbr_identity.resolve_invoice_identity(doc)
+        identity = dict(identity)
+        identity["snapshot_source"] = "live_diagnostic_only"
+
+    errors.extend(identity.get("errors") or [])
+    warnings.extend(identity.get("warnings") or [])
+    identity_references = _check_identity_references(identity, errors)
 
     line_reference_checks = []
     if snapshot:

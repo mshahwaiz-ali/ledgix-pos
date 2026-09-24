@@ -384,7 +384,14 @@ def collect_native_tax_breakdown(doc) -> dict:
                 "item_code": item.get("item_code") or "",
                 "item_name": item.get("item_name") or "",
                 "qty": flt(item.get("qty")),
+                "price_list_rate": flt(item.get("price_list_rate")),
+                "rate_with_margin": flt(item.get("rate_with_margin")),
                 "rate": flt(item.get("rate")),
+                "discount_percentage": flt(item.get("discount_percentage")),
+                "discount_amount": flt(item.get("discount_amount")),
+                "distributed_discount_amount": flt(
+                    item.get("distributed_discount_amount")
+                ),
                 "amount": flt(item.get("amount")),
                 "net_rate": flt(item.get("net_rate")),
                 "net_amount": flt(item.get("net_amount")),
