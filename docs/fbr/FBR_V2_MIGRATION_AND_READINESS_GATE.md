@@ -1,298 +1,154 @@
 # FBR Redesign — V2 Migration and Readiness Gate
 
-**Status:** LOCAL-ONLY PREVIEW/APPLY DRIVER IMPLEMENTED — EXECUTION PENDING  
-**Date:** 2026-09-23  
+**Status:** LEGACY MIGRATION EXECUTION RETIRED — HISTORICAL DESIGN / COMPATIBILITY TOMBSTONE ONLY  
+**Date:** 2026-09-25  
 **Repository:** `mshahwaiz-ali/ledgix-pos`  
 **Branch:** `main`
 
 ---
 
-## 1. Purpose
+## 1. Current authority
 
-This gate moves verified FBR compliance metadata from the old mixed tax/FBR model into the new V2 compliance model without carrying the old monetary tax engine forward.
+The V2 architecture is now the active FBR configuration/compliance authority.
 
-The migration code is restricted to:
+Current authority is:
 
-`ledgix-erpnext.local`
+- `Ledgix FBR Integration Profile` for company-scoped integration configuration;
+- `Ledgix FBR Item Mapping` for FBR product classification;
+- ERPNext Company/Customer/Address for business identity;
+- ERPNext native tax configuration and invoice accounting for monetary authority.
 
-Production migration will be designed only after the local result is reviewed.
-
----
-
-## 2. Source models
-
-### Old global settings
-
-`Ledgix FBR Settings`
-
-The preview reads:
-
-- enabled/mode/trigger state;
-- Production arm state;
-- preflight blocking preference;
-- software registration number;
-- whether Sandbox token exists;
-- whether Production token exists;
-- whether duplicated seller identity exists.
-
-It never returns password values.
-
-### Old item compliance/tax model
-
-`Ledgix Item Tax Profile`
-
-The old model mixes:
-
-- FBR classification;
-- Sandbox scenario;
-- monetary tax rates/components.
-
-V2 migration deliberately splits these concepts.
+The old global Settings singleton and old mixed Item Tax Profile must not be used as a migration source by current runtime code.
 
 ---
 
-## 3. Destination models
+## 2. Historical migration design
 
-### Integration Profile
+Earlier redesign work provided:
 
-`Ledgix FBR Integration Profile`
+- a local-only read-only preview;
+- a guarded local apply path;
+- safe copying of selected non-monetary metadata;
+- fail-closed destination profile state;
+- explicit exclusion of old monetary tax fields;
+- explicit exclusion of Item-level Sandbox scenario assignment;
+- no automatic migration of duplicated seller identity.
 
-Destination is always forced to:
+That design is retained in Git history and this document only as historical evidence.
 
-```text
-Enabled = No
-Mode = Disabled
-Submit Trigger = Manual
-Production Post Armed = No
-Onboarding Status = Not Started
-```
-
-This happens regardless of the legacy state.
-
-A legacy Production configuration can therefore never become active merely because migration runs.
-
-### Item Mapping
-
-`Ledgix FBR Item Mapping`
-
-Migrated classification fields:
-
-- ERPNext Item;
-- HS Code;
-- FBR UOM;
-- Sale Type;
-- FBR Rate description;
-- Tax Basis;
-- Notified Retail Price;
-- SRO Schedule Number;
-- SRO Item Serial Number.
-
-Every created mapping is:
-
-`Needs Review = Yes`
-
-until verified against official FBR references.
+It is no longer an executable migration authority.
 
 ---
 
-## 4. Data intentionally NOT migrated
+## 3. Retirement decision
 
-### Monetary tax authority
+Patch 5E2B1 retires:
 
-The following old fields are explicitly ignored:
+- executable reads from the old global Settings singleton;
+- legacy Password/token decryption and copying;
+- legacy Item Tax Profile enumeration;
+- V2 profile/item mapping writes from the historical helper;
+- the confirmation/apply path;
+- the live migration-preview runner.
 
-- Default Tax Rate;
-- Sales Tax Withheld at Source / Unit;
-- Extra Tax / Unit;
-- Further Tax / Unit;
-- FED Payable / Unit.
-
-Their replacement belongs to ERPNext native tax configuration, not V2 FBR Item Mapping.
-
-The preview reports every old profile where ignored monetary fields contain non-zero values.
-
-### Sandbox Scenario ID
-
-Old Item-level `scenario_id` is not copied.
-
-The preview reports it separately.
-
-Scenario assignment belongs to V2 Sandbox Certification.
-
-### Duplicated seller identity
-
-The migration does not write old:
-
-- Seller NTN/CNIC;
-- Seller Business Name;
-- Seller Province;
-- Seller Address
-
-into the new Integration Profile.
-
-Seller legal identity should resolve from ERPNext Company/legal identity authorities plus only genuinely missing FBR-specific extensions.
-
----
-
-## 5. Credentials
-
-Sandbox and Production Password fields may be securely copied from old Settings into the new Company-scoped profile.
-
-Rules:
-
-- token values are decrypted only in memory;
-- copied through Password-field handling;
-- never returned by preview/apply result;
-- migration result reports only boolean `*_token_copied`;
-- destination profile remains Disabled;
-- Production remains unarmed.
-
----
-
-## 6. Preview
+The compatibility module remains temporarily importable so stale commands fail with an explicit retirement error instead of silently reviving old behavior.
 
 Module:
 
 `apps/ledgix_saas/migration/fbr_redesign_v2_migration.py`
 
-Function:
+Historical entry points retained only to fail closed:
 
-`preview_v2_migration(company)`
+- `preview_v2_migration(...)`
+- `apply_v2_migration(...)`
 
-Properties:
+Neither entry point may read or write legacy data.
 
-- local integration site only;
-- read only;
-- no password decryption;
-- no FBR network;
-- no database write;
-- no Production state change.
+---
 
-It reports:
+## 4. Preview runner state
 
-- profile migration proposal;
-- each old Item Tax Profile candidate;
-- existing V2 mappings;
-- blockers;
-- duplicate legacy mappings;
-- ignored monetary fields;
-- ignored Sandbox scenarios.
-
-Runner:
+Historical runner:
 
 `scripts/run_fbr_redesign_v2_migration_preview.sh`
 
-Usage after migrate:
+The runner is now a retirement tombstone.
 
-```bash
-cd ~/data_drive/pos
-bash scripts/run_fbr_redesign_v2_migration_preview.sh \
-  ledgix-erpnext.local \
-  "YOUR ERPNext COMPANY"
-```
+It:
 
----
+- performs no Bench execute call;
+- performs no database command;
+- performs no credential read;
+- performs no FBR network call;
+- exits non-zero with an explicit retirement message.
 
-## 7. Blockers
-
-Apply refuses to run if preview contains blockers.
-
-Examples:
-
-- old profile has no ERPNext Item;
-- referenced ERPNext Item does not exist;
-- multiple old profiles target the same ERPNext Item.
-
-Blockers must be reviewed and resolved rather than silently deduplicated.
+It must not be converted back into a migration tool.
 
 ---
 
-## 8. Apply
+## 5. What remains intentionally present
 
-Function:
+This phase does **not** physically delete every old artifact.
 
-`apply_v2_migration(company, confirmation)`
+Still intentionally deferred:
 
-Required exact confirmation:
+- old `ledgix_fbr_settings` source package/controller/schema;
+- package registration in `apps/ledgix_saas/pyproject.toml`;
+- compatibility API shell `api/fbr_settings.py`;
+- local database Workspace Link / DocPerm / Custom DocPerm metadata;
+- singleton rows in `tabSingles`;
+- old DocType metadata/database table cleanup.
 
-`APPLY FBR V2 LOCAL MIGRATION`
+These remain only until the next dependency-removal and controlled DB-cleanup phases prove they can be removed safely.
 
-Additional safety:
-
-- local integration site only;
-- preview runs again immediately before apply;
-- any blocker aborts;
-- one database savepoint wraps migration;
-- exception rolls back to savepoint;
-- destination profile remains disabled/unarmed;
-- old records are not deleted;
-- existing active V2 Item Mappings are skipped for review rather than overwritten.
-
-There is intentionally no convenience apply shell script yet.
-
-Preview evidence must be reviewed first.
+They are not current FBR configuration authority.
 
 ---
 
-## 9. Static contract
+## 6. Static retirement contract
 
 Test:
 
 `apps/ledgix_saas/setup/test_fbr_redesign_v2_migration_contract.py`
 
-It locks:
+It now proves:
 
-- local-only restriction;
-- preview read-only behavior;
-- no preview password access;
-- destination Disabled/Manual/unarmed state;
-- token secrecy;
-- monetary tax fields ignored;
-- Item scenario ignored;
-- review-required mappings;
-- explicit apply confirmation;
-- blocker stop;
-- savepoint rollback;
-- duplicated legacy seller identity not written.
+- historical entry points remain import-compatible;
+- both entry points fail closed;
+- old Settings and Item Tax Profile literals are absent from the helper;
+- no Password decryption exists;
+- no legacy database reads/writes exist;
+- no profile/item-mapping mutation exists;
+- no transport/network path exists.
 
-The test is included in:
-
-`scripts/run_fbr_redesign_static_gate.sh`
+The source de-registration contract additionally proves that the old package is temporarily preserved while the migration authority itself is retired.
 
 ---
 
-## 10. Local execution order
+## 7. Remaining retirement sequence
 
-When the laptop becomes available:
+After 5E2B1:
 
-1. pull `main`;
-2. run the static redesign gate;
-3. migrate `ledgix-erpnext.local`;
-4. run Phase 1 native-tax inventory;
-5. run this V2 migration preview;
-6. inspect blockers and ignored monetary/scenario evidence;
-7. do **not** apply migration until the preview is reviewed;
-8. configure/prove ERPNext-native tax authority;
-9. only then apply V2 metadata migration locally;
-10. verify migrated mappings against official FBR reference data;
-11. keep FBR Production disabled.
+1. evolve remaining proof/runtime gates that still import or require the old Settings compatibility API;
+2. replace presence-oriented contracts with absence/retirement contracts;
+3. retire the old Settings test suite once equivalent absence proof exists;
+4. remove old package registration/source assumptions;
+5. prepare a controlled Frappe patch for database metadata cleanup;
+6. run that cleanup only in the controlled local runtime phase after backup/evidence capture;
+7. prove zero dependency, zero network, source/runtime parity, and safe V2 profile state.
 
 ---
 
-## 11. Production migration
+## 8. Safety boundary
 
-This helper is intentionally not usable on production.
+This retirement phase does not:
 
-After local proof, the production migration procedure must separately define:
+- enable FBR;
+- arm Production;
+- perform an FBR/PRAL request;
+- alter ERPNext accounting;
+- fabricate reference data;
+- delete production data;
+- execute database cleanup.
 
-- fresh backup requirement;
-- pre/post row counts;
-- Company selection;
-- old/new settings evidence;
-- credential-preservation handling;
-- idempotency;
-- conflict handling;
-- rollback;
-- Production remains unarmed until Sandbox certification.
-
-No production migration should be created by merely removing the local-site guard.
+Production remains fail closed until the separate real-world readiness and Sandbox certification gates are satisfied.

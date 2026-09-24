@@ -1,6 +1,6 @@
 # Ledgix FBR + ERPNext Native Tax Redesign Plan
 
-**Status:** IMPLEMENTATION IN PROGRESS - PHASE 1 LOCAL MONETARY CUTOVER COMPLETE; FBR V2/CERTIFICATION REMAIN
+**Status:** IMPLEMENTATION IN PROGRESS - ERPNext-NATIVE V2 ACTIVE; LEGACY FBR RETIREMENT IN PROGRESS; CERTIFICATION PENDING
 **Date:** 2026-09-24
 **Repository:** mshahwaiz-ali/ledgix-pos
 **Branch / source of truth:** main
@@ -16,11 +16,11 @@
 - **Phase 2:** additive FBR V2 compliance schemas exist. Re-evaluate them against the post-Phase-1 runtime before treating the complete V2 path as final.
 - **Phase 3:** official v1.12 reference-surface foundation exists: core/static masters, contextual Rate/HS-UOM/SRO lookups and live registration lookups. Real authorized GET proof remains pending.
 - **Phase 4:** ERPNext-native snapshot collection exists and Phase-1 special-tax gates exercise its tax breakdown. Final V2 payload/certification lifecycle still requires consolidation.
-- **V2 migration gate:** local-only read-only preview + fail-closed apply driver exists; legacy monetary tax fields and Item-level Sandbox scenarios remain excluded.
+- **Legacy V2 migration helper:** **RETIRED.** Historical preview/apply entry points remain only as fail-closed compatibility tombstones and can no longer read/copy the old singleton, credentials, or Item Tax Profile data. Remaining legacy DB metadata cleanup is a separate controlled phase.
 - **Phase 5:** ERPNext Company/Customer/Address identity resolver and payload-input readiness foundation exist. Remaining old tax-profile defaults must be moved to the intended V2/company-scoped configuration before final cutover.
 - **Phase 6:** active Desk Tax & FBR Center exposes ERPNext-native tax setup + FBR V2 configuration/readiness and contains no Production invoice-submit action.
 - **Production:** remains fail-closed / **NOT READY**. No Phase-1 parity work armed Production or performed a real FBR/PRAL call.
-- **Legacy code:** old monetary/FBR modules may remain physically present for migration/history/tests or shared helper use, but current transaction monetary authority is native and legacy Sale/Return FBR execution is blocked. Physical deletion is a later dependency-proven retirement task.
+- **Legacy code:** current transaction monetary authority is native; legacy Sale/Return FBR execution and the historical V2 migration authority are blocked. Some compatibility/package/DB artifacts remain only for dependency-proven retirement and controlled cleanup.
 
 ### Phase 1 local closure evidence
 

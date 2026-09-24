@@ -102,7 +102,7 @@ class TestOldFBRSettingsSourceDeregistration(unittest.TestCase):
 
         self.assertEqual(offenders, [])
 
-    def test_interim_package_and_migration_are_intentionally_preserved(self):
+    def test_interim_package_is_preserved_but_migration_authority_is_retired(self):
         pyproject = (APP_ROOT / "pyproject.toml").read_text(encoding="utf-8")
         migration = (
             APP_ROOT / "migration/fbr_redesign_v2_migration.py"
@@ -119,10 +119,14 @@ class TestOldFBRSettingsSourceDeregistration(unittest.TestCase):
             '"ledgix.doctype.ledgix_fbr_settings",',
             pyproject,
         )
-        self.assertIn(
+        self.assertIn("FBR_V2_LEGACY_MIGRATION_RETIRED", migration)
+        self.assertIn("def preview_v2_migration(", migration)
+        self.assertIn("def apply_v2_migration(", migration)
+        self.assertNotIn(
             'LEGACY_SETTINGS = "Ledgix FBR Settings"',
             migration,
         )
+        self.assertNotIn("get_decrypted_password(", migration)
         self.assertTrue(package.exists())
 
 
