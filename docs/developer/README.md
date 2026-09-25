@@ -288,7 +288,7 @@ Do not use archived phase instructions as current operational runbooks.
 
 The final 2026-09-26 forensic report remains:
 
-    inspection2.md
+    docs/archive/audit/FINAL_FORENSIC_INSPECTION_20260926.md
 
 It is evidence for a point-in-time audit.
 
