@@ -7,11 +7,14 @@ from pathlib import Path
 
 APP_ROOT = Path(__file__).resolve().parents[1]
 
-LEGACY_TAX_DOCTYPES = (
+RETIRED_CONFIG_MASTER_DOCTYPES = (
     "Ledgix Tax Profile",
     "Ledgix Tax Category",
     "Ledgix Tax Rate",
     "Ledgix Item Tax Profile",
+)
+
+HISTORICAL_TAX_EVIDENCE_DOCTYPES = (
     "Ledgix Tax Audit Log",
     "Ledgix Invoice Tax Detail",
     "Ledgix Return Tax Detail",
@@ -62,7 +65,7 @@ class TestFBRPhase9LegacyTaxRetirementContract(unittest.TestCase):
         self.assertEqual(found, targets)
 
     def test_archive_permissions_are_read_only(self):
-        for doctype in LEGACY_TAX_DOCTYPES:
+        for doctype in HISTORICAL_TAX_EVIDENCE_DOCTYPES:
             slug = doctype.lower().replace(" ", "_")
             data = json.loads(
                 (APP_ROOT / "ledgix" / "doctype" / slug / f"{slug}.json")
@@ -298,6 +301,89 @@ class TestFBRPhase9LegacyTaxRetirementContract(unittest.TestCase):
             tail = source[at:at+550]
             self.assertIn("hidden=1", tail)
             self.assertIn("read_only=1", tail)
+
+
+    def test_config_master_packages_are_physically_absent_from_source(self):
+        for doctype in RETIRED_CONFIG_MASTER_DOCTYPES:
+            slug = doctype.lower().replace(" ", "_")
+            self.assertFalse(
+                (APP_ROOT / "ledgix" / "doctype" / slug).exists(),
+                doctype,
+            )
+
+    def test_config_masters_are_removed_from_runtime_registrations(self):
+        hooks = (APP_ROOT / "hooks.py").read_text(encoding="utf-8")
+        permissions = (
+            APP_ROOT / "setup" / "permissions.py"
+        ).read_text(encoding="utf-8")
+
+        for doctype in RETIRED_CONFIG_MASTER_DOCTYPES:
+            self.assertNotIn(f'"{doctype}"', hooks)
+            self.assertNotIn(f'"{doctype}":', permissions)
+
+        for doctype in HISTORICAL_TAX_EVIDENCE_DOCTYPES:
+            self.assertIn(f'"{doctype}"', hooks)
+            self.assertIn(f'"{doctype}":', permissions)
+
+    def test_tax_audit_reference_identity_is_detached_data(self):
+        data = json.loads(
+            (
+                APP_ROOT
+                / "ledgix"
+                / "doctype"
+                / "ledgix_tax_audit_log"
+                / "ledgix_tax_audit_log.json"
+            ).read_text(encoding="utf-8")
+        )
+        by_name = {
+            row.get("fieldname"): row
+            for row in data.get("fields", [])
+        }
+        for fieldname in ("reference_doctype", "reference_name"):
+            row = by_name[fieldname]
+            self.assertEqual(row.get("fieldtype"), "Data")
+            self.assertEqual(int(row.get("read_only") or 0), 1)
+            self.assertNotIn("options", row)
+
+    def test_physical_cleanup_patch_is_registered_last_and_guarded(self):
+        patches = [
+            line.strip()
+            for line in (APP_ROOT / "patches.txt").read_text(
+                encoding="utf-8"
+            ).splitlines()
+            if line.strip()
+            and not line.lstrip().startswith("[")
+            and not line.lstrip().startswith("#")
+        ]
+        expected = (
+            "ledgix_saas.patches.v1_0."
+            "cleanup_retired_legacy_tax_config_masters"
+        )
+        self.assertEqual(patches[-1], expected)
+
+        source = (
+            APP_ROOT
+            / "patches"
+            / "v1_0"
+            / "cleanup_retired_legacy_tax_config_masters.py"
+        ).read_text(encoding="utf-8")
+
+        for value in (
+            "VERIFIED_BACKUP_AND_APPROVED_LEGACY_TAX_CONFIG_CLEANUP",
+            "Legacy Retirement State",
+            "Disabled",
+            "Manual",
+            "__frappe_version_snapshot__",
+            "Ledgix Tax Audit Log",
+            "DROP TABLE IF EXISTS",
+            "delete_permanently=True",
+            "_assert_mapping_parity",
+            "_assert_no_external_references",
+        ):
+            self.assertIn(value, source)
+
+        self.assertNotIn("requests.", source)
+        self.assertNotIn("fbr.gov.pk", source)
 
 if __name__ == "__main__":
     unittest.main()

@@ -112,13 +112,20 @@ class TestLegacyFBRTestCleanup(unittest.TestCase):
             text,
         )
 
-    def test_historical_payload_snapshot_suite_is_archived_not_reexecuted(self):
-        self._assert_import_safe_historical_stub(ITEM_TAX_TEST)
-        text = ITEM_TAX_TEST.read_text(encoding="utf-8")
+    def test_historical_item_tax_snapshot_suite_is_physically_retired_with_master(self):
+        self.assertFalse(ITEM_TAX_TEST.exists())
+        self.assertFalse(ITEM_TAX_TEST.parent.exists())
+
+        phase9 = (
+            APP_ROOT
+            / "setup"
+            / "test_fbr_phase9_legacy_tax_retirement_contract.py"
+        ).read_text(encoding="utf-8")
         self.assertIn(
-            'LEGACY_HISTORICAL_SOURCE_PATH = "ledgix/doctype/ledgix_item_tax_profile/test_ledgix_item_tax_profile.py"',
-            text,
+            "test_config_master_packages_are_physically_absent_from_source",
+            phase9,
         )
+        self.assertIn('"Ledgix Item Tax Profile"', phase9)
 
     def test_native_v2_contracts_replace_historical_execution_authority(self):
         snapshot = (
