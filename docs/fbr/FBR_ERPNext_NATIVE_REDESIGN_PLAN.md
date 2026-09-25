@@ -1591,6 +1591,7 @@ Current boundary:
 - V2 Center has no old tax-master dependency;
 - ordinary migrate cannot backfill the Frozen Item Tax Profile archive;
 - old Item Group tax-default fields are hidden/read-only.
+- external references to retired tax masters are migrated into dedicated Data snapshot fields; old Custom Field Link metadata is removed only after value-hash equality is proven;
 
 Physical deletion stays blocked until every active legacy Item Tax Profile row is
 reconciled to company-scoped V2 FBR Item Mapping without loss of required FBR

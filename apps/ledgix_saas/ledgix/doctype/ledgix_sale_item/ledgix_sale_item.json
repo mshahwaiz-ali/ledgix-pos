@@ -45,7 +45,7 @@
   {"fieldname":"price_override_reason","fieldtype":"Data","label":"Price Override Reason","read_only":1},
   {"fieldname":"amount","fieldtype":"Currency","in_list_view":1,"label":"Amount","read_only":1,"columns":2,"precision":"2"},
   {"fieldname":"tax_snapshot_section","fieldtype":"Section Break","label":"Tax Snapshot"},
-  {"fieldname":"item_tax_profile_snapshot","fieldtype":"Link","label":"Item Tax Profile Snapshot","options":"Ledgix Item Tax Profile","read_only":1},
+  {"fieldname":"item_tax_profile_snapshot","fieldtype":"Data","label":"Legacy Item Tax Profile Snapshot","read_only":1},
   {"fieldname":"tax_basis_snapshot","fieldtype":"Data","label":"Tax Basis Snapshot","read_only":1},
   {"fieldname":"tax_rate_snapshot","fieldtype":"Percent","label":"Tax Rate Snapshot","read_only":1},
   {"fieldname":"notified_retail_price_snapshot","fieldtype":"Currency","label":"Notified Retail Price Snapshot","read_only":1,"precision":"2"},
