@@ -137,6 +137,7 @@ _ORIGINAL_ENSURE_CUSTOMER_GROUP = native._ensure_customer_group
 _ORIGINAL_ENSURE_SUPPLIER_GROUP = native._ensure_supplier_group
 _ORIGINAL_ENSURE_WAREHOUSE = native._ensure_warehouse
 _ORIGINAL_ENSURE_CUSTOMER = native._ensure_customer
+_ORIGINAL_ENSURE_TAX_MAPPING = native._ensure_tax_mapping
 _ORIGINAL_PURCHASE_CYCLE = native._purchase_cycle
 _ORIGINAL_POS_INVOICE = native._pos_invoice
 _ORIGINAL_CLOSE_OPENING = native._close_opening
@@ -201,33 +202,8 @@ def _ensure_customer(company: str, name: str, customer_type: str, group: str, cr
     )
 
 
-def _ensure_tax_mapping(item_code: str, hs_code: str) -> None:
-    if not frappe.db.exists("Ledgix Tax Category", TAX_CATEGORY):
-        doc = frappe.new_doc("Ledgix Tax Category")
-        doc.category_name = TAX_CATEGORY
-        doc.tax_type = "Sales Tax"
-        doc.default_rate = 18
-        doc.active = 1
-        doc.insert(ignore_permissions=True)
-    existing = frappe.db.get_value(
-        "Ledgix Item Tax Profile", {"erpnext_item": item_code, "active": 1}, "name"
-    )
-    if existing:
-        return
-    doc = frappe.new_doc("Ledgix Item Tax Profile")
-    doc.erpnext_item = item_code
-    doc.tax_category = TAX_CATEGORY
-    doc.taxable = 1
-    doc.active = 1
-    # Service rows use local acceptance-only numeric placeholders because the
-    # current validator requires HS-shaped values. They remain review-required
-    # and must not be treated as production/FBR-certified mappings.
-    doc.needs_review = 1 if item_code in SERVICE_ITEMS else 0
-    doc.tax_basis = "Transaction Value"
-    doc.hs_code = hs_code
-    doc.uom_for_fbr = "Numbers"
-    doc.sales_type = "Goods at standard rate"
-    doc.insert(ignore_permissions=True)
+def _ensure_tax_mapping(company: str, item_code: str, hs_code: str) -> None:
+    _ORIGINAL_ENSURE_TAX_MAPPING(company, item_code, hs_code)
 
 
 def _purchase_cycle(*args, **kwargs):

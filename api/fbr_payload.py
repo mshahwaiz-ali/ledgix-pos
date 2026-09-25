@@ -30,16 +30,11 @@ def get_customer_for_fbr(customer_name):
 def get_invoice_tax_rows_for_fbr(sale_doc):
     if not sale_doc:
         return []
-    rows = list(sale_doc.get("tax_details") or [])
-    if rows:
-        return rows
 
-    # Compatibility fallback for old draft/test records that pre-date immutable
-    # V2 tax snapshots. Finalized V2 sales always persist tax_details.
-    from ledgix_saas.api.taxation import prepare_sale_tax_snapshot_for_doc
-
-    prepared = prepare_sale_tax_snapshot_for_doc(sale_doc)
-    return list(prepared.get("snapshot_rows") or [])
+    # Historical serializer is evidence-only. Missing immutable tax_details
+    # remain missing and must fail validation; never reconstruct them from
+    # retired Ledgix tax masters.
+    return list(sale_doc.get("tax_details") or [])
 
 
 def get_return_for_fbr(return_name):
@@ -116,13 +111,11 @@ def _add_required_error(errors, label):
 
 
 def _get_tax_profile_defaults():
-    from ledgix_saas.api.taxation import get_tax_profile
-
-    profile = get_tax_profile() or {}
+    # Neutral compatibility shape only. Ledgix Tax Profile is retired.
     return {
-        "default_buyer_type": profile.get("default_buyer_type") or "Unregistered",
-        "province": profile.get("province") or "",
-        "outlet_address": profile.get("outlet_address") or "",
+        "default_buyer_type": "Unregistered",
+        "province": "",
+        "outlet_address": "",
     }
 
 

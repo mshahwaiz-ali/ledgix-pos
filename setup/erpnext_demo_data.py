@@ -15,7 +15,6 @@ import frappe
 from frappe.utils import add_days, cint, flt, get_datetime, getdate, nowdate, today
 
 from ledgix_saas.services import erpnext_buying_inventory, erpnext_pos, erpnext_selling
-from ledgix_saas.setup import erpnext_tax_foundation
 
 SEED = "LEDGIX-ERP-DEMO-V2"
 SOURCE = "Ledgix Local Demo V2"
@@ -367,34 +366,45 @@ def _ensure_mode(company: str, name: str, mode_type: str, account: str, requires
     return doc.name
 
 
-def _ensure_tax_mapping(item_code: str, hs_code: str) -> None:
-    category = "Ledgix Demo Standard Tax"
-    if not frappe.db.exists("Ledgix Tax Category", category):
-        doc = frappe.new_doc("Ledgix Tax Category")
-        doc.category_name = category
-        doc.tax_type = "Sales Tax"
-        doc.default_rate = 18
-        doc.active = 1
-        doc.insert(ignore_permissions=True)
+FBR_ITEM_MAPPING_DOCTYPE = "Ledgix FBR Item Mapping"
+FBR_PROFILE_DOCTYPE = "Ledgix FBR Integration Profile"
+
+
+def _ensure_tax_mapping(company: str, item_code: str, hs_code: str) -> None:
+    # Synthetic local classification only. It must never certify FBR evidence.
+    if not frappe.db.exists("DocType", FBR_ITEM_MAPPING_DOCTYPE):
+        frappe.throw("Ledgix FBR Item Mapping DocType is required for demo seeding.")
+
     existing = frappe.db.get_value(
-        "Ledgix Item Tax Profile", {"erpnext_item": item_code, "active": 1}, "name"
+        FBR_ITEM_MAPPING_DOCTYPE,
+        {
+            "company": company,
+            "erpnext_item": item_code,
+            "active": 1,
+        },
+        "name",
     )
     if existing:
         return
-    doc = frappe.new_doc("Ledgix Item Tax Profile")
+
+    raw_hs = str(hs_code or "").strip()
+    hs_parts = raw_hs.split(".") if raw_hs else []
+    hs_is_numeric = bool(hs_parts) and all(part.isdigit() for part in hs_parts)
+
+    doc = frappe.new_doc(FBR_ITEM_MAPPING_DOCTYPE)
+    doc.company = company
     doc.erpnext_item = item_code
-    doc.tax_category = category
-    doc.taxable = 1
     doc.active = 1
-    doc.needs_review = 0
+    doc.needs_review = 1
     doc.tax_basis = "Transaction Value"
-    doc.hs_code = hs_code
-    doc.uom_for_fbr = "Numbers"
+    doc.hs_code = raw_hs if hs_is_numeric else ""
+    doc.fbr_uom = "Numbers"
     doc.sales_type = "Goods at standard rate"
+    doc.source_notes = (
+        f"{SOURCE}; synthetic local classification only; "
+        "requires official FBR review before activation."
+    )
     doc.insert(ignore_permissions=True)
-
-
-FBR_PROFILE_DOCTYPE = "Ledgix FBR Integration Profile"
 
 
 def _fbr_profile_state(company: str) -> dict:
@@ -515,7 +525,7 @@ def _masters() -> dict:
         if row["stock"]:
             _ensure_item_price(row["code"], BUYING_PRICE_LIST, row["cost"], buying=1)
             _ensure_reorder(row["code"], pos, row["reorder"])
-        _ensure_tax_mapping(row["code"], row["hs"])
+        _ensure_tax_mapping(company, row["code"], row["hs"])
 
     for name, customer_type, group, credit_limit in CUSTOMERS:
         _ensure_customer(company, name, customer_type, group, credit_limit)
@@ -952,7 +962,6 @@ def _b2b_return(source, sequence: int, date_value):
     doc.custom_ledgix_client_return_id = client_id
     doc.custom_ledgix_checkout_source = SOURCE
     doc.remarks = "Demo B2B partial credit note - one unit returned."
-    erpnext_tax_foundation.apply_tax_plan(doc, replace_managed_rows=True)
     doc.insert(ignore_permissions=True)
     doc.submit()
     return doc

@@ -8,7 +8,6 @@ from frappe.utils import cint, flt
 from ledgix_saas.services.receivables import get_customer_receivables, refresh_customer_credit_summary
 from ledgix_saas.services.sales import apply_customer_snapshot, apply_item_snapshots, apply_seller_snapshot
 from ledgix_saas.services.stock import cancel_reference_movements, post_sale_movements
-from ledgix_saas.services.tax import apply_sale_tax_snapshot
 
 
 class LedgixSale(Document):
@@ -28,9 +27,8 @@ class LedgixSale(Document):
         self.validate_pos_shift()
         self.calculate_totals()
 
-        tax_result = apply_sale_tax_snapshot(self)
-        for message in (tax_result.get("validation") or {}).get("warnings") or []:
-            frappe.msgprint(message, indicator="orange", title="Tax Mapping")
+        # Legacy Ledgix Sale monetary tax calculation is retired.
+        # Current POS/Sales writes standard ERPNext documents.
 
         self.validate_tender_methods()
         self.calculate_payments()
