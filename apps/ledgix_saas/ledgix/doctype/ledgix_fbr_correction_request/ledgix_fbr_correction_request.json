@@ -21,6 +21,7 @@
   "requested_by",
   "requested_at",
   "board_reference",
+  "external_evidence",
   "commissioner_approval_reference",
   "completed_at",
   "internal_notes"
@@ -31,7 +32,7 @@
   {"fieldname":"reference_name","fieldtype":"Dynamic Link","in_filter":1,"in_list_view":1,"label":"Native Invoice","options":"reference_doctype"},
   {"description":"Historical compatibility only. New Phase 9 correction requests use ERPNext Sales Invoice / POS Invoice references.","fieldname":"sale","fieldtype":"Link","label":"Legacy Sale","options":"Ledgix Sale"},
   {"fieldname":"fbr_invoice_number","fieldtype":"Data","in_list_view":1,"label":"FBR Invoice Number","read_only":1},
-  {"description":"FBR's official generation time when available; otherwise the local FBR submitted timestamp is used.","fieldname":"fbr_generated_at","fieldtype":"Datetime","label":"FBR Generated At","read_only":1},
+  {"description":"Official generation timestamp returned by FBR for the accepted invoice. Existing historical correction records retain their already-frozen value.","fieldname":"fbr_generated_at","fieldtype":"Datetime","label":"FBR Generated At","read_only":1},
   {"description":"Seventy-two hours after FBR invoice generation, per Sales Tax General Order #01 of 2026.","fieldname":"correction_deadline","fieldtype":"Datetime","in_list_view":1,"label":"72-Hour Deadline","read_only":1},
   {"description":"Tracking classification only. Ledgix does not call an undocumented Board correction/cancellation API.","fieldname":"correction_path","fieldtype":"Select","label":"Correction Path","options":"Within 72 Hours\nCommissioner Approval Required","read_only":1},
   {"fieldname":"action_type","fieldtype":"Select","in_list_view":1,"label":"Requested Action","options":"Cancel\nDelete\nEdit","reqd":1},
@@ -41,6 +42,7 @@
   {"fieldname":"requested_by","fieldtype":"Link","label":"Requested By","options":"User","read_only":1},
   {"fieldname":"requested_at","fieldtype":"Datetime","label":"Requested At","read_only":1},
   {"description":"Reference or acknowledgement from the Board/PRAL correction process.","fieldname":"board_reference","fieldtype":"Data","label":"Board Reference"},
+  {"description":"Attach external Board/PRAL/licensed-integrator acknowledgement or other evidence supporting the final correction result.","fieldname":"external_evidence","fieldtype":"Attach","label":"External Completion Evidence"},
   {"description":"Required before completion when the 72-hour window has expired.","fieldname":"commissioner_approval_reference","fieldtype":"Data","label":"Commissioner Approval Reference"},
   {"fieldname":"completed_at","fieldtype":"Datetime","label":"Completed At","read_only":1},
   {"fieldname":"internal_notes","fieldtype":"Long Text","label":"Internal Notes"}

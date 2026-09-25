@@ -193,7 +193,7 @@ def get_native_invoice_print_context(reference_doctype, reference_name) -> dict:
     return {
         "doctype": doc.doctype,
         "name": doc.name,
-        "title": "CREDIT NOTE" if is_return else ("SALES RECEIPT" if doc.doctype == "POS Invoice" else "TAX INVOICE"),
+        "title": "RETURN / ADJUSTMENT" if is_return else ("SALES RECEIPT" if doc.doctype == "POS Invoice" else "TAX INVOICE"),
         "is_return": is_return,
         "return_against": doc.get("return_against") or "",
         "posting_date": doc.get("posting_date"),
@@ -218,6 +218,13 @@ def get_native_invoice_print_context(reference_doctype, reference_name) -> dict:
         "fbr_invoice_number": fbr_invoice_number,
         "fbr_reference": doc.get("custom_ledgix_fbr_reference") or "",
         "fbr_submitted_at": doc.get("custom_ledgix_fbr_submitted_at"),
+        "fbr_generated_at": doc.get("custom_ledgix_fbr_generated_at"),
+        "fbr_offline_pending": (
+            (doc.get("custom_ledgix_fbr_status") or "") == "Offline Pending"
+        ),
+        "fbr_offline_issued_at": doc.get("custom_ledgix_fbr_offline_issued_at"),
+        "fbr_upload_due_at": doc.get("custom_ledgix_fbr_upload_due_at"),
+        "fbr_offline_reason": doc.get("custom_ledgix_fbr_offline_reason") or "",
         "fbr_qr_data_uri": get_fbr_qr_data_uri(fbr_invoice_number),
         "original_fbr_invoice_number": original_fbr_invoice,
         "fbr_reconciliation_required": bool(cint(doc.get("custom_ledgix_fbr_reconciliation_required"))),
