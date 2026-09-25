@@ -1,125 +1,234 @@
 # Ledgix POS
 
-> **Retail POS and ERP product on Frappe v15 + ERPNext v15. ERPNext owns business, stock and accounting truth; Ledgix adds the focused retail UX, product shell, tax/FBR layer, onboarding and operational tooling.**
+> **ERPNext-native retail, B2B, purchasing, inventory and FBR product on Frappe v15 + ERPNext v15. ERPNext owns business, stock, monetary tax and accounting truth; Ledgix owns the focused product experience, compatibility and FBR compliance/orchestration around those native transactions.**
 
 ## Current status
 
-- ERPNext-core migration: **COMPLETE**
-- Migration phases 0–13: **CLOSED / ARCHIVED**
-- Current business authority: **ERPNext**
-- Frozen legacy Ledgix business ledgers: **READ-ONLY HISTORICAL EVIDENCE**
-- Local operating/acceptance dataset: **COMPLETE / VERIFIED**
-- FBR application-side integration: **IMPLEMENTED**
-- Real FBR Sandbox certification: **EXTERNAL / PENDING**
-- FBR Production activation: **NOT YET PRODUCTION-READY**
+| Area | Status |
+|---|---|
+| ERPNext-core migration | **COMPLETE** |
+| Migration phases 0–13 | **CLOSED / ARCHIVED** |
+| Current business authority | **ERPNext** |
+| Historical duplicate Ledgix business ledgers | **FROZEN / READ-ONLY EVIDENCE** |
+| Ledgix POS / B2B / buying / inventory | **ERPNext-NATIVE CURRENT ARCHITECTURE** |
+| FBR software | **READY FOR CLIENT CERTIFICATION** |
+| Real FBR Sandbox certification | **PENDING CLIENT EVIDENCE** |
+| FBR Production readiness | **NOT READY BY DEFAULT** |
+| FBR Production active | **NO BY DEFAULT** |
+| General FBR V2 network cutover | **DISABLED** |
 
-There is no Phase 14. New work should improve the current product/release state rather than restart the migration.
+There is no Phase 14.
+
+New work should improve the current product/release state rather than restart the completed migration.
+
+---
+
+## Documentation
+
+The documentation has been consolidated into two current sets.
+
+### Developers / technical operators
+
+Start here:
+
+- [Developer documentation](docs/developer/README.md)
+- [Architecture](docs/developer/ARCHITECTURE.md)
+- [Codebase and extension points](docs/developer/CODEBASE_AND_EXTENSION_POINTS.md)
+- [Business workflows](docs/developer/BUSINESS_WORKFLOWS.md)
+- [FBR architecture](docs/developer/FBR_ARCHITECTURE.md)
+- [Security and permissions](docs/developer/SECURITY_AND_PERMISSIONS.md)
+- [Deployment and upgrades](docs/developer/DEPLOYMENT_AND_UPGRADES.md)
+- [Testing and release gates](docs/developer/TESTING_AND_RELEASE_GATES.md)
+
+### Clients / business operators
+
+Start here:
+
+- [Client documentation](docs/client/README.md)
+- [Getting started](docs/client/GETTING_STARTED.md)
+- [Users, roles and navigation](docs/client/USERS_ROLES_AND_NAVIGATION.md)
+- [POS daily operations](docs/client/POS_DAILY_OPERATIONS.md)
+- [Sales, returns and payments](docs/client/SALES_RETURNS_AND_PAYMENTS.md)
+- [Purchasing and inventory](docs/client/PURCHASE_AND_INVENTORY.md)
+- [FBR setup and operations](docs/client/FBR_SETUP_AND_OPERATIONS.md)
+- [Backup, deployment and go-live](docs/client/BACKUP_DEPLOYMENT_AND_GO_LIVE.md)
+
+### Historical evidence
+
+Historical material lives under:
+
+- [Documentation archive](docs/archive/README.md)
+- [ERPNext migration archive](docs/archive/migration/README.md)
+- [Final forensic inspection](docs/archive/audit/FINAL_FORENSIC_INSPECTION_20260926.md)
+
+Archived documents can contain old phase-time wording and are not current operating authority.
+
+---
+
+## Architecture rule
+
+The governing rule is:
+
+> **One business concept = one authoritative source of truth.**
+
+ERPNext owns current:
+
+- Item / Item Group;
+- Customer / Supplier;
+- Price List / Item Price / Pricing Rule;
+- Sales Invoice / POS Invoice;
+- Payment Entry;
+- Purchase Order / Purchase Receipt / Purchase Invoice;
+- Warehouse / Stock Entry / Stock Reconciliation;
+- Stock Ledger Entry / Bin;
+- Batch / Serial No;
+- POS Opening Entry / POS Closing Entry;
+- monetary tax;
+- General Ledger / AR / AP;
+- standard accounting reports.
+
+Ledgix intentionally owns:
+
+- Ledgix POS product UX;
+- Inventory Intelligence;
+- Tax & FBR Center;
+- Setup Wizard / Business Profile;
+- compatibility APIs over ERPNext-native services;
+- Ledgix branding/product metadata;
+- FBR mappings/reference data;
+- immutable FBR compliance snapshots;
+- guarded FBR transport;
+- FBR Submission Logs/certification/reconciliation evidence;
+- client readiness/release evidence;
+- deployment/recovery tooling.
+
+Ledgix does **not** vendor or modify ERPNext core for normal product features.
+
+---
+
+## Current business workflows
+
+### Retail POS
+
+```text
+ERPNext POS Profile
+  -> POS Opening Entry
+  -> Ledgix POS
+  -> POS Invoice
+  -> native payment rows / split tender
+  -> ERPNext stock + accounting
+  -> POS Closing Entry
+  -> standard ERPNext consolidation
+```
+
+### B2B sales
+
+```text
+Customer + Item + ERPNext pricing
+  -> Sales Invoice
+  -> Payment Entry
+  -> ERPNext outstanding / AR / GL
+  -> native Credit Note / refund when required
+```
+
+### Purchasing
+
+```text
+Supplier
+  -> Purchase Order
+  -> Purchase Receipt
+  -> Purchase Invoice
+  -> Payment Entry
+```
+
+A direct Purchase Invoice path is also supported where the chosen ERPNext workflow calls for it.
+
+### Inventory
+
+```text
+ERPNext Item + Warehouse
+  -> purchase/sale/return stock effects
+  -> Stock Entry / Stock Reconciliation
+  -> Stock Ledger Entry + Bin
+```
+
+Historical Ledgix Sale, Purchase, Payment, POS Shift, Stock Movement and related duplicate business models are not current transaction authority.
+
+---
+
+## FBR
+
+Current FBR commercial sources are submitted ERPNext:
+
+- `Sales Invoice`;
+- `POS Invoice`.
+
+High-level flow:
+
+```text
+ERPNext invoice
+  -> ERPNext monetary tax/accounting
+  -> immutable Ledgix FBR snapshot
+  -> readiness
+  -> payload
+  -> guarded transport
+  -> Submission Log
+  -> official FBR status/reference on the same ERPNext invoice
+```
+
+Key safety rules:
+
+- historical `Ledgix Sale` submission is retired;
+- payloads require hash-verified invoice-time snapshot evidence;
+- Sandbox certification requires persisted real Validate/POST evidence;
+- Production requires separate explicit readiness/arming;
+- general V2 network cutover is disabled at the documented baseline;
+- ambiguous Production POST becomes `Reconciliation Required`;
+- **do not blindly retry** a reconciliation-required invoice;
+- Known Offline is a separate operator-confirmed workflow and cannot be used after a Production POST attempt;
+- local tests/mocks are never certification evidence.
+
+See [FBR Architecture](docs/developer/FBR_ARCHITECTURE.md) and [Client FBR Guide](docs/client/FBR_SETUP_AND_OPERATIONS.md).
 
 ---
 
 ## Supported stack
 
-Production release contract:
+The current production release contract lives in:
 
 ```text
-Frappe:   15.113.4 / version-15
-ERPNext:  15.121.3 / version-15
-Ledgix:   ledgix_saas
+deploy/release_contract.env
+```
+
+The documented baseline uses:
+
+```text
+Frappe:   15.113.4
+ERPNext:  15.121.3
+Ledgix:   ledgix_saas 15.0.1
 Database: MariaDB
 Queue:    Redis
 ```
 
-The exact production pin lives in `deploy/release_contract.env`.
-
-Do not vendor or modify ERPNext core. Ledgix extends ERPNext through the app layer.
-
----
-
-## Architecture
-
-ERPNext is authoritative for:
-
-- Items, Item Groups, Price Lists and pricing
-- Customers and Suppliers
-- Sales Invoice / POS Invoice
-- Payment Entry and receivables
-- Purchase Order / Purchase Receipt / Purchase Invoice
-- Warehouse, Stock Entry, Stock Reconciliation, Batch/Serial and Stock Ledger
-- POS Opening / Closing
-- accounting and financial reports
-
-Ledgix intentionally owns:
-
-- `ledgix-pos`
-- Inventory Intelligence (`business-intelligence-center`)
-- Tax & FBR Center (`ledgix-tax-center`)
-- Setup Wizard (`ledgix-setup`)
-- Business Profile / branding / Ledgix user UX
-- FBR mapping, immutable compliance snapshots, guarded transport and audit logs
-- onboarding/readiness/release evidence and SaaS tooling
-
-Read first:
-
-```text
-docs/architecture/CURRENT_ARCHITECTURE.md
-docs/architecture/LEGACY_AUDIT.md
-docs/operations/ERP_WORKFLOWS.md
-```
-
----
-
-## Legacy boundary
-
-Historical custom business DocTypes such as:
-
-- `Ledgix Item`
-- `Ledgix Customer`
-- `Ledgix Supplier`
-- `Ledgix Sale`
-- `Ledgix Purchase`
-- `Ledgix Payment`
-- `Ledgix POS Shift`
-- `Ledgix POS Hold`
-- `Ledgix Stock Movement`
-
-are not current business authorities.
-
-They remain frozen only for migration/audit/reconciliation evidence until a separately approved schema-retirement project proves physical removal safe.
-
-Compatibility endpoint names may remain, but current writes must resolve to ERPNext-native services.
-
----
-
-## Main user surfaces
-
-Ledgix keeps four focused product shortcuts:
-
-1. **Ledgix POS** — fast retail checkout over ERPNext POS
-2. **Inventory Intelligence** — ERPNext stock visibility/insights
-3. **Tax & FBR Center** — mapping, readiness, logs and guarded FBR controls
-4. **Setup Wizard** — configuration-only Business Profile onboarding
-
-Workspace/business areas link to native ERPNext records wherever ERPNext is authoritative.
-
-Frappe/ERPNext permissions remain the security authority; Business Profile visibility does not grant access by itself.
+Always treat `deploy/release_contract.env` in the selected release as the deploy-time version authority.
 
 ---
 
 ## Local development
 
-Repository:
+Repository root:
 
 ```bash
-cd ~/data_drive/pos
+cd ~/data_drive/ledgix-pos
 ```
 
-Canonical local site:
+Canonical local integration site:
 
 ```text
 ledgix-erpnext.local
 ```
 
-First-time/repair workflow:
+Typical setup:
 
 ```bash
 ./install.sh --local
@@ -127,143 +236,125 @@ First-time/repair workflow:
 ./start.sh
 ```
 
-Useful status/smoke:
+Useful checks:
 
 ```bash
 ./site_setup.sh --status
 ./start.sh --status
 ./start.sh --smoke --site ledgix-erpnext.local
-```
-
-Current local setup authority:
-
-```text
-docs/local/LOCAL_INSTALLATION.md
-```
-
----
-
-## Local operating/acceptance dataset
-
-Current dataset marker:
-
-```text
-LEDGIX-RETAIL-OPERATING-V1
-```
-
-The canonical dataset on `ledgix-erpnext.local` is already completed and verified. It exercises realistic ERPNext-native Retail, B2B, purchasing, stock, returns, payments, receivables and split-payment behavior.
-
-**Do not casually reset or reseed it.** Use the read-only verifier first.
-
-Documentation:
-
-```text
-docs/operations/LOCAL_DEMO_DATA.md
-```
-
-The filename is retained for compatibility, but the document now describes the operating/acceptance dataset rather than an old disposable V2 demo.
-
-FBR transport remains disabled for this local dataset.
-
----
-
-## Validation
-
-Repository validation:
-
-```bash
 bash scripts/ci_local.sh
 ```
 
-Current local acceptance/readiness:
+Detailed guide:
 
-```bash
-bash scripts/run_release_acceptance_readiness_gate.sh ledgix-erpnext.local
-```
-
-Final production acceptance:
-
-```bash
-bash scripts/run_ledgix_production_release_gate.sh \
-  --site client.example.com \
-  --url https://client.example.com \
-  --release <approved-immutable-release>
-```
-
-The final gate validates evidence; it is not a replacement for deployment or real manual/FBR acceptance.
-
-Historical phase gates remain regression/evidence tools for the completed migration only.
+- [Installation and configuration](docs/developer/INSTALLATION_AND_CONFIGURATION.md)
 
 ---
 
-## FBR
+## Testing and release evidence
 
-Current FBR sources are submitted ERPNext `Sales Invoice` / `POS Invoice` and their native returns/Credit Notes.
-
-Key safety rules:
-
-- historical `Ledgix Sale` submission is retired;
-- FBR payloads use immutable invoice/line snapshots;
-- Production POST requires the explicit Production interlock;
-- consolidated POS accounting Sales Invoices are not a second FBR source;
-- `scheduler_events = {}` is intentional for FBR retransmission safety;
-- an ambiguous Production POST becomes `Reconciliation Required`;
-- real Sandbox/Production success evidence must never be fabricated.
-
-Documentation:
+Different evidence levels must not be confused.
 
 ```text
-docs/fbr/FBR_ARCHITECTURE_AND_OPERATIONS.md
-docs/fbr/FBR_PRODUCTION_CHECKLIST.md
-docs/production/fbr_sandbox_production_activation.md
+static/unit proof
+  -> local runtime proof
+  -> recovery proof
+  -> client readiness
+  -> manual UAT
+  -> real FBR Sandbox evidence
+  -> strict Production release readiness
+  -> explicit Production activation
 ```
 
-The older `FBR_TAX_LAYER.md` and `FBR_TAX_MODULE.md` filenames are retained only as deprecated historical pointers.
+Final forensic baseline recorded:
+
+- focused final blocker regression: **19 passed / 0 failed**;
+- broad setup regression: **472 passed / 0 failed**;
+- final inspected software blockers: **closed**;
+- real FBR/PRAL calls during final forensic audit: **0**;
+- Production posting: **unarmed**.
+
+These are point-in-time software proofs, not permanent test-count requirements or client certification.
+
+See [Testing and release gates](docs/developer/TESTING_AND_RELEASE_GATES.md).
 
 ---
 
 ## Production / SaaS
 
-Intended model:
+Ledgix uses native Frappe site isolation:
 
 ```text
-one approved Ledgix release per bench
+one approved Ledgix revision per bench
         |
-        +-- client-a Frappe site + DB
-        +-- client-b Frappe site + DB
-        +-- client-c Frappe site + DB
+        +-- client-a site + database
+        +-- client-b site + database
+        +-- client-c site + database
 ```
 
-Each client receives separate business data, credentials, FBR configuration and backup/release evidence.
+Each client has separate:
 
-Start production work here:
+- database;
+- site config;
+- business data;
+- users;
+- FBR credentials/evidence;
+- backups;
+- release evidence.
 
-```text
-docs/production/README_PRODUCTION.md
-docs/production/DEPLOYMENT.md
-docs/production/PRODUCTION_CHECKLIST.md
-```
+If clients need different Ledgix releases, use separate benches instead of client code forks.
 
-Detailed runbooks cover fresh provisioning, immutable updates, shared-bench releases, backup/restore, onboarding, hardware UAT, FBR activation and the final release gate.
+Production release rules:
 
-Production uses an approved immutable SHA/tag and verified recovery evidence. A moving `main` branch is development source of truth, not production release identity.
+- deploy immutable SHA/tag;
+- create verified backup before update;
+- use single-site updater for a single-site bench;
+- use shared cohort updater for a shared bench;
+- run migrate/build/smoke;
+- preserve release evidence;
+- run final acceptance gate separately;
+- never activate FBR Production as an installation/update side effect.
+
+See:
+
+- [Deployment and upgrades](docs/developer/DEPLOYMENT_AND_UPGRADES.md)
+- [Backup, restore and rollback](docs/developer/BACKUP_RESTORE_ROLLBACK.md)
+- [Multi-site SaaS](docs/developer/MULTI_SITE_SAAS.md)
+
+---
+
+## Legacy boundary
+
+ERPNext-core migration phases 0–13 are complete.
+
+Historical duplicate Ledgix business data can remain physically present for:
+
+- audit;
+- migration provenance;
+- reconciliation evidence;
+- rollback reasoning.
+
+On migrated sites these records are frozen/read-only and hash-verifiable.
+
+Old mixed Ledgix monetary tax/FBR configuration masters were retired separately during the FBR redesign.
+
+See [Migration and legacy retirement](docs/developer/MIGRATION_AND_LEGACY_RETIREMENT.md).
 
 ---
 
 ## Repository map
 
 ```text
-pos/
-├── apps/ledgix_saas/          # Ledgix Frappe app
-├── deploy/                    # guarded production/backup/update helpers
+ledgix-pos/
+├── README.md
+├── apps/
+│   └── ledgix_saas/              # Ledgix Frappe application
+├── deploy/                        # guarded production/update/recovery tooling
 ├── docs/
-│   ├── architecture/          # current authority + legacy boundaries
-│   ├── fbr/                   # current FBR architecture/checklists
-│   ├── local/                 # local setup
-│   ├── operations/            # operating dataset + ERP workflows
-│   ├── production/            # production/client/release runbooks
-│   └── archive/migration/     # completed migration history/evidence
-├── scripts/                   # CI, readiness, release and guarded utilities
+│   ├── developer/                 # CURRENT technical authority
+│   ├── client/                    # CURRENT client/operator authority
+│   └── archive/                   # HISTORICAL evidence only
+├── scripts/                       # CI/readiness/release/gate utilities
 ├── install.sh
 ├── site_setup.sh
 └── start.sh
@@ -275,15 +366,17 @@ pos/
 
 Never commit:
 
-- FBR tokens
-- site/database passwords
-- private keys/certificates
-- client API secrets
-- `site_config` recovery inputs
-- database/file backups
-- generated secret/evidence files containing credentials
+- FBR tokens;
+- site/database passwords;
+- private keys/certificates;
+- client API secrets;
+- private site configuration;
+- database/file backups;
+- generated evidence containing credentials.
 
-Local credentials live under `.secrets/sites/`; production provisioning stores owner-only credentials outside the repository (default `~/.config/ledgix/sites/`).
+Use named users and least privilege.
+
+Business Profile controls product visibility; Frappe/ERPNext permissions and server-side checks remain authorization authority.
 
 Run:
 
@@ -293,42 +386,37 @@ bash scripts/check_secrets.sh
 
 before release work.
 
-See `docs/production/SECURITY.md`.
+See [Security and permissions](docs/developer/SECURITY_AND_PERMISSIONS.md).
 
 ---
 
-## Documentation index
+## Known maintenance item
 
-### Current architecture / operations
+Documentation consolidation identified one source-level permission inconsistency:
 
-```text
-docs/architecture/CURRENT_ARCHITECTURE.md
-docs/architecture/LEGACY_AUDIT.md
-docs/operations/ERP_WORKFLOWS.md
-docs/operations/LOCAL_DEMO_DATA.md
-docs/local/LOCAL_INSTALLATION.md
-```
+- `Ledgix FBR Submission Log` DocType JSON intends read-only Desk evidence;
+- `setup/permissions.py` still carries older broader System Manager/Ledgix Admin rights;
+- `fast_permissions.py` can synchronize that older policy during migrate.
 
-### Current FBR
+The intended direction is read-only Submission Log evidence.
 
-```text
-docs/fbr/FBR_ARCHITECTURE_AND_OPERATIONS.md
-docs/fbr/FBR_PRODUCTION_CHECKLIST.md
-```
+This should be fixed in application code with migrate-level regression coverage before claiming that the read-only control is durable across every migration.
 
-### Current production
+---
 
-```text
-docs/production/README_PRODUCTION.md
-docs/production/DEPLOYMENT.md
-docs/production/PRODUCTION_CHECKLIST.md
-docs/production/final_release_gate.md
-```
+## Documentation authority
 
-### Historical migration evidence
+For current work:
 
-```text
-docs/archive/migration/
-```
+1. current source/runtime wiring;
+2. `docs/developer/` for technical work;
+3. `docs/client/` for business/operator work;
+4. `docs/archive/` only for historical evidence.
 
-Archived migration documents may contain historical phase-time status wording or old internal paths. They are preserved as snapshots and are not current operating instructions.
+Do not follow archived phase instructions as current runbooks.
+
+---
+
+## Product summary
+
+> **Ledgix is a focused ERPNext-native POS/business product: ERPNext owns commercial, stock, tax and accounting truth; Ledgix provides the operator experience and controlled FBR compliance layer, while historical duplicate Ledgix business records remain non-authoritative evidence and live FBR Production stays fail-closed until genuine client prerequisites are satisfied.**
