@@ -19,6 +19,9 @@ class LedgixFBRV2Center {
 			mappings: "ledgix_saas.api.fbr_v2_center.get_v2_item_mappings",
 			syncCore: "ledgix_saas.api.fbr_reference_v2.sync_core_reference_data",
 			readiness: "ledgix_saas.api.fbr_v2_center.evaluate_v2_invoice_readiness",
+			offlineQueue: "ledgix_saas.api.fbr_offline.get_offline_queue",
+			offlineDeclare: "ledgix_saas.api.fbr_offline.declare_known_offline",
+			offlineUpload: "ledgix_saas.api.fbr_offline.upload_offline_invoice",
 		};
 
 		this.areas = [
@@ -41,6 +44,9 @@ class LedgixFBRV2Center {
 			referenceDoctype: "Sales Invoice",
 			referenceName: "",
 			readiness: null,
+			offlineReferenceDoctype: "Sales Invoice",
+			offlineReferenceName: "",
+			offlineQueue: { rows: [], count: 0, overdue_count: 0 },
 		};
 
 		this.pageSize = 20;
@@ -106,6 +112,7 @@ class LedgixFBRV2Center {
 		this.$root.on("click", "[data-new-doc]", event => frappe.new_doc($(event.currentTarget).data("new-doc")));
 		this.$root.on("change", ".lx-v2-profile", event => {
 			this.state.selectedProfile = event.currentTarget.value || "";
+			if (this.state.area === "fbr") this.render_fbr_integration();
 		});
 		this.$root.on("click", ".lx-v2-sync-core", () => this.sync_core_references());
 		this.$root.on("input", ".lx-v2-map-search", event => {
@@ -131,6 +138,19 @@ class LedgixFBRV2Center {
 			this.mount_invoice_control();
 		});
 		this.$root.on("click", ".lx-v2-check-readiness", () => this.check_readiness());
+		this.$root.on("change", ".lx-offline-doctype", event => {
+			this.state.offlineReferenceDoctype = event.currentTarget.value || "Sales Invoice";
+			this.state.offlineReferenceName = "";
+			this.mount_offline_control();
+		});
+		this.$root.on("click", ".lx-offline-refresh", () => this.render_fbr_integration());
+		this.$root.on("click", ".lx-offline-declare", () => this.declare_known_offline());
+		this.$root.on("click", ".lx-offline-upload", event => {
+			this.upload_offline_invoice(
+				$(event.currentTarget).data("doctype"),
+				$(event.currentTarget).data("name"),
+			);
+		});
 	}
 
 	open_list(doctype) {
@@ -278,11 +298,24 @@ class LedgixFBRV2Center {
 		`).join("");
 	}
 
-	render_fbr_integration() {
+	async render_fbr_integration() {
 		const boot = this.state.boot || {};
 		const profiles = boot.profiles || [];
 		const refs = boot.references || [];
 		const canAdmin = Boolean(boot.is_admin);
+
+		try {
+			this.state.offlineQueue = await this.call(this.methods.offlineQueue, {
+				company: this.selected_profile_company(),
+			});
+		} catch (error) {
+			this.state.offlineQueue = {
+				rows: [],
+				count: 0,
+				overdue_count: 0,
+				error: error?.message || error?.exc || String(error || "Unknown error"),
+			};
+		}
 
 		this.$root.find(".lx-tax-content").html(`
 			<section class="lx-tax-section">
@@ -313,7 +346,174 @@ class LedgixFBRV2Center {
 				</div>
 				${this.reference_table(refs)}
 			</section>
+
+			<section class="lx-tax-section">
+				<div class="lx-tax-section-head">
+					<div>
+						<h3>Known Offline operations</h3>
+						<p>Separate from ambiguous POST reconciliation. Declaration performs no FBR network call; controlled upload is explicit and never scheduled automatically.</p>
+					</div>
+					<div class="lx-tax-actions">
+						<button class="btn btn-default btn-sm lx-offline-refresh" type="button">Refresh queue</button>
+					</div>
+				</div>
+				${this.offline_queue_html(canAdmin)}
+			</section>
 		`);
+		this.mount_offline_control();
+	}
+
+
+	selected_profile_company() {
+		const profileName = (this.state.selectedProfile || "").trim();
+		const profile = (this.state.boot.profiles || []).find(row => row.name === profileName);
+		return profile?.company || "";
+	}
+
+	offline_queue_html(canAdmin) {
+		const data = this.state.offlineQueue || { rows: [], count: 0, overdue_count: 0 };
+		const rows = data.rows || [];
+		const error = data.error || "";
+
+		return `
+			<div class="lx-tax-metrics lx-tax-metrics-compact">
+				${this.metric("Offline Pending", data.count || 0, Number(data.count) ? "warn" : "good")}
+				${this.metric("Overdue", data.overdue_count || 0, Number(data.overdue_count) ? "warn" : "good")}
+				${this.metric("Automatic uploader", "Disabled", "good")}
+			</div>
+			${error ? `<div class="lx-callout is-warning"><strong>Queue unavailable:</strong> ${this.escape(error)}</div>` : ""}
+			${canAdmin ? `
+				<div class="lx-tax-toolbar">
+					<select class="form-control lx-offline-doctype">
+						<option value="Sales Invoice" ${this.state.offlineReferenceDoctype === "Sales Invoice" ? "selected" : ""}>Sales Invoice</option>
+						<option value="POS Invoice" ${this.state.offlineReferenceDoctype === "POS Invoice" ? "selected" : ""}>POS Invoice</option>
+					</select>
+					<div class="lx-offline-invoice-link"></div>
+					<button class="btn btn-primary btn-sm lx-offline-declare" type="button">Declare Known Offline</button>
+				</div>
+			` : '<div class="lx-callout"><strong>View only:</strong> declaring or uploading Known Offline invoices requires System Manager or Ledgix Admin.</div>'}
+			${rows.length ? `
+				<div class="lx-tax-table-wrap">
+					<table class="lx-tax-table">
+						<thead><tr><th>Invoice</th><th>Company / Customer</th><th>Issued offline</th><th>Upload due</th><th>Reason</th><th>Status</th><th></th></tr></thead>
+						<tbody>
+							${rows.map(row => `
+								<tr>
+									<td><strong>${this.escape(row.name)}</strong><small>${this.escape(row.doctype)}</small></td>
+									<td>${this.escape(row.company || "—")}<small>${this.escape(row.customer || "—")}</small></td>
+									<td>${this.escape(row.offline_issued_at || "—")}</td>
+									<td>${this.escape(row.upload_due_at || "—")}</td>
+									<td>${this.escape(row.offline_reason || "—")}</td>
+									<td>${row.overdue ? '<span class="lx-status is-warn">Overdue</span>' : '<span class="lx-status is-good">Pending upload</span>'}</td>
+									<td>
+										<button class="btn btn-xs btn-default" data-native-form="${this.escape(row.doctype)}" data-name="${this.escape(row.name)}">Open</button>
+										${canAdmin ? `<button class="btn btn-xs btn-primary lx-offline-upload" data-doctype="${this.escape(row.doctype)}" data-name="${this.escape(row.name)}">Upload</button>` : ""}
+									</td>
+								</tr>
+							`).join("")}
+						</tbody>
+					</table>
+				</div>
+			` : this.empty("No ERPNext invoice is currently Offline Pending.")}
+		`;
+	}
+
+	mount_offline_control() {
+		const $holder = this.$root.find(".lx-offline-invoice-link");
+		if (!$holder.length) return;
+		$holder.empty();
+
+		let control;
+		control = frappe.ui.form.make_control({
+			parent: $holder[0],
+			df: {
+				fieldname: "known_offline_invoice",
+				label: "Submitted ERPNext Invoice",
+				fieldtype: "Link",
+				options: this.state.offlineReferenceDoctype,
+				get_query: () => ({ filters: { docstatus: 1, is_return: 0 } }),
+				onchange: () => {
+					this.state.offlineReferenceName = control.get_value() || "";
+				},
+			},
+			render_input: true,
+		});
+		control.set_value(this.state.offlineReferenceName || "");
+	}
+
+	declare_known_offline() {
+		const referenceName = (this.state.offlineReferenceName || "").trim();
+		const referenceDoctype = this.state.offlineReferenceDoctype || "Sales Invoice";
+		if (!referenceName) return frappe.msgprint("Select a submitted non-return ERPNext invoice first.");
+
+		frappe.prompt(
+			[
+				{ fieldname: "reason", fieldtype: "Small Text", label: "Known Offline reason", reqd: 1 },
+				{ fieldname: "confirmation", fieldtype: "Data", label: 'Type "DECLARE KNOWN OFFLINE" to confirm', reqd: 1 },
+			],
+			async values => {
+				if ((values.confirmation || "").trim() !== "DECLARE KNOWN OFFLINE") {
+					return frappe.msgprint("Confirmation must be exactly: DECLARE KNOWN OFFLINE");
+				}
+				try {
+					this.set_loading(true);
+					const result = await this.call(this.methods.offlineDeclare, {
+						reference_doctype: referenceDoctype,
+						reference_name: referenceName,
+						reason: values.reason,
+						confirmation: values.confirmation,
+					});
+					frappe.msgprint({
+						title: "Known Offline declared",
+						message: `Status: ${this.escape(result.status || "Offline Pending")}. No FBR network request was made by the declaration.`,
+						indicator: "orange",
+					});
+					this.state.offlineReferenceName = "";
+					await this.render_fbr_integration();
+				} catch (error) {
+					this.show_error("Known Offline declaration failed.", error);
+				} finally {
+					this.set_loading(false);
+				}
+			},
+			"Declare Known Offline",
+			"Declare",
+		);
+	}
+
+	upload_offline_invoice(referenceDoctype, referenceName) {
+		if (!referenceDoctype || !referenceName) return;
+
+		frappe.prompt(
+			[
+				{ fieldname: "confirmation", fieldtype: "Data", label: 'Type "UPLOAD OFFLINE INVOICE" to confirm', reqd: 1 },
+			],
+			async values => {
+				if ((values.confirmation || "").trim() !== "UPLOAD OFFLINE INVOICE") {
+					return frappe.msgprint("Confirmation must be exactly: UPLOAD OFFLINE INVOICE");
+				}
+				try {
+					this.set_loading(true);
+					const result = await this.call(this.methods.offlineUpload, {
+						reference_doctype: referenceDoctype,
+						reference_name: referenceName,
+						confirmation: values.confirmation,
+					});
+					frappe.msgprint({
+						title: "Controlled offline upload",
+						message: this.escape(result.error_message || result.status || "Upload workflow completed."),
+						indicator: result.status === "Failed" || result.status === "Reconciliation Required" ? "orange" : "green",
+					});
+					await this.render_fbr_integration();
+				} catch (error) {
+					this.show_error("Controlled offline upload failed.", error);
+				} finally {
+					this.set_loading(false);
+				}
+			},
+			"Upload Offline Invoice",
+			"Upload",
+		);
 	}
 
 	profile_table(rows) {

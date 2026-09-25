@@ -54,10 +54,11 @@ def _v2_profile_public(company: str) -> dict:
             "digital_invoicing_logo": "",
         }
 
+    # Never fabricate official artwork; use only the configured authoritative profile attachment.
     row = frappe.db.get_value(
         "Ledgix FBR Integration Profile",
         {"company": company},
-        ["name", "software_registration_number"],
+        ["name", "software_registration_number", "digital_invoicing_logo"],
         as_dict=True,
     )
     return {
@@ -65,9 +66,9 @@ def _v2_profile_public(company: str) -> dict:
         "software_registration_number": (
             row.software_registration_number if row else ""
         ) or "",
-        # No authoritative V2 FBR-logo field exists yet. Do not reuse the
-        # retired singleton setting or fabricate official artwork.
-        "digital_invoicing_logo": "",
+        "digital_invoicing_logo": (
+            row.digital_invoicing_logo if row else ""
+        ) or "",
     }
 
 
