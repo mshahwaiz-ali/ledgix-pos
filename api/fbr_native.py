@@ -8,6 +8,8 @@ until the company-scoped V2 transport cutover is completed. This module never
 creates a second sales, payment, stock or accounting ledger.
 """
 
+import os
+
 import frappe
 from frappe import _
 from frappe.utils import cint, flt, now_datetime
@@ -36,9 +38,22 @@ TOLERANCE = 0.05
 # prevents any invoice Validate/POST from leaving Ledgix during the cutover.
 V2_NETWORK_CUTOVER_ACTIVE = False
 V2_NETWORK_CUTOVER_MESSAGE = (
-    "FBR V2 network validation/submission is not active. "
-    "Complete local V2 transport proof and Sandbox certification first."
+    "General FBR V2 network validation/submission is not active. "
+    "Sandbox traffic is allowed only through the explicitly confirmed local "
+    "Sandbox certification exercise; Production remains blocked."
 )
+SANDBOX_NETWORK_EXERCISE_ENV = "LEDGIX_FBR_SANDBOX_NETWORK_EXERCISE"
+SANDBOX_NETWORK_EXERCISE_CONFIRMATION = "SEND TO FBR SANDBOX"
+
+
+def _sandbox_network_exercise_allowed(mode: str | None) -> bool:
+    # Narrow exception for the exact-confirmed local certification subprocess.
+    return bool(
+        V2_NETWORK_CUTOVER_ACTIVE is False
+        and str(mode or "").strip() == "Sandbox"
+        and str(os.environ.get(SANDBOX_NETWORK_EXERCISE_ENV) or "").strip()
+        == SANDBOX_NETWORK_EXERCISE_CONFIRMATION
+    )
 
 
 def _require_role(action: str, *, submit: bool = False) -> None:
@@ -388,7 +403,7 @@ def validate_native_with_fbr_internal(reference_doctype: str, reference_name: st
     if not is_native_fbr_source(doc):
         frappe.throw("FBR validation requires a submitted ERPNext source invoice, not a consolidated POS accounting invoice.")
 
-    if not V2_NETWORK_CUTOVER_ACTIVE:
+    if not V2_NETWORK_CUTOVER_ACTIVE and not _sandbox_network_exercise_allowed(mode):
         validation = validate_native_readiness_internal(doc.doctype, doc.name)
         return _not_ready(
             doc,
@@ -474,16 +489,17 @@ def submit_native_to_fbr_internal(reference_doctype: str, reference_name: str) -
     if already:
         return already
 
-    if not V2_NETWORK_CUTOVER_ACTIVE:
-        validation = validate_native_readiness_internal(doc.doctype, doc.name)
+    validation = validate_native_readiness_internal(doc.doctype, doc.name)
+    settings = validation.get("settings") or {}
+    mode = settings.get("mode") or "Disabled"
+
+    if not V2_NETWORK_CUTOVER_ACTIVE and not _sandbox_network_exercise_allowed(mode):
         return _not_ready(
             doc,
             validation,
             V2_NETWORK_CUTOVER_MESSAGE,
         )
 
-    validation = validate_native_readiness_internal(doc.doctype, doc.name)
-    settings = validation.get("settings") or {}
     config_error = _configured_for_network(settings)
     if config_error:
         return _not_ready(
@@ -510,7 +526,6 @@ def submit_native_to_fbr_internal(reference_doctype: str, reference_name: str) -
                 "error_message": readiness_error,
             }
 
-        mode = settings.get("mode")
         client_result = fbr_v2_transport.post_invoice(
             company=doc.company,
             payload=payload,
