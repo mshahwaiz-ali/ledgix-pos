@@ -29,17 +29,34 @@ def ensure_requests_available() -> None:
         )
 
 
-def safe_error(exc: Exception) -> str:
-    value = str(exc or "")
-    value = re.sub(
+def redact_evidence(value, *, token: str = ""):
+    """Remove credentials before remote data leaves the transport boundary."""
+    if isinstance(value, dict):
+        return {
+            redact_evidence(key, token=token): (
+                "[REDACTED]"
+                if re.sub(r"[^a-z]", "", str(key).lower())
+                in {"authorization", "token", "accesstoken", "authtoken", "password"}
+                else redact_evidence(item, token=token)
+            )
+            for key, item in value.items()
+        }
+    if isinstance(value, (list, tuple)):
+        return [redact_evidence(item, token=token) for item in value]
+    if not isinstance(value, str):
+        return value
+    if token:
+        value = value.replace(token, "[REDACTED]")
+    return re.sub(
         r"Bearer\s+[^\s,;]+",
         "Bearer [REDACTED]",
         value,
         flags=re.IGNORECASE,
     )
-    if "Bearer " in value:
-        value = value.split("Bearer ", 1)[0].rstrip()
-    return value or "FBR request failed."
+
+
+def safe_error(exc: Exception, *, token: str = "") -> str:
+    return redact_evidence(str(exc or ""), token=token) or "FBR request failed."
 
 
 def get_json(
@@ -78,11 +95,11 @@ def get_json(
     except frappe.ValidationError:
         raise
     except Exception as exc:
-        frappe.throw(safe_error(exc))
+        frappe.throw(safe_error(exc, token=token))
 
     return {
         "http_status": response.status_code,
-        "payload": payload,
+        "payload": redact_evidence(payload, token=token),
     }
 
 
@@ -129,7 +146,7 @@ def post_json(
             "network_call": True,
             "http_status": response.status_code,
             "status": "HTTP OK" if success else "HTTP Error",
-            "response": safe_response,
+            "response": redact_evidence(safe_response, token=token),
             "error": "" if success else f"FBR returned HTTP {response.status_code}.",
         }
     except Exception as exc:
@@ -139,5 +156,5 @@ def post_json(
             "http_status": None,
             "status": "Network Error",
             "response": None,
-            "error": safe_error(exc),
+            "error": safe_error(exc, token=token),
         }

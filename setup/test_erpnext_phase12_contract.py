@@ -131,11 +131,10 @@ class TestERPNextPhase12Contract(unittest.TestCase):
         for doctype in legacy_retirement.LEGACY_TOP_LEVEL_DOCTYPES:
             self.assertIn(f'"{doctype}"', hooks)
 
+        for retired in ("Ledgix Tax Profile", "Ledgix Tax Category", "Ledgix Tax Rate", "Ledgix Item Tax Profile"):
+            self.assertNotIn(f'"{retired}"', hooks)
+
         for doctype in (
-            "Ledgix Tax Profile",
-            "Ledgix Tax Category",
-            "Ledgix Tax Rate",
-            "Ledgix Item Tax Profile",
             "Ledgix Tax Audit Log",
             "Ledgix Invoice Tax Detail",
             "Ledgix Return Tax Detail",

@@ -5,6 +5,7 @@ from frappe import _
 from frappe.utils import flt
 
 from ledgix_saas.services import erpnext_selling
+from ledgix_saas.api.security import require_ledgix_cashier_or_above
 
 
 def _parse(value):
@@ -374,7 +375,7 @@ def complete_pos_v2_sale_compat(
             discount_type=discount_type,
             discount_value=discount_value,
         )
-    from ledgix_saas.api.v2_pos import complete_pos_v2_sale
+    from ledgix_saas.api.pos_compat import complete_pos_v2_sale
 
     return complete_pos_v2_sale(
         cart_items=cart_items,
@@ -418,7 +419,7 @@ def preview_pos_v2_checkout_compat(
             "items": native.get("items") or [],
             "financial_authority": "ERPNext",
         }
-    from ledgix_saas.api.v2_pos import preview_pos_v2_checkout
+    from ledgix_saas.api.pos_compat import preview_pos_v2_checkout
 
     return preview_pos_v2_checkout(
         cart_items=cart_items,
@@ -432,7 +433,7 @@ def preview_pos_v2_checkout_compat(
 
 @frappe.whitelist()
 def get_pos_v2_customer_context_compat(customer, sale_channel=None):
-    from ledgix_saas.api.v2_pos import get_pos_v2_customer_context
+    from ledgix_saas.api.pos_compat import get_pos_v2_customer_context
 
     result = get_pos_v2_customer_context(customer, sale_channel)
     if result.get("sale_channel") == "B2B":
@@ -503,16 +504,20 @@ def _native_return_context(invoice) -> dict:
 
 @frappe.whitelist()
 def get_pos_return_context_compat(sale_id=None):
+    require_ledgix_cashier_or_above()
     invoice = _native_invoice_reference(sale_id)
     if invoice:
         return _native_return_context(invoice)
-    from ledgix_saas.api.v2_returns import get_pos_v2_return_context
-
-    return get_pos_v2_return_context(sale_id=sale_id)
+    from ledgix_saas.services import erpnext_pos
+    result = erpnext_pos.get_return_context(sale_id)
+    if not result:
+        frappe.throw("Select a submitted ERPNext Sales Invoice or POS Invoice.")
+    return result
 
 
 @frappe.whitelist()
-def create_pos_return_compat(original_sale=None, return_items=None, reason=None):
+def create_pos_return_compat(original_sale=None, return_items=None, reason=None, client_return_id=None):
+    require_ledgix_cashier_or_above()
     invoice = _native_invoice_reference(original_sale)
     if invoice:
         _require_manager()
@@ -520,7 +525,7 @@ def create_pos_return_compat(original_sale=None, return_items=None, reason=None)
             sales_invoice=invoice.name,
             return_items=_parse(return_items) or [],
             reason=reason,
-            client_return_id=None,
+            client_return_id=client_return_id,
             checkout_source="Ledgix POS B2B Return",
         )
         return {
@@ -534,10 +539,12 @@ def create_pos_return_compat(original_sale=None, return_items=None, reason=None)
             "fbr_status": note.get("custom_ledgix_fbr_status") or "",
             "financial_authority": "ERPNext",
         }
-    from ledgix_saas.api.v2_returns import create_pos_v2_return
-
-    return create_pos_v2_return(
+    from ledgix_saas.services import erpnext_pos
+    if not erpnext_pos._submitted_pos_invoice(original_sale):
+        frappe.throw("Select a submitted ERPNext Sales Invoice or POS Invoice.")
+    return erpnext_pos.return_result(erpnext_pos.create_return(
         original_sale=original_sale,
-        return_items=return_items,
+        return_items=_parse(return_items) or [],
         reason=reason,
-    )
+        client_return_id=client_return_id,
+    ))

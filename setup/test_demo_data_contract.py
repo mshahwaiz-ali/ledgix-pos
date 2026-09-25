@@ -36,9 +36,9 @@ class TestDemoDataContract(unittest.TestCase):
             '"doctype": "Supplier"',
             '"doctype": "Purchase Order"',
             '"doctype": "POS Opening Entry"',
-            '"doctype": "POS Invoice"',
-            '"doctype": "Sales Invoice"',
-            '"doctype": "Stock Entry"',
+            'erpnext_pos.build_pos_invoice(',
+            'erpnext_selling.build_sales_invoice(',
+            'make_stock_entry(**kwargs)',
             '"doctype": "Warehouse"',
         ):
             self.assertIn(authority, source)
@@ -54,8 +54,8 @@ class TestDemoDataContract(unittest.TestCase):
         source = NATIVE.read_text(encoding="utf-8")
         self.assertIn('site.endswith(".local")', source)
         self.assertIn('"mode": "Disabled"', source)
-        self.assertIn('"enabled": 0', source)
-        self.assertIn('"production_post_armed": 0', source)
+        self.assertIn('profile.enabled = 0', source)
+        self.assertIn('profile.production_post_armed = 0', source)
         self.assertNotIn("sandbox_response", source.lower())
         self.assertNotIn("production_response", source.lower())
 

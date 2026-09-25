@@ -41,8 +41,8 @@ class TestPhase1LegacyFBRIsolationContract(unittest.TestCase):
 
     def test_native_shared_helpers_are_preserved(self):
         native = (APP_ROOT / "api" / "fbr_native.py").read_text(encoding="utf-8")
-        submission = (APP_ROOT / "api" / "fbr_submission.py").read_text(encoding="utf-8")
-        for helper in ("create_submission_log", "_submission_lock", "parse_fbr_response"):
+        submission = (APP_ROOT / "services" / "fbr_submission_support.py").read_text(encoding="utf-8")
+        for helper in ("create_submission_log", "submission_lock", "parse_fbr_response"):
             self.assertIn(helper, native)
             self.assertIn(f"def {helper}", submission)
         self.assertIn("scheduler_events = {}", (APP_ROOT / "hooks.py").read_text(encoding="utf-8"))

@@ -49,7 +49,12 @@ def run() -> dict:
         canonical = fbr_v2_center.get_fbr_readiness()
         preflight = fbr_preflight.get_fbr_readiness()
         tax_readiness = tax_center.get_fbr_readiness()
-        boot = tax_center.get_tax_center_boot()
+        boot = fbr_v2_center.get_v2_center_boot()
+        legacy_boot_blocked = False
+        try:
+            tax_center.get_tax_center_boot()
+        except frappe.ValidationError:
+            legacy_boot_blocked = True
 
         preview_blocked = False
         preview_message = ""
@@ -67,19 +72,14 @@ def run() -> dict:
         fbr_transport.post_json = original_post
         frappe.set_user(original_user)
 
-    boot_summary = boot.get("fbr_settings_summary") or {}
-    boot_control = boot.get("fbr_control_state") or {}
+    profiles = boot.get("profiles") or []
 
     checks = {
         "preflight_matches_v2": preflight == canonical,
         "tax_readiness_matches_v2": tax_readiness == canonical,
         "tax_boot_uses_v2_profile_status": (
-            boot_summary.get("source")
-            == "Ledgix FBR Integration Profile"
-            and boot_summary.get("architecture")
-            == "ERPNext Native + FBR V2"
-            and boot_control.get("source")
-            == "Ledgix FBR Integration Profile"
+            boot.get("architecture") == "ERPNext Native + FBR V2"
+            and legacy_boot_blocked
         ),
         "legacy_preview_blocked": preview_blocked,
         "no_fbr_network_attempts": not network_attempts,
@@ -87,10 +87,11 @@ def run() -> dict:
             getattr(fbr_native, "V2_NETWORK_CUTOVER_ACTIVE", None) is False
         ),
         "v2_profile_stays_fail_closed": (
-            boot_control.get("profile_name") == "FBR-PROFILE-00094"
-            and boot_control.get("enabled") is False
-            and boot_control.get("mode") == "Disabled"
-            and boot_control.get("production_post_armed") is False
+            all(
+                not row.get("enabled") and row.get("mode") == "Disabled"
+                and not row.get("production_post_armed")
+                for row in profiles
+            )
         ),
     }
 
@@ -105,7 +106,7 @@ def run() -> dict:
         ],
         "evidence": {
             "canonical_readiness": canonical,
-            "tax_center_fbr_summary": boot_summary,
+            "tax_center_fbr_summary": boot,
             "preview_message": preview_message,
         },
         "scope_proven": [

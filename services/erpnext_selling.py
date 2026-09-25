@@ -149,22 +149,8 @@ def _native_item_rate(
     )
     details = frappe._dict(get_item_details(args) or {})
     rate = flt(details.get("rate") or details.get("price_list_rate"))
-    if rate <= 0:
-        rows = frappe.get_all(
-            "Item Price",
-            filters={
-                "item_code": item_code,
-                "price_list": price_list,
-                "selling": 1,
-            },
-            fields=["name", "price_list_rate"],
-            order_by="valid_from desc, creation desc",
-            limit_page_length=1,
-        )
-        price_row = rows[0] if rows else None
-        rate = flt((price_row or {}).get("price_list_rate"))
-        if price_row:
-            details.item_price_reference = price_row.name
+    # A raw Item Price query would bypass ERPNext's effective-date, UOM,
+    # quantity and party selection when its resolver finds no usable price.
     if rate <= 0:
         frappe.throw(
             _("No effective ERPNext selling price was found for item {0} in {1}.").format(

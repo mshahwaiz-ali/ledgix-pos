@@ -121,8 +121,8 @@ class TestERPNextPhase6ExtensionContract(unittest.TestCase):
 
     def test_b2b_catalog_and_credit_display_use_erpnext_authority(self):
         source = (APP_ROOT / "api" / "selling_compat.py").read_text(encoding="utf-8")
-        self.assertIn('row["pricing_authority"] = "ERPNext"', source)
-        self.assertIn('result["pricing_authority"] = "ERPNext"', source)
+        self.assertIn('pos_compat.search_pos_v2_items(', source)
+        self.assertNotIn('from ledgix_saas.api.v2_pos', source)
         self.assertIn('result["financial_authority"] = "ERPNext"', source)
         self.assertIn("erpnext_selling.get_customer_receivables(customer)", source)
 
