@@ -63,6 +63,22 @@ def _fbr_runtime_fields() -> list[dict]:
             read_only=1,
             no_copy=1,
         ),
+        _cf(
+            "custom_ledgix_fbr_offline_issued_at",
+            "Datetime",
+            "FBR Offline Issued At",
+            insert_after="custom_ledgix_fbr_upload_due_at",
+            read_only=1,
+            no_copy=1,
+        ),
+        _cf(
+            "custom_ledgix_fbr_offline_reason",
+            "Small Text",
+            "FBR Known Offline Reason",
+            insert_after="custom_ledgix_fbr_offline_issued_at",
+            read_only=1,
+            no_copy=1,
+        ),
     ]
 
 

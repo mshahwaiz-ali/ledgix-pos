@@ -162,6 +162,9 @@ def create_submission_log(
     fbr_invoice_number=None,
     attempt_count=None,
     next_retry_time=None,
+    offline_issued_at=None,
+    offline_upload_due_at=None,
+    offline_reason=None,
 ):
     if not reference_doctype:
         frappe.throw("reference_doctype is required for FBR submission log.")
@@ -176,6 +179,12 @@ def create_submission_log(
     log.fbr_invoice_number = fbr_invoice_number or ""
     log.attempt_count = cint(attempt_count or 0)
     log.next_retry_time = next_retry_time
+    if log.meta.has_field("offline_issued_at"):
+        log.offline_issued_at = offline_issued_at
+    if log.meta.has_field("offline_upload_due_at"):
+        log.offline_upload_due_at = offline_upload_due_at
+    if log.meta.has_field("offline_reason"):
+        log.offline_reason = _safe_message(offline_reason)
     log.request_json = serialize_json(request_json)
     log.response_json = serialize_json(response_json)
     log.error_code = error_code

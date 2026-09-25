@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import unittest
 from pathlib import Path
 
@@ -117,15 +118,36 @@ class TestERPNextPhase9Contract(unittest.TestCase):
         self.assertNotIn("ledgix_saas.api.fbr_submission", source)
         self.assertIn("doc.doctype,", source)
         self.assertIn("doc.name,", source)
-        log_schema = (
-            APP_ROOT
-            / "ledgix"
-            / "doctype"
-            / "ledgix_fbr_submission_log"
-            / "ledgix_fbr_submission_log.json"
-        ).read_text(encoding="utf-8")
-        self.assertIn('"fieldname":"reference_doctype"', log_schema)
-        self.assertIn('"fieldtype":"Dynamic Link"', log_schema)
+        log_schema = json.loads(
+            (
+                APP_ROOT
+                / "ledgix"
+                / "doctype"
+                / "ledgix_fbr_submission_log"
+                / "ledgix_fbr_submission_log.json"
+            ).read_text(encoding="utf-8")
+        )
+        fields = {
+            row.get("fieldname"): row
+            for row in (log_schema.get("fields") or [])
+            if row.get("fieldname")
+        }
+        self.assertEqual(
+            fields["reference_doctype"]["fieldtype"],
+            "Link",
+        )
+        self.assertEqual(
+            fields["reference_doctype"]["options"],
+            "DocType",
+        )
+        self.assertEqual(
+            fields["reference_name"]["fieldtype"],
+            "Dynamic Link",
+        )
+        self.assertEqual(
+            fields["reference_name"]["options"],
+            "reference_doctype",
+        )
 
     def test_fbr_center_bridge_uses_native_sources(self):
         source = (APP_ROOT / "public" / "js" / "ledgix_fbr_native_center.js").read_text(encoding="utf-8")
