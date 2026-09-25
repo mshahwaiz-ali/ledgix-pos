@@ -46,6 +46,11 @@ def _check(key: str, passed: bool, message: str, *, category: str, details: dict
     }
 
 
+def _configured(value) -> bool:
+    """Treat None/blank optional profile values as not configured."""
+    return bool(str(value or "").strip())
+
+
 def _safe_json(value):
     if not value:
         return {}
@@ -168,12 +173,15 @@ def get_v2_configuration_summary_internal(
             seller.get("missing_fields") or []
         ),
         "seller_identity_source": "ERPNext Company + Company Address",
-        "software_registration_number_configured": bool(
-            str(
-                profile_doc.get("software_registration_number")
-                if profile_doc
-                else ""
-            ).strip()
+        "software_registration_number_configured": _configured(
+            profile_doc.get("software_registration_number")
+            if profile_doc
+            else ""
+        ),
+        "digital_invoicing_logo_configured": _configured(
+            profile_doc.get("digital_invoicing_logo")
+            if profile_doc
+            else ""
         ),
         "requests_available": bool(fbr_transport.requests_available()),
         "sandbox_certification_name": certification.get("name") or "",
@@ -330,8 +338,8 @@ def evaluate_fbr_activation_readiness(
         ])
     if require_return:
         proof_checks.extend([
-            _check("sandbox_return_validate", proof["return"]["validate"] > 0, "Retain successful Sandbox validation evidence for a native Credit Note/return.", category="Sandbox proof", details=proof["return"]),
-            _check("sandbox_return_post", proof["return"]["post"] > 0, "Retain successful Sandbox POST evidence for a native Credit Note/return.", category="Sandbox proof", details=proof["return"]),
+            _check("sandbox_return_validate", proof["return"]["validate"] > 0, "Retain successful Sandbox validation evidence for a native return/note.", category="Sandbox proof", details=proof["return"]),
+            _check("sandbox_return_post", proof["return"]["post"] > 0, "Retain successful Sandbox POST evidence for a native return/note.", category="Sandbox proof", details=proof["return"]),
         ])
     sandbox_proven = sandbox_ready and all(row["passed"] for row in proof_checks)
 
@@ -339,6 +347,7 @@ def evaluate_fbr_activation_readiness(
         _check("sandbox_proven", sandbox_proven, "Required Sandbox validation/POST evidence must be complete before Production switch.", category="Production gate"),
         _check("sandbox_certification_complete", settings["sandbox_certification_complete"], "Complete Ledgix FBR Sandbox Certification with complete evidence before Production switch.", category="Production gate", details={"certification": settings["sandbox_certification_name"], "status": settings["sandbox_certification_status"], "evidence_complete": settings["sandbox_certification_evidence_complete"]}),
         _check("production_token_configured", settings["production_token_configured"], "Configure the client Production token securely before activation.", category="FBR credentials"),
+        _check("digital_invoicing_logo_configured", settings["digital_invoicing_logo_configured"], "Attach the authoritative FBR Digital Invoicing System logo confirmed for this client/provider before Production activation.", category="Print compliance"),
         _check("production_still_unarmed", not settings["production_post_armed"], "Production must remain unarmed until the explicit activation action.", category="Production interlock"),
         _check("not_already_production", settings["mode"] != "Production", "The readiness gate expects a pre-Production state; Production switching is a separate explicit action.", category="Production interlock", details={"mode": settings["mode"]}),
         _check("strict_client_evidence", bool(production_operational.get("ready")), "Strict client release/provisioning and verified-backup evidence must be green.", category="Operational evidence", details={"blockers": [row.get("key") for row in production_operational.get("blockers") or []]}),

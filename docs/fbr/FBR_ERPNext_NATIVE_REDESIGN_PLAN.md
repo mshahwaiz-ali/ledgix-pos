@@ -1,26 +1,28 @@
 # Ledgix FBR + ERPNext Native Tax Redesign Plan
 
-**Status:** IMPLEMENTATION IN PROGRESS - ERPNext-NATIVE V2 ACTIVE; LEGACY FBR RETIREMENT IN PROGRESS; CERTIFICATION PENDING
-**Date:** 2026-09-24
+**Status:** SOFTWARE IMPLEMENTATION READY FOR CLIENT CERTIFICATION; REAL SANDBOX / PRODUCTION CERTIFICATION PENDING
+**Date:** 2026-09-25
 **Repository:** mshahwaiz-ali/ledgix-pos
 **Branch / source of truth:** main
-**Baseline inspected:** 32ced967fc72578acd09312b32fdf82411dd7391
+**Implementation closure baseline:** 61aa54e00b4033d923098ea1af87d2cc4cd7c4d9 plus the final client-certification handoff patch
 **Production status:** FBR Production must remain NOT READY until the gates in this document are satisfied.
 
 ---
 
-## Current implementation progress - 2026-09-24
+## Current implementation progress - 2026-09-25
 
-- **Phase 0:** static dependency/retirement inventory complete.
-- **Phase 1:** **LOCAL MONETARY AUTHORITY COMPLETE.** ERPNext is now the only active transaction tax calculator for Sales Invoice, POS Invoice and their native returns. The temporary engine selector/Legacy Bridge branch is removed from the active authority boundary. Core parity, Third Schedule/notified retail, Extra Tax, Further Tax, FED, Sales Tax Withheld evidence treatment and POS Closing accounting parity are locally proven. Legacy Ledgix Sale/Return FBR execution surfaces are isolated fail-closed. Sales Tax Withheld buyer net-payment settlement accounting remains explicitly unresolved.
-- **Phase 2:** additive FBR V2 compliance schemas exist. Re-evaluate them against the post-Phase-1 runtime before treating the complete V2 path as final.
-- **Phase 3:** official v1.12 reference-surface foundation exists: core/static masters, contextual Rate/HS-UOM/SRO lookups and live registration lookups. Real authorized GET proof remains pending.
-- **Phase 4:** ERPNext-native snapshot collection exists and Phase-1 special-tax gates exercise its tax breakdown. Final V2 payload/certification lifecycle still requires consolidation.
-- **Legacy V2 migration helper:** **RETIRED.** Historical preview/apply entry points remain only as fail-closed compatibility tombstones and can no longer read/copy the old singleton, credentials, or Item Tax Profile data. Remaining legacy DB metadata cleanup is a separate controlled phase.
-- **Phase 5:** ERPNext Company/Customer/Address identity resolver and payload-input readiness foundation exist. Remaining old tax-profile defaults must be moved to the intended V2/company-scoped configuration before final cutover.
-- **Phase 6:** active Desk Tax & FBR Center exposes ERPNext-native tax setup + FBR V2 configuration/readiness and contains no Production invoice-submit action.
-- **Production:** remains fail-closed / **NOT READY**. No Phase-1 parity work armed Production or performed a real FBR/PRAL call.
-- **Legacy code:** current transaction monetary authority is native; legacy Sale/Return FBR execution and the historical V2 migration authority are blocked. Some compatibility/package/DB artifacts remain only for dependency-proven retirement and controlled cleanup.
+- **Phase 0:** baseline/freeze and dependency inventory complete.
+- **Phase 1:** ERPNext is the sole current monetary/tax/accounting authority; local parity gates are complete.
+- **Phase 2:** company-scoped FBR V2 data model and classification model implemented.
+- **Phase 3:** official FBR reference sync/cache foundation implemented; real authorized client sync remains external.
+- **Phase 4:** immutable ERPNext-native V2 snapshot/payload-input foundation implemented and fail-closed.
+- **Phase 5:** ERPNext Company/Address seller identity and client-readiness foundation implemented.
+- **Phase 6:** Desk Tax & FBR Center is ERPNext-native and exposes V2 configuration/readiness.
+- **Phase 7:** **KNOWN OFFLINE + RECONCILIATION LIFECYCLE COMPLETE.** Durable `Offline Pending`, operator-confirmed declaration, controlled upload, configured upload window, no blind scheduler retry, and ambiguous POST separation are implemented and locally proven.
+- **Phase 8:** **PRINT + CORRECTION FOUNDATION COMPLETE.** Neutral return/adjustment presentation, Offline Pending print marker, official FBR generation timestamp evidence, 72-hour/Commissioner correction tracking and required external completion evidence are implemented and locally proven. Return/note transport remains fail-closed until real Sandbox/provider proof.
+- **Phase 9:** **LEGACY TAX-MASTER PHYSICAL RETIREMENT COMPLETE.** Retired tax masters are physically gone, retained evidence remains readable, ordinary migrate does not resurrect them, and current runtime cannot restore them as monetary authority.
+- **Phase 10:** **EXTERNAL CLIENT CERTIFICATION / PRODUCTION ACTIVATION PENDING.** Production remains disabled/unarmed until real seller identity, official reference/mapping review, real Sandbox proof, print/logo confirmation, credentials, backup/release evidence and explicit activation are complete.
+- **Software handoff target:** `READY FOR CLIENT CERTIFICATION` — explicitly **not** Sandbox Certified and **not** Production Ready.
 
 ### Phase 1 local closure evidence
 
@@ -258,131 +260,22 @@ The accepted outbound note contract must be proven against current FBR/PRAL Sand
 
 ---
 
-## 4. Confirmed problems in the current repository
+## 4. Current implementation closure and remaining external blockers
 
-The current repository already moved transaction authority to ERPNext, which is good. However, the tax/FBR boundary still contains old architecture.
+The architecture problems that motivated this redesign are no longer active current-runtime authorities:
 
-### 4.1 Custom Ledgix tax engine remains active
+- ERPNext owns monetary tax, invoice totals, GL, payment and stock results.
+- old Ledgix tax-master authority is retired from current operation and obsolete tax masters were physically removed under guarded Phase 9 retirement;
+- V2 FBR integration is Company-scoped through `Ledgix FBR Integration Profile`;
+- seller identity resolves from ERPNext `Company` plus linked/default `Address`;
+- product mappings are FBR classification/reference data only;
+- Known Offline and ambiguous Production POST are separate state machines;
+- Offline Pending is durable and requires explicit operator declaration/upload;
+- automatic FBR retry/offline schedulers remain disabled;
+- print/correction evidence is native-invoice based;
+- return/note outbound semantics remain fail-closed until real Sandbox/provider proof.
 
-Current file:
-
-    apps/ledgix_saas/api/taxation.py
-
-This file explicitly implements a Ledgix tax engine, including:
-
-- Ledgix Tax Profile;
-- Ledgix Tax Category;
-- Ledgix Tax Rate;
-- Ledgix Item Tax Profile;
-- effective rate resolution;
-- inclusive/exclusive tax calculation;
-- immutable tax snapshot generation.
-
-This must not remain the active financial/tax authority after the redesign.
-
-### 4.2 ERPNext tax rows are currently generated by Ledgix calculations
-
-Current file:
-
-    apps/ledgix_saas/setup/erpnext_tax_foundation.py
-
-Although ERPNext ultimately owns the invoice and GL, the current adapter calculates tax components from Ledgix configuration and writes managed ERPNext tax rows.
-
-That means the practical calculation flow is still:
-
-    Ledgix tax configuration
-        -> Ledgix calculation
-        -> ERPNext tax rows
-        -> ERPNext totals / GL
-
-Target flow must become:
-
-    ERPNext native tax configuration
-        -> ERPNext calculation
-        -> ERPNext totals / GL
-        -> Ledgix read-only FBR translation/snapshot
-
-### 4.3 Duplicate tax masters
-
-Current active custom DocTypes include:
-
-- Ledgix Tax Profile;
-- Ledgix Tax Category;
-- Ledgix Tax Rate;
-- Ledgix Item Tax Profile.
-
-These mix financial tax authority with FBR classification.
-
-They must be replaced or retired from active new-business operation.
-
-### 4.4 Item FBR classification is mixed with tax calculation
-
-Current Ledgix Item Tax Profile stores both:
-
-FBR/legal metadata:
-
-- ERPNext Item;
-- HS Code;
-- FBR UOM;
-- Sales Type;
-- rate description;
-- SRO fields;
-- scenario ID;
-
-and monetary configuration:
-
-- tax category;
-- taxable flag;
-- default tax rate;
-- extra tax per unit;
-- further tax per unit;
-- FED per unit;
-- sales-tax-withheld per unit.
-
-These responsibilities must be separated.
-
-### 4.5 Sandbox scenario is modeled at the wrong level
-
-Current scenario_id is stored on item/category mapping.
-
-FBR Sandbox certification is driven by the taxpayer's Business Nature/Sector and required test scenarios. Scenario execution/evidence belongs to certification, not as a permanent production Item attribute.
-
-### 4.6 Seller legal identity is duplicated
-
-Current Ledgix FBR Settings stores separate seller identity fields such as:
-
-- seller NTN/CNIC;
-- seller business name;
-- seller province;
-- seller address.
-
-The redesign must prefer ERPNext Company / legal address / tax identity wherever standard ERPNext fields can represent the information, with FBR-only extensions only where ERPNext lacks the required legal field.
-
-### 4.7 Current integration configuration is global
-
-Ledgix FBR Settings is a Single DocType.
-
-ERPNext transactions are Company-specific. The new FBR profile must therefore be Company-scoped so multiple legal companies cannot accidentally share FBR identity or credentials.
-
-### 4.8 Production-readiness proof is too generic
-
-Current activation logic mainly proves successful Sandbox validate/post examples for Sales Invoice, POS Invoice and optionally returns.
-
-The redesigned gate must prove the actual required FBR Sandbox scenarios for the configured Business Nature/Sector, not merely one generic invoice.
-
-### 4.9 Offline and ambiguous network outcomes are not fully separated
-
-Current code correctly avoids blind Production retransmission after an ambiguous POST, but true offline issuance/upload is not implemented as a complete separate workflow.
-
-These states must be modeled separately.
-
-### 4.10 Return payload is currently hardcoded as Credit Note
-
-Current native payload code uses Credit Note for ERPNext returns.
-
-That must be replaced with a current, Sandbox-proven FBR note mapping before Production.
-
----
+Remaining blockers are external/client-certification facts: real seller legal identity, Business Nature/Sector/provider onboarding, software/POS registration where required, authoritative DI logo, credentials, official reference/mapping review, real Sandbox evidence, return/note proof, Known Offline rule/window, final print/QR sign-off, backup/release approval and explicit Production activation.
 
 ## 5. Existing concepts that should be preserved
 
@@ -1291,92 +1184,33 @@ Gate:
 
 ### Phase 7 — Offline + reconciliation lifecycle
 
-Goal:
+**Status: COMPLETE LOCALLY.**
 
-Implement legally safe failure handling.
+Implemented: explicit policy, configured upload window, durable Offline Pending evidence, operator-confirmed no-network declaration, controlled upload, prior-POST exclusion, Reconciliation Required separation, no blind scheduler retry, and return/note fail-closed protection.
 
-Work:
-
-- known-offline detection/state;
-- offline invoice marking;
-- durable offline queue;
-- restore/connectivity workflow;
-- deadline monitoring;
-- controlled upload;
-- preserve ambiguous POST -> Reconciliation Required path;
-- prevent blind retry.
-
-Gate:
-
-Test known rejection, known offline, timeout-before-send where detectable, ambiguous-after-send, recovery, and duplicate prevention.
+See `docs/fbr/FBR_PHASE7_KNOWN_OFFLINE_LIFECYCLE.md`.
 
 ### Phase 8 — Printing + corrections + note flow
 
-Goal:
+**Status: CLIENT-INDEPENDENT FOUNDATION COMPLETE LOCALLY.**
 
-Finalize legal output/workflows.
+Implemented: neutral return/adjustment print, original FBR reference preservation, Offline Pending markers, software registration output, official FBR generation-time evidence, 72-hour/Commissioner correction workflow and mandatory external completion evidence. DI logo is client/provider supplied. Return/note transport and final QR presentation remain external certification items.
 
-Work:
-
-- official logo;
-- QR;
-- registration number;
-- accepted FBR reference;
-- note/return print;
-- offline print marker;
-- correction tracking;
-- 72-hour / Commissioner path;
-- reprint behavior.
-
-Gate:
-
-Print artifacts and correction workflow match current confirmed requirements.
+See `docs/fbr/FBR_PHASE8_PRINT_CORRECTION_FOUNDATION.md`.
 
 ### Phase 9 — Old runtime retirement
 
-Goal:
+**Status: COMPLETE FOR LEGACY TAX-MASTER RETIREMENT.**
 
-Remove conflicts.
-
-Work:
-
-- migrate remaining necessary FBR classification;
-- freeze/deprecate old custom tax DocTypes;
-- remove old UI;
-- remove old imports/hooks/RPCs;
-- remove calculation code;
-- remove compatibility code that is no longer required;
-- physical source/DocType deletion only after a separate explicit dependency/data proof.
-
-Gate:
-
-Repository search and runtime tests prove current invoices/FBR cannot use the old tax engine.
+Retired tax masters were physically removed after backup, dependency, migration and non-resurrection proof. Retained evidence remains readable and current monetary authority remains ERPNext-native.
 
 ### Phase 10 — Production activation
 
-Goal:
+**Status: EXTERNAL / CLIENT CERTIFICATION PENDING.**
 
-Controlled real Production switch.
+Requires real seller identity, official mapping/reference evidence, real Sandbox proof, provider-confirmed note semantics where applicable, authoritative DI logo/final print confirmation, approved Known Offline rule where enabled, Production credential, zero unresolved reconciliation, fresh verified backup, approved release SHA and explicit Production switch/arm.
 
-Required prerequisites:
-
-- native ERPNext tax tests green;
-- FBR mappings green;
-- official reference sync green;
-- all required Sandbox scenarios proven;
-- real Sandbox responses/evidence retained;
-- Production credential present;
-- print compliance verified;
-- offline lifecycle verified;
-- reconciliation lifecycle verified;
-- no unresolved Reconciliation Required;
-- fresh verified backup;
-- exact approved release SHA;
-- explicit authorized Production arm.
-
-First live Production submission must be observed and evidenced.
-
----
+The first live Production submission must be observed and evidenced.
 
 ## 20. Required test matrix
 
@@ -1580,30 +1414,14 @@ The redesign is complete only when all of the following are true:
 
 ## 24. Immediate next step
 
-Continue **Phase 9 legacy retirement** with retained legacy tax/classification
-data preserved as audit evidence.
+After the final handoff patch, local migrate/runtime proof and source-control closure pass, hand the software to the client/operator for certification using `docs/fbr/FBR_CLIENT_CERTIFICATION_HANDOFF.md`.
 
-Current boundary:
+Do not invent missing client values. Until real client/provider evidence exists:
 
-- old Tax Center mutation/calculation entry points fail closed;
-- old tax/classification/audit DocTypes are audit-only when retirement is Frozen;
-- current Desk remains ERPNext-native tax + FBR V2 only;
-- V2 Center has no old tax-master dependency;
-- ordinary migrate cannot backfill the Frozen Item Tax Profile archive;
-- old Item Group tax-default fields are hidden/read-only.
-- external references to retired tax masters are migrated into dedicated Data snapshot fields; old Custom Field Link metadata is removed only after value-hash equality is proven;
-
-Physical deletion stays blocked until every active legacy Item Tax Profile row is
-reconciled to company-scoped V2 FBR Item Mapping without loss of required FBR
-classification evidence. Monetary legacy tax authority must not be recreated.
-
-Next consolidated work: reconcile retained classifications, migrate/review only
-missing V2 evidence, then perform zero-data-loss physical retirement and finally
-zero-caller retirement of remaining legacy payload/submission compatibility.
-
-Production remains Disabled / Manual / unarmed.
-
----
+- status = `READY FOR CLIENT CERTIFICATION`;
+- Sandbox Certified = **false**;
+- Production Ready = **false**;
+- Production remains disabled/unarmed and global V2 cutover remains fail-closed.
 
 ## 25. Final target statement
 

@@ -27,6 +27,7 @@
   "software_name",
   "software_version",
   "software_registration_number",
+  "digital_invoicing_logo",
   "technical_contact_section",
   "technical_contact_name",
   "technical_contact_email",
@@ -177,6 +178,12 @@
    "fieldname": "software_registration_number",
    "fieldtype": "Data",
    "label": "Software / POS Registration Number"
+  },
+  {
+   "description": "Upload only the authoritative FBR Digital Invoicing System logo confirmed for this client/provider. Ledgix ships no default artwork.",
+   "fieldname": "digital_invoicing_logo",
+   "fieldtype": "Attach Image",
+   "label": "FBR Digital Invoicing Logo"
   },
   {
    "collapsible": 1,
