@@ -92,10 +92,12 @@ class TestFBRPhase9LegacyTaxRetirementContract(unittest.TestCase):
         ):
             self.assertIn(value, source)
 
-    def test_frozen_archive_backfill_is_blocked(self):
-        source = (APP_ROOT / "setup" / "erpnext_extensions.py").read_text(encoding="utf-8")
-        self.assertIn('"Ledgix Legacy Retirement State"', source)
-        self.assertIn('== "Frozen"', source)
+    def test_frozen_archive_backfill_is_physically_retired(self):
+        source = (
+            APP_ROOT / "setup" / "erpnext_extensions.py"
+        ).read_text(encoding="utf-8")
+        self.assertNotIn("backfill_erpnext_item_profile_links", source)
+        self.assertNotIn('"Ledgix Item Tax Profile"', source)
 
     def test_external_legacy_tax_links_are_replaced_by_data_snapshots(self):
         extensions = (
@@ -200,6 +202,87 @@ class TestFBRPhase9LegacyTaxRetirementContract(unittest.TestCase):
         self.assertNotIn('frappe.new_doc("Ledgix Tax Category")', retail)
         self.assertNotIn('frappe.new_doc("Ledgix Item Tax Profile")', retail)
         self.assertIn("_ORIGINAL_ENSURE_TAX_MAPPING", retail)
+
+    def test_config_master_execution_modules_are_tombstones(self):
+        forbidden = (
+            "Ledgix Tax Profile",
+            "Ledgix Tax Category",
+            "Ledgix Tax Rate",
+            "Ledgix Item Tax Profile",
+        )
+        for relative in (
+            "api/tax_center.py",
+            "api/taxation.py",
+            "services/tax.py",
+            "setup/erpnext_tax_foundation.py",
+        ):
+            source = (APP_ROOT / relative).read_text(encoding="utf-8")
+            for value in forbidden:
+                self.assertNotIn(value, source, (relative, value))
+
+        tax_center = (APP_ROOT / "api" / "tax_center.py").read_text(
+            encoding="utf-8"
+        )
+        for method in (
+            "get_invoice_tax_snapshots",
+            "get_return_tax_snapshots",
+            "get_fbr_submission_logs",
+            "get_fbr_readiness",
+        ):
+            self.assertIn(f"def {method}(", tax_center)
+
+        foundation = (
+            APP_ROOT / "setup" / "erpnext_tax_foundation.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn("def sync_custom_fields()", foundation)
+        self.assertIn("def get_company_tax_accounts(", foundation)
+        self.assertIn("legacy_tax_guard.reject_legacy_tax_action", foundation)
+
+    def test_historical_tax_category_fields_are_data_snapshots(self):
+        for slug in (
+            "ledgix_invoice_tax_detail",
+            "ledgix_return_tax_detail",
+        ):
+            data = json.loads(
+                (
+                    APP_ROOT
+                    / "ledgix"
+                    / "doctype"
+                    / slug
+                    / f"{slug}.json"
+                ).read_text(encoding="utf-8")
+            )
+            row = next(
+                x
+                for x in data["fields"]
+                if x.get("fieldname") == "tax_category"
+            )
+            self.assertEqual(row.get("fieldtype"), "Data")
+            self.assertEqual(int(row.get("read_only") or 0), 1)
+            self.assertNotIn("options", row)
+
+    def test_setup_helpers_cannot_recreate_config_masters(self):
+        for relative in (
+            "setup/erpnext_extensions.py",
+            "setup/retail_cleanup_safe.py",
+            "setup/retail_local_hygiene.py",
+            "ledgix/doctype/v2_test_utils.py",
+            "ledgix/doctype/ledgix_sale/ledgix_sale.js",
+        ):
+            source = (APP_ROOT / relative).read_text(encoding="utf-8")
+            for value in (
+                "Ledgix Tax Profile",
+                "Ledgix Tax Category",
+                "Ledgix Tax Rate",
+                "Ledgix Item Tax Profile",
+                "ledgix_saas.api.taxation.preview_sale_tax_for_form",
+            ):
+                self.assertNotIn(value, source, (relative, value))
+
+        extensions = (
+            APP_ROOT / "setup" / "erpnext_extensions.py"
+        ).read_text(encoding="utf-8")
+        self.assertNotIn("backfill_erpnext_item_profile_links", extensions)
 
     def test_legacy_item_group_fields_are_hidden_read_only(self):
         source = (APP_ROOT / "setup" / "erpnext_phase5_extensions.py").read_text(encoding="utf-8")

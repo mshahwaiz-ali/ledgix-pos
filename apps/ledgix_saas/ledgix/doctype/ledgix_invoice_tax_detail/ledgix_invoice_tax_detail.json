@@ -95,9 +95,9 @@
   },
   {
    "fieldname": "tax_category",
-   "fieldtype": "Link",
+   "fieldtype": "Data",
    "label": "Tax Category",
-   "options": "Ledgix Tax Category"
+   "read_only": 1
   },
   {
    "fieldname": "tax_rate",

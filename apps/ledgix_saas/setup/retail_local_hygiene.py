@@ -285,15 +285,7 @@ def cleanup_old_local_artifacts() -> dict:
         _delete_marker_transactions(OLD_SEED, removed, archived)
         _cleanup_spike_profiles(removed, archived)
 
-        # Remove old item-specific extension rows and prices before masters.
-        for name in frappe.get_all(
-            "Ledgix Item Tax Profile",
-            filters={"erpnext_item": ["like", f"{OLD_ITEM_PREFIX}%"]},
-            pluck="name",
-            limit_page_length=0,
-        ):
-            frappe.db.delete("Ledgix Item Tax Profile", {"name": name})
-            removed.append(f"Ledgix Item Tax Profile:{name}")
+        # Retired tax configuration is no longer mutated by local hygiene.
         frappe.db.delete("Item Price", {"item_code": ["like", f"{OLD_ITEM_PREFIX}%"]})
 
         for name in frappe.get_all(
@@ -313,8 +305,7 @@ def cleanup_old_local_artifacts() -> dict:
             ("Item Group", OLD_ITEM_GROUPS),
             ("Customer Group", OLD_CUSTOMER_GROUPS),
             ("Supplier Group", OLD_SUPPLIER_GROUPS),
-            ("Ledgix Tax Category", OLD_TAX_CATEGORIES),
-        ):
+            ):
             for name in names:
                 if frappe.db.exists(doctype, name):
                     frappe.db.savepoint("old_artifact")
@@ -362,7 +353,6 @@ def visible_old_artifacts() -> list[str]:
         ("Item Group", OLD_ITEM_GROUPS),
         ("Customer Group", OLD_CUSTOMER_GROUPS),
         ("Supplier Group", OLD_SUPPLIER_GROUPS),
-        ("Ledgix Tax Category", OLD_TAX_CATEGORIES),
     ):
         for name in names:
             if frappe.db.exists(doctype, name):

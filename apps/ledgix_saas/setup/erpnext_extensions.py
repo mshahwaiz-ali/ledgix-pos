@@ -957,40 +957,6 @@ def sync_business_profile_defaults() -> str:
     return doc.business_profile
 
 
-def backfill_erpnext_item_profile_links() -> int:
-    if (
-        frappe.db.exists("DocType", "Ledgix Legacy Retirement State")
-        and frappe.db.get_single_value("Ledgix Legacy Retirement State", "status")
-        == "Frozen"
-    ):
-        return 0
-    if not frappe.db.exists("DocType", "Ledgix Item Tax Profile"):
-        return 0
-    meta = frappe.get_meta("Ledgix Item Tax Profile", cached=False)
-    if not meta.has_field("erpnext_item"):
-        return 0
-
-    updated = 0
-    for row in frappe.get_all(
-        "Ledgix Item Tax Profile",
-        fields=["name", "item", "erpnext_item"],
-    ):
-        if row.erpnext_item or not row.item:
-            continue
-        legacy_code = row.item
-        if frappe.db.exists("DocType", "Ledgix Item") and frappe.db.exists("Ledgix Item", row.item):
-            legacy_code = frappe.db.get_value("Ledgix Item", row.item, "item_code") or row.item
-        if frappe.db.exists("Item", legacy_code):
-            frappe.db.set_value(
-                "Ledgix Item Tax Profile",
-                row.name,
-                "erpnext_item",
-                legacy_code,
-                update_modified=False,
-            )
-            updated += 1
-    return updated
-
 
 def sync_all() -> dict:
     """Install/update the Phase 3 contract without creating duplicate masters."""
@@ -999,14 +965,12 @@ def sync_all() -> dict:
     custom_field_count = sync_custom_fields()
     permission_doctypes_changed = sync_erpnext_role_permissions()
     business_profile = sync_business_profile_defaults()
-    backfilled_profiles = backfill_erpnext_item_profile_links()
     frappe.clear_cache()
     return {
         "sales_tax_charge_type": sales_tax_charge_type,
         "custom_fields_expected": custom_field_count,
         "permission_doctypes_changed": permission_doctypes_changed,
         "business_profile": business_profile,
-        "item_tax_profiles_backfilled": backfilled_profiles,
     }
 
 
