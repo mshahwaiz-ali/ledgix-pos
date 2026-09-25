@@ -12,7 +12,7 @@ import json
 
 import frappe
 from frappe import _
-from frappe.utils import flt, nowdate
+from frappe.utils import flt
 
 from ledgix_saas.api import selling
 from ledgix_saas.services import erpnext_selling
@@ -257,60 +257,15 @@ def create_exchange(
 
 @frappe.whitelist()
 def get_pos_v2_boot(customer=None, sale_channel="Retail"):
-    from ledgix_saas.api.v2_pos import get_pos_v2_boot as legacy_boot
-
-    result = legacy_boot(customer=customer, sale_channel=sale_channel)
-    if sale_channel == "B2B":
-        _decorate_native_credit(result, customer)
-    return result
+    from ledgix_saas.api import pos_compat
+    return pos_compat.get_pos_v2_boot(customer=customer, sale_channel=sale_channel)
 
 
 @frappe.whitelist()
-def search_pos_v2_items(
-    query=None,
-    category=None,
-    customer=None,
-    sale_channel="Retail",
-    price_list=None,
-    limit=80,
-):
-    """Keep catalog metadata compatible while ERPNext owns B2B line pricing."""
-
-    from ledgix_saas.api.v2_pos import search_pos_v2_items as legacy_search
-
-    result = legacy_search(
-        query=query,
-        category=category,
-        customer=customer,
-        sale_channel=sale_channel,
-        price_list=price_list,
-        limit=limit,
-    )
-    if sale_channel != "B2B":
-        return result
-
-    native_customer = erpnext_selling._resolve_customer(customer)
-    native_price_list = erpnext_selling._resolve_price_list(
-        result.get("price_list") or price_list
-    )
-    posting_date = nowdate()
-    for row in result.get("items") or []:
-        native_item = erpnext_selling._resolve_item(row.get("name") or row.get("item_code"))
-        details = erpnext_selling._native_item_rate(
-            item_code=native_item,
-            customer=native_customer,
-            company=erpnext_selling._company(None),
-            price_list=native_price_list,
-            qty=1,
-            posting_date=posting_date,
-        )
-        row["rate"] = flt(details.rate, 2)
-        row["list_rate"] = flt(details.price_list_rate, 2)
-        row["erpnext_item"] = native_item
-        row["pricing_authority"] = "ERPNext"
-    result["erpnext_price_list"] = native_price_list
-    result["pricing_authority"] = "ERPNext"
-    return result
+def search_pos_v2_items(query=None, category=None, customer=None, sale_channel="Retail", price_list=None, limit=80):
+    from ledgix_saas.api import pos_compat
+    return pos_compat.search_pos_v2_items(query=query, category=category, customer=customer,
+        sale_channel=sale_channel, price_list=price_list, limit=limit)
 
 
 @frappe.whitelist()

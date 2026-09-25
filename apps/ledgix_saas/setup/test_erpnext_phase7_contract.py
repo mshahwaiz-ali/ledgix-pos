@@ -1,3 +1,4 @@
+import json
 import unittest
 from pathlib import Path
 
@@ -88,7 +89,7 @@ class TestERPNextPhase7Contract(unittest.TestCase):
         self.assertIn("ledgix_saas.setup.erpnext_phase7_extensions.after_migrate", hooks)
 
     def test_workspace_routes_buying_and_stock_to_native_erpnext(self):
-        workspace = (APP_ROOT / "ledgix" / "workspace" / "ledgix" / "ledgix.json").read_text(encoding="utf-8")
+        workspace = json.dumps(json.loads((APP_ROOT / "ledgix" / "workspace" / "ledgix" / "ledgix.json").read_text(encoding="utf-8")), separators=(",", ":"))
         for native in (
             '"link_to":"Purchase Order"',
             '"link_to":"Purchase Receipt"',

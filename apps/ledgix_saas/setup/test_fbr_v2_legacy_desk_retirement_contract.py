@@ -71,7 +71,7 @@ class TestFBRV2LegacyDeskRetirementContract(unittest.TestCase):
             self.assertNotIn(forbidden, TAX)
 
         self.assertIn(
-            "get_fbr_v2_status_internal",
+            "legacy_tax_guard.reject_legacy_tax_action",
             TAX,
         )
         self.assertIn(

@@ -8,6 +8,9 @@ def execute():
 
 
 def rename_or_copy_column(doctype, old_fieldname, new_fieldname):
+    # Physically retired configuration tables are absent on fresh installs.
+    if not frappe.db.table_exists(doctype):
+        return
     table = f"tab{doctype}"
     has_old = frappe.db.has_column(doctype, old_fieldname)
     has_new = frappe.db.has_column(doctype, new_fieldname)

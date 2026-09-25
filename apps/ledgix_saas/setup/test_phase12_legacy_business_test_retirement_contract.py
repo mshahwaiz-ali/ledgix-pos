@@ -8,7 +8,6 @@ HISTORICAL_COMMIT = "808f384311b0545e1d3e39791f085db5678832bb"
 
 FULLY_RETIRED_TEST_FILES = (
     "ledgix/doctype/ledgix_item_price/test_ledgix_item_price.py",
-    "ledgix/doctype/ledgix_item_tax_profile/test_ledgix_item_tax_profile.py",
     "ledgix/doctype/ledgix_payment/test_ledgix_payment.py",
     "ledgix/doctype/ledgix_payment/test_v2_return_credit_balance.py",
     "ledgix/doctype/ledgix_pos_hold/test_ledgix_pos_hold.py",
@@ -109,16 +108,12 @@ class TestPhase12LegacyBusinessTestRetirement(unittest.TestCase):
         ):
             self.assertIn(f"def {active}(", text)
 
-    def test_safe_fbr_settings_retirement_suite_remains_active(self):
-        text = (
-            APP_ROOT
-            / "ledgix"
-            / "doctype"
-            / "ledgix_fbr_settings"
-            / "test_ledgix_fbr_settings.py"
-        ).read_text(encoding="utf-8")
-        self.assertIn("TestLedgixFBRSettingsRetirement", text)
-        self.assertNotIn("LEGACY_BUSINESS_TEST_RETIRED", text)
+    def test_physically_retired_config_test_packages_remain_absent(self):
+        for name in ("ledgix_fbr_settings", "ledgix_item_tax_profile"):
+            self.assertFalse((APP_ROOT / "ledgix" / "doctype" / name).exists())
+        for name in ("test_fbr_v2_old_settings_source_deregistration_contract.py",
+                     "test_fbr_phase9_legacy_tax_retirement_contract.py"):
+            self.assertTrue((APP_ROOT / "setup" / name).is_file())
 
     def test_shared_legacy_business_fixture_helpers_fail_closed(self):
         text = (APP_ROOT / "ledgix/doctype/v2_test_utils.py").read_text(encoding="utf-8")

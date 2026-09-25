@@ -271,9 +271,37 @@ def _sales_invoice_rows(filters: dict, *, returns: bool) -> list[dict]:
     )
 
 
+def _pos_line_cost_sql(parent_alias: str = "pi", child_alias: str = "pii") -> str:
+    # Pinned v15 posts POS stock on consolidation. Preserve exact source-row
+    # linkage; never estimate COGS from current Item/Bin valuation.
+    return f"""
+        ABS(COALESCE((
+            SELECT SUM(sle.stock_value_difference)
+            FROM `tabSales Invoice Item` sii_cost
+            INNER JOIN `tabSales Invoice` si_cost
+                ON si_cost.name = sii_cost.parent AND si_cost.docstatus = 1
+            INNER JOIN `tabStock Ledger Entry` sle
+                ON sle.voucher_type = 'Sales Invoice'
+               AND sle.voucher_no = sii_cost.parent
+               AND sle.voucher_detail_no = sii_cost.name
+               AND IFNULL(sle.is_cancelled, 0) = 0
+            WHERE sii_cost.pos_invoice = {parent_alias}.name
+              AND sii_cost.pos_invoice_item = {child_alias}.name
+        ), (
+            SELECT SUM(sle.stock_value_difference)
+            FROM `tabStock Ledger Entry` sle
+            WHERE sle.voucher_type = 'POS Invoice'
+              AND sle.voucher_no = {parent_alias}.name
+              AND sle.voucher_detail_no = {child_alias}.name
+              AND IFNULL(sle.is_cancelled, 0) = 0
+        ), 0))
+    """
+
+
 def _pos_invoice_rows(filters: dict, *, returns: bool) -> list[dict]:
     params: dict = {}
     conditions = _sales_conditions("pi", filters, params, returns=returns)
+    cost = _pos_line_cost_sql("pi", "pii")
     return frappe.db.sql(
         f"""
         SELECT
@@ -292,7 +320,7 @@ def _pos_invoice_rows(filters: dict, *, returns: bool) -> list[dict]:
             ABS(IFNULL(pi.grand_total, 0)) AS return_amount,
             IFNULL(SUM(
                 CASE WHEN IFNULL(item.is_stock_item, 0) = 1
-                     THEN ABS(IFNULL(pii.base_net_amount, 0)) - ABS(IFNULL(pii.incoming_rate, 0) * IFNULL(pii.stock_qty, 0))
+                     THEN ABS(IFNULL(pii.base_net_amount, 0)) - {cost}
                      ELSE 0 END
             ), 0) AS total_profit,
             pi.creation
@@ -563,6 +591,7 @@ def _return_vouchers(item_codes: list[str], filters: dict) -> set[tuple[str, str
 def _sales_financials(item_codes: list[str], filters: dict) -> dict:
     if not item_codes:
         return {"gross_revenue": 0.0, "return_amount": 0.0, "gross_profit": 0.0, "return_profit": 0.0}
+
     params = {"items": tuple(item_codes)}
     date_clause = []
     if filters.get("from_date"):
@@ -571,22 +600,35 @@ def _sales_financials(item_codes: list[str], filters: dict) -> dict:
     if filters.get("to_date"):
         params["to_date"] = str(getdate(filters["to_date"]))
         date_clause.append("AND parent.posting_date <= %(to_date)s")
+
     result = {"gross_revenue": 0.0, "return_amount": 0.0, "gross_profit": 0.0, "return_profit": 0.0}
     for parent_table, child_table in (("Sales Invoice", "Sales Invoice Item"), ("POS Invoice", "POS Invoice Item")):
         extra = ""
         if parent_table == "Sales Invoice":
-            extra = "AND NOT EXISTS (SELECT 1 FROM `tabPOS Invoice` px WHERE px.consolidated_invoice=parent.name AND px.docstatus=1) AND NOT (IFNULL(parent.is_pos,0)=1 AND IFNULL(parent.custom_ledgix_sale_channel,'')='')"
+            extra = (
+                "AND NOT EXISTS (SELECT 1 FROM `tabPOS Invoice` px "
+                "WHERE px.consolidated_invoice=parent.name AND px.docstatus=1) "
+                "AND NOT (IFNULL(parent.is_pos,0)=1 "
+                "AND IFNULL(parent.custom_ledgix_sale_channel,'')='')"
+            )
+            cost = "ABS(IFNULL(child.incoming_rate, 0) * IFNULL(child.stock_qty, 0))"
+        else:
+            cost = _pos_line_cost_sql("parent", "child")
+
         row = frappe.db.sql(
             f"""
             SELECT
                 IFNULL(SUM(CASE WHEN parent.is_return=0 THEN ABS(child.base_net_amount) ELSE 0 END),0) gross_revenue,
                 IFNULL(SUM(CASE WHEN parent.is_return=1 THEN ABS(child.base_net_amount) ELSE 0 END),0) return_amount,
-                IFNULL(SUM(CASE WHEN parent.is_return=0 AND item.is_stock_item=1 THEN ABS(child.base_net_amount)-ABS(child.incoming_rate*child.stock_qty) ELSE 0 END),0) gross_profit,
-                IFNULL(SUM(CASE WHEN parent.is_return=1 AND item.is_stock_item=1 THEN ABS(child.base_net_amount)-ABS(child.incoming_rate*child.stock_qty) ELSE 0 END),0) return_profit
+                IFNULL(SUM(CASE WHEN parent.is_return=0 AND item.is_stock_item=1 THEN ABS(child.base_net_amount)-{cost} ELSE 0 END),0) gross_profit,
+                IFNULL(SUM(CASE WHEN parent.is_return=1 AND item.is_stock_item=1 THEN ABS(child.base_net_amount)-{cost} ELSE 0 END),0) return_profit
             FROM `tab{parent_table}` parent
             INNER JOIN `tab{child_table}` child ON child.parent=parent.name
             LEFT JOIN `tabItem` item ON item.name=child.item_code
-            WHERE parent.docstatus=1 AND child.item_code IN %(items)s {' '.join(date_clause)} {extra}
+            WHERE parent.docstatus=1
+              AND child.item_code IN %(items)s
+              {' '.join(date_clause)}
+              {extra}
             """,
             params,
             as_dict=True,

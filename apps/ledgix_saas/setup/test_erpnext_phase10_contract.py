@@ -202,10 +202,12 @@ class TestERPNextPhase10Contract(unittest.TestCase):
             self.assertIn("p['items']", payload["html"])
             self.assertNotIn("p.items", payload["html"])
 
-        compat = (APP_ROOT / "services" / "erpnext_reporting_compat.py").read_text(encoding="utf-8")
+        compat = (APP_ROOT / "services" / "erpnext_reporting.py").read_text(encoding="utf-8")
         self.assertIn("`tabStock Ledger Entry`", compat)
         self.assertIn("sle.voucher_type = 'POS Invoice'", compat)
         self.assertIn("sle.voucher_detail_no", compat)
+        self.assertIn("sii_cost.pos_invoice_item", compat)
+        self.assertIn("sle.voucher_type = 'Sales Invoice'", compat)
         self.assertIn("stock_value_difference", compat)
         self.assertNotIn("pii.incoming_rate", compat)
 

@@ -30,9 +30,11 @@ def _valuation_rate(item_input: str, item_code: str, warehouse: str, requested=N
     snapshot = erpnext_buying_inventory.stock_snapshot(item_code, warehouse=warehouse)
     if flt(snapshot.get("valuation_rate")) > 0:
         return flt(snapshot["valuation_rate"])
-    if frappe.db.exists("Ledgix Item", item_input):
-        return max(flt(frappe.db.get_value("Ledgix Item", item_input, "cost_price")), 0)
-    return 0
+    frappe.throw(
+        "No positive ERPNext valuation rate is available for this Item and Warehouse. "
+        "Enter an explicit Valuation Rate for the native stock receipt "
+        "(including zero only when intentionally authorized)."
+    )
 
 
 @frappe.whitelist()

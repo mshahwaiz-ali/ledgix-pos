@@ -1075,6 +1075,21 @@ def create_return(
         frappe.throw(_("Submitted ERPNext POS Invoice not found."))
     if not str(reason or "").strip():
         frappe.throw(_("Return reason is required."))
+    erpnext_selling._lock_company(invoice.company)
+    client_return_id = str(client_return_id or "").strip()
+    if client_return_id:
+        existing_name = frappe.db.get_value(
+            "POS Invoice",
+            {"company": invoice.company, "custom_ledgix_client_return_id": client_return_id,
+             "docstatus": ["!=", 2]},
+            "name",
+        )
+        if existing_name:
+            existing = frappe.get_doc("POS Invoice", existing_name)
+            if not cint(existing.get("is_return")) or existing.return_against != invoice.name:
+                frappe.throw("Return retry identifier belongs to another ERPNext transaction.")
+            existing.flags.ledgix_duplicate_client_return = True
+            return existing
     profile = frappe.get_doc("POS Profile", invoice.pos_profile)
     if not active_opening(profile):
         frappe.throw(_("Open an ERPNext POS shift before posting a retail return."))

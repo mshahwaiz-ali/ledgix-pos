@@ -1,9 +1,9 @@
 # Ledgix Current Architecture
 
 **Status:** CURRENT  
-**Reviewed:** 2026-09-17  
+**Reviewed:** 2026-09-26  
 **Repository authority:** `main`  
-**Reviewed HEAD:** `74ae6c61c6e6cb55670d64afb2db0892916a22a0`  
+**Reviewed HEAD:** `597edbc3dfa61009c609766642554b6aad86b2c5` plus the local fixes documented in [inspection2.md](../../inspection2.md)  
 **Supported stack:** Frappe `15.113.4` + ERPNext `15.121.3` + `ledgix_saas`
 
 ## Purpose
@@ -31,7 +31,7 @@ Ledgix does not vendor, fork or patch ERPNext core.
 | Legacy Ledgix business ledgers | **COMPLETE / FROZEN HISTORY** | Historical custom business records remain only where required for migration/audit evidence. They are not active transaction authority. |
 | Local operating/acceptance dataset | **COMPLETE / VERIFIED** | `LEDGIX-RETAIL-OPERATING-V1` passed `demo_data.verify()` with `ok = true` on `ledgix-erpnext.local`. |
 | Ledgix POS / product shell | **CURRENT** | Retained Ledgix UX runs over ERPNext-native authority. |
-| Tax/FBR application layer | **CURRENT** | ERPNext invoices are the source transactions; Ledgix owns compliance mapping, snapshots, transport controls and audit. |
+| Tax/FBR application layer | **CURRENT / SOFTWARE CLOSURE REQUIRED** | ERPNext invoices are the source transactions; Ledgix owns compliance mapping, snapshots, transport controls and audit. Independent inspection found remaining certification-evidence, authorization and recovery defects; see `inspection2.md`. |
 | Real FBR Sandbox certification | **DEFERRED / EXTERNAL INPUT REQUIRED** | Real seller identity/token and actual FBR network evidence are still required. |
 | FBR Production go-live | **NOT YET PRODUCTION-READY** | Production must remain unarmed until client-specific Sandbox proof and production activation gates pass. |
 | Production release tooling | **IMPLEMENTED** | Release/update/backup/provisioning/final-gate tooling exists. |
@@ -88,17 +88,20 @@ Current Ledgix-specific records include, where applicable:
 - `Ledgix Business Profile`;
 - `Ledgix Brand Settings`;
 - `Ledgix User Profile` as product/profile UX metadata only, **not** authorization authority;
-- `Ledgix Tax Profile`;
-- `Ledgix Tax Category`;
-- `Ledgix Tax Rate`;
-- `Ledgix Item Tax Profile` linked to ERPNext `Item`;
-- `Ledgix FBR Settings`;
+- `Ledgix FBR Integration Profile`, scoped to ERPNext Company, with Password credentials;
+- `Ledgix FBR Item Mapping`, scoped to Company and ERPNext Item, for classification only;
+- `Ledgix FBR Tax Component Mapping`, translating native tax-account evidence;
+- `Ledgix FBR Reference Data`;
+- `Ledgix FBR Sandbox Certification` and its scenario evidence;
+- `Ledgix FBR Correction Request`;
 - `Ledgix FBR Submission Log`;
 - `Ledgix Tax Audit Log`;
 - legacy-retirement state/digest controls;
 - release/readiness/UAT evidence required by the current product.
 
 These records extend ERPNext; they do not replace ERPNext Item, Customer, Supplier, invoice, payment, stock or accounting authority.
+
+`Ledgix Tax Profile`, `Ledgix Tax Category`, `Ledgix Tax Rate`, `Ledgix Item Tax Profile`, and `Ledgix FBR Settings` are physically retired source models, not retained configuration. The old Settings API is also absent. Historical `Ledgix Tax Audit Log`, `Ledgix Invoice Tax Detail`, and `Ledgix Return Tax Detail` remain evidence only. The registered tax-master cleanup patch requires explicit backup authorization on affected existing sites; it is a no-op when no retired artifacts remain.
 
 ---
 
@@ -133,7 +136,7 @@ Ledgix POS
   -> ERPNext Item / Customer / Price List / stock state
   -> ERPNext POS Invoice
   -> native payment rows / split tenders
-  -> Stock Ledger + GL
+  -> native POS consolidation -> Sales Invoice Stock Ledger + GL
   -> optional Ledgix FBR workflow on the same POS Invoice
   -> POS Closing Entry
   -> ERPNext native POS consolidation
@@ -257,10 +260,13 @@ Important boundaries:
 - Ledgix owns FBR/legal classification that generic ERPNext tax rows do not fully express.
 - Historical `Ledgix Sale` / `Ledgix Sales Return` are not valid new FBR transaction sources.
 - Production POST requires explicit arming and client-specific readiness.
+- `V2_NETWORK_CUTOVER_ACTIVE = False` blocks general invoice validation/POST. Only the explicit Sandbox exercise exception exists; it is not Production authorization.
+- `onboarding_status` is descriptive. Certification currently still needs stronger server validation of linked evidence, and Production activation needs enforceable evidence gates; the independent inspection must not be treated as Production approval.
+- Return/note, SRO and commercial-discount payload semantics remain fail-closed pending appropriate Sandbox/provider proof.
 - `hooks.py` currently registers **no automatic FBR retry/offline scheduler**. Ambiguous Production POST outcomes must enter reconciliation handling rather than blind retransmission.
 - Local operating-data generation keeps FBR transport disabled.
 
-**Current certification state:** application infrastructure exists, but real Sandbox network certification is still pending real seller identity/token/evidence. Production FBR must therefore be treated as **NOT YET PRODUCTION-READY**.
+**Current certification state:** application infrastructure exists, but the unconditional software label **READY FOR CLIENT CERTIFICATION is not reaffirmed** by the independent inspection. Remaining software closure is listed in `inspection2.md`, separately from real client identity, credentials and Sandbox/provider evidence. Production is **NOT READY / NOT ACTIVE**.
 
 ---
 
@@ -342,7 +348,7 @@ Compatibility resolvers may still understand legacy identifiers so historical cl
 
 ## 13. Verified local operating-data milestone
 
-The canonical integration site currently has a completed realistic acceptance dataset:
+The following is the historical operating-data milestone recorded on 2026-09-17, not a fresh recount of the entire site:
 
 ```text
 dataset: LEDGIX-RETAIL-OPERATING-V1
@@ -370,7 +376,7 @@ visible old artifacts: none
 verifier: ok = true
 ```
 
-The dedicated return opening `POS-OPE-2026-00029` is closed through `POS-CLO-2026-00021`. The current acceptance-testing opening is `POS-OPE-2026-00030`.
+That milestone recorded return opening `POS-OPE-2026-00029` closed through `POS-CLO-2026-00021` and acceptance-testing opening `POS-OPE-2026-00030`; their current lifecycle was not revalidated here.
 
 This dataset is completed operating/acceptance evidence and should **not** be casually cleaned, rebuilt or reset. See `docs/operations/LOCAL_DEMO_DATA.md` for the operating-data policy; that document is being updated to reflect this completed V1 state.
 
@@ -389,6 +395,8 @@ The workspace also exposes selected ERPNext reports such as:
 - Profit and Loss Statement.
 
 The objective is a focused Ledgix operator/manager experience, not a duplicate reporting database.
+
+The canonical reporting service now resolves consolidated POS cost through `Sales Invoice Item.pos_invoice_item` to native Stock Ledger Entries. `erpnext_reporting_compat.py` is an explicit re-export and no longer mutates helper globals. Unconsolidated POS cost/profit remains a reporting limitation requiring clear pending-cost treatment; company filtering/permissions also require closure as documented in `inspection2.md`.
 
 ---
 

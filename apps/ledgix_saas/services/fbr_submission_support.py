@@ -11,6 +11,7 @@ import json
 
 import frappe
 from frappe.utils import cint, now_datetime
+from ledgix_saas.api.fbr_transport import redact_evidence
 
 ALLOWED_STATUSES = {
     "Not Required", "Pending", "Validated", "Submitted", "Failed",
@@ -23,6 +24,7 @@ FINAL_ATTEMPT_STATUSES = {
 
 
 def serialize_json(data):
+    data = redact_evidence(data)
     if data in (None, ""):
         return None
     if isinstance(data, str):
@@ -41,10 +43,7 @@ def normalize_fbr_status(status):
 
 
 def _safe_message(value):
-    text = str(value or "")
-    if "Bearer " in text:
-        text = text.split("Bearer ", 1)[0].rstrip()
-    return text
+    return redact_evidence(str(value or ""))
 
 
 def _extract_fbr_qr_code(response):
@@ -211,6 +210,9 @@ class _SubmissionLock:
             self._cache_lock.__enter__()
             return self
         except Exception:
+            # A failed Redis acquire must not be released on exit. Otherwise
+            # its exception masks the result and the acquired DB lock leaks.
+            self._cache_lock = None
             result = frappe.db.sql("SELECT GET_LOCK(%s, 120)", (self.lock_key,))
             acquired = bool(result and result[0][0] == 1)
             if not acquired:

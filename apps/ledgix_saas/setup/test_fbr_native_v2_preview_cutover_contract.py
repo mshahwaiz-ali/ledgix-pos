@@ -80,7 +80,7 @@ class TestFBRNativeV2PreviewCutoverContract(unittest.TestCase):
             "validate_native_with_fbr_internal",
             "\n@frappe.whitelist()\ndef validate_native_with_fbr",
         )
-        guard = block.index("if not V2_NETWORK_CUTOVER_ACTIVE:")
+        guard = block.index("if not V2_NETWORK_CUTOVER_ACTIVE and not _sandbox_network_exercise_allowed(mode):")
         transport = block.index("fbr_v2_transport.validate_invoice(")
         self.assertLess(guard, transport)
 
@@ -90,7 +90,7 @@ class TestFBRNativeV2PreviewCutoverContract(unittest.TestCase):
             "submit_native_to_fbr_internal",
             "\n@frappe.whitelist()\ndef submit_native_to_fbr",
         )
-        guard = block.index("if not V2_NETWORK_CUTOVER_ACTIVE:")
+        guard = block.index("if not V2_NETWORK_CUTOVER_ACTIVE and not _sandbox_network_exercise_allowed(mode):")
         transport = block.index("fbr_v2_transport.post_invoice(")
         self.assertLess(guard, transport)
         self.assertIn('client_result.get("requires_reconciliation")', block)
