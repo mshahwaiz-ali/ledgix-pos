@@ -153,7 +153,7 @@ exercise_one() {
   [[ -n "$name" ]] || return 0
   printf '\n===== %s: SANDBOX VALIDATE + POST =====\n' "$label"
   kwargs="$($BENCH_PYTHON -c 'import json,sys; print(json.dumps({"reference_doctype":sys.argv[1],"reference_name":sys.argv[2],"confirmation":"SEND TO FBR SANDBOX"}))' "$doctype" "$name")"
-  output="$(bench_run --site "$SITE" execute ledgix_saas.setup.fbr_sandbox_operator.exercise_sandbox_reference --kwargs "$kwargs")"
+  output="$(LEDGIX_FBR_SANDBOX_NETWORK_EXERCISE="$CONFIRMATION" bench_run --site "$SITE" execute ledgix_saas.setup.fbr_sandbox_operator.exercise_sandbox_reference --kwargs "$kwargs")"
   printf '%s\n' "$output"
   passed="$(printf '%s\n' "$output" | parse_bool_field passed)"
   [[ "$passed" == "1" ]] || fail "$label Sandbox validate/POST proof did not pass"

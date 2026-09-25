@@ -180,6 +180,41 @@ class TestFBRActivationContract(unittest.TestCase):
             self.assertIn(token, exercise_source)
         self.assertNotIn("--production-token", exercise_source)
         self.assertNotIn("post_invoice(", exercise_source)
+        self.assertEqual(
+            exercise_source.count(
+                'LEDGIX_FBR_SANDBOX_NETWORK_EXERCISE="$CONFIRMATION"'
+            ),
+            1,
+        )
+
+    def test_sandbox_network_cutover_bypass_is_explicit_and_sandbox_only(self):
+        source = (APP_ROOT / "api" / "fbr_native.py").read_text(encoding="utf-8")
+        for token in (
+            'V2_NETWORK_CUTOVER_ACTIVE = False',
+            'SANDBOX_NETWORK_EXERCISE_ENV = "LEDGIX_FBR_SANDBOX_NETWORK_EXERCISE"',
+            'SANDBOX_NETWORK_EXERCISE_CONFIRMATION = "SEND TO FBR SANDBOX"',
+            'str(mode or "").strip() == "Sandbox"',
+            'os.environ.get(SANDBOX_NETWORK_EXERCISE_ENV)',
+            '_sandbox_network_exercise_allowed(mode)',
+            'Production remains blocked.',
+        ):
+            self.assertIn(token, source)
+
+        helper_start = source.index("def _sandbox_network_exercise_allowed")
+        helper_end = source.index("\n\ndef _require_role", helper_start)
+        helper = source[helper_start:helper_end]
+        self.assertNotIn('"Production"', helper)
+
+        exercise_source = (
+            SCRIPTS / "run_fbr_sandbox_exercise_local.sh"
+        ).read_text(encoding="utf-8")
+        invocation = (
+            'LEDGIX_FBR_SANDBOX_NETWORK_EXERCISE="$CONFIRMATION" '
+            'bench_run --site "$SITE" execute '
+            'ledgix_saas.setup.fbr_sandbox_operator.exercise_sandbox_reference'
+        )
+        self.assertIn(invocation, exercise_source)
+        self.assertNotIn("export LEDGIX_FBR_SANDBOX_NETWORK_EXERCISE", exercise_source)
 
     def test_static_and_runtime_gates_exist(self):
         static_gate = SCRIPTS / "run_fbr_activation_static_gate.sh"
