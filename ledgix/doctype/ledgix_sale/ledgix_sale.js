@@ -287,9 +287,11 @@ function calculate_sale_totals(frm) {
 
     frm.set_value("total_amount", total_amount);
     frm.set_value("total_profit", total_profit);
+    frm.set_value("tax_amount", 0);
+    frm.set_value("grand_total", total_amount);
 
-    update_sale_tax_preview(frm);
-}   
+    calculate_payment_totals(frm);
+}
 
 
 // ============================================================
@@ -331,86 +333,4 @@ function calculate_payment_totals(frm) {
     frm.set_value("remaining_amount", remaining_amount);
     frm.set_value("change_amount", change_amount);
     frm.set_value("payment_status", payment_status);
-}
-
-
-// ============================================================
-// SALE TAX PREVIEW
-// ============================================================
-
-function update_sale_tax_preview(frm) {
-    let items = [];
-
-    (frm.doc.items || []).forEach(row => {
-        if (!row.item || !row.quantity) {
-            return;
-        }
-
-        let quantity = row.quantity || 0;
-        let rate = row.rate || 0;
-        let amount = row.amount || (quantity * rate);
-
-        items.push({
-            item: row.item,
-            quantity: quantity,
-            rate: rate,
-            amount: amount
-        });
-    });
-
-    if (!items.length) {
-        frm.set_value("tax_amount", 0);
-        frm.set_value("grand_total", frm.doc.total_amount || 0);
-
-        if (frm.fields_dict.tax_details) {
-            frm.clear_table("tax_details");
-            frm.refresh_field("tax_details");
-        }
-
-        calculate_payment_totals(frm);
-        return;
-    }
-
-    frappe.call({
-        method: "ledgix_saas.api.taxation.preview_sale_tax_for_form",
-        args: {
-            items: items,
-            posting_date: frm.doc.sale_date
-        },
-        callback: function(r) {
-            if (!r.message) {
-                calculate_payment_totals(frm);
-                return;
-            }
-
-            frm.set_value("tax_amount", r.message.tax_amount || 0);
-            frm.set_value("grand_total", r.message.grand_total || frm.doc.total_amount || 0);
-
-            if (frm.fields_dict.tax_details) {
-                frm.clear_table("tax_details");
-
-                (r.message.tax_details || []).forEach(tax_row => {
-                    let row = frm.add_child("tax_details");
-
-                    row.item = tax_row.item;
-                    row.qty = tax_row.qty;
-                    row.tax_category = tax_row.tax_category;
-                    row.taxable_amount = tax_row.taxable_amount;
-                    row.tax_rate = tax_row.tax_rate;
-                    row.tax_amount = tax_row.tax_amount;
-                    row.net_amount = tax_row.net_amount;
-                    row.hs_code = tax_row.hs_code;
-                    row.uom_for_fbr = tax_row.uom_for_fbr;
-                    row.sales_type = tax_row.sales_type;
-                    row.scenario_id = tax_row.scenario_id;
-                    row.sro_schedule_number = tax_row.sro_schedule_number;
-                    row.sro_item_serial_number = tax_row.sro_item_serial_number;
-                });
-
-                frm.refresh_field("tax_details");
-            }
-
-            calculate_payment_totals(frm);
-        }
-    });
 }

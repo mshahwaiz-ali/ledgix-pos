@@ -134,17 +134,7 @@ def cleanup_old_local_artifacts() -> dict:
         _retire_old_marker_transactions(legacy.OLD_SEED, removed, retained)
         _retire_old_pos_profiles(removed, archived, retained)
 
-        # Extension rows and prices are local demo metadata, not accounting
-        # history; clear them before retiring the old LXD masters.
-        old_tax_profiles = frappe.get_all(
-            "Ledgix Item Tax Profile",
-            filters={"erpnext_item": ["like", f"{legacy.OLD_ITEM_PREFIX}%"]},
-            pluck="name",
-            limit_page_length=0,
-        )
-        for name in old_tax_profiles:
-            frappe.db.delete("Ledgix Item Tax Profile", {"name": name})
-            removed.append(f"Ledgix Item Tax Profile:{name}")
+        # Retired tax configuration is no longer mutated by demo cleanup.
         frappe.db.delete("Item Price", {"item_code": ["like", f"{legacy.OLD_ITEM_PREFIX}%"]})
 
         for name in frappe.get_all(
@@ -163,7 +153,6 @@ def cleanup_old_local_artifacts() -> dict:
             ("Item Group", legacy.OLD_ITEM_GROUPS),
             ("Customer Group", legacy.OLD_CUSTOMER_GROUPS),
             ("Supplier Group", legacy.OLD_SUPPLIER_GROUPS),
-            ("Ledgix Tax Category", legacy.OLD_TAX_CATEGORIES),
         ):
             for name in names:
                 _retire_master(doctype, name, removed, archived, retained)
