@@ -18,17 +18,17 @@
  "fields": [
   {
    "fieldname": "reference_doctype",
-   "fieldtype": "Link",
+   "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "Reference Doctype",
-   "options": "DocType"
+   "label": "Reference Doctype Snapshot",
+   "read_only": 1
   },
   {
    "fieldname": "reference_name",
-   "fieldtype": "Dynamic Link",
+   "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "Reference Name",
-   "options": "reference_doctype"
+   "label": "Reference Name Snapshot",
+   "read_only": 1
   },
   {
    "fieldname": "field_changed",

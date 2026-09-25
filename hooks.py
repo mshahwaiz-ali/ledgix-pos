@@ -174,10 +174,6 @@ for _legacy_doctype in _legacy_retired_business_doctypes:
 	doc_events[_legacy_doctype] = _legacy_freeze_events
 
 _legacy_retired_tax_doctypes = (
-	"Ledgix Tax Profile",
-	"Ledgix Tax Category",
-	"Ledgix Tax Rate",
-	"Ledgix Item Tax Profile",
 	"Ledgix Tax Audit Log",
 	"Ledgix Invoice Tax Detail",
 	"Ledgix Return Tax Detail",

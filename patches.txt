@@ -11,3 +11,5 @@ ledgix_saas.patches.v1_0.sync_v2_print_formats
 ledgix_saas.patches.v1_0.backfill_sale_item_identity_and_sync_receipts
 ledgix_saas.patches.v1_0.sync_v2_print_formats_brand_fallback
 ledgix_saas.patches.v1_0.sync_erpnext_extension_schema
+
+ledgix_saas.patches.v1_0.cleanup_retired_legacy_tax_config_masters
