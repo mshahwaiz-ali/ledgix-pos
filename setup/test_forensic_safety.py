@@ -5,11 +5,13 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 import frappe
+from ledgix_saas.api import fbr_native
 
-from ledgix_saas.api import fbr_transport, fbr_v2_transport, stock_ops
+from ledgix_saas.api import fbr_activation, fbr_transport, fbr_v2_transport, stock_ops
 from ledgix_saas.api import selling, pos_compat, selling_compat
 from ledgix_saas.patches.v1_0 import rename_tax_rate_fields
 from ledgix_saas.services import fbr_submission_support as support
+from ledgix_saas.services import fbr_v2_readiness
 from ledgix_saas.services import erpnext_selling
 from ledgix_saas.services import erpnext_reporting
 from ledgix_saas.services import erpnext_pos
@@ -166,6 +168,220 @@ class TestForensicSafety(unittest.TestCase):
                 {"network_call": True, "http_status": status}, None))
         self.assertFalse(fbr_v2_transport._production_post_is_ambiguous(
             {"network_call": True, "http_status": 401}, None))
+
+
+    def test_certification_flags_cannot_replace_persisted_sandbox_evidence(self):
+        profile = frappe._dict(name="PROFILE-A", company="Company A")
+        scenario = frappe._dict(
+            scenario_id="S1",
+            required=1,
+            representative_doctype="Sales Invoice",
+            representative_name="INV-A",
+            validate_status="Validated",
+            post_status="Submitted",
+        )
+        certification = frappe._dict(scenarios=[scenario])
+
+        db = MagicMock()
+        db.exists.return_value = True
+        db.get_value.return_value = "Company A"
+        with patch.object(frappe, "db", db, create=True), patch.object(
+            frappe, "get_all", return_value=[]
+        ):
+            evidence = fbr_v2_readiness.sandbox_certification_evidence(
+                profile, certification
+            )
+
+        self.assertFalse(evidence["evidence_complete"])
+        self.assertFalse(evidence["scenarios"][0]["validate"]["proven"])
+        self.assertFalse(evidence["scenarios"][0]["post"]["proven"])
+
+    def test_sandbox_proof_is_company_and_profile_scoped(self):
+        profile = frappe._dict(name="PROFILE-A", company="Company A")
+        scenario = frappe._dict(
+            scenario_id="S1",
+            required=1,
+            representative_doctype="Sales Invoice",
+            representative_name="INV-A",
+        )
+        certification = frappe._dict(scenarios=[scenario])
+        db = MagicMock()
+        db.exists.return_value = True
+        db.get_value.return_value = "Company A"
+
+        wrong_company_validate = frappe._dict(
+            name="LOG-B-V",
+            fbr_status="Validated",
+            fbr_invoice_number="",
+            submitted_at="2026-09-26 01:00:00",
+            response_json=json.dumps(
+                {
+                    "fbr_mode": "Sandbox",
+                    "fbr_operation": "validate",
+                    "company": "Company B",
+                    "profile_name": "PROFILE-B",
+                    "network_call": True,
+                    "success": True,
+                }
+            ),
+        )
+        right_validate = frappe._dict(
+            name="LOG-A-V",
+            fbr_status="Validated",
+            fbr_invoice_number="",
+            submitted_at="2026-09-26 01:01:00",
+            response_json=json.dumps(
+                {
+                    "fbr_mode": "Sandbox",
+                    "fbr_operation": "validate",
+                    "company": "Company A",
+                    "profile_name": "PROFILE-A",
+                    "network_call": True,
+                    "success": True,
+                }
+            ),
+        )
+        right_post = frappe._dict(
+            name="LOG-A-P",
+            fbr_status="Submitted",
+            fbr_invoice_number="SANDBOX-1",
+            submitted_at="2026-09-26 01:02:00",
+            response_json=json.dumps(
+                {
+                    "fbr_mode": "Sandbox",
+                    "fbr_operation": "post",
+                    "company": "Company A",
+                    "profile_name": "PROFILE-A",
+                    "network_call": True,
+                    "success": True,
+                }
+            ),
+        )
+
+        with patch.object(frappe, "db", db, create=True), patch.object(
+            frappe,
+            "get_all",
+            return_value=[wrong_company_validate, right_validate, right_post],
+        ):
+            evidence = fbr_v2_readiness.sandbox_certification_evidence(
+                profile, certification
+            )
+
+        self.assertTrue(evidence["evidence_complete"])
+        scenario_evidence = evidence["scenarios"][0]
+        self.assertEqual(scenario_evidence["validate"]["log_name"], "LOG-A-V")
+        self.assertEqual(scenario_evidence["post"]["log_name"], "LOG-A-P")
+
+    def test_activation_reconciliation_query_is_company_scoped(self):
+        db = MagicMock()
+        db.exists.return_value = True
+        with patch.object(frappe, "db", db, create=True), patch.object(
+            frappe, "get_all", return_value=[]
+        ) as get_all:
+            result = fbr_activation._reconciliation_summary("Company A")
+
+        self.assertEqual(result["count"], 0)
+        self.assertTrue(get_all.called)
+        for call in get_all.call_args_list:
+            self.assertEqual(call.kwargs["filters"]["company"], "Company A")
+
+    def test_transport_production_certification_uses_derived_state(self):
+        profile = frappe._dict(name="PROFILE-A", company="Company A")
+        derived = {
+            "name": "FBR-CERT-1",
+            "status": "Complete",
+            "evidence_complete": False,
+            "stored_evidence_complete": True,
+            "complete": False,
+        }
+        with patch.object(
+            fbr_v2_readiness,
+            "get_sandbox_certification_state",
+            return_value=derived,
+        ) as state:
+            result = fbr_v2_transport._production_certification(profile)
+
+        self.assertIs(result, derived)
+        state.assert_called_once_with(profile)
+        self.assertFalse(result["complete"])
+
+
+    def test_production_post_guard_is_committed_before_network_window(self):
+        doc = frappe._dict(
+            doctype="Sales Invoice",
+            name="INV-A",
+            company="Company A",
+            is_return=0,
+        )
+        fake_frappe = MagicMock()
+        with patch.object(
+            fbr_native, "_create_log", return_value="FBR-LOG-PENDING"
+        ) as create_log, patch.object(
+            fbr_native,
+            "mark_native_fbr_status",
+            return_value={"fbr_status": "Reconciliation Required"},
+        ) as mark_status, patch.object(
+            fbr_native, "frappe", fake_frappe
+        ):
+            log_name, status = fbr_native._begin_production_post_attempt(
+                doc, {"invoiceType": "Sale Invoice"}
+            )
+
+        self.assertEqual(log_name, "FBR-LOG-PENDING")
+        self.assertEqual(status["fbr_status"], "Reconciliation Required")
+        self.assertEqual(create_log.call_args.args[1], "Pending")
+        self.assertEqual(
+            mark_status.call_args.args[2],
+            fbr_native.RECONCILIATION_REQUIRED,
+        )
+        fake_frappe.db.commit.assert_called_once()
+
+    def test_finalize_submission_attempt_updates_same_durable_log(self):
+        db = MagicMock()
+        db.exists.return_value = True
+        with patch.object(
+            frappe, "db", db, create=True
+        ), patch.object(
+            support, "now_datetime", return_value="2026-09-26 03:30:00"
+        ):
+            result = support.finalize_submission_log(
+                "FBR-LOG-1",
+                "Submitted",
+                response_json={
+                    "fbr_mode": "Production",
+                    "fbr_operation": "post",
+                    "network_call": True,
+                    "success": True,
+                },
+                fbr_invoice_number="FBR-INV-1",
+            )
+
+        self.assertEqual(result, "FBR-LOG-1")
+        args = db.set_value.call_args.args
+        self.assertEqual(args[0], "Ledgix FBR Submission Log")
+        self.assertEqual(args[1], "FBR-LOG-1")
+        self.assertEqual(args[2]["fbr_status"], "Submitted")
+        self.assertEqual(args[2]["fbr_invoice_number"], "FBR-INV-1")
+
+    def test_submission_log_desk_permissions_are_read_only_evidence(self):
+        from pathlib import Path as _Path
+
+        schema = json.loads(
+            (
+                _Path(__file__).parents[1]
+                / "ledgix"
+                / "doctype"
+                / "ledgix_fbr_submission_log"
+                / "ledgix_fbr_submission_log.json"
+            ).read_text()
+        )
+        self.assertEqual(schema.get("allow_rename"), 0)
+        for row in schema.get("permissions") or []:
+            if row.get("role") in {"System Manager", "Ledgix Admin", "Ledgix Manager"}:
+                self.assertFalse(bool(row.get("write")))
+                self.assertFalse(bool(row.get("create")))
+                self.assertFalse(bool(row.get("delete")))
+
 
 
 if __name__ == "__main__":

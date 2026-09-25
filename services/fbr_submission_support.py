@@ -195,6 +195,36 @@ def create_submission_log(
     return log.name
 
 
+def finalize_submission_log(
+    log_name,
+    status,
+    *,
+    response_json=None,
+    error_code=None,
+    error_message=None,
+    fbr_invoice_number=None,
+):
+    if not log_name or not frappe.db.exists("Ledgix FBR Submission Log", log_name):
+        frappe.throw("A persisted FBR submission attempt log is required.")
+    status = normalize_fbr_status(status)
+    values = {
+        "fbr_status": status,
+        "response_json": serialize_json(response_json),
+        "error_code": error_code,
+        "error_message": _safe_message(error_message),
+        "fbr_invoice_number": fbr_invoice_number or "",
+    }
+    if status in FINAL_ATTEMPT_STATUSES:
+        values["submitted_at"] = now_datetime()
+    frappe.db.set_value(
+        "Ledgix FBR Submission Log",
+        log_name,
+        values,
+        update_modified=False,
+    )
+    return log_name
+
+
 class _SubmissionLock:
     def __init__(self, reference_key):
         self.reference_key = reference_key

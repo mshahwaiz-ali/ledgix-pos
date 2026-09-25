@@ -19,6 +19,7 @@ from ledgix_saas.setup import erpnext_phase9_extensions
 from ledgix_saas.services import fbr_v2_payload_builder, fbr_v2_readiness
 from ledgix_saas.services.fbr_submission_support import (
     create_submission_log,
+    finalize_submission_log,
     parse_fbr_response,
     resolve_submission_status,
     submission_lock,
@@ -37,6 +38,65 @@ RECONCILIATION_MESSAGE = (
     "FBR/PRAL before any retransmission."
 )
 TOLERANCE = 0.05
+
+PRODUCTION_ATTEMPT_PENDING_MESSAGE = (
+    "A Production FBR POST attempt was durably prepared. Until the attempt is "
+    "finalized, retransmission is blocked and the invoice must be reconciled "
+    "with FBR/PRAL if the worker outcome is unknown."
+)
+PRODUCTION_ATTEMPT_PENDING_CODE = "FBR_POST_ATTEMPT_PENDING"
+
+
+def _begin_production_post_attempt(doc, payload) -> tuple[str, dict]:
+    attempt_context = {
+        "fbr_operation": "post",
+        "fbr_mode": "Production",
+        "company": doc.company,
+        "network_call": False,
+        "success": False,
+        "attempt_state": "Prepared",
+        "requires_reconciliation": True,
+        "contains_secrets": False,
+    }
+    log_name = _create_log(
+        doc,
+        "Pending",
+        payload=payload,
+        response=attempt_context,
+        error_code=PRODUCTION_ATTEMPT_PENDING_CODE,
+        error_message=PRODUCTION_ATTEMPT_PENDING_MESSAGE,
+    )
+    status = mark_native_fbr_status(
+        doc.doctype,
+        doc.name,
+        RECONCILIATION_REQUIRED,
+        error_code=PRODUCTION_ATTEMPT_PENDING_CODE,
+        error_message=PRODUCTION_ATTEMPT_PENDING_MESSAGE,
+        log_name=log_name,
+    )
+    frappe.db.commit()
+    return log_name, status
+
+
+def _finalize_production_post_attempt(
+    log_name: str,
+    *,
+    status: str,
+    response,
+    error_code: str = "",
+    error_message: str = "",
+    invoice_number: str = "",
+) -> None:
+    finalize_submission_log(
+        log_name,
+        status,
+        response_json=response,
+        error_code=error_code,
+        error_message=error_message,
+        fbr_invoice_number=invoice_number,
+    )
+
+
 
 # Deliberately false until the company-scoped V2 transport wiring has passed
 # local runtime proof and authorized Sandbox certification. Keeping this false
@@ -590,12 +650,45 @@ def submit_native_to_fbr_internal(
                 "error_message": readiness_error,
             }
 
+        production_attempt_log = ""
+        if mode == "Production":
+            production_attempt_log, _ = _begin_production_post_attempt(doc, payload)
+
         client_result = fbr_v2_transport.post_invoice(
             company=doc.company,
             payload=payload,
             mode=mode,
         )
         if not client_result.get("network_call"):
+            if production_attempt_log:
+                error_message = client_result.get("error") or "FBR post was not sent."
+                _finalize_production_post_attempt(
+                    production_attempt_log,
+                    status="Failed",
+                    response=client_result,
+                    error_code=str(client_result.get("http_status") or ""),
+                    error_message=error_message,
+                )
+                status = mark_native_fbr_status(
+                    doc.doctype,
+                    doc.name,
+                    "Failed",
+                    error_code=str(client_result.get("http_status") or ""),
+                    error_message=error_message,
+                    log_name=production_attempt_log,
+                )
+                return {
+                    "network_call": False,
+                    "status": "Failed",
+                    "log_name": production_attempt_log,
+                    "reference_status": status,
+                    "validation": validation,
+                    "response": client_result,
+                    "fbr_invoice_number": "",
+                    "fbr_qr_code": "",
+                    "error_code": str(client_result.get("http_status") or ""),
+                    "error_message": error_message,
+                }
             return _not_ready(doc, validation, client_result.get("error") or "FBR post was not sent.")
         parsed = parse_fbr_response(client_result, require_invoice_number=(mode == "Production"))
         if not client_result.get("success"):
@@ -612,15 +705,26 @@ def submit_native_to_fbr_internal(
         success_status = status_name in {"Submitted", "Validated"}
         error_code = "" if success_status else parsed.get("error_code") or ""
         error_message = "" if success_status else parsed.get("error_message") or ""
-        log_name = _create_log(
-            doc,
-            status_name,
-            payload=payload,
-            response=client_result,
-            error_code=error_code,
-            error_message=error_message,
-            invoice_number=invoice_number,
-        )
+        if production_attempt_log:
+            _finalize_production_post_attempt(
+                production_attempt_log,
+                status=status_name,
+                response=client_result,
+                error_code=error_code,
+                error_message=error_message,
+                invoice_number=invoice_number,
+            )
+            log_name = production_attempt_log
+        else:
+            log_name = _create_log(
+                doc,
+                status_name,
+                payload=payload,
+                response=client_result,
+                error_code=error_code,
+                error_message=error_message,
+                invoice_number=invoice_number,
+            )
         status = mark_native_fbr_status(
             doc.doctype,
             doc.name,
