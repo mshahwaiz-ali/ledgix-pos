@@ -1226,7 +1226,7 @@ No documentation should conceal this mismatch.
 | Submission evidence schema | Ledgix FBR Submission Log |
 | Sandbox proof controller | Ledgix FBR Sandbox Certification |
 | Legacy write guard | api/legacy_retirement.py |
-| Production security runbook source | docs/production/SECURITY.md |
+| Release/deployment security | docs/developer/DEPLOYMENT_AND_UPGRADES.md + docs/developer/BACKUP_RESTORE_ROLLBACK.md |
 
 ---
 
