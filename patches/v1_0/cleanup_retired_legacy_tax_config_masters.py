@@ -827,6 +827,8 @@ def execute() -> None:
     """Physically retire old tax config masters after all fail-closed gates."""
 
     if not _anything_remaining():
+        _assert_no_customizations_on_targets()
+        _assert_retired()
         return
 
     _assert_authorized()

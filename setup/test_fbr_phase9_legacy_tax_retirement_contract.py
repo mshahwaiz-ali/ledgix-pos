@@ -385,5 +385,21 @@ class TestFBRPhase9LegacyTaxRetirementContract(unittest.TestCase):
         self.assertNotIn("requests.", source)
         self.assertNotIn("fbr.gov.pk", source)
 
+        tree = ast.parse(source)
+        execute_fn = next(
+            node
+            for node in tree.body
+            if isinstance(node, ast.FunctionDef) and node.name == "execute"
+        )
+        no_op_guard = next(
+            node
+            for node in execute_fn.body
+            if isinstance(node, ast.If)
+            and "_anything_remaining()" in ast.unparse(node.test)
+        )
+        no_op_body = [ast.unparse(node) for node in no_op_guard.body]
+        self.assertIn("_assert_no_customizations_on_targets()", no_op_body)
+        self.assertIn("_assert_retired()", no_op_body)
+
 if __name__ == "__main__":
     unittest.main()
