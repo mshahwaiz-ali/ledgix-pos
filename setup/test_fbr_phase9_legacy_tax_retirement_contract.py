@@ -97,11 +97,71 @@ class TestFBRPhase9LegacyTaxRetirementContract(unittest.TestCase):
         self.assertIn('"Ledgix Legacy Retirement State"', source)
         self.assertIn('== "Frozen"', source)
 
+    def test_external_legacy_tax_links_are_replaced_by_data_snapshots(self):
+        extensions = (
+            APP_ROOT / "setup" / "erpnext_extensions.py"
+        ).read_text(encoding="utf-8")
+        phase5 = (
+            APP_ROOT / "setup" / "erpnext_phase5_extensions.py"
+        ).read_text(encoding="utf-8")
+
+        self.assertNotIn(
+            '_cf(\n            "custom_ledgix_fbr_item_profile",',
+            extensions,
+        )
+        self.assertIn(
+            '"custom_ledgix_legacy_fbr_item_profile_snapshot"',
+            extensions,
+        )
+
+        self.assertNotIn(
+            '_cf(\n            "custom_ledgix_default_tax_category",',
+            phase5,
+        )
+        self.assertIn(
+            '"custom_ledgix_legacy_default_tax_category_snapshot"',
+            phase5,
+        )
+
+        category = json.loads(
+            (
+                APP_ROOT / "ledgix" / "doctype" / "ledgix_category"
+                / "ledgix_category.json"
+            ).read_text(encoding="utf-8")
+        )
+        row = next(
+            x for x in category["fields"]
+            if x.get("fieldname") == "default_tax_category"
+        )
+        self.assertEqual(row.get("fieldtype"), "Data")
+        self.assertNotIn("options", row)
+
+        sale_item = json.loads(
+            (
+                APP_ROOT / "ledgix" / "doctype" / "ledgix_sale_item"
+                / "ledgix_sale_item.json"
+            ).read_text(encoding="utf-8")
+        )
+        row = next(
+            x for x in sale_item["fields"]
+            if x.get("fieldname") == "item_tax_profile_snapshot"
+        )
+        self.assertEqual(row.get("fieldtype"), "Data")
+        self.assertNotIn("options", row)
+
+        migration = (
+            APP_ROOT / "migration" / "fbr_phase9_snapshot_link_detachment.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn("copied_values_preserved", migration)
+        self.assertIn("external_legacy_links", migration)
+        self.assertNotIn("requests.", migration)
+        self.assertNotIn("fbr.gov.pk", migration)
+
     def test_legacy_item_group_fields_are_hidden_read_only(self):
         source = (APP_ROOT / "setup" / "erpnext_phase5_extensions.py").read_text(encoding="utf-8")
         for fieldname in (
             "custom_ledgix_tax_defaults_enabled",
-            "custom_ledgix_default_tax_category",
+            "custom_ledgix_legacy_default_tax_category_snapshot",
             "custom_ledgix_default_taxable",
             "custom_ledgix_default_sales_type",
             "custom_ledgix_default_uom_for_fbr",
