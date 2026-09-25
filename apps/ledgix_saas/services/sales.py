@@ -15,15 +15,13 @@ def infer_sale_channel(customer, explicit=None):
 
 
 def _buyer_defaults():
-	if not frappe.db.exists("DocType", "Ledgix Tax Profile"):
-		return {"registration_type": "Unregistered", "province": "", "address": ""}
-	registration_type = frappe.db.get_single_value("Ledgix Tax Profile", "default_buyer_type") or "Unregistered"
-	if registration_type == "Consumer":
-		registration_type = "Unregistered"
+	# Legacy Tax Profile defaults are retired. Frozen Ledgix Sale rows must
+	# rely on persisted buyer snapshots; unsnapshotted compatibility remains
+	# neutral and cannot become tax authority.
 	return {
-		"registration_type": registration_type,
-		"province": frappe.db.get_single_value("Ledgix Tax Profile", "province") or "",
-		"address": frappe.db.get_single_value("Ledgix Tax Profile", "outlet_address") or "",
+		"registration_type": "Unregistered",
+		"province": "",
+		"address": "",
 	}
 
 
@@ -71,9 +69,6 @@ def get_seller_identity():
 
 	province = native_seller.get("province") or ""
 	outlet_address = ""
-	if frappe.db.exists("DocType", "Ledgix Tax Profile"):
-		province = province or frappe.db.get_single_value("Ledgix Tax Profile", "province") or ""
-		outlet_address = frappe.db.get_single_value("Ledgix Tax Profile", "outlet_address") or ""
 
 	return {
 		"name": native_seller.get("business_name") or brand.get("legal_business_name") or brand.get("brand_name") or "Ledgix",

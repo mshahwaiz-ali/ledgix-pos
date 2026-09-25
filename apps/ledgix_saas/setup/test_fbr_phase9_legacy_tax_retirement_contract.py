@@ -157,6 +157,50 @@ class TestFBRPhase9LegacyTaxRetirementContract(unittest.TestCase):
         self.assertNotIn("requests.", migration)
         self.assertNotIn("fbr.gov.pk", migration)
 
+    def test_operational_paths_do_not_call_legacy_tax_engine(self):
+        for relative in (
+            "api/v2_pos.py",
+            "ledgix/doctype/ledgix_sale/ledgix_sale.py",
+            "api/fbr_payload.py",
+        ):
+            source = (APP_ROOT / relative).read_text(encoding="utf-8")
+            self.assertNotIn("apply_sale_tax_snapshot", source)
+
+        payload = (APP_ROOT / "api" / "fbr_payload.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertNotIn("prepare_sale_tax_snapshot_for_doc", payload)
+        self.assertNotIn("from ledgix_saas.api.taxation", payload)
+
+    def test_historical_identity_helpers_do_not_read_legacy_tax_profile(self):
+        for relative in (
+            "services/sales.py",
+            "api/fbr_payload.py",
+        ):
+            source = (APP_ROOT / relative).read_text(encoding="utf-8")
+            self.assertNotIn('"Ledgix Tax Profile"', source)
+
+    def test_demo_seed_uses_v2_mapping_and_keeps_review_required(self):
+        demo = (APP_ROOT / "setup" / "erpnext_demo_data.py").read_text(
+            encoding="utf-8"
+        )
+        retail = (
+            APP_ROOT / "setup" / "retail_operating_profile.py"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn(
+            'FBR_ITEM_MAPPING_DOCTYPE = "Ledgix FBR Item Mapping"',
+            demo,
+        )
+        self.assertIn("doc.needs_review = 1", demo)
+        self.assertNotIn('frappe.new_doc("Ledgix Tax Category")', demo)
+        self.assertNotIn('frappe.new_doc("Ledgix Item Tax Profile")', demo)
+        self.assertNotIn("erpnext_tax_foundation.apply_tax_plan", demo)
+
+        self.assertNotIn('frappe.new_doc("Ledgix Tax Category")', retail)
+        self.assertNotIn('frappe.new_doc("Ledgix Item Tax Profile")', retail)
+        self.assertIn("_ORIGINAL_ENSURE_TAX_MAPPING", retail)
+
     def test_legacy_item_group_fields_are_hidden_read_only(self):
         source = (APP_ROOT / "setup" / "erpnext_phase5_extensions.py").read_text(encoding="utf-8")
         for fieldname in (

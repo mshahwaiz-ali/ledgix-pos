@@ -8,7 +8,6 @@ from ledgix_saas.api.security import require_ledgix_cashier_or_above
 from ledgix_saas.services.pricing import resolve_item_price, resolve_price_list
 from ledgix_saas.services.receivables import get_customer_receivables
 from ledgix_saas.services.sales import infer_sale_channel
-from ledgix_saas.services.tax import apply_sale_tax_snapshot
 
 
 def _parse(value):
@@ -241,7 +240,6 @@ def _build_sale(customer, sale_channel, price_list, cart_items, discount_type, d
 			"cost_price": flt(row["item_meta"].cost_price),
 		})
 	sale.calculate_totals()
-	apply_sale_tax_snapshot(sale)
 	return sale
 
 
