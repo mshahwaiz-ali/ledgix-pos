@@ -42,7 +42,7 @@ At the repository level, Ledgix is organized approximately as:
     ├── install.sh
     ├── site_setup.sh
     ├── start.sh
-    └── inspection2.md
+    └── docs/archive/audit/FINAL_FORENSIC_INSPECTION_20260926.md
 
 The active custom Frappe application lives in:
 
@@ -58,7 +58,7 @@ Important operational/supporting locations outside the app include:
 | install.sh | supported repository/local installation entrypoint |
 | site_setup.sh | supported local site setup/ensure/reset flow |
 | start.sh | local runtime helper |
-| inspection2.md | final forensic audit evidence for the 2026-09-26 baseline |
+| docs/archive/audit/FINAL_FORENSIC_INSPECTION_20260926.md | final forensic audit evidence for the 2026-09-26 baseline |
 
 The deploy/ and scripts/ directories are operational tooling, not application-domain layers.
 
@@ -1383,7 +1383,7 @@ A new developer should usually begin here:
 | Legacy freeze | api/legacy_retirement.py + setup/erpnext_phase12_legacy_retirement.py |
 | Registered upgrade patches | patches.txt |
 | Read-only smoke validation | validation.py |
-| Final forensic evidence | inspection2.md |
+| Final forensic evidence | docs/archive/audit/FINAL_FORENSIC_INSPECTION_20260926.md |
 
 ---
 
