@@ -257,6 +257,7 @@ def _status_fields(doc) -> dict:
         "fbr_qr_code": doc.get("custom_ledgix_fbr_qr_code") or "",
         "fbr_reference": doc.get("custom_ledgix_fbr_reference") or "",
         "fbr_submitted_at": doc.get("custom_ledgix_fbr_submitted_at"),
+        "fbr_generated_at": doc.get("custom_ledgix_fbr_generated_at"),
         "fbr_upload_due_at": doc.get("custom_ledgix_fbr_upload_due_at"),
         "fbr_offline_issued_at": doc.get("custom_ledgix_fbr_offline_issued_at"),
         "fbr_offline_reason": doc.get("custom_ledgix_fbr_offline_reason") or "",
@@ -284,6 +285,7 @@ def mark_native_fbr_status(
     *,
     fbr_invoice_number=None,
     fbr_qr_code=None,
+    fbr_generated_at=None,
     fbr_upload_due_at=None,
     offline_issued_at=None,
     offline_reason=None,
@@ -304,6 +306,8 @@ def mark_native_fbr_status(
         values["custom_ledgix_fbr_reference"] = fbr_invoice_number
     if fbr_qr_code is not None:
         values["custom_ledgix_fbr_qr_code"] = fbr_qr_code
+    if fbr_generated_at is not None:
+        values["custom_ledgix_fbr_generated_at"] = fbr_generated_at
     if fbr_upload_due_at is not None:
         values["custom_ledgix_fbr_upload_due_at"] = fbr_upload_due_at
     if offline_issued_at is not None:
@@ -332,7 +336,7 @@ def _create_log(doc, status: str, *, payload=None, response=None, error_code=Non
     return create_submission_log(
         doc.doctype,
         doc.name,
-        "Credit Note" if cint(doc.get("is_return")) else "Sale Invoice",
+        "Return" if cint(doc.get("is_return")) else "Sale Invoice",
         status,
         request_json=payload,
         response_json=response,
@@ -623,6 +627,11 @@ def submit_native_to_fbr_internal(
             status_name,
             fbr_invoice_number=invoice_number if invoice_number else None,
             fbr_qr_code=qr_code if qr_code else None,
+            fbr_generated_at=(
+                parsed.get("dated")
+                if status_name == "Submitted" and invoice_number
+                else None
+            ),
             error_code=error_code,
             error_message=error_message,
             log_name=log_name,
@@ -639,6 +648,11 @@ def submit_native_to_fbr_internal(
             "response": client_result,
             "fbr_invoice_number": invoice_number,
             "fbr_qr_code": qr_code,
+            "fbr_generated_at": (
+                parsed.get("dated")
+                if status_name == "Submitted" and invoice_number
+                else ""
+            ),
             "error_code": error_code,
             "error_message": error_message,
         }

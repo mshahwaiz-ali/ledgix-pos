@@ -57,7 +57,7 @@ class LedgixFBRCorrectionRequest(Document):
 		if doc.doctype in NATIVE_DOCTYPES:
 			return {
 				"invoice_number": doc.get("custom_ledgix_fbr_invoice_number"),
-				"generated_at": doc.get("custom_ledgix_fbr_submitted_at"),
+				"generated_at": doc.get("custom_ledgix_fbr_generated_at"),
 			}
 		return {
 			"invoice_number": doc.get("fbr_invoice_number"),
@@ -76,7 +76,8 @@ class LedgixFBRCorrectionRequest(Document):
 			self.fbr_generated_at = values.get("generated_at")
 		if not self.fbr_generated_at:
 			frappe.throw(
-				"FBR generation time is unavailable. The 72-hour correction window cannot be calculated safely."
+				"Official FBR generation time is unavailable. The 72-hour correction "
+				"window cannot be calculated safely for a new correction request."
 			)
 		self.fbr_generated_at = get_datetime(self.fbr_generated_at)
 		self.correction_deadline = add_to_date(self.fbr_generated_at, hours=72, as_datetime=True)
@@ -119,6 +120,11 @@ class LedgixFBRCorrectionRequest(Document):
 	def _validate_completion_requirements(self):
 		if self.status != "Completed":
 			return
+		if not str(self.external_evidence or "").strip():
+			frappe.throw(
+				"External Completion Evidence is required before marking an FBR "
+				"correction request Completed."
+			)
 		if not str(self.board_reference or "").strip():
 			frappe.throw("Board Reference is required before marking an FBR correction request Completed.")
 		if self.correction_path == "Commissioner Approval Required" and not str(
