@@ -25,7 +25,12 @@ from ledgix_saas.services.fbr_submission_support import (
 )
 
 SUPPORTED_DOCTYPES = ("Sales Invoice", "POS Invoice")
+OFFLINE_PENDING = "Offline Pending"
 RECONCILIATION_REQUIRED = "Reconciliation Required"
+OFFLINE_PENDING_MESSAGE = (
+    "Invoice is in Known Offline / Offline Pending state. Use the controlled "
+    "offline-upload workflow; generic submission is blocked."
+)
 RECONCILIATION_CONFIRMATION = "CONFIRMED NOT RECEIVED BY FBR"
 RECONCILIATION_MESSAGE = (
     "Production FBR POST outcome may be ambiguous. Reconcile the invoice with "
@@ -253,6 +258,8 @@ def _status_fields(doc) -> dict:
         "fbr_reference": doc.get("custom_ledgix_fbr_reference") or "",
         "fbr_submitted_at": doc.get("custom_ledgix_fbr_submitted_at"),
         "fbr_upload_due_at": doc.get("custom_ledgix_fbr_upload_due_at"),
+        "fbr_offline_issued_at": doc.get("custom_ledgix_fbr_offline_issued_at"),
+        "fbr_offline_reason": doc.get("custom_ledgix_fbr_offline_reason") or "",
         "fbr_error_code": doc.get("custom_ledgix_fbr_error_code") or "",
         "fbr_error_message": doc.get("custom_ledgix_fbr_error_message") or "",
         "fbr_submission_log": doc.get("custom_ledgix_fbr_submission_log") or "",
@@ -278,6 +285,9 @@ def mark_native_fbr_status(
     fbr_invoice_number=None,
     fbr_qr_code=None,
     fbr_upload_due_at=None,
+    offline_issued_at=None,
+    offline_reason=None,
+    clear_upload_due_at: bool = False,
     error_code=None,
     error_message=None,
     log_name=None,
@@ -296,6 +306,12 @@ def mark_native_fbr_status(
         values["custom_ledgix_fbr_qr_code"] = fbr_qr_code
     if fbr_upload_due_at is not None:
         values["custom_ledgix_fbr_upload_due_at"] = fbr_upload_due_at
+    if offline_issued_at is not None:
+        values["custom_ledgix_fbr_offline_issued_at"] = offline_issued_at
+    if offline_reason is not None:
+        values["custom_ledgix_fbr_offline_reason"] = str(
+            offline_reason or ""
+        )[:1000]
     if error_code is not None:
         values["custom_ledgix_fbr_error_code"] = error_code
     if error_message is not None:
@@ -306,7 +322,7 @@ def mark_native_fbr_status(
         values["custom_ledgix_fbr_submit_trigger"] = submit_trigger
     if status in {"Validated", "Submitted"}:
         values["custom_ledgix_fbr_submitted_at"] = now_datetime()
-    if status in {"Submitted", RECONCILIATION_REQUIRED}:
+    if status in {"Submitted", RECONCILIATION_REQUIRED} or clear_upload_due_at:
         values["custom_ledgix_fbr_upload_due_at"] = None
     frappe.db.set_value(doc.doctype, doc.name, values, update_modified=False)
     return _get_status(doc.doctype, doc.name)
@@ -371,7 +387,11 @@ def _lock(doc):
     return submission_lock(f"{doc.doctype}:{doc.name}")
 
 
-def _already_submitted(status: dict) -> dict | None:
+def _already_submitted(
+    status: dict,
+    *,
+    allow_offline_upload: bool = False,
+) -> dict | None:
     if status.get("fbr_status") == RECONCILIATION_REQUIRED:
         return {
             "network_call": False,
@@ -382,6 +402,25 @@ def _already_submitted(status: dict) -> dict | None:
             "fbr_invoice_number": status.get("fbr_invoice_number") or "",
             "fbr_qr_code": status.get("fbr_qr_code") or "",
             "error_message": status.get("fbr_error_message") or RECONCILIATION_MESSAGE,
+        }
+    if (
+        status.get("fbr_status") == OFFLINE_PENDING
+        and not allow_offline_upload
+    ):
+        return {
+            "network_call": False,
+            "status": OFFLINE_PENDING,
+            "reference_status": status,
+            "validation": {
+                "valid": False,
+                "errors": [OFFLINE_PENDING_MESSAGE],
+                "warnings": [],
+            },
+            "response": None,
+            "fbr_invoice_number": "",
+            "fbr_qr_code": status.get("fbr_qr_code") or "",
+            "error_code": "",
+            "error_message": OFFLINE_PENDING_MESSAGE,
         }
     if status.get("fbr_invoice_number"):
         return {
@@ -480,12 +519,24 @@ def validate_native_with_fbr(reference_doctype, reference_name):
     return validate_native_with_fbr_internal(reference_doctype, reference_name)
 
 
-def submit_native_to_fbr_internal(reference_doctype: str, reference_name: str) -> dict:
+def submit_native_to_fbr_internal(
+    reference_doctype: str,
+    reference_name: str,
+    *,
+    allow_offline_upload: bool = False,
+) -> dict:
     doc = _reference(reference_doctype, reference_name)
     if not is_native_fbr_source(doc):
         frappe.throw("FBR submission requires a submitted ERPNext source invoice, not a consolidated POS accounting invoice.")
     current = _get_status(doc.doctype, doc.name)
-    already = _already_submitted(current)
+    if allow_offline_upload and current.get("fbr_status") != OFFLINE_PENDING:
+        frappe.throw(
+            "Controlled offline upload requires an Offline Pending invoice."
+        )
+    already = _already_submitted(
+        current,
+        allow_offline_upload=allow_offline_upload,
+    )
     if already:
         return already
 
@@ -510,10 +561,19 @@ def submit_native_to_fbr_internal(reference_doctype: str, reference_name: str) -
 
     with _lock(doc):
         current = _get_status(doc.doctype, doc.name)
-        already = _already_submitted(current)
+        already = _already_submitted(
+            current,
+            allow_offline_upload=allow_offline_upload,
+        )
         if already:
             return already
         payload, validation, readiness_error = _ready_payload(doc)
+        if readiness_error and allow_offline_upload:
+            return _not_ready(
+                doc,
+                validation,
+                "Offline upload remains pending: " + readiness_error,
+            )
         if readiness_error:
             log_name = _create_log(doc, "Failed", payload=payload, error_message=readiness_error)
             status = mark_native_fbr_status(doc.doctype, doc.name, "Failed", error_message=readiness_error, log_name=log_name)
@@ -566,6 +626,9 @@ def submit_native_to_fbr_internal(reference_doctype: str, reference_name: str) -
             error_code=error_code,
             error_message=error_message,
             log_name=log_name,
+            clear_upload_due_at=bool(
+                allow_offline_upload and client_result.get("network_call")
+            ),
         )
         return {
             "network_call": True,
@@ -734,9 +797,16 @@ def block_cancel_after_fbr_submission(doc, method=None) -> None:
     if not doc or doc.doctype not in SUPPORTED_DOCTYPES:
         return
     status = _status_fields(doc)
-    if status.get("fbr_invoice_number") or status.get("fbr_status") == RECONCILIATION_REQUIRED:
+    if (
+        status.get("fbr_invoice_number")
+        or status.get("fbr_status") in {RECONCILIATION_REQUIRED, OFFLINE_PENDING}
+    ):
         frappe.throw(
-            _("This ERPNext invoice has FBR submission history. Use a native return/Credit Note or FBR correction workflow instead of cancellation.")
+            _(
+                "This ERPNext invoice has FBR submission/offline issuance history. "
+                "Use the controlled offline, native return/note, or FBR correction "
+                "workflow instead of cancellation."
+            )
         )
 
 

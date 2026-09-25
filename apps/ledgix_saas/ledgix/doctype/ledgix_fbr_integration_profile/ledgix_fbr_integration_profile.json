@@ -39,6 +39,8 @@
   "safety_section",
   "production_post_armed",
   "block_sale_if_fbr_fails",
+  "offline_policy",
+  "offline_upload_window_hours",
   "safety_column",
   "pause_reason",
   "reference_section",
@@ -241,6 +243,22 @@
    "fieldname": "block_sale_if_fbr_fails",
    "fieldtype": "Check",
    "label": "Block Submit On FBR Preflight Failure"
+  },
+  {
+   "default": "Disabled",
+   "description": "Known-offline issuance is disabled by default. Enable only after the current FBR/PRAL/licensed-integrator offline rule is confirmed for this client.",
+   "fieldname": "offline_policy",
+   "fieldtype": "Select",
+   "label": "Known Offline Policy",
+   "options": "Disabled\nOperator Confirmed",
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "description": "Client/provider-specific upload window. No legal deadline is hardcoded by Ledgix.",
+   "fieldname": "offline_upload_window_hours",
+   "fieldtype": "Int",
+   "label": "Offline Upload Window (Hours)"
   },
   {
    "fieldname": "safety_column",
