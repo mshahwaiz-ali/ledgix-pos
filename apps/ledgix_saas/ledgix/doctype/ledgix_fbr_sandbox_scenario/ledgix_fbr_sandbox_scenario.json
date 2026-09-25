@@ -57,13 +57,15 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Validate Status",
-   "options": "Pending\nValidated\nFailed"
+   "options": "Pending\nValidated\nFailed",
+   "read_only": 1
   },
   {
    "fieldname": "validation_log",
    "fieldtype": "Link",
    "label": "Validation Log",
-   "options": "Ledgix FBR Submission Log"
+   "options": "Ledgix FBR Submission Log",
+   "read_only": 1
   },
   {
    "default": "Pending",
@@ -71,18 +73,21 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "POST Status",
-   "options": "Pending\nSubmitted\nFailed"
+   "options": "Pending\nSubmitted\nFailed",
+   "read_only": 1
   },
   {
    "fieldname": "post_log",
    "fieldtype": "Link",
    "label": "POST Log",
-   "options": "Ledgix FBR Submission Log"
+   "options": "Ledgix FBR Submission Log",
+   "read_only": 1
   },
   {
    "fieldname": "fbr_invoice_number",
    "fieldtype": "Data",
-   "label": "Sandbox FBR Invoice Number"
+   "label": "Sandbox FBR Invoice Number",
+   "read_only": 1
   },
   {
    "fieldname": "completed_at",

@@ -7,6 +7,8 @@ ERPNext-authoritative identity resolver, native tax collector, V2 mappings and
 cached official FBR reference evidence into one fail-closed readiness report.
 """
 
+import json
+
 import frappe
 from frappe.utils import cint, flt, getdate
 from frappe.utils.password import get_decrypted_password
@@ -23,6 +25,8 @@ PROFILE_DOCTYPE = "Ledgix FBR Integration Profile"
 CERTIFICATION_DOCTYPE = "Ledgix FBR Sandbox Certification"
 REFERENCE_DOCTYPE = "Ledgix FBR Reference Data"
 MONEY_TOLERANCE = 0.011
+SUBMISSION_LOG_DOCTYPE = "Ledgix FBR Submission Log"
+SANDBOX_STATUS_BY_OPERATION = {"validate": "Validated", "post": "Submitted"}
 
 
 def _text(value) -> str:
@@ -118,12 +122,161 @@ def _profile_state(profile) -> dict:
     }
 
 
-def _sandbox_certification(profile) -> dict:
+def _safe_json(value) -> dict:
+    if not value:
+        return {}
+    if isinstance(value, dict):
+        return value
+    try:
+        parsed = json.loads(value)
+    except Exception:
+        return {}
+    return parsed if isinstance(parsed, dict) else {}
+
+
+def _empty_sandbox_proof(reason: str = "") -> dict:
+    return {
+        "proven": False,
+        "log_name": "",
+        "status": "",
+        "submitted_at": "",
+        "fbr_invoice_number": "",
+        "reason": reason,
+    }
+
+
+def find_sandbox_proof(
+    reference_doctype: str,
+    reference_name: str,
+    operation: str,
+    *,
+    company: str,
+    profile_name: str,
+) -> dict:
+    # Only persisted, company/profile-scoped real Sandbox network proof is accepted.
+    reference_doctype = _text(reference_doctype)
+    reference_name = _text(reference_name)
+    operation = _text(operation).lower()
+    company = _text(company)
+    profile_name = _text(profile_name)
+
+    if operation not in SANDBOX_STATUS_BY_OPERATION:
+        return _empty_sandbox_proof("Unsupported Sandbox proof operation.")
+    if reference_doctype not in SUPPORTED_DOCTYPES or not reference_name:
+        return _empty_sandbox_proof("Representative ERPNext invoice is missing.")
+    if not company or not profile_name:
+        return _empty_sandbox_proof("Company/profile scope is missing.")
+    if not frappe.db.exists(reference_doctype, reference_name):
+        return _empty_sandbox_proof("Representative ERPNext invoice does not exist.")
+    if _text(frappe.db.get_value(reference_doctype, reference_name, "company")) != company:
+        return _empty_sandbox_proof("Representative invoice belongs to another company.")
+    if not frappe.db.exists("DocType", SUBMISSION_LOG_DOCTYPE):
+        return _empty_sandbox_proof("FBR Submission Log is unavailable.")
+
+    rows = frappe.get_all(
+        SUBMISSION_LOG_DOCTYPE,
+        filters={
+            "reference_doctype": reference_doctype,
+            "reference_name": reference_name,
+        },
+        fields=[
+            "name",
+            "fbr_status",
+            "fbr_invoice_number",
+            "submitted_at",
+            "response_json",
+        ],
+        order_by="submitted_at desc, modified desc",
+        limit_page_length=0,
+    )
+    expected_status = SANDBOX_STATUS_BY_OPERATION[operation]
+    for row in rows:
+        response = _safe_json(row.get("response_json"))
+        if _text(response.get("fbr_mode")) != "Sandbox":
+            continue
+        if _text(response.get("fbr_operation")).lower() != operation:
+            continue
+        if _text(response.get("company")) != company:
+            continue
+        if _text(response.get("profile_name")) != profile_name:
+            continue
+        if _text(row.get("fbr_status")) != expected_status:
+            continue
+        if response.get("network_call") is not True or response.get("success") is not True:
+            continue
+        return {
+            "proven": True,
+            "log_name": row.get("name") or "",
+            "status": row.get("fbr_status") or "",
+            "submitted_at": str(row.get("submitted_at") or ""),
+            "fbr_invoice_number": row.get("fbr_invoice_number") or "",
+            "reason": "",
+        }
+
+    return _empty_sandbox_proof(
+        f"No persisted successful Sandbox {operation} proof matches this company/profile/invoice."
+    )
+
+
+def sandbox_certification_evidence(profile, certification) -> dict:
+    # Derive certification truth from persisted Sandbox transport evidence.
+    if not profile or not certification:
+        return {
+            "evidence_complete": False,
+            "required_count": 0,
+            "scenarios": [],
+        }
+
+    company = _text(profile.get("company"))
+    profile_name = _text(profile.name)
+    results = []
+
+    for scenario in certification.get("scenarios") or []:
+        required = bool(cint(scenario.get("required")))
+        reference_doctype = _text(scenario.get("representative_doctype"))
+        reference_name = _text(scenario.get("representative_name"))
+        validate_proof = find_sandbox_proof(
+            reference_doctype,
+            reference_name,
+            "validate",
+            company=company,
+            profile_name=profile_name,
+        )
+        post_proof = find_sandbox_proof(
+            reference_doctype,
+            reference_name,
+            "post",
+            company=company,
+            profile_name=profile_name,
+        )
+        results.append(
+            {
+                "scenario_id": _text(scenario.get("scenario_id")),
+                "required": required,
+                "reference_doctype": reference_doctype,
+                "reference_name": reference_name,
+                "validate": validate_proof,
+                "post": post_proof,
+                "complete": bool(validate_proof["proven"] and post_proof["proven"]),
+            }
+        )
+
+    required_rows = [row for row in results if row["required"]]
+    evidence_complete = bool(required_rows) and all(row["complete"] for row in required_rows)
+    return {
+        "evidence_complete": evidence_complete,
+        "required_count": len(required_rows),
+        "scenarios": results,
+    }
+
+
+def get_sandbox_certification_state(profile) -> dict:
     if not profile:
         return {
             "name": "",
             "status": "",
             "evidence_complete": False,
+            "stored_evidence_complete": False,
             "complete": False,
         }
 
@@ -139,17 +292,26 @@ def _sandbox_certification(profile) -> dict:
             "name": "",
             "status": "",
             "evidence_complete": False,
+            "stored_evidence_complete": False,
             "complete": False,
         }
 
     row = rows[0]
-    complete = row.get("status") == "Complete" and bool(cint(row.get("evidence_complete")))
+    certification = frappe.get_doc(CERTIFICATION_DOCTYPE, row.get("name"))
+    evidence = sandbox_certification_evidence(profile, certification)
+    derived_complete = bool(evidence.get("evidence_complete"))
+    complete = row.get("status") == "Complete" and derived_complete
     return {
         "name": row.get("name") or "",
         "status": row.get("status") or "",
-        "evidence_complete": bool(cint(row.get("evidence_complete"))),
+        "evidence_complete": derived_complete,
+        "stored_evidence_complete": bool(cint(row.get("evidence_complete"))),
         "complete": complete,
     }
+
+
+def _sandbox_certification(profile) -> dict:
+    return get_sandbox_certification_state(profile)
 
 
 def get_company_profile_state(company: str) -> dict:

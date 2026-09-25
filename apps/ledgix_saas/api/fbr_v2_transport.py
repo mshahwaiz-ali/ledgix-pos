@@ -15,6 +15,7 @@ from frappe.utils import cint
 from frappe.utils.password import get_decrypted_password
 
 from ledgix_saas.api import fbr_transport
+from ledgix_saas.services import fbr_v2_readiness
 
 
 PROFILE_DOCTYPE = "Ledgix FBR Integration Profile"
@@ -84,41 +85,8 @@ def _token(profile, mode: str) -> str:
 
 
 def _production_certification(profile) -> dict:
-    # Independent transport-side proof that Sandbox certification is complete.
-    if not profile:
-        return {
-            "name": "",
-            "status": "",
-            "evidence_complete": False,
-            "complete": False,
-        }
-
-    rows = frappe.get_all(
-        CERTIFICATION_DOCTYPE,
-        filters={"integration_profile": profile.name},
-        fields=["name", "status", "evidence_complete", "modified"],
-        order_by="modified desc",
-        limit_page_length=1,
-    )
-    if not rows:
-        return {
-            "name": "",
-            "status": "",
-            "evidence_complete": False,
-            "complete": False,
-        }
-
-    row = rows[0]
-    complete = (
-        _text(row.get("status")) == "Complete"
-        and bool(cint(row.get("evidence_complete")))
-    )
-    return {
-        "name": row.get("name") or "",
-        "status": row.get("status") or "",
-        "evidence_complete": bool(cint(row.get("evidence_complete"))),
-        "complete": complete,
-    }
+    # Fail closed on re-derived, company/profile-scoped Sandbox evidence.
+    return fbr_v2_readiness.get_sandbox_certification_state(profile)
 
 
 def _transport_context(

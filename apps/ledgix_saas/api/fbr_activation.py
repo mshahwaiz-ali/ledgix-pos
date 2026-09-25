@@ -203,7 +203,7 @@ def _native_reference_is_return(doctype: str, name: str) -> bool:
     return bool(cint(frappe.db.get_value(doctype, name, "is_return") or 0))
 
 
-def _sandbox_proof_summary() -> dict:
+def _sandbox_proof_summary(company: str, profile_name: str) -> dict:
     summary = {
         "Sales Invoice": {"validate": 0, "post": 0},
         "POS Invoice": {"validate": 0, "post": 0},
@@ -211,6 +211,10 @@ def _sandbox_proof_summary() -> dict:
         "latest_success_at": "",
         "successful_log_names": [],
     }
+    company = str(company or "").strip()
+    profile_name = str(profile_name or "").strip()
+    if not company or not profile_name:
+        return summary
     if not frappe.db.exists("DocType", "Ledgix FBR Submission Log"):
         return summary
 
@@ -232,19 +236,29 @@ def _sandbox_proof_summary() -> dict:
         response = _safe_json(row.get("response_json"))
         if str(response.get("fbr_mode") or "") != "Sandbox":
             continue
+        if str(response.get("company") or "").strip() != company:
+            continue
+        if str(response.get("profile_name") or "").strip() != profile_name:
+            continue
+
         operation = str(response.get("fbr_operation") or "").strip().lower()
         if operation not in {"validate", "post"}:
             continue
-        if row.get("fbr_status") not in SUCCESSFUL_SANDBOX_STATUSES:
+        expected_status = "Validated" if operation == "validate" else "Submitted"
+        if row.get("fbr_status") != expected_status:
             continue
-        if not response.get("network_call") or not response.get("success"):
+        if response.get("network_call") is not True or response.get("success") is not True:
             continue
 
         doctype = row.get("reference_doctype")
+        reference_name = row.get("reference_name")
         if doctype not in NATIVE_DOCTYPES:
             continue
+        if str(frappe.db.get_value(doctype, reference_name, "company") or "").strip() != company:
+            continue
+
         summary[doctype][operation] += 1
-        if _native_reference_is_return(doctype, row.get("reference_name")):
+        if _native_reference_is_return(doctype, reference_name):
             summary["return"][operation] += 1
         if row.get("name"):
             summary["successful_log_names"].append(row.get("name"))
@@ -255,14 +269,21 @@ def _sandbox_proof_summary() -> dict:
     return summary
 
 
-def _reconciliation_summary() -> dict:
+def _reconciliation_summary(company: str) -> dict:
+    company = str(company or "").strip()
     rows = []
+    if not company:
+        return {"count": 0, "references": rows}
     for doctype in NATIVE_DOCTYPES:
         if not frappe.db.exists("DocType", doctype):
             continue
         names = frappe.get_all(
             doctype,
-            filters={"docstatus": 1, "custom_ledgix_fbr_status": "Reconciliation Required"},
+            filters={
+                "docstatus": 1,
+                "company": company,
+                "custom_ledgix_fbr_status": "Reconciliation Required",
+            },
             pluck="name",
             limit_page_length=0,
         )
@@ -310,8 +331,11 @@ def evaluate_fbr_activation_readiness(
     production_operational = client_readiness.evaluate_client_readiness(strict_evidence=1)
     features = dict(operational.get("features") or {})
     settings = get_v2_configuration_summary_internal(operational)
-    proof = _sandbox_proof_summary()
-    reconciliation = _reconciliation_summary()
+    proof = _sandbox_proof_summary(
+        settings.get("company") or "",
+        settings.get("profile_name") or "",
+    )
+    reconciliation = _reconciliation_summary(settings.get("company") or "")
     backup = _backup_summary(max_backup_age)
     require_pos = bool(features.get("enable_pos"))
 
