@@ -52,6 +52,12 @@ def _audit_read(role):
 	return _perm(role, read=1, report=1, export=1, print=1)
 
 
+def _evidence_read(role):
+	# Immutable/audit evidence may be viewed, exported/shared/printed/emailed,
+	# but normal Desk roles must never mutate the underlying record.
+	return _perm(role, read=1, report=1, export=1, share=1, print=1, email=1)
+
+
 def _rw(role):
 	return _perm(role, read=1, write=1, create=1, print=1, email=1)
 
@@ -95,7 +101,7 @@ DOCTYPE_PERMISSIONS = {
 	"Ledgix Stock Serial": _rows(_full("System Manager"), _full("Ledgix Admin"), _read("Ledgix Manager"), _read("Ledgix Cashier")),
 	"Ledgix Stock Lot": _rows(_full("System Manager"), _full("Ledgix Admin"), _read("Ledgix Manager")),
 	"Ledgix Stock Lot Allocation": _rows(_full("System Manager"), _full("Ledgix Admin"), _read("Ledgix Manager")),
-	"Ledgix FBR Submission Log": _rows(_full("System Manager"), _full("Ledgix Admin"), _read("Ledgix Manager")),
+	"Ledgix FBR Submission Log": _rows(_evidence_read("System Manager"), _evidence_read("Ledgix Admin"), _read("Ledgix Manager")),
 	"Ledgix Tax Audit Log": _rows(_audit_read("System Manager"), _audit_read("Ledgix Admin")),
 	"Ledgix Invoice Tax Detail": _rows(_audit_read("System Manager"), _audit_read("Ledgix Admin"), _audit_read("Ledgix Manager")),
 	"Ledgix Return Tax Detail": _rows(_audit_read("System Manager"), _audit_read("Ledgix Admin"), _audit_read("Ledgix Manager")),
