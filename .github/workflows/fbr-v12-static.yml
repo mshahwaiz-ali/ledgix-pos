@@ -1,0 +1,54 @@
+name: FBR V1.2 static gate
+
+on:
+  pull_request:
+    paths:
+      - "apps/fbr_v12/**"
+      - ".github/workflows/fbr-v12-static.yml"
+  workflow_dispatch:
+
+jobs:
+  static:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Compile Python
+        run: python -m compileall -q apps/fbr_v12
+
+      - name: Validate JSON and pyproject
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import pathlib
+          import tomllib
+
+          root = pathlib.Path("apps/fbr_v12")
+          tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
+
+          for path in root.rglob("*.json"):
+              json.loads(path.read_text(encoding="utf-8"))
+
+          print("FBR V1.2 JSON + pyproject validation passed")
+          PY
+
+      - name: Reject hard Ledgix package imports
+        shell: bash
+        run: |
+          if grep -R -n -E '(^|[[:space:]])(from|import)[[:space:]]+ledgix_saas' apps/fbr_v12; then
+            echo "Hard ledgix_saas import found in standalone app"
+            exit 1
+          fi
+
+      - name: Reject old module ownership
+        shell: bash
+        run: |
+          if grep -R -n '"module"[[:space:]]*:[[:space:]]*"Ledgix"' apps/fbr_v12/fbr_v12/fbr_v12; then
+            echo "Old Ledgix module ownership found in FBR V1.2 metadata"
+            exit 1
+          fi
