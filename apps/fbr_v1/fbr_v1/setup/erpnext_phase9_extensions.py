@@ -2,14 +2,14 @@ from __future__ import annotations
 
 """Phase 9 metadata for ERPNext-native FBR source authority.
 
-ERPNext Sales Invoice / POS Invoice remain the transaction authority. FBR V1.2
+ERPNext Sales Invoice / POS Invoice remain the transaction authority. FBR V1
 owns only FBR transmission/audit metadata and the existing FBR Submission Log.
 """
 
 import frappe
 from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 
-MODULE = "FBR V12"
+MODULE = "FBR V1"
 FBR_STATUS_OPTIONS = "\n".join(
     [
         "Not Submitted",

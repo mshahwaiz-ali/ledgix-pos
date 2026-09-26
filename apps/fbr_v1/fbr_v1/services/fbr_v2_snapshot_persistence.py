@@ -6,8 +6,8 @@ import json
 import frappe
 from frappe.utils import cint, now_datetime
 
-from fbr_v12.services import erpnext_fbr_identity
-from fbr_v12.services.erpnext_fbr_snapshot import (
+from fbr_v1.services import erpnext_fbr_identity
+from fbr_v1.services.erpnext_fbr_snapshot import (
     SUPPORTED_DOCTYPES,
     collect_native_tax_breakdown,
 )

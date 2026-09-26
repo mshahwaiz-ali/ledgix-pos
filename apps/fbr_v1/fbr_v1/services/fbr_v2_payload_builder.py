@@ -16,7 +16,7 @@ only as explicit certification context; it is never read from an item mapping.
 import frappe
 from frappe.utils import cint, flt, getdate
 
-from fbr_v12.services import fbr_v2_readiness
+from fbr_v1.services import fbr_v2_readiness
 
 
 SUPPORTED_DOCTYPES = {"Sales Invoice", "POS Invoice"}

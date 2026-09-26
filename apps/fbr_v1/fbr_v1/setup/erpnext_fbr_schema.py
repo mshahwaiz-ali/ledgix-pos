@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""ERPNext schema owned by the standalone FBR V1.2 app.
+"""ERPNext schema owned by the standalone FBR V1 app.
 
 Existing fieldnames are deliberately preserved so an installed Ledgix site can
 transition without copying or renaming invoice/customer FBR data.
@@ -10,7 +10,7 @@ import frappe
 from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 from frappe.custom.doctype.property_setter.property_setter import make_property_setter
 
-CUSTOM_FIELD_MODULE = "FBR V12"
+CUSTOM_FIELD_MODULE = "FBR V1"
 THIRD_SCHEDULE_CHARGE_TYPE = "On Notified Retail Price"
 THIRD_SCHEDULE_CHARGE_DOCTYPE = "Sales Taxes and Charges"
 THIRD_SCHEDULE_CHARGE_FIELD = "charge_type"
@@ -561,7 +561,7 @@ def sync_custom_fields() -> int:
     missing = [doctype for doctype in CUSTOM_FIELDS if not frappe.db.exists("DocType", doctype)]
     if missing:
         frappe.throw(
-            "FBR V1.2 ERPNext schema cannot be installed; missing DocTypes: "
+            "FBR V1 ERPNext schema cannot be installed; missing DocTypes: "
             + ", ".join(missing)
         )
     create_custom_fields(CUSTOM_FIELDS, update=True)

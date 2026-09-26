@@ -11,8 +11,8 @@ import frappe
 from frappe.utils import cint, flt, getdate
 from frappe.utils.password import get_decrypted_password
 
-from fbr_v12.api import fbr_reference_v2
-from fbr_v12.services import (
+from fbr_v1.api import fbr_reference_v2
+from fbr_v1.services import (
     erpnext_fbr_identity,
     fbr_v2_snapshot_persistence,
 )

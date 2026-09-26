@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-"""Install/migrate synchronization for the standalone FBR V1.2 app.
+"""Install/migrate synchronization for the standalone FBR V1 app.
 
 No FBR network request is made here. These synchronizers only establish
 ERPNext custom fields, the Third Schedule charge type, runtime metadata and
 native print formats.
 """
 
-from fbr_v12.setup import erpnext_fbr_schema, erpnext_phase9_extensions, print_formats
+from fbr_v1.setup import erpnext_fbr_schema, erpnext_phase9_extensions, print_formats
 
 
 def sync_all() -> dict:
