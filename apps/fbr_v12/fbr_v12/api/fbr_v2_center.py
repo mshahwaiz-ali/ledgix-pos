@@ -13,8 +13,8 @@ from frappe.utils import cint
 from fbr_v12.services.fbr_v2_readiness import evaluate_invoice_readiness
 
 
-VIEW_ROLES = {"System Manager", "Ledgix Admin", "Ledgix Manager"}
-ADMIN_ROLES = {"System Manager", "Ledgix Admin"}
+VIEW_ROLES = {"System Manager", "Accounts Manager", "Accounts User", "Sales Manager", "Ledgix Admin", "Ledgix Manager"}
+ADMIN_ROLES = {"System Manager", "Accounts Manager", "Ledgix Admin"}
 
 PROFILE_DOCTYPE = "Ledgix FBR Integration Profile"
 ITEM_MAPPING_DOCTYPE = "Ledgix FBR Item Mapping"
