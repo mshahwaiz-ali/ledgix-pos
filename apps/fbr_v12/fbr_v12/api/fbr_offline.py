@@ -20,8 +20,8 @@ OFFLINE_PENDING = fbr_native.OFFLINE_PENDING
 DECLARE_OFFLINE_CONFIRMATION = "DECLARE KNOWN OFFLINE"
 UPLOAD_OFFLINE_CONFIRMATION = "UPLOAD OFFLINE INVOICE"
 
-VIEW_ROLES = {"System Manager", "Ledgix Admin", "Ledgix Manager"}
-ACTION_ROLES = {"System Manager", "Ledgix Admin"}
+VIEW_ROLES = {"System Manager", "Accounts Manager", "Accounts User", "Sales Manager", "Ledgix Admin", "Ledgix Manager"}
+ACTION_ROLES = {"System Manager", "Accounts Manager", "Ledgix Admin"}
 
 
 def _text(value) -> str:
