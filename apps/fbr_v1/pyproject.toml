@@ -1,0 +1,32 @@
+[project]
+name = "fbr_v12"
+authors = [{ name = "Ali", email = "alishahwaiz96@gmail.com" }]
+description = "ERPNext integration for FBR Digital Invoicing V1.2"
+requires-python = ">=3.10"
+dynamic = ["version"]
+dependencies = [
+    "requests>=2.31,<3",
+    "PyQRCode>=1.2.1,<2",
+]
+
+[tool.setuptools.dynamic]
+version = { attr = "fbr_v12.__version__" }
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["fbr_v12*"]
+
+[tool.setuptools.package-data]
+"fbr_v12" = ["*.json", "*.md", "*.txt", "*.html", "*.css", "*.js", "*.xml", "modules.txt", "patches.txt", "public/**/*", "fixtures/**/*"]
+"fbr_v12.fbr_v12" = ["**/*.json", "**/*.js", "**/*.css", "**/*.html", "**/*.md", "**/*.txt", "**/*.xml", "**/*.png", "**/*.svg", "**/*.jpg", "**/*.jpeg", "**/*.gif", "**/*.ico", "**/*.csv"]
+
+[tool.setuptools.exclude-package-data]
+"*" = ["**/__pycache__/*", "**/*.pyc"]
+
+[tool.bench.frappe-dependencies]
+frappe = ">=15.0.0,<16.0.0"
+erpnext = ">=15.0.0,<16.0.0"
