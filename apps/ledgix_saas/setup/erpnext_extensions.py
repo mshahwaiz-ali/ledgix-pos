@@ -533,13 +533,10 @@ def _invoice_item_fbr_v2_snapshot_fields() -> list[dict]:
     ]
 
 
-CUSTOM_FIELDS = {
-    "Customer": CUSTOMER_FBR_FIELDS,
-    "Sales Invoice": _invoice_fbr_fields() + _invoice_fbr_v2_snapshot_fields(),
-    "POS Invoice": _invoice_fbr_fields() + _invoice_fbr_v2_snapshot_fields(),
-    "Sales Invoice Item": _invoice_item_fbr_fields() + _invoice_item_fbr_v2_snapshot_fields(),
-    "POS Invoice Item": _invoice_item_fbr_fields() + _invoice_item_fbr_v2_snapshot_fields(),
-}
+# FBR-owned ERPNext fields moved to the standalone fbr_v12 app.
+# Keep the historical builders above temporarily for migration/reference only;
+# Ledgix must no longer create or re-own those fields during ordinary migrate.
+CUSTOM_FIELDS = {}
 
 
 def _perm(**values) -> dict:
@@ -959,16 +956,17 @@ def sync_business_profile_defaults() -> str:
 
 
 def sync_all() -> dict:
-    """Install/update the Phase 3 contract without creating duplicate masters."""
+    """Synchronize Ledgix-owned ERPNext extensions only.
 
-    sales_tax_charge_type = sync_sales_tax_charge_type_extension()
-    custom_field_count = sync_custom_fields()
+    FBR custom fields and the Third Schedule charge type are owned by fbr_v12.
+    """
+
     permission_doctypes_changed = sync_erpnext_role_permissions()
     business_profile = sync_business_profile_defaults()
     frappe.clear_cache()
     return {
-        "sales_tax_charge_type": sales_tax_charge_type,
-        "custom_fields_expected": custom_field_count,
+        "fbr_schema_owner": "fbr_v12",
+        "custom_fields_expected": 0,
         "permission_doctypes_changed": permission_doctypes_changed,
         "business_profile": business_profile,
     }
