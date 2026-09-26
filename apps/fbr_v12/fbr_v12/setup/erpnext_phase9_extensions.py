@@ -2,14 +2,14 @@ from __future__ import annotations
 
 """Phase 9 metadata for ERPNext-native FBR source authority.
 
-ERPNext Sales Invoice / POS Invoice remain the transaction authority. Ledgix
+ERPNext Sales Invoice / POS Invoice remain the transaction authority. FBR V1.2
 owns only FBR transmission/audit metadata and the existing FBR Submission Log.
 """
 
 import frappe
 from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 
-MODULE = "Ledgix"
+MODULE = "FBR V12"
 FBR_STATUS_OPTIONS = "\n".join(
     [
         "Not Submitted",
