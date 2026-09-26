@@ -8,9 +8,7 @@ from ledgix_saas.api.product_shell import (
     WORKSPACE_CARDS,
     WORKSPACE_LINK_POLICY,
     WORKSPACE_SHORTCUT_POLICY,
-    build_product_context,
 )
-from ledgix_saas.setup.erpnext_extensions import get_effective_business_features
 
 
 WORKSPACE_NAME = "Ledgix"
@@ -36,14 +34,18 @@ LEGACY_OPERATIONAL_TARGETS = {
 
 
 def desired_role_home_pages() -> dict[str, str]:
-    features = get_effective_business_features()
-    cashier = build_product_context(roles=["Ledgix Cashier"], features=features)
+    # Role.home_page participates in Frappe website-root resolution, not only
+    # Desk routing. Desk Page/Workspace names here can make "/" resolve them as
+    # website routes and produce a 404 for authenticated users.
+    #
+    # Keep these blank. Frappe sends System Users to the normal Desk default
+    # path, and the Phase 11 client shell applies profile-aware Ledgix landing
+    # after Desk has loaded.
     return {
-        "Ledgix Cashier": cashier["landing_route"],
-        "Ledgix Manager": WORKSPACE_NAME,
-        "Ledgix Admin": WORKSPACE_NAME,
+        "Ledgix Cashier": "",
+        "Ledgix Manager": "",
+        "Ledgix Admin": "",
     }
-
 
 def sync_role_home_pages() -> dict[str, str]:
     desired = desired_role_home_pages()
