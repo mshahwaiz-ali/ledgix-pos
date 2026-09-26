@@ -1,6 +1,6 @@
 {
  "charts": [],
- "content": "[{\"id\":\"header_quick\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Quick Actions</b></span>\",\"col\":12}},{\"id\":\"quick_pos\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Ledgix POS\",\"col\":3}},{\"id\":\"quick_sales_invoice\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Sales Invoice\",\"col\":3}},{\"id\":\"quick_purchase_invoice\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Purchase Invoice\",\"col\":3}},{\"id\":\"quick_payment_entry\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Payment Entry\",\"col\":3}},{\"id\":\"header_finance\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Management & Accounting</b></span>\",\"col\":12}},{\"id\":\"finance_pnl\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Profit & Loss\",\"col\":3}},{\"id\":\"finance_gross_profit\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gross Profit\",\"col\":3}},{\"id\":\"finance_balance_sheet\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Balance Sheet\",\"col\":3}},{\"id\":\"finance_cash_flow\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Cash Flow\",\"col\":3}},{\"id\":\"finance_receivable\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Accounts Receivable\",\"col\":3}},{\"id\":\"finance_payable\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Accounts Payable\",\"col\":3}},{\"id\":\"finance_ledger\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"General Ledger\",\"col\":3}},{\"id\":\"finance_stock_balance\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Stock Balance\",\"col\":3}},{\"id\":\"header_business\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Business Areas</b></span>\",\"col\":12}},{\"id\":\"business_card_1\",\"type\":\"card\",\"data\":{\"card_name\":\"Sales & POS\",\"col\":6}},{\"id\":\"business_card_2\",\"type\":\"card\",\"data\":{\"card_name\":\"Sales Operations\",\"col\":6}},{\"id\":\"business_card_3\",\"type\":\"card\",\"data\":{\"card_name\":\"Buying & Suppliers\",\"col\":6}},{\"id\":\"business_card_4\",\"type\":\"card\",\"data\":{\"card_name\":\"Catalog & Pricing\",\"col\":6}},{\"id\":\"business_card_5\",\"type\":\"card\",\"data\":{\"card_name\":\"Inventory Operations\",\"col\":6}},{\"id\":\"business_card_6\",\"type\":\"card\",\"data\":{\"card_name\":\"Stock & Inventory Reports\",\"col\":6}},{\"id\":\"business_card_7\",\"type\":\"card\",\"data\":{\"card_name\":\"Financial Statements\",\"col\":6}},{\"id\":\"business_card_8\",\"type\":\"card\",\"data\":{\"card_name\":\"Accounting Operations\",\"col\":6}},{\"id\":\"business_card_9\",\"type\":\"card\",\"data\":{\"card_name\":\"Reports & Insights\",\"col\":6}},{\"id\":\"business_card_10\",\"type\":\"card\",\"data\":{\"card_name\":\"Tax Configuration\",\"col\":6}},{\"id\":\"business_card_11\",\"type\":\"card\",\"data\":{\"card_name\":\"FBR & Compliance\",\"col\":6}},{\"id\":\"business_card_12\",\"type\":\"card\",\"data\":{\"card_name\":\"Administration\",\"col\":6}}]",
+ "content": "[{\"id\":\"header_quick\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Quick Actions</b></span>\",\"col\":12}},{\"id\":\"quick_pos\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Ledgix POS\",\"col\":3}},{\"id\":\"quick_sales_invoice\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Sales Invoice\",\"col\":3}},{\"id\":\"quick_purchase_invoice\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Purchase Invoice\",\"col\":3}},{\"id\":\"quick_payment_entry\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Payment Entry\",\"col\":3}},{\"id\":\"header_finance\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Management & Accounting</b></span>\",\"col\":12}},{\"id\":\"finance_pnl\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Profit & Loss\",\"col\":3}},{\"id\":\"finance_gross_profit\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gross Profit\",\"col\":3}},{\"id\":\"finance_balance_sheet\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Balance Sheet\",\"col\":3}},{\"id\":\"finance_cash_flow\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Cash Flow\",\"col\":3}},{\"id\":\"finance_receivable\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Accounts Receivable\",\"col\":3}},{\"id\":\"finance_payable\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Accounts Payable\",\"col\":3}},{\"id\":\"finance_ledger\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"General Ledger\",\"col\":3}},{\"id\":\"finance_stock_balance\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Stock Balance\",\"col\":3}},{\"id\":\"header_business\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Business Areas</b></span>\",\"col\":12}},{\"id\":\"business_card_1\",\"type\":\"card\",\"data\":{\"card_name\":\"Sales & POS\",\"col\":6}},{\"id\":\"business_card_2\",\"type\":\"card\",\"data\":{\"card_name\":\"Sales Operations\",\"col\":6}},{\"id\":\"business_card_3\",\"type\":\"card\",\"data\":{\"card_name\":\"Buying & Suppliers\",\"col\":6}},{\"id\":\"business_card_4\",\"type\":\"card\",\"data\":{\"card_name\":\"Catalog & Pricing\",\"col\":6}},{\"id\":\"business_card_5\",\"type\":\"card\",\"data\":{\"card_name\":\"Inventory Operations\",\"col\":6}},{\"id\":\"business_card_6\",\"type\":\"card\",\"data\":{\"card_name\":\"Stock & Inventory Reports\",\"col\":6}},{\"id\":\"business_card_7\",\"type\":\"card\",\"data\":{\"card_name\":\"Financial Statements\",\"col\":6}},{\"id\":\"business_card_8\",\"type\":\"card\",\"data\":{\"card_name\":\"Accounting Operations\",\"col\":6}},{\"id\":\"business_card_9\",\"type\":\"card\",\"data\":{\"card_name\":\"Reports & Insights\",\"col\":6}},{\"id\":\"business_card_10\",\"type\":\"card\",\"data\":{\"card_name\":\"Tax Configuration\",\"col\":6}},{\"id\":\"business_card_12\",\"type\":\"card\",\"data\":{\"card_name\":\"Administration\",\"col\":6}}]",
  "custom_blocks": [],
  "docstatus": 0,
  "doctype": "Workspace",
@@ -596,96 +596,6 @@
    "label": "Accounts",
    "link_count": 0,
    "link_to": "Account",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "description": "",
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "FBR & Compliance",
-   "link_count": 8,
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Card Break"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Tax & FBR Center",
-   "link_count": 0,
-   "link_to": "ledgix-tax-center",
-   "link_type": "Page",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "FBR Integration Profiles",
-   "link_count": 0,
-   "link_to": "Ledgix FBR Integration Profile",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "FBR Item Mappings",
-   "link_count": 0,
-   "link_to": "Ledgix FBR Item Mapping",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "FBR Tax Component Mappings",
-   "link_count": 0,
-   "link_to": "Ledgix FBR Tax Component Mapping",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "FBR Reference Data",
-   "link_count": 0,
-   "link_to": "Ledgix FBR Reference Data",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "FBR Sandbox Certifications",
-   "link_count": 0,
-   "link_to": "Ledgix FBR Sandbox Certification",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "FBR Submission Logs",
-   "link_count": 0,
-   "link_to": "Ledgix FBR Submission Log",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "FBR Correction Requests",
-   "link_count": 0,
-   "link_to": "Ledgix FBR Correction Request",
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
