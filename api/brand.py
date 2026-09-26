@@ -6,10 +6,10 @@ import frappe
 
 SETTINGS_DOCTYPE = "Ledgix Brand Settings"
 DEFAULT_PRIMARY_COLOR = "#8C2031"
-DEFAULT_SYMBOL_LOGO = "/assets/ledgix_saas/images/brand/ledgix-symbol.svg"
-DEFAULT_FULL_LOGO = "/assets/ledgix_saas/images/brand/ledgix-lockup.svg"
+DEFAULT_SYMBOL_LOGO = "/assets/ledgix_saas/images/brand/ledgix-symbol.png"
+DEFAULT_FULL_LOGO = "/assets/ledgix_saas/images/brand/ledgix-lockup.png"
 DEFAULT_SPLASH_LOGO = DEFAULT_SYMBOL_LOGO
-DEFAULT_FAVICON_LOGO = "/assets/ledgix_saas/images/brand/ledgix-favicon.svg"
+DEFAULT_FAVICON_LOGO = DEFAULT_SYMBOL_LOGO
 
 
 def _asset_url(path: str | None) -> str:
@@ -80,12 +80,8 @@ def get_desk_logo_url() -> str:
 
 
 def get_splash_logo_url() -> str:
-	brand = get_brand_settings()
-	if brand.get("has_custom_symbol"):
-		return brand["symbol_logo_url"]
-	if brand.get("has_custom_full"):
-		return brand["full_logo_url"]
-	return DEFAULT_SPLASH_LOGO
+	# Splash always uses the compact Ledgix symbol.
+	return get_brand_settings()["symbol_logo_url"]
 
 
 def extend_bootinfo(bootinfo):

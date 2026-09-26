@@ -1,7 +1,7 @@
 (function () {
 	"use strict";
 
-	const DEFAULT_SYMBOL_LOGO = "/assets/ledgix_saas/images/brand/ledgix-symbol.svg";
+	const DEFAULT_SYMBOL_LOGO = "/assets/ledgix_saas/images/brand/ledgix-symbol.png";
 	const LOGO_CLASS = "lx-workspace-sidebar-brand-image";
 	let scheduled = false;
 	let observer = null;
