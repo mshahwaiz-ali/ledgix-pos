@@ -22,7 +22,7 @@ from fbr_v12.api import client_readiness, fbr_transport
 from fbr_v12.services import fbr_v2_readiness
 
 ACTIVATION_SCHEMA_VERSION = 1
-ADMIN_ROLES = {"System Manager", "Ledgix Admin"}
+ADMIN_ROLES = {"System Manager", "Accounts Manager", "Ledgix Admin"}
 NATIVE_DOCTYPES = ("Sales Invoice", "POS Invoice")
 SUCCESSFUL_SANDBOX_STATUSES = {"Validated", "Submitted"}
 PROFILE_DOCTYPE = "Ledgix FBR Integration Profile"
@@ -32,7 +32,7 @@ DEFAULT_MAX_BACKUP_AGE_HOURS = 24
 def _require_admin() -> None:
     roles = set(frappe.get_roles())
     if not roles.intersection(ADMIN_ROLES):
-        frappe.throw(_("FBR activation readiness requires Ledgix Admin or System Manager access."), frappe.PermissionError)
+        frappe.throw(_("FBR V1.2 activation readiness requires System Manager or Accounts Manager access."), frappe.PermissionError)
 
 
 def _check(key: str, passed: bool, message: str, *, category: str, details: dict | None = None) -> dict:
@@ -152,7 +152,7 @@ def get_v2_configuration_summary_internal(
     )
 
     return {
-        "source": "Ledgix FBR Integration Profile",
+        "source": "FBR Integration Profile",
         "company": company,
         "profile_name": profile_name,
         "profile_exists": bool(state.get("exists")),
@@ -272,13 +272,25 @@ def _reconciliation_summary() -> dict:
 
 def _backup_summary(max_age_hours: int) -> dict:
     backup_dir = Path(frappe.get_site_path("private", "backups"))
-    candidates = sorted(
-        backup_dir.glob("ledgix-backup-*.env"),
-        key=lambda path: path.stat().st_mtime,
-        reverse=True,
-    ) if backup_dir.exists() else []
+    candidates = []
+    if backup_dir.exists():
+        seen = set()
+        for pattern in ("*database.sql.gz", "*.sql.gz", "ledgix-backup-*.env"):
+            for path in backup_dir.glob(pattern):
+                key = str(path)
+                if key not in seen and path.is_file():
+                    seen.add(key)
+                    candidates.append(path)
+        candidates.sort(key=lambda path: path.stat().st_mtime, reverse=True)
+
     if not candidates:
-        return {"present": False, "fresh": False, "latest": "", "age_hours": None, "max_age_hours": max_age_hours}
+        return {
+            "present": False,
+            "fresh": False,
+            "latest": "",
+            "age_hours": None,
+            "max_age_hours": max_age_hours,
+        }
 
     latest = candidates[0]
     age_seconds = max(0.0, now_datetime().timestamp() - latest.stat().st_mtime)
@@ -290,7 +302,6 @@ def _backup_summary(max_age_hours: int) -> dict:
         "age_hours": age_hours,
         "max_age_hours": max_age_hours,
     }
-
 
 def evaluate_fbr_activation_readiness(
     release_sha: str = "",
@@ -345,7 +356,7 @@ def evaluate_fbr_activation_readiness(
 
     production_checks = [
         _check("sandbox_proven", sandbox_proven, "Required Sandbox validation/POST evidence must be complete before Production switch.", category="Production gate"),
-        _check("sandbox_certification_complete", settings["sandbox_certification_complete"], "Complete Ledgix FBR Sandbox Certification with complete evidence before Production switch.", category="Production gate", details={"certification": settings["sandbox_certification_name"], "status": settings["sandbox_certification_status"], "evidence_complete": settings["sandbox_certification_evidence_complete"]}),
+        _check("sandbox_certification_complete", settings["sandbox_certification_complete"], "Complete FBR Sandbox Certification with complete evidence before Production switch.", category="Production gate", details={"certification": settings["sandbox_certification_name"], "status": settings["sandbox_certification_status"], "evidence_complete": settings["sandbox_certification_evidence_complete"]}),
         _check("production_token_configured", settings["production_token_configured"], "Configure the client Production token securely before activation.", category="FBR credentials"),
         _check("digital_invoicing_logo_configured", settings["digital_invoicing_logo_configured"], "Attach the authoritative FBR Digital Invoicing System logo confirmed for this client/provider before Production activation.", category="Print compliance"),
         _check("production_still_unarmed", not settings["production_post_armed"], "Production must remain unarmed until the explicit activation action.", category="Production interlock"),
@@ -377,7 +388,7 @@ def evaluate_fbr_activation_readiness(
         "network_call_made": False,
         "production_armed_by_gate": False,
         "contains_secrets": False,
-        "authority": "ERPNext native Sales Invoice/POS Invoice + Ledgix FBR audit/safety layer",
+        "authority": "ERPNext native Sales Invoice/POS Invoice + FBR V1.2 audit/safety layer",
         "next_action": (
             "Production switch approval" if production_switch_ready
             else "Complete Sandbox configuration/proof and production release evidence"
@@ -425,7 +436,7 @@ def generate_fbr_activation_evidence(
         "production_armed": False,
     }
 
-    evidence_dir = Path(frappe.get_site_path("private", "ledgix-fbr-activation"))
+    evidence_dir = Path(frappe.get_site_path("private", "fbr-v12-activation"))
     evidence_dir.mkdir(parents=True, exist_ok=True)
     os.chmod(evidence_dir, 0o700)
     timestamp = generated_at.strftime("%Y%m%dT%H%M%SZ")
@@ -440,6 +451,6 @@ def generate_fbr_activation_evidence(
     return {
         **readiness,
         "evidence_written": True,
-        "evidence_file": f"private/ledgix-fbr-activation/{evidence_path.name}",
-        "latest_evidence_file": "private/ledgix-fbr-activation/latest-readiness.json",
+        "evidence_file": f"private/fbr-v12-activation/{evidence_path.name}",
+        "latest_evidence_file": "private/fbr-v12-activation/latest-readiness.json",
     }
