@@ -36,8 +36,8 @@ REFERENCE_DOCTYPE = "Ledgix FBR Reference Data"
 DEFAULT_PROTOCOL_VERSION = "DI API V1.12"
 GLOBAL_CONTEXT_KEY = "GLOBAL"
 
-FBR_VIEW_ROLES = {"System Manager", "Ledgix Admin", "Ledgix Manager"}
-FBR_ADMIN_ROLES = {"System Manager", "Ledgix Admin"}
+FBR_VIEW_ROLES = {"System Manager", "Accounts Manager", "Accounts User", "Sales Manager", "Ledgix Admin", "Ledgix Manager"}
+FBR_ADMIN_ROLES = {"System Manager", "Accounts Manager", "Ledgix Admin"}
 
 STATIC_REFERENCE_FAMILIES = {
     "Province": {
@@ -111,7 +111,7 @@ def _assert_admin_permission() -> None:
     roles = set(frappe.get_roles(frappe.session.user))
     if not roles.intersection(FBR_ADMIN_ROLES):
         frappe.throw(
-            "Only System Manager or Ledgix Admin can synchronize FBR reference data.",
+            "Only System Manager or Accounts Manager can synchronize FBR reference data.",
             frappe.PermissionError,
         )
 
