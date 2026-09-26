@@ -32,6 +32,22 @@ class TestERPNextPhase11Contract(unittest.TestCase):
             hooks.index("ledgix_saas.setup.erpnext_phase11_product_shell.after_migrate"),
         )
 
+    def test_role_home_pages_do_not_hijack_website_root(self):
+        from ledgix_saas.setup import permissions
+        from ledgix_saas.setup import erpnext_phase11_product_shell
+
+        expected = {
+            "Ledgix Cashier": "",
+            "Ledgix Manager": "",
+            "Ledgix Admin": "",
+        }
+
+        self.assertEqual(permissions.ROLE_HOME_PAGES, expected)
+        self.assertEqual(
+            erpnext_phase11_product_shell.desired_role_home_pages(),
+            expected,
+        )
+
     def test_workspace_is_native_and_cashier_visible(self):
         payload = json.loads(WORKSPACE_PATH.read_text(encoding="utf-8"))
         roles = {row["role"] for row in payload.get("roles") or []}

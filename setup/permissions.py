@@ -136,9 +136,9 @@ RETIRED_ROLE_MAP = {
 }
 
 ROLE_HOME_PAGES = {
-	"Ledgix Cashier": "ledgix-pos",
-	"Ledgix Manager": "Ledgix",
-	"Ledgix Admin": "Ledgix",
+	"Ledgix Cashier": "",
+	"Ledgix Manager": "",
+	"Ledgix Admin": "",
 }
 
 WORKSPACE_ROLES = ("System Manager", "Ledgix Admin", "Ledgix Manager")
