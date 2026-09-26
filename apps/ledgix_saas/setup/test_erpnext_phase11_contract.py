@@ -78,73 +78,80 @@ class TestERPNextPhase11Contract(unittest.TestCase):
         for folder in expected_folders:
             self.assertTrue((page_root / folder).is_dir(), f"retained custom page is missing: {folder}")
 
-    def test_retained_custom_pages_are_workspace_shortcuts(self):
+    def test_workspace_shortcuts_match_current_operational_shell(self):
         payload = json.loads(WORKSPACE_PATH.read_text(encoding="utf-8"))
 
-        # Retained Ledgix UX pages are authoritative as Workspace Page links.
-        # Later release hardening may expose only a subset as raw quick actions.
-        expected = {
+        expected_page_links = {
             "Ledgix POS": "ledgix-pos",
             "Inventory Intelligence": "business-intelligence-center",
             "Tax & FBR Center": "ledgix-tax-center",
             "Setup Wizard": "ledgix-setup",
         }
-
         page_links = {
             row.get("label"): row.get("link_to")
             for row in payload.get("links") or []
             if row.get("link_type") == "Page"
         }
-        self.assertEqual(page_links, expected)
+        self.assertEqual(page_links, expected_page_links)
 
-        # Product-shell shortcut visibility is a UX policy layer, not a
-        # requirement that every retained page be duplicated in Workspace
-        # raw shortcut rows.
-        self.assertEqual(set(product_shell.WORKSPACE_SHORTCUTS), set(expected))
-
-        raw_page_shortcuts = {
-            row.get("label"): row.get("link_to")
+        shortcut_map = {
+            row.get("label"): (row.get("link_to"), row.get("type"))
             for row in payload.get("shortcuts") or []
-            if row.get("type") == "Page"
         }
-        self.assertTrue(set(raw_page_shortcuts).issubset(set(expected)))
-        for label, target in raw_page_shortcuts.items():
-            self.assertEqual(target, expected[label])
+        self.assertEqual(
+            shortcut_map,
+            {
+                "Ledgix POS": ("ledgix-pos", "Page"),
+                "Sales Invoice": ("Sales Invoice", "DocType"),
+                "Purchase Invoice": ("Purchase Invoice", "DocType"),
+                "Payment Entry": ("Payment Entry", "DocType"),
+                "Profit & Loss": ("Profit and Loss Statement", "Report"),
+                "Gross Profit": ("Gross Profit", "Report"),
+                "Balance Sheet": ("Balance Sheet", "Report"),
+                "Cash Flow": ("Cash Flow", "Report"),
+                "Accounts Receivable": ("Accounts Receivable", "Report"),
+                "Accounts Payable": ("Accounts Payable", "Report"),
+                "General Ledger": ("General Ledger", "Report"),
+                "Stock Balance": ("Stock Balance", "Report"),
+            },
+        )
+        self.assertEqual(tuple(shortcut_map), product_shell.WORKSPACE_SHORTCUTS)
+        self.assertEqual(set(shortcut_map), set(product_shell.WORKSPACE_SHORTCUT_POLICY))
 
-        # Any retained custom page promoted to a raw shortcut must also appear
-        # in the Workspace content layout. ERPNext-native quick actions and
-        # reports may coexist with those custom-page shortcuts.
         content = json.loads(payload.get("content") or "[]")
-        content_shortcuts = {
+        content_shortcuts = [
             row.get("data", {}).get("shortcut_name")
             for row in content
             if row.get("type") == "shortcut"
-        }
-        self.assertEqual(
-            set(raw_page_shortcuts),
-            content_shortcuts.intersection(set(expected)),
-        )
+        ]
+        self.assertEqual(content_shortcuts, list(product_shell.WORKSPACE_SHORTCUTS))
 
     def test_product_profiles_curate_cashier_without_granting_permissions(self):
         invoice = product_shell.build_product_context(
-            roles=["Ledgix Cashier"], features={"business_profile": "Invoice + FBR Only", **PROFILE_DEFAULTS["Invoice + FBR Only"]}
+            roles=["Ledgix Cashier"],
+            features={"business_profile": "Invoice + FBR Only", **PROFILE_DEFAULTS["Invoice + FBR Only"]},
         )
         self.assertEqual(invoice["landing_route"], "ledgix")
         self.assertIn("Sales Invoices", invoice["visible_workspace_links"])
         self.assertIn("Customers", invoice["visible_workspace_links"])
+        self.assertIn("Payment Entries", invoice["visible_workspace_links"])
         self.assertNotIn("Ledgix POS", invoice["visible_workspace_links"])
         self.assertNotIn("Purchase Invoices", invoice["visible_workspace_links"])
         self.assertNotIn("Stock Entries", invoice["visible_workspace_links"])
         self.assertNotIn("Tax & FBR Center", invoice["visible_workspace_links"])
         self.assertNotIn("Setup Wizard", invoice["visible_workspace_links"])
-        self.assertEqual(invoice["visible_workspace_shortcuts"], [])
+        self.assertEqual(invoice["visible_workspace_shortcuts"], ["Sales Invoice", "Payment Entry"])
 
         small = product_shell.build_product_context(
-            roles=["Ledgix Cashier"], features={"business_profile": "Small Retail", **PROFILE_DEFAULTS["Small Retail"]}
+            roles=["Ledgix Cashier"],
+            features={"business_profile": "Small Retail", **PROFILE_DEFAULTS["Small Retail"]},
         )
         self.assertEqual(small["landing_route"], "ledgix-pos")
         self.assertIn("Ledgix POS", small["visible_workspace_links"])
-        self.assertEqual(small["visible_workspace_shortcuts"], ["Ledgix POS"])
+        self.assertEqual(
+            small["visible_workspace_shortcuts"],
+            ["Ledgix POS", "Sales Invoice", "Payment Entry"],
+        )
         self.assertNotIn("Stock Entries", small["visible_workspace_links"])
 
     def test_manager_admin_and_full_retail_visibility(self):
@@ -153,20 +160,27 @@ class TestERPNextPhase11Contract(unittest.TestCase):
         self.assertIn("Purchase Invoices", manager["visible_workspace_links"])
         self.assertIn("Stock Entries", manager["visible_workspace_links"])
         self.assertIn("Tax & FBR Center", manager["visible_workspace_links"])
+        self.assertIn("FBR Submission Logs", manager["visible_workspace_links"])
+        self.assertNotIn("FBR Integration Profiles", manager["visible_workspace_links"])
         self.assertNotIn("Business Profile", manager["visible_workspace_links"])
         self.assertNotIn("Setup Wizard", manager["visible_workspace_links"])
-        self.assertNotIn("Tax Audit Logs", manager["visible_workspace_links"])
         self.assertEqual(
             set(manager["visible_workspace_shortcuts"]),
-            {"Ledgix POS", "Inventory Intelligence", "Tax & FBR Center"},
+            set(product_shell.WORKSPACE_SHORTCUTS),
         )
 
         admin = product_shell.build_product_context(roles=["Ledgix Admin"], features=full_features)
         self.assertIn("Setup Wizard", admin["visible_workspace_links"])
         self.assertIn("Business Profile", admin["visible_workspace_links"])
         self.assertIn("Brand Settings", admin["visible_workspace_links"])
-        self.assertIn("Tax Audit Logs", admin["visible_workspace_links"])
-        self.assertEqual(set(admin["visible_workspace_shortcuts"]), set(product_shell.WORKSPACE_SHORTCUTS))
+        self.assertIn("FBR Integration Profiles", admin["visible_workspace_links"])
+        self.assertIn("FBR Item Mappings", admin["visible_workspace_links"])
+        self.assertIn("FBR Tax Component Mappings", admin["visible_workspace_links"])
+        self.assertIn("FBR Submission Logs", admin["visible_workspace_links"])
+        self.assertEqual(
+            set(admin["visible_workspace_shortcuts"]),
+            set(product_shell.WORKSPACE_SHORTCUTS),
+        )
 
     def test_system_manager_is_not_sidebar_restricted(self):
         context = product_shell.build_product_context(

@@ -91,9 +91,9 @@ def run() -> dict:
             "native_operational_targets_present": expected_native.issubset(targets),
             "legacy_operational_targets_absent": targets.isdisjoint(phase11.LEGACY_OPERATIONAL_TARGETS),
             "business_profile_is_admin_entry": "Business Profile" in labels and "Ledgix Business Profile" in targets,
-            "only_three_custom_product_pages": {
+            "current_custom_product_pages": {
                 row.link_to for row in workspace.links if row.link_type == "Page"
-            } == {"ledgix-pos", "ledgix-tax-center", "business-intelligence-center"},
+            } == {"ledgix-pos", "ledgix-tax-center", "business-intelligence-center", "ledgix-setup"},
         }
         return {
             "roles": sorted(roles),
@@ -160,7 +160,11 @@ def run() -> dict:
         checks = {
             "cashier_is_minimal": "Accounts Receivable" not in cashier["visible_workspace_links"] and "Purchase Invoices" not in cashier["visible_workspace_links"],
             "manager_gets_reports_not_admin_setup": "Sales Report" in manager["visible_workspace_links"] and "Business Profile" not in manager["visible_workspace_links"],
-            "admin_gets_setup": "Business Profile" in admin["visible_workspace_links"] and "Tax Audit Logs" in admin["visible_workspace_links"],
+            "admin_gets_setup_and_fbr_configuration": (
+                "Business Profile" in admin["visible_workspace_links"]
+                and "FBR Integration Profiles" in admin["visible_workspace_links"]
+                and "FBR Submission Logs" in admin["visible_workspace_links"]
+            ),
             "system_manager_not_sidebar_curated": system["role_level"] == "system" and not system["curated_sidebar"],
             "system_manager_sees_all_workspace_links": set(system["visible_workspace_links"]) == set(product_shell.WORKSPACE_LINK_POLICY),
         }
@@ -203,7 +207,7 @@ def run() -> dict:
         "failed_cases": failed,
         "decisions": {
             "workspace_authority": "Ledgix curated shell over ERPNext standard Forms/Lists",
-            "custom_product_pages": ["ledgix-pos", "ledgix-tax-center", "business-intelligence-center"],
+            "custom_product_pages": ["ledgix-pos", "ledgix-tax-center", "business-intelligence-center", "ledgix-setup"],
             "profile_flags_are_authorization": False,
             "erpnext_permissions_remain_authoritative": True,
             "legacy_operational_workspace_links": False,

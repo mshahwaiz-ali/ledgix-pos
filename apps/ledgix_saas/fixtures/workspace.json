@@ -1,7 +1,7 @@
 [
  {
   "charts": [],
-  "content": "[{\"id\":\"selling\",\"type\":\"header\",\"data\":{\"text\":\"Selling\",\"col\":12}},{\"id\":\"pos\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Ledgix POS\",\"col\":3}},{\"id\":\"sales\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Sales\",\"col\":3}},{\"id\":\"returns\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Sales Returns\",\"col\":3}},{\"id\":\"shifts\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"POS Shifts\",\"col\":3}},{\"id\":\"customers\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Customers\",\"col\":3}},{\"id\":\"finance\",\"type\":\"header\",\"data\":{\"text\":\"Pricing & Receivables\",\"col\":12}},{\"id\":\"payments\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Payments\",\"col\":3}},{\"id\":\"payment_methods\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Payment Methods\",\"col\":3}},{\"id\":\"price_lists\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Price Lists\",\"col\":3}},{\"id\":\"item_prices\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Item Prices\",\"col\":3}},{\"id\":\"buying\",\"type\":\"header\",\"data\":{\"text\":\"Buying\",\"col\":12}},{\"id\":\"purchases\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Purchases\",\"col\":3}},{\"id\":\"suppliers\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Suppliers\",\"col\":3}},{\"id\":\"inventory\",\"type\":\"header\",\"data\":{\"text\":\"Inventory\",\"col\":12}},{\"id\":\"items\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Items\",\"col\":3}},{\"id\":\"categories\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Categories\",\"col\":3}},{\"id\":\"movements\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Stock Movements\",\"col\":3}},{\"id\":\"lots\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Stock Lots\",\"col\":3}},{\"id\":\"serials\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Stock Serials\",\"col\":3}},{\"id\":\"intelligence\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Inventory Intelligence\",\"col\":3}},{\"id\":\"reports\",\"type\":\"header\",\"data\":{\"text\":\"Reports\",\"col\":12}},{\"id\":\"sales_report\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Sales Report\",\"col\":3}},{\"id\":\"return_report\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Sales Return Report\",\"col\":3}},{\"id\":\"purchase_report\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Purchase Report\",\"col\":3}},{\"id\":\"current_stock\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Current Stock\",\"col\":3}},{\"id\":\"low_stock\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Low Stock\",\"col\":3}},{\"id\":\"customer_statement\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Customer Statement\",\"col\":3}},{\"id\":\"compliance\",\"type\":\"header\",\"data\":{\"text\":\"Tax & FBR Compliance\",\"col\":12}},{\"id\":\"tax_center\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Tax & FBR Center\",\"col\":3}},{\"id\":\"tax_category_native\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Tax Category\",\"col\":3}},{\"id\":\"tax_rule_native\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Tax Rule\",\"col\":3}},{\"id\":\"sales_tax_template_native\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Sales Taxes and Charges Template\",\"col\":3}},{\"id\":\"item_tax_template_native\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Item Tax Template\",\"col\":3}},{\"id\":\"fbr_profile_v2\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"FBR Integration Profiles\",\"col\":3}},{\"id\":\"fbr_item_mapping_v2\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"FBR Item Mappings\",\"col\":3}},{\"id\":\"fbr_tax_mapping_v2\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"FBR Tax Component Mappings\",\"col\":3}},{\"id\":\"fbr_reference_v2\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"FBR Reference Data\",\"col\":3}},{\"id\":\"fbr_cert_v2\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"FBR Sandbox Certifications\",\"col\":3}},{\"id\":\"fbr_logs_v2\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"FBR Submission Logs\",\"col\":3}},{\"id\":\"fbr_corrections_v2\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"FBR Correction Requests\",\"col\":3}},{\"id\":\"admin\",\"type\":\"header\",\"data\":{\"text\":\"Administration\",\"col\":12}},{\"id\":\"brand_settings\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Brand Settings\",\"col\":3}}]",
+  "content": "[{\"id\":\"header_quick\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Quick Actions</b></span>\",\"col\":12}},{\"id\":\"quick_pos\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Ledgix POS\",\"col\":3}},{\"id\":\"quick_sales_invoice\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Sales Invoice\",\"col\":3}},{\"id\":\"quick_purchase_invoice\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Purchase Invoice\",\"col\":3}},{\"id\":\"quick_payment_entry\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Payment Entry\",\"col\":3}},{\"id\":\"header_finance\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Management & Accounting</b></span>\",\"col\":12}},{\"id\":\"finance_pnl\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Profit & Loss\",\"col\":3}},{\"id\":\"finance_gross_profit\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gross Profit\",\"col\":3}},{\"id\":\"finance_balance_sheet\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Balance Sheet\",\"col\":3}},{\"id\":\"finance_cash_flow\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Cash Flow\",\"col\":3}},{\"id\":\"finance_receivable\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Accounts Receivable\",\"col\":3}},{\"id\":\"finance_payable\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Accounts Payable\",\"col\":3}},{\"id\":\"finance_ledger\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"General Ledger\",\"col\":3}},{\"id\":\"finance_stock_balance\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Stock Balance\",\"col\":3}},{\"id\":\"header_business\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Business Areas</b></span>\",\"col\":12}},{\"id\":\"business_card_1\",\"type\":\"card\",\"data\":{\"card_name\":\"Sales & POS\",\"col\":6}},{\"id\":\"business_card_2\",\"type\":\"card\",\"data\":{\"card_name\":\"Sales Operations\",\"col\":6}},{\"id\":\"business_card_3\",\"type\":\"card\",\"data\":{\"card_name\":\"Buying & Suppliers\",\"col\":6}},{\"id\":\"business_card_4\",\"type\":\"card\",\"data\":{\"card_name\":\"Catalog & Pricing\",\"col\":6}},{\"id\":\"business_card_5\",\"type\":\"card\",\"data\":{\"card_name\":\"Inventory Operations\",\"col\":6}},{\"id\":\"business_card_6\",\"type\":\"card\",\"data\":{\"card_name\":\"Stock & Inventory Reports\",\"col\":6}},{\"id\":\"business_card_7\",\"type\":\"card\",\"data\":{\"card_name\":\"Financial Statements\",\"col\":6}},{\"id\":\"business_card_8\",\"type\":\"card\",\"data\":{\"card_name\":\"Accounting Operations\",\"col\":6}},{\"id\":\"business_card_9\",\"type\":\"card\",\"data\":{\"card_name\":\"Reports & Insights\",\"col\":6}},{\"id\":\"business_card_10\",\"type\":\"card\",\"data\":{\"card_name\":\"Tax Configuration\",\"col\":6}},{\"id\":\"business_card_11\",\"type\":\"card\",\"data\":{\"card_name\":\"FBR & Compliance\",\"col\":6}},{\"id\":\"business_card_12\",\"type\":\"card\",\"data\":{\"card_name\":\"Administration\",\"col\":6}}]",
   "custom_blocks": [],
   "docstatus": 0,
   "doctype": "Workspace",
@@ -10,7 +10,738 @@
   "indicator_color": "green",
   "is_hidden": 0,
   "label": "Ledgix",
-  "links": [],
+  "links": [
+   {
+    "description": "",
+    "hidden": 0,
+    "is_query_report": 0,
+    "label": "Sales & POS",
+    "link_count": 4,
+    "link_type": "DocType",
+    "onboard": 0,
+    "type": "Card Break"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 0,
+    "label": "Ledgix POS",
+    "link_count": 0,
+    "link_to": "ledgix-pos",
+    "link_type": "Page",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 0,
+    "label": "Sales Invoices",
+    "link_count": 0,
+    "link_to": "Sales Invoice",
+    "link_type": "DocType",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 0,
+    "label": "POS Invoices",
+    "link_count": 0,
+    "link_to": "POS Invoice",
+    "link_type": "DocType",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 0,
+    "label": "Customers",
+    "link_count": 0,
+    "link_to": "Customer",
+    "link_type": "DocType",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "description": "",
+    "hidden": 0,
+    "is_query_report": 0,
+    "label": "Sales Operations",
+    "link_count": 3,
+    "link_type": "DocType",
+    "onboard": 0,
+    "type": "Card Break"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 1,
+    "label": "Sales Register",
+    "link_count": 0,
+    "link_to": "Sales Register",
+    "link_type": "Report",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 0,
+    "label": "POS Openings",
+    "link_count": 0,
+    "link_to": "POS Opening Entry",
+    "link_type": "DocType",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 0,
+    "label": "POS Closings",
+    "link_count": 0,
+    "link_to": "POS Closing Entry",
+    "link_type": "DocType",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "description": "",
+    "hidden": 0,
+    "is_query_report": 0,
+    "label": "Buying & Suppliers",
+    "link_count": 5,
+    "link_type": "DocType",
+    "onboard": 0,
+    "type": "Card Break"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 0,
+    "label": "Purchase Orders",
+    "link_count": 0,
+    "link_to": "Purchase Order",
+    "link_type": "DocType",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 0,
+    "label": "Purchase Receipts",
+    "link_count": 0,
+    "link_to": "Purchase Receipt",
+    "link_type": "DocType",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 0,
+    "label": "Purchase Invoices",
+    "link_count": 0,
+    "link_to": "Purchase Invoice",
+    "link_type": "DocType",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 0,
+    "label": "Suppliers",
+    "link_count": 0,
+    "link_to": "Supplier",
+    "link_type": "DocType",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 1,
+    "label": "Purchase Register",
+    "link_count": 0,
+    "link_to": "Purchase Register",
+    "link_type": "Report",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "description": "",
+    "hidden": 0,
+    "is_query_report": 0,
+    "label": "Catalog & Pricing",
+    "link_count": 6,
+    "link_type": "DocType",
+    "onboard": 0,
+    "type": "Card Break"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 0,
+    "label": "Items",
+    "link_count": 0,
+    "link_to": "Item",
+    "link_type": "DocType",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 0,
+    "label": "Item Groups",
+    "link_count": 0,
+    "link_to": "Item Group",
+    "link_type": "DocType",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 0,
+    "label": "Price Lists",
+    "link_count": 0,
+    "link_to": "Price List",
+    "link_type": "DocType",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 0,
+    "label": "Item Prices",
+    "link_count": 0,
+    "link_to": "Item Price",
+    "link_type": "DocType",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 0,
+    "label": "Pricing Rules",
+    "link_count": 0,
+    "link_to": "Pricing Rule",
+    "link_type": "DocType",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 0,
+    "label": "Modes of Payment",
+    "link_count": 0,
+    "link_to": "Mode of Payment",
+    "link_type": "DocType",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "description": "",
+    "hidden": 0,
+    "is_query_report": 0,
+    "label": "Inventory Operations",
+    "link_count": 6,
+    "link_type": "DocType",
+    "onboard": 0,
+    "type": "Card Break"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 0,
+    "label": "Inventory Intelligence",
+    "link_count": 0,
+    "link_to": "business-intelligence-center",
+    "link_type": "Page",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 0,
+    "label": "Warehouses",
+    "link_count": 0,
+    "link_to": "Warehouse",
+    "link_type": "DocType",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 0,
+    "label": "Stock Entries",
+    "link_count": 0,
+    "link_to": "Stock Entry",
+    "link_type": "DocType",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 0,
+    "label": "Stock Reconciliation",
+    "link_count": 0,
+    "link_to": "Stock Reconciliation",
+    "link_type": "DocType",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 0,
+    "label": "Batches",
+    "link_count": 0,
+    "link_to": "Batch",
+    "link_type": "DocType",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 0,
+    "label": "Serial Numbers",
+    "link_count": 0,
+    "link_to": "Serial No",
+    "link_type": "DocType",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "description": "",
+    "hidden": 0,
+    "is_query_report": 0,
+    "label": "Stock & Inventory Reports",
+    "link_count": 4,
+    "link_type": "DocType",
+    "onboard": 0,
+    "type": "Card Break"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 1,
+    "label": "Stock Balance",
+    "link_count": 0,
+    "link_to": "Stock Balance",
+    "link_type": "Report",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 1,
+    "label": "Stock Ledger",
+    "link_count": 0,
+    "link_to": "Stock Ledger",
+    "link_type": "Report",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 1,
+    "label": "Current Stock",
+    "link_count": 0,
+    "link_to": "Ledgix Current Stock",
+    "link_type": "Report",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 1,
+    "label": "Low Stock",
+    "link_count": 0,
+    "link_to": "Ledgix Low Stock",
+    "link_type": "Report",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "description": "",
+    "hidden": 0,
+    "is_query_report": 0,
+    "label": "Financial Statements",
+    "link_count": 6,
+    "link_type": "DocType",
+    "onboard": 0,
+    "type": "Card Break"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 1,
+    "label": "Profit & Loss",
+    "link_count": 0,
+    "link_to": "Profit and Loss Statement",
+    "link_type": "Report",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 1,
+    "label": "Gross Profit",
+    "link_count": 0,
+    "link_to": "Gross Profit",
+    "link_type": "Report",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 1,
+    "label": "Balance Sheet",
+    "link_count": 0,
+    "link_to": "Balance Sheet",
+    "link_type": "Report",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 1,
+    "label": "Cash Flow",
+    "link_count": 0,
+    "link_to": "Cash Flow",
+    "link_type": "Report",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 1,
+    "label": "General Ledger",
+    "link_count": 0,
+    "link_to": "General Ledger",
+    "link_type": "Report",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 1,
+    "label": "Trial Balance",
+    "link_count": 0,
+    "link_to": "Trial Balance",
+    "link_type": "Report",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "description": "",
+    "hidden": 0,
+    "is_query_report": 0,
+    "label": "Accounting Operations",
+    "link_count": 4,
+    "link_type": "DocType",
+    "onboard": 0,
+    "type": "Card Break"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 1,
+    "label": "Accounts Receivable",
+    "link_count": 0,
+    "link_to": "Accounts Receivable",
+    "link_type": "Report",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 1,
+    "label": "Accounts Payable",
+    "link_count": 0,
+    "link_to": "Accounts Payable",
+    "link_type": "Report",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 0,
+    "label": "Payment Entries",
+    "link_count": 0,
+    "link_to": "Payment Entry",
+    "link_type": "DocType",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 0,
+    "label": "Journal Entries",
+    "link_count": 0,
+    "link_to": "Journal Entry",
+    "link_type": "DocType",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "description": "",
+    "hidden": 0,
+    "is_query_report": 0,
+    "label": "Reports & Insights",
+    "link_count": 6,
+    "link_type": "DocType",
+    "onboard": 0,
+    "type": "Card Break"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 1,
+    "label": "Sales Report",
+    "link_count": 0,
+    "link_to": "Ledgix Sales Report",
+    "link_type": "Report",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 1,
+    "label": "Sales Return Report",
+    "link_count": 0,
+    "link_to": "Ledgix Sales Return Report",
+    "link_type": "Report",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 1,
+    "label": "Purchase Report",
+    "link_count": 0,
+    "link_to": "Ledgix Purchase Report",
+    "link_type": "Report",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 1,
+    "label": "Customer Statement",
+    "link_count": 0,
+    "link_to": "Ledgix Customer Statement",
+    "link_type": "Report",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 1,
+    "label": "Stock Movement Report",
+    "link_count": 0,
+    "link_to": "Ledgix Stock Movement Report",
+    "link_type": "Report",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 1,
+    "label": "Inventory Intelligence Report",
+    "link_count": 0,
+    "link_to": "Inventory Intelligence Report",
+    "link_type": "Report",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "description": "",
+    "hidden": 0,
+    "is_query_report": 0,
+    "label": "Tax Configuration",
+    "link_count": 5,
+    "link_type": "DocType",
+    "onboard": 0,
+    "type": "Card Break"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 0,
+    "label": "Tax Categories",
+    "link_count": 0,
+    "link_to": "Tax Category",
+    "link_type": "DocType",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 0,
+    "label": "Tax Rules",
+    "link_count": 0,
+    "link_to": "Tax Rule",
+    "link_type": "DocType",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 0,
+    "label": "Sales Taxes and Charges Templates",
+    "link_count": 0,
+    "link_to": "Sales Taxes and Charges Template",
+    "link_type": "DocType",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 0,
+    "label": "Item Tax Templates",
+    "link_count": 0,
+    "link_to": "Item Tax Template",
+    "link_type": "DocType",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 0,
+    "label": "Accounts",
+    "link_count": 0,
+    "link_to": "Account",
+    "link_type": "DocType",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "description": "",
+    "hidden": 0,
+    "is_query_report": 0,
+    "label": "FBR & Compliance",
+    "link_count": 8,
+    "link_type": "DocType",
+    "onboard": 0,
+    "type": "Card Break"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 0,
+    "label": "Tax & FBR Center",
+    "link_count": 0,
+    "link_to": "ledgix-tax-center",
+    "link_type": "Page",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 0,
+    "label": "FBR Integration Profiles",
+    "link_count": 0,
+    "link_to": "Ledgix FBR Integration Profile",
+    "link_type": "DocType",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 0,
+    "label": "FBR Item Mappings",
+    "link_count": 0,
+    "link_to": "Ledgix FBR Item Mapping",
+    "link_type": "DocType",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 0,
+    "label": "FBR Tax Component Mappings",
+    "link_count": 0,
+    "link_to": "Ledgix FBR Tax Component Mapping",
+    "link_type": "DocType",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 0,
+    "label": "FBR Reference Data",
+    "link_count": 0,
+    "link_to": "Ledgix FBR Reference Data",
+    "link_type": "DocType",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 0,
+    "label": "FBR Sandbox Certifications",
+    "link_count": 0,
+    "link_to": "Ledgix FBR Sandbox Certification",
+    "link_type": "DocType",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 0,
+    "label": "FBR Submission Logs",
+    "link_count": 0,
+    "link_to": "Ledgix FBR Submission Log",
+    "link_type": "DocType",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 0,
+    "label": "FBR Correction Requests",
+    "link_count": 0,
+    "link_to": "Ledgix FBR Correction Request",
+    "link_type": "DocType",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "description": "",
+    "hidden": 0,
+    "is_query_report": 0,
+    "label": "Administration",
+    "link_count": 4,
+    "link_type": "DocType",
+    "onboard": 0,
+    "type": "Card Break"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 0,
+    "label": "Setup Wizard",
+    "link_count": 0,
+    "link_to": "ledgix-setup",
+    "link_type": "Page",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 0,
+    "label": "Business Profile",
+    "link_count": 0,
+    "link_to": "Ledgix Business Profile",
+    "link_type": "DocType",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 0,
+    "label": "Brand Settings",
+    "link_count": 0,
+    "link_to": "Ledgix Brand Settings",
+    "link_type": "DocType",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 0,
+    "label": "User Profiles",
+    "link_count": 0,
+    "link_to": "Ledgix User Profile",
+    "link_type": "DocType",
+    "onboard": 0,
+    "type": "Link"
+   }
+  ],
   "module": "Ledgix",
   "name": "Ledgix",
   "number_cards": [],
@@ -26,261 +757,72 @@
    },
    {
     "role": "Ledgix Manager"
+   },
+   {
+    "role": "Ledgix Cashier"
    }
   ],
   "sequence_id": 1,
   "shortcuts": [
    {
-    "color": "Green",
-    "doc_view": "List",
     "label": "Ledgix POS",
     "link_to": "ledgix-pos",
     "type": "Page"
    },
    {
-    "color": "Blue",
-    "doc_view": "List",
-    "label": "Sales",
-    "link_to": "Ledgix Sale",
+    "label": "Sales Invoice",
+    "link_to": "Sales Invoice",
     "type": "DocType"
    },
    {
-    "color": "Blue",
-    "doc_view": "List",
-    "label": "Sales Returns",
-    "link_to": "Ledgix Sales Return",
+    "label": "Purchase Invoice",
+    "link_to": "Purchase Invoice",
     "type": "DocType"
    },
    {
-    "color": "Blue",
-    "doc_view": "List",
-    "label": "POS Shifts",
-    "link_to": "Ledgix POS Shift",
+    "label": "Payment Entry",
+    "link_to": "Payment Entry",
     "type": "DocType"
    },
    {
-    "color": "Blue",
-    "doc_view": "List",
-    "label": "Customers",
-    "link_to": "Ledgix Customer",
-    "type": "DocType"
-   },
-   {
-    "color": "Blue",
-    "doc_view": "List",
-    "label": "Payments",
-    "link_to": "Ledgix Payment",
-    "type": "DocType"
-   },
-   {
-    "color": "Blue",
-    "doc_view": "List",
-    "label": "Payment Methods",
-    "link_to": "Ledgix Payment Method",
-    "type": "DocType"
-   },
-   {
-    "color": "Blue",
-    "doc_view": "List",
-    "label": "Price Lists",
-    "link_to": "Ledgix Price List",
-    "type": "DocType"
-   },
-   {
-    "color": "Blue",
-    "doc_view": "List",
-    "label": "Item Prices",
-    "link_to": "Ledgix Item Price",
-    "type": "DocType"
-   },
-   {
-    "color": "Blue",
-    "doc_view": "List",
-    "label": "Purchases",
-    "link_to": "Ledgix Purchase",
-    "type": "DocType"
-   },
-   {
-    "color": "Blue",
-    "doc_view": "List",
-    "label": "Suppliers",
-    "link_to": "Ledgix Supplier",
-    "type": "DocType"
-   },
-   {
-    "color": "Blue",
-    "doc_view": "List",
-    "label": "Items",
-    "link_to": "Ledgix Item",
-    "type": "DocType"
-   },
-   {
-    "color": "Blue",
-    "doc_view": "List",
-    "label": "Categories",
-    "link_to": "Ledgix Category",
-    "type": "DocType"
-   },
-   {
-    "color": "Blue",
-    "doc_view": "List",
-    "label": "Stock Movements",
-    "link_to": "Ledgix Stock Movement",
-    "type": "DocType"
-   },
-   {
-    "color": "Blue",
-    "doc_view": "List",
-    "label": "Stock Lots",
-    "link_to": "Ledgix Stock Lot",
-    "type": "DocType"
-   },
-   {
-    "color": "Blue",
-    "doc_view": "List",
-    "label": "Stock Serials",
-    "link_to": "Ledgix Stock Serial",
-    "type": "DocType"
-   },
-   {
-    "color": "Green",
-    "doc_view": "List",
-    "label": "Inventory Intelligence",
-    "link_to": "business-intelligence-center",
-    "type": "Page"
-   },
-   {
-    "color": "Blue",
-    "doc_view": "List",
-    "label": "Sales Report",
-    "link_to": "Ledgix Sales Report",
+    "label": "Profit & Loss",
+    "link_to": "Profit and Loss Statement",
     "type": "Report"
    },
    {
-    "color": "Blue",
-    "doc_view": "List",
-    "label": "Sales Return Report",
-    "link_to": "Ledgix Sales Return Report",
+    "label": "Gross Profit",
+    "link_to": "Gross Profit",
     "type": "Report"
    },
    {
-    "color": "Blue",
-    "doc_view": "List",
-    "label": "Purchase Report",
-    "link_to": "Ledgix Purchase Report",
+    "label": "Balance Sheet",
+    "link_to": "Balance Sheet",
     "type": "Report"
    },
    {
-    "color": "Blue",
-    "doc_view": "List",
-    "label": "Current Stock",
-    "link_to": "Ledgix Current Stock",
+    "label": "Cash Flow",
+    "link_to": "Cash Flow",
     "type": "Report"
    },
    {
-    "color": "Blue",
-    "doc_view": "List",
-    "label": "Low Stock",
-    "link_to": "Ledgix Low Stock",
+    "label": "Accounts Receivable",
+    "link_to": "Accounts Receivable",
     "type": "Report"
    },
    {
-    "color": "Blue",
-    "doc_view": "List",
-    "label": "Customer Statement",
-    "link_to": "Ledgix Customer Statement",
+    "label": "Accounts Payable",
+    "link_to": "Accounts Payable",
     "type": "Report"
    },
    {
-    "color": "Orange",
-    "doc_view": "List",
-    "label": "Tax & FBR Center",
-    "link_to": "ledgix-tax-center",
-    "type": "Page"
+    "label": "General Ledger",
+    "link_to": "General Ledger",
+    "type": "Report"
    },
    {
-    "color": "Blue",
-    "doc_view": "List",
-    "label": "Tax Category",
-    "link_to": "Tax Category",
-    "type": "DocType"
-   },
-   {
-    "color": "Blue",
-    "doc_view": "List",
-    "label": "Tax Rule",
-    "link_to": "Tax Rule",
-    "type": "DocType"
-   },
-   {
-    "color": "Blue",
-    "doc_view": "List",
-    "label": "Sales Taxes and Charges Template",
-    "link_to": "Sales Taxes and Charges Template",
-    "type": "DocType"
-   },
-   {
-    "color": "Blue",
-    "doc_view": "List",
-    "label": "Item Tax Template",
-    "link_to": "Item Tax Template",
-    "type": "DocType"
-   },
-   {
-    "color": "Orange",
-    "doc_view": "List",
-    "label": "FBR Integration Profiles",
-    "link_to": "Ledgix FBR Integration Profile",
-    "type": "DocType"
-   },
-   {
-    "color": "Orange",
-    "doc_view": "List",
-    "label": "FBR Item Mappings",
-    "link_to": "Ledgix FBR Item Mapping",
-    "type": "DocType"
-   },
-   {
-    "color": "Orange",
-    "doc_view": "List",
-    "label": "FBR Tax Component Mappings",
-    "link_to": "Ledgix FBR Tax Component Mapping",
-    "type": "DocType"
-   },
-   {
-    "color": "Orange",
-    "doc_view": "List",
-    "label": "FBR Reference Data",
-    "link_to": "Ledgix FBR Reference Data",
-    "type": "DocType"
-   },
-   {
-    "color": "Orange",
-    "doc_view": "List",
-    "label": "FBR Sandbox Certifications",
-    "link_to": "Ledgix FBR Sandbox Certification",
-    "type": "DocType"
-   },
-   {
-    "color": "Orange",
-    "doc_view": "List",
-    "label": "FBR Submission Logs",
-    "link_to": "Ledgix FBR Submission Log",
-    "type": "DocType"
-   },
-   {
-    "color": "Orange",
-    "doc_view": "List",
-    "label": "FBR Correction Requests",
-    "link_to": "Ledgix FBR Correction Request",
-    "type": "DocType"
-   },
-   {
-    "color": "Blue",
-    "doc_view": "List",
-    "label": "Brand Settings",
-    "link_to": "Ledgix Brand Settings",
-    "type": "DocType"
+    "label": "Stock Balance",
+    "link_to": "Stock Balance",
+    "type": "Report"
    }
   ],
   "title": "Ledgix"

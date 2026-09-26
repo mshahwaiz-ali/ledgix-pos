@@ -3,6 +3,8 @@ from pathlib import Path
 
 from frappe.tests.utils import FrappeTestCase
 
+from ledgix_saas.api import product_shell
+
 from ledgix_saas.api.inventory_intelligence import add_scope_meta, filter_normal_stock_search
 
 
@@ -10,37 +12,65 @@ APP_ROOT = Path(__file__).resolve().parents[3]
 
 
 class TestV2WorkspaceAndIntelligence(FrappeTestCase):
-    def test_workspace_is_compact_and_covers_user_facing_navigation(self):
+    def test_workspace_is_current_and_product_shell_is_aligned(self):
         path = APP_ROOT / "ledgix" / "workspace" / "ledgix" / "ledgix.json"
         workspace = json.loads(path.read_text(encoding="utf-8"))
         content = json.loads(workspace.get("content") or "[]")
 
-        cards = [row for row in content if row.get("type") == "card"]
-        self.assertEqual(len(cards), 7)
-        self.assertTrue(all((row.get("data") or {}).get("col") in {6, 12} for row in cards))
-        self.assertEqual((cards[-1].get("data") or {}).get("card_name"), "Administration")
-        self.assertEqual((cards[-1].get("data") or {}).get("col"), 12)
-
-        shortcuts = {
-            row.get("label"): row.get("link_to")
-            for row in workspace.get("shortcuts") or []
-            if row.get("type") == "Page"
-        }
-        self.assertEqual(
-            shortcuts,
-            {
-                "Ledgix POS": "ledgix-pos",
-                "Inventory Intelligence": "business-intelligence-center",
-                "Tax & FBR Center": "ledgix-tax-center",
-                "Setup Wizard": "ledgix-setup",
-            },
+        cards = [
+            (row.get("data") or {}).get("card_name")
+            for row in content
+            if row.get("type") == "card"
+        ]
+        self.assertEqual(cards, list(product_shell.WORKSPACE_CARDS))
+        self.assertEqual(len(cards), 12)
+        self.assertTrue(
+            all(
+                (row.get("data") or {}).get("col") == 6
+                for row in content
+                if row.get("type") == "card"
+            )
         )
 
-        targets = {
-            row.get("link_to")
-            for row in workspace.get("links", [])
-            if row.get("type") == "Link" and row.get("link_to")
+        link_rows = [
+            row
+            for row in workspace.get("links") or []
+            if row.get("type") == "Link"
+        ]
+        link_labels = {row.get("label") for row in link_rows}
+        targets = {row.get("link_to") for row in link_rows if row.get("link_to")}
+
+        self.assertEqual(link_labels, set(product_shell.WORKSPACE_LINK_POLICY))
+        self.assertEqual(set(product_shell.CARD_LINKS), set(product_shell.WORKSPACE_CARDS))
+        self.assertEqual(
+            {label for labels in product_shell.CARD_LINKS.values() for label in labels},
+            link_labels,
+        )
+
+        shortcut_map = {
+            row.get("label"): (row.get("link_to"), row.get("type"))
+            for row in workspace.get("shortcuts") or []
         }
+        self.assertEqual(
+            shortcut_map,
+            {
+                "Ledgix POS": ("ledgix-pos", "Page"),
+                "Sales Invoice": ("Sales Invoice", "DocType"),
+                "Purchase Invoice": ("Purchase Invoice", "DocType"),
+                "Payment Entry": ("Payment Entry", "DocType"),
+                "Profit & Loss": ("Profit and Loss Statement", "Report"),
+                "Gross Profit": ("Gross Profit", "Report"),
+                "Balance Sheet": ("Balance Sheet", "Report"),
+                "Cash Flow": ("Cash Flow", "Report"),
+                "Accounts Receivable": ("Accounts Receivable", "Report"),
+                "Accounts Payable": ("Accounts Payable", "Report"),
+                "General Ledger": ("General Ledger", "Report"),
+                "Stock Balance": ("Stock Balance", "Report"),
+            },
+        )
+        self.assertEqual(set(shortcut_map), set(product_shell.WORKSPACE_SHORTCUT_POLICY))
+        self.assertEqual(tuple(shortcut_map), product_shell.WORKSPACE_SHORTCUTS)
+
         required_targets = {
             "ledgix-pos",
             "ledgix-tax-center",
@@ -58,10 +88,17 @@ class TestV2WorkspaceAndIntelligence(FrappeTestCase):
             "Accounts Receivable",
             "General Ledger",
             "Profit and Loss Statement",
-            "Ledgix Tax Audit Log",
+            "Ledgix FBR Integration Profile",
+            "Ledgix FBR Item Mapping",
+            "Ledgix FBR Tax Component Mapping",
+            "Ledgix FBR Reference Data",
+            "Ledgix FBR Sandbox Certification",
+            "Ledgix FBR Submission Log",
+            "Ledgix FBR Correction Request",
             "Ledgix User Profile",
         }
         self.assertTrue(required_targets.issubset(targets))
+
         retired_targets = {
             "Ledgix Item",
             "Ledgix Customer",
@@ -75,8 +112,16 @@ class TestV2WorkspaceAndIntelligence(FrappeTestCase):
             "Ledgix Stock Movement",
             "Ledgix Stock Lot",
             "Ledgix Stock Serial",
+            "Ledgix Tax Audit Log",
         }
         self.assertTrue(targets.isdisjoint(retired_targets))
+
+        # These are embedded child tables and must never become direct Desk links.
+        self.assertTrue(
+            targets.isdisjoint(
+                {"Ledgix FBR Business Nature", "Ledgix FBR Sandbox Scenario"}
+            )
+        )
         self.assertNotIn("Item Intelligence Legacy", targets)
 
     def test_inventory_timeline_renders_returns_as_inbound_activity(self):

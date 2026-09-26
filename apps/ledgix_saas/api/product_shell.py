@@ -16,45 +16,65 @@ ROLE_ORDER = ("cashier", "manager", "admin", "system")
 
 WORKSPACE_CARDS = (
     "Sales & POS",
+    "Sales Operations",
+    "Buying & Suppliers",
     "Catalog & Pricing",
-    "Purchasing",
-    "Inventory & Stock",
-    "Reports & Accounting",
-    "Tax & FBR",
+    "Inventory Operations",
+    "Stock & Inventory Reports",
+    "Financial Statements",
+    "Accounting Operations",
+    "Reports & Insights",
+    "Tax Configuration",
+    "FBR & Compliance",
     "Administration",
 )
 
-# Product pages intentionally retained as first-class Ledgix UX. Their business
-# data remains ERPNext-authoritative; these shortcuts are navigation only.
+# These labels intentionally match the current Workspace shortcut labels.
 WORKSPACE_SHORTCUTS = (
     "Ledgix POS",
-    "Inventory Intelligence",
-    "Tax & FBR Center",
-    "Setup Wizard",
+    "Sales Invoice",
+    "Purchase Invoice",
+    "Payment Entry",
+    "Profit & Loss",
+    "Gross Profit",
+    "Balance Sheet",
+    "Cash Flow",
+    "Accounts Receivable",
+    "Accounts Payable",
+    "General Ledger",
+    "Stock Balance",
 )
 
-# Each entry is UX-only visibility policy. Permissions on the target DocType/Page
-# remain authoritative even when a link is visible.
+# Each entry is UX-only visibility policy. Frappe/ERPNext permissions on the
+# target DocType/Page/Report remain authoritative even when a link is visible.
 WORKSPACE_LINK_POLICY = {
+    # Sales & POS
     "Ledgix POS": {"roles": ROLE_ORDER, "all": ("enable_pos",)},
     "Sales Invoices": {"roles": ROLE_ORDER, "all": ("enable_sales_invoice",)},
     "POS Invoices": {"roles": ROLE_ORDER, "all": ("enable_pos",)},
     "Customers": {"roles": ROLE_ORDER, "any": ("enable_sales_invoice", "enable_pos", "enable_b2b")},
-    "Payment Entries": {"roles": ROLE_ORDER, "all": ("enable_accounting_workspace",)},
+
+    # Sales Operations
+    "Sales Register": {"roles": ("manager", "admin", "system"), "any": ("enable_sales_invoice", "enable_pos", "enable_b2b")},
     "POS Openings": {"roles": ("manager", "admin", "system"), "all": ("enable_pos",)},
     "POS Closings": {"roles": ("manager", "admin", "system"), "all": ("enable_pos",)},
 
+    # Buying & Suppliers
+    "Purchase Orders": {"roles": ("manager", "admin", "system"), "all": ("enable_buying",)},
+    "Purchase Receipts": {"roles": ("manager", "admin", "system"), "all": ("enable_buying",)},
+    "Purchase Invoices": {"roles": ("manager", "admin", "system"), "all": ("enable_buying",)},
+    "Suppliers": {"roles": ("manager", "admin", "system"), "all": ("enable_buying",)},
+    "Purchase Register": {"roles": ("manager", "admin", "system"), "all": ("enable_buying",)},
+
+    # Catalog & Pricing
     "Items": {"roles": ROLE_ORDER, "any": ("enable_sales_invoice", "enable_pos", "enable_inventory", "enable_buying", "enable_b2b")},
     "Item Groups": {"roles": ("manager", "admin", "system"), "any": ("enable_sales_invoice", "enable_pos", "enable_inventory", "enable_buying", "enable_b2b")},
     "Price Lists": {"roles": ("manager", "admin", "system"), "any": ("enable_sales_invoice", "enable_pos", "enable_b2b")},
     "Item Prices": {"roles": ("manager", "admin", "system"), "any": ("enable_sales_invoice", "enable_pos", "enable_b2b")},
     "Pricing Rules": {"roles": ("manager", "admin", "system"), "any": ("enable_sales_invoice", "enable_pos", "enable_b2b")},
+    "Modes of Payment": {"roles": ("manager", "admin", "system"), "all": ("enable_accounting_workspace",)},
 
-    "Purchase Orders": {"roles": ("manager", "admin", "system"), "all": ("enable_buying",)},
-    "Purchase Receipts": {"roles": ("manager", "admin", "system"), "all": ("enable_buying",)},
-    "Purchase Invoices": {"roles": ("manager", "admin", "system"), "all": ("enable_buying",)},
-    "Suppliers": {"roles": ("manager", "admin", "system"), "all": ("enable_buying",)},
-
+    # Inventory Operations
     "Inventory Intelligence": {"roles": ("manager", "admin", "system"), "all": ("enable_inventory",)},
     "Warehouses": {"roles": ("manager", "admin", "system"), "all": ("enable_inventory",)},
     "Stock Entries": {"roles": ("manager", "admin", "system"), "all": ("enable_inventory", "enable_advanced_inventory")},
@@ -62,50 +82,114 @@ WORKSPACE_LINK_POLICY = {
     "Batches": {"roles": ("manager", "admin", "system"), "all": ("enable_inventory", "enable_advanced_inventory")},
     "Serial Numbers": {"roles": ("manager", "admin", "system"), "all": ("enable_inventory", "enable_advanced_inventory")},
 
+    # Stock & Inventory Reports
+    "Stock Balance": {"roles": ("manager", "admin", "system"), "all": ("enable_inventory",)},
+    "Stock Ledger": {"roles": ("manager", "admin", "system"), "all": ("enable_inventory",)},
+    "Current Stock": {"roles": ("manager", "admin", "system"), "all": ("enable_inventory",)},
+    "Low Stock": {"roles": ("manager", "admin", "system"), "all": ("enable_inventory",)},
+
+    # Financial Statements
+    "Profit & Loss": {"roles": ("manager", "admin", "system"), "all": ("enable_accounting_workspace",)},
+    "Gross Profit": {"roles": ("manager", "admin", "system"), "all": ("enable_accounting_workspace",)},
+    "Balance Sheet": {"roles": ("manager", "admin", "system"), "all": ("enable_accounting_workspace",)},
+    "Cash Flow": {"roles": ("manager", "admin", "system"), "all": ("enable_accounting_workspace",)},
+    "General Ledger": {"roles": ("manager", "admin", "system"), "all": ("enable_accounting_workspace",)},
+    "Trial Balance": {"roles": ("manager", "admin", "system"), "all": ("enable_accounting_workspace",)},
+
+    # Accounting Operations
+    "Accounts Receivable": {"roles": ("manager", "admin", "system"), "all": ("enable_accounting_workspace",)},
+    "Accounts Payable": {"roles": ("manager", "admin", "system"), "all": ("enable_accounting_workspace",)},
+    "Payment Entries": {"roles": ROLE_ORDER, "all": ("enable_accounting_workspace",)},
+    "Journal Entries": {"roles": ("manager", "admin", "system"), "all": ("enable_accounting_workspace",)},
+
+    # Reports & Insights
     "Sales Report": {"roles": ("manager", "admin", "system"), "any": ("enable_sales_invoice", "enable_pos")},
     "Sales Return Report": {"roles": ("manager", "admin", "system"), "any": ("enable_sales_invoice", "enable_pos")},
     "Purchase Report": {"roles": ("manager", "admin", "system"), "all": ("enable_buying",)},
     "Customer Statement": {"roles": ("manager", "admin", "system"), "all": ("enable_accounting_workspace",)},
-    "Stock Balance": {"roles": ("manager", "admin", "system"), "all": ("enable_inventory",)},
-    "Stock Ledger": {"roles": ("manager", "admin", "system"), "all": ("enable_inventory",)},
-    "Accounts Receivable": {"roles": ("manager", "admin", "system"), "all": ("enable_accounting_workspace",)},
-    "General Ledger": {"roles": ("manager", "admin", "system"), "all": ("enable_accounting_workspace",)},
-    "Profit and Loss Statement": {"roles": ("manager", "admin", "system"), "all": ("enable_accounting_workspace",)},
+    "Stock Movement Report": {"roles": ("manager", "admin", "system"), "all": ("enable_inventory",)},
+    "Inventory Intelligence Report": {"roles": ("manager", "admin", "system"), "all": ("enable_inventory",)},
 
-    "Tax & FBR Center": {"roles": ("manager", "admin", "system"), "all": ("enable_fbr",)},
-    "Item Tax Profiles": {"roles": ("manager", "admin", "system"), "all": ("enable_fbr",)},
-    "Tax Profile": {"roles": ("admin", "system"), "all": ("enable_fbr",)},
+    # Tax Configuration
     "Tax Categories": {"roles": ("admin", "system"), "all": ("enable_fbr",)},
-    "Tax Rates": {"roles": ("admin", "system"), "all": ("enable_fbr",)},
-    "FBR Integration Profiles": {"roles": ("admin", "system"), "all": ("enable_fbr",)},
-    "FBR Submission Logs": {"roles": ("manager", "admin", "system"), "all": ("enable_fbr",)},
-    "Tax Audit Logs": {"roles": ("admin", "system"), "all": ("enable_fbr",)},
+    "Tax Rules": {"roles": ("admin", "system"), "all": ("enable_fbr",)},
+    "Sales Taxes and Charges Templates": {"roles": ("admin", "system"), "all": ("enable_fbr",)},
+    "Item Tax Templates": {"roles": ("admin", "system"), "all": ("enable_fbr",)},
+    "Accounts": {"roles": ("admin", "system"), "all": ("enable_fbr",)},
 
+    # FBR & Compliance
+    "Tax & FBR Center": {"roles": ("manager", "admin", "system"), "all": ("enable_fbr",)},
+    "FBR Integration Profiles": {"roles": ("admin", "system"), "all": ("enable_fbr",)},
+    "FBR Item Mappings": {"roles": ("admin", "system"), "all": ("enable_fbr",)},
+    "FBR Tax Component Mappings": {"roles": ("admin", "system"), "all": ("enable_fbr",)},
+    "FBR Reference Data": {"roles": ("manager", "admin", "system"), "all": ("enable_fbr",)},
+    "FBR Sandbox Certifications": {"roles": ("manager", "admin", "system"), "all": ("enable_fbr",)},
+    "FBR Submission Logs": {"roles": ("manager", "admin", "system"), "all": ("enable_fbr",)},
+    "FBR Correction Requests": {"roles": ("manager", "admin", "system"), "all": ("enable_fbr",)},
+
+    # Administration
     "Setup Wizard": {"roles": ("admin", "system")},
     "Business Profile": {"roles": ("admin", "system")},
     "Brand Settings": {"roles": ("admin", "system")},
     "User Profiles": {"roles": ("admin", "system")},
 }
 
+# Shortcut labels are not always identical to card-link labels, so shortcut
+# visibility has its own explicit mapping to the same business rules.
+WORKSPACE_SHORTCUT_POLICY = {
+    "Ledgix POS": WORKSPACE_LINK_POLICY["Ledgix POS"],
+    "Sales Invoice": WORKSPACE_LINK_POLICY["Sales Invoices"],
+    "Purchase Invoice": WORKSPACE_LINK_POLICY["Purchase Invoices"],
+    "Payment Entry": WORKSPACE_LINK_POLICY["Payment Entries"],
+    "Profit & Loss": WORKSPACE_LINK_POLICY["Profit & Loss"],
+    "Gross Profit": WORKSPACE_LINK_POLICY["Gross Profit"],
+    "Balance Sheet": WORKSPACE_LINK_POLICY["Balance Sheet"],
+    "Cash Flow": WORKSPACE_LINK_POLICY["Cash Flow"],
+    "Accounts Receivable": WORKSPACE_LINK_POLICY["Accounts Receivable"],
+    "Accounts Payable": WORKSPACE_LINK_POLICY["Accounts Payable"],
+    "General Ledger": WORKSPACE_LINK_POLICY["General Ledger"],
+    "Stock Balance": WORKSPACE_LINK_POLICY["Stock Balance"],
+}
+
 CARD_LINKS = {
     "Sales & POS": (
-        "Ledgix POS", "Sales Invoices", "POS Invoices", "Customers", "Payment Entries",
-        "POS Openings", "POS Closings",
+        "Ledgix POS", "Sales Invoices", "POS Invoices", "Customers",
     ),
-    "Catalog & Pricing": ("Items", "Item Groups", "Price Lists", "Item Prices", "Pricing Rules"),
-    "Purchasing": ("Purchase Orders", "Purchase Receipts", "Purchase Invoices", "Suppliers"),
-    "Inventory & Stock": (
+    "Sales Operations": (
+        "Sales Register", "POS Openings", "POS Closings",
+    ),
+    "Buying & Suppliers": (
+        "Purchase Orders", "Purchase Receipts", "Purchase Invoices", "Suppliers", "Purchase Register",
+    ),
+    "Catalog & Pricing": (
+        "Items", "Item Groups", "Price Lists", "Item Prices", "Pricing Rules", "Modes of Payment",
+    ),
+    "Inventory Operations": (
         "Inventory Intelligence", "Warehouses", "Stock Entries", "Stock Reconciliation", "Batches", "Serial Numbers",
     ),
-    "Reports & Accounting": (
-        "Sales Report", "Sales Return Report", "Purchase Report", "Customer Statement", "Stock Balance", "Stock Ledger",
-        "Accounts Receivable", "General Ledger", "Profit and Loss Statement",
+    "Stock & Inventory Reports": (
+        "Stock Balance", "Stock Ledger", "Current Stock", "Low Stock",
     ),
-    "Tax & FBR": (
-        "Tax & FBR Center", "Item Tax Profiles", "Tax Profile", "Tax Categories", "Tax Rates", "FBR Integration Profiles",
-        "FBR Submission Logs", "Tax Audit Logs",
+    "Financial Statements": (
+        "Profit & Loss", "Gross Profit", "Balance Sheet", "Cash Flow", "General Ledger", "Trial Balance",
     ),
-    "Administration": ("Setup Wizard", "Business Profile", "Brand Settings", "User Profiles"),
+    "Accounting Operations": (
+        "Accounts Receivable", "Accounts Payable", "Payment Entries", "Journal Entries",
+    ),
+    "Reports & Insights": (
+        "Sales Report", "Sales Return Report", "Purchase Report", "Customer Statement",
+        "Stock Movement Report", "Inventory Intelligence Report",
+    ),
+    "Tax Configuration": (
+        "Tax Categories", "Tax Rules", "Sales Taxes and Charges Templates", "Item Tax Templates", "Accounts",
+    ),
+    "FBR & Compliance": (
+        "Tax & FBR Center", "FBR Integration Profiles", "FBR Item Mappings", "FBR Tax Component Mappings",
+        "FBR Reference Data", "FBR Sandbox Certifications", "FBR Submission Logs", "FBR Correction Requests",
+    ),
+    "Administration": (
+        "Setup Wizard", "Business Profile", "Brand Settings", "User Profiles",
+    ),
 }
 
 
@@ -148,8 +232,8 @@ def build_product_context(*, roles=None, features=None) -> dict:
         if any(label in visible_link_set for label in links)
     ]
     visible_shortcuts = [
-        label for label in WORKSPACE_SHORTCUTS
-        if label in visible_link_set
+        label for label, rule in WORKSPACE_SHORTCUT_POLICY.items()
+        if _enabled(rule, features, role_level)
     ]
 
     if role_level == "cashier" and int(features.get("enable_pos") or 0):

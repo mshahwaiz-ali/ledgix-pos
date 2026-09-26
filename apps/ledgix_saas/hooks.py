@@ -6,7 +6,7 @@ app_email = "alishahwaiz96@gmail.com"
 app_license = "mit"
 
 required_apps = ["erpnext"]
-app_logo_url = "/assets/ledgix_saas/images/brand/ledgix-symbol.svg"
+app_logo_url = "/assets/ledgix_saas/images/brand/ledgix-symbol.png"
 
 app_include_css = [
 	"/assets/ledgix_saas/css/ledgix_brand.css",

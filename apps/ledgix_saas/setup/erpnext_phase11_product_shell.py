@@ -4,7 +4,12 @@ from __future__ import annotations
 
 import frappe
 
-from ledgix_saas.api.product_shell import build_product_context
+from ledgix_saas.api.product_shell import (
+    WORKSPACE_CARDS,
+    WORKSPACE_LINK_POLICY,
+    WORKSPACE_SHORTCUT_POLICY,
+    build_product_context,
+)
 from ledgix_saas.setup.erpnext_extensions import get_effective_business_features
 
 
@@ -68,15 +73,77 @@ def _sync_workspace_roles() -> None:
 
 def _assert_workspace_authority() -> None:
     workspace = frappe.get_doc("Workspace", WORKSPACE_NAME)
-    targets = {str(row.link_to or "") for row in workspace.links}
+    link_rows = [row for row in workspace.links if row.type == "Link"]
+    targets = {str(row.link_to or "") for row in link_rows}
+    labels = {str(row.label or "") for row in link_rows}
+
     forbidden = sorted(targets.intersection(LEGACY_OPERATIONAL_TARGETS))
     if forbidden:
-        frappe.throw("Phase 11 Workspace still exposes legacy operational DocTypes: " + ", ".join(forbidden))
+        frappe.throw(
+            "Phase 11 Workspace still exposes legacy operational DocTypes: "
+            + ", ".join(forbidden)
+        )
 
-    expected = {"Customer", "Item", "Sales Invoice", "POS Invoice", "Purchase Invoice", "Stock Entry"}
-    missing = sorted(expected.difference(targets))
-    if missing:
-        frappe.throw("Phase 11 Workspace is missing required ERPNext targets: " + ", ".join(missing))
+    forbidden_children = {
+        "Ledgix FBR Business Nature",
+        "Ledgix FBR Sandbox Scenario",
+    }
+    exposed_children = sorted(targets.intersection(forbidden_children))
+    if exposed_children:
+        frappe.throw(
+            "Ledgix Workspace exposes FBR child tables directly: "
+            + ", ".join(exposed_children)
+        )
+
+    expected_targets = {
+        "Customer",
+        "Item",
+        "Sales Invoice",
+        "POS Invoice",
+        "Purchase Invoice",
+        "Stock Entry",
+        "Ledgix FBR Integration Profile",
+        "Ledgix FBR Item Mapping",
+        "Ledgix FBR Tax Component Mapping",
+        "Ledgix FBR Reference Data",
+        "Ledgix FBR Sandbox Certification",
+        "Ledgix FBR Submission Log",
+        "Ledgix FBR Correction Request",
+    }
+    missing_targets = sorted(expected_targets.difference(targets))
+    if missing_targets:
+        frappe.throw(
+            "Ledgix Workspace is missing required current targets: "
+            + ", ".join(missing_targets)
+        )
+
+    policy_only = sorted(set(WORKSPACE_LINK_POLICY).difference(labels))
+    workspace_only = sorted(labels.difference(WORKSPACE_LINK_POLICY))
+    if policy_only or workspace_only:
+        frappe.throw(
+            "Ledgix Workspace/product-shell link policy drift detected. "
+            f"Policy-only: {policy_only}; Workspace-only: {workspace_only}"
+        )
+
+    content = frappe.parse_json(workspace.content or "[]")
+    cards = tuple(
+        str((row.get("data") or {}).get("card_name") or "")
+        for row in content
+        if row.get("type") == "card"
+    )
+    if cards != WORKSPACE_CARDS:
+        frappe.throw(
+            "Ledgix Workspace/product-shell card drift detected. "
+            f"Workspace: {list(cards)}; Policy: {list(WORKSPACE_CARDS)}"
+        )
+
+    shortcut_labels = {str(row.label or "") for row in workspace.shortcuts}
+    if shortcut_labels != set(WORKSPACE_SHORTCUT_POLICY):
+        frappe.throw(
+            "Ledgix Workspace/product-shell shortcut drift detected. "
+            f"Workspace: {sorted(shortcut_labels)}; "
+            f"Policy: {sorted(WORKSPACE_SHORTCUT_POLICY)}"
+        )
 
 
 def sync_workspace() -> None:
