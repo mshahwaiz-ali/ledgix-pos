@@ -5,10 +5,10 @@ from unittest.mock import patch
 
 import frappe
 
-from fbr_v12.services import fbr_v2_payload_builder as builder
+from fbr_v1.services import fbr_v2_payload_builder as builder
 
 
-class TestFBRV12PayloadRuntime(unittest.TestCase):
+class TestFBRV1PayloadRuntime(unittest.TestCase):
     def _invoice(self):
         return frappe._dict(
             {

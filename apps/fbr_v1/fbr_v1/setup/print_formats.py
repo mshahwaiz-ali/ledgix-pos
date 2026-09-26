@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-"""Keep FBR V1.2 native Print Formats synchronized with app JSON.
+"""Keep FBR V1 native Print Formats synchronized with app JSON.
 
 Standard Frappe documents can remain newer in the database than their exported
-JSON metadata, which means a normal migrate may retain stale Jinja. FBR V1.2
+JSON metadata, which means a normal migrate may retain stale Jinja. FBR V1
 print formats are executable runtime contracts, so reload them forcefully after
 migrate and fail closed if the database copy is not the expected revision.
 """
@@ -19,7 +19,7 @@ PRINT_FORMATS = (
 
 def sync_native_print_formats() -> None:
     for format_name, docname, expected_doctype in PRINT_FORMATS:
-        frappe.reload_doc("fbr_v12", "print_format", docname, force=True)
+        frappe.reload_doc("fbr_v1", "print_format", docname, force=True)
         row = frappe.db.get_value(
             "Print Format",
             format_name,
@@ -27,18 +27,18 @@ def sync_native_print_formats() -> None:
             as_dict=True,
         )
         if not row:
-            frappe.throw(f"Required FBR V1.2 Print Format {format_name!r} was not imported.")
+            frappe.throw(f"Required FBR V1 Print Format {format_name!r} was not imported.")
         html = str(row.html or "")
         if row.doc_type != expected_doctype:
             frappe.throw(
-                f"FBR V1.2 Print Format {format_name!r} targets {row.doc_type!r}; "
+                f"FBR V1 Print Format {format_name!r} targets {row.doc_type!r}; "
                 f"expected {expected_doctype!r}."
             )
         if int(row.disabled or 0):
-            frappe.throw(f"Required FBR V1.2 Print Format {format_name!r} is disabled.")
+            frappe.throw(f"Required FBR V1 Print Format {format_name!r} is disabled.")
         if "p['items']" not in html or "p.items" in html:
             frappe.throw(
-                f"FBR V1.2 Print Format {format_name!r} is stale; expected collision-safe Jinja items access."
+                f"FBR V1 Print Format {format_name!r} is stale; expected collision-safe Jinja items access."
             )
 
 

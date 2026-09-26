@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 import frappe
 
-from fbr_v12.services import fbr_v2_snapshot_persistence as snapshots
+from fbr_v1.services import fbr_v2_snapshot_persistence as snapshots
 
 
 class _Meta:
@@ -63,7 +63,7 @@ class _Invoice:
         }
 
 
-class TestFBRV12SnapshotRuntime(unittest.TestCase):
+class TestFBRV1SnapshotRuntime(unittest.TestCase):
     def _payloads(self):
         header = {
             "snapshot_version": snapshots.SNAPSHOT_VERSION,

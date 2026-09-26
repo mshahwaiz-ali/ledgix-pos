@@ -5,10 +5,10 @@ from unittest.mock import patch
 
 import frappe
 
-from fbr_v12.api import fbr_native, fbr_offline
+from fbr_v1.api import fbr_native, fbr_offline
 
 
-class TestFBRV12OfflineRuntime(unittest.TestCase):
+class TestFBRV1OfflineRuntime(unittest.TestCase):
     COMPANY = "Standalone FBR Test Company"
 
     def _state(self):
