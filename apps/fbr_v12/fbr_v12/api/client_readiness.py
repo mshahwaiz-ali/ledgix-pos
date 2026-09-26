@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-"""Client onboarding/readiness evidence over ERPNext-native configuration.
+"""Standalone ERPNext/FBR operational-readiness evidence.
 
-R5 does not create client business masters, enable FBR Production, or replace
-ERPNext authority. It evaluates whether an already provisioned/configured site
-is ready for operational handover and can persist a non-secret evidence snapshot.
+This module intentionally has no Ledgix application dependency. Existing
+Ledgix roles/evidence are accepted only as transition-compatible aliases.
 """
 
 import json
@@ -14,20 +13,30 @@ from pathlib import Path
 
 import frappe
 from frappe import _
-from frappe.utils import cint, now_datetime
+from frappe.utils import now_datetime
 
-from fbr_v12.api import client_setup
 from fbr_v12.services import erpnext_fbr_identity, fbr_v2_readiness
 
-READINESS_SCHEMA_VERSION = 1
-ADMIN_ROLES = {"System Manager", "Ledgix Admin"}
-LEDGIX_OPERATIONAL_ROLES = ("Ledgix Admin", "Ledgix Manager", "Ledgix Cashier")
+READINESS_SCHEMA_VERSION = 2
+PROFILE_DOCTYPE = "Ledgix FBR Integration Profile"
+
+ADMIN_ROLES = {"System Manager", "Accounts Manager", "Ledgix Admin"}
+OPERATIONAL_ROLES = (
+    "Accounts Manager",
+    "Accounts User",
+    "Sales Manager",
+    "Ledgix Admin",
+    "Ledgix Manager",
+)
 
 
 def _require_admin() -> None:
     roles = set(frappe.get_roles())
     if not roles.intersection(ADMIN_ROLES):
-        frappe.throw(_("Ledgix client readiness requires Ledgix Admin or System Manager access."), frappe.PermissionError)
+        frappe.throw(
+            _("FBR V1.2 readiness requires System Manager or Accounts Manager access."),
+            frappe.PermissionError,
+        )
 
 
 def _check(
@@ -52,84 +61,56 @@ def _check(
 
 
 def _field_value(doc, fieldname: str) -> str:
-    if not doc.meta.has_field(fieldname):
+    if not doc or not doc.meta.has_field(fieldname):
         return ""
     return str(doc.get(fieldname) or "").strip()
 
 
-def _company_checks(company: str, features: dict) -> list[dict]:
-    category = "ERPNext accounting"
-    if not company or not frappe.db.exists("Company", company):
-        return [
-            _check(
-                "company_accounting",
-                False,
-                "Select and configure an ERPNext Company before client handover.",
-                category=category,
-                target="Company",
-            )
-        ]
+def _resolve_company() -> tuple[str, dict]:
+    default_company = str(
+        frappe.db.get_single_value("Global Defaults", "default_company") or ""
+    ).strip()
 
-    doc = frappe.get_doc("Company", company)
-    checks = [
-        _check(
-            "chart_of_accounts",
-            frappe.db.count("Account", {"company": company}) > 0,
-            "Company must have an ERPNext Chart of Accounts.",
-            category=category,
-            target="Chart of Accounts",
-        )
-    ]
-
-    needs_selling = any(features.get(key) for key in ("enable_sales_invoice", "enable_pos", "enable_b2b"))
-    needs_buying = bool(features.get("enable_buying"))
-
-    required_fields: list[tuple[str, str, bool]] = [
-        ("default_receivable_account", "Default Receivable Account", needs_selling),
-        ("default_income_account", "Default Income Account", needs_selling),
-        ("default_payable_account", "Default Payable Account", needs_buying),
-        ("default_expense_account", "Default Expense Account", needs_buying),
-    ]
-    for fieldname, label, required in required_fields:
-        if not required or not doc.meta.has_field(fieldname):
-            continue
-        checks.append(
-            _check(
-                f"company_{fieldname}",
-                bool(_field_value(doc, fieldname)),
-                f"Company needs {label} for the selected Ledgix profile.",
-                category=category,
-                target="Company",
-            )
-        )
-
-    return checks
-
-
-def _payment_checks(company: str, features: dict) -> list[dict]:
-    needs_payments = any(features.get(key) for key in ("enable_sales_invoice", "enable_pos", "enable_b2b"))
-    if not needs_payments:
-        return []
-
-    mappings = []
-    if company and frappe.db.exists("DocType", "Mode of Payment Account"):
-        mappings = frappe.get_all(
-            "Mode of Payment Account",
-            filters={"company": company},
-            fields=["parent", "default_account"],
+    profiles = []
+    if frappe.db.exists("DocType", PROFILE_DOCTYPE):
+        profiles = frappe.get_all(
+            PROFILE_DOCTYPE,
+            fields=["name", "company", "enabled", "mode"],
+            order_by="modified desc",
             limit_page_length=0,
         )
-    valid = [row for row in mappings if str(row.get("default_account") or "").strip()]
-    return [
-        _check(
-            "payment_account_mapping",
-            bool(valid),
-            "Configure at least one ERPNext Mode of Payment with an account mapping for this Company.",
-            category="ERPNext payments",
-            target="Mode of Payment",
-            details={"mapped_modes": len(valid)},
-        )
-    ]
+
+    companies = sorted(
+        {
+            str(row.get("company") or "").strip()
+            for row in profiles
+            if str(row.get("company") or "").strip()
+        }
+    )
+
+    if default_company and default_company in companies:
+        company = default_company
+        source = "Global Defaults + FBR profile"
+    elif len(companies) == 1:
+        company = companies[0]
+        source = "Single FBR integration profile"
+    elif default_company:
+        company = default_company
+        source = "ERPNext Global Defaults"
+    elif len(companies) == 1:
+        company = companies[0]
+        source = "Single FBR integration profile"
+    else:
+        company = ""
+        source = "Unresolved"
+
+    return company, {
+        "source": source,
+        "default_company": default_company,
+        "profile_companies": companies,
+        "profile_count": len(profiles),
+        "ambiguous": not company and len(companies) > 1,
+    }
 
 
 def _operational_user_summary() -> dict:
@@ -139,251 +120,203 @@ def _operational_user_summary() -> dict:
         pluck="name",
         limit_page_length=0,
     )
-    roles = []
+    rows = []
     if users:
-        roles = frappe.get_all(
+        rows = frappe.get_all(
             "Has Role",
-            filters={"parent": ["in", users], "parenttype": "User", "role": ["in", list(LEDGIX_OPERATIONAL_ROLES)]},
+            filters={
+                "parent": ["in", users],
+                "parenttype": "User",
+                "role": ["in", list(OPERATIONAL_ROLES)],
+            },
             fields=["parent", "role"],
             limit_page_length=0,
         )
 
-    by_role = {role: 0 for role in LEDGIX_OPERATIONAL_ROLES}
-    ledgix_users = set()
-    for row in roles:
+    by_role = {role: 0 for role in OPERATIONAL_ROLES}
+    operational_users = set()
+    for row in rows:
         role = row.get("role")
-        parent = row.get("parent")
-        if role in by_role and parent:
+        user = row.get("parent")
+        if role in by_role and user:
             by_role[role] += 1
-            ledgix_users.add(parent)
+            operational_users.add(user)
 
     return {
         "enabled_named_users": len(users),
-        "enabled_ledgix_users": len(ledgix_users),
+        "enabled_operational_users": len(operational_users),
         "role_counts": by_role,
     }
 
 
-def _user_checks(features: dict) -> list[dict]:
-    category = "Users and roles"
-    missing_roles = [role for role in LEDGIX_OPERATIONAL_ROLES if not frappe.db.exists("Role", role)]
-    summary = _operational_user_summary()
-    checks = [
-        _check(
-            "ledgix_roles_installed",
-            not missing_roles,
-            "Ledgix Admin, Manager and Cashier role definitions must be installed.",
-            category=category,
-            target="Role",
-            details={"missing_roles": missing_roles},
-        ),
-        _check(
-            "named_operational_user",
-            summary["enabled_ledgix_users"] > 0,
-            "Create at least one enabled named user with a Ledgix operational role before handover.",
-            category=category,
-            target="User",
-            details=summary,
-        ),
-    ]
-
-    if features.get("enable_pos"):
-        checks.append(
-            _check(
-                "cashier_user",
-                summary["role_counts"].get("Ledgix Cashier", 0) > 0,
-                "POS-enabled clients should have at least one named Ledgix Cashier user.",
-                category=category,
-                blocking=False,
-                target="User",
-                details=summary,
-            )
-        )
-    return checks
-
-
-def _fbr_checks(features: dict) -> list[dict]:
-    if not features.get("enable_fbr"):
+def _backup_candidates() -> list[Path]:
+    backup_dir = Path(frappe.get_site_path("private", "backups"))
+    if not backup_dir.exists():
         return []
 
-    category = "FBR handoff"
-    company = str(
-        frappe.db.get_single_value(
-            "Ledgix Business Profile",
-            "setup_company",
-        )
-        or ""
-    ).strip()
-
-    bundle = fbr_v2_readiness.get_company_profile_state(company)
-    state = dict(bundle.get("profile") or {})
-
-    if not state.get("exists"):
-        return [
-            _check(
-                "fbr_integration_profile",
-                False,
-                "Create a company-scoped Ledgix FBR Integration Profile.",
-                category=category,
-                target="Ledgix FBR Integration Profile",
-                details={"company": company},
-            )
-        ]
-
-    identity = erpnext_fbr_identity.resolve_company_seller_identity(company)
-    armed = bool(state.get("production_post_armed"))
-    mode = state.get("mode") or "Disabled"
-
-    return [
-        _check(
-            "fbr_integration_profile",
-            True,
-            "Company-scoped Ledgix FBR Integration Profile is available.",
-            category=category,
-            target="Ledgix FBR Integration Profile",
-            details={
-                "company": company,
-                "profile": state.get("name") or "",
-                "mode": mode,
-            },
-        ),
-        _check(
-            "fbr_pre_activation_interlock",
-            not armed,
-            "FBR Production posting must remain unarmed until the dedicated Sandbox-to-Production activation gate.",
-            category=category,
-            target="Ledgix FBR Integration Profile",
-            details={
-                "mode": mode,
-                "production_post_armed": armed,
-                "profile": state.get("name") or "",
-            },
-        ),
-        _check(
-            "fbr_seller_identity",
-            bool(identity.get("ready")),
-            "Complete ERPNext Company Tax ID and default Company Address before the next FBR Sandbox/Production workstream.",
-            category=category,
-            blocking=False,
-            target="Company / Address",
-            details={
-                "authority": identity.get("authority") or "ERPNext",
-                "errors": list(identity.get("errors") or []),
-                "mode": mode,
-            },
-        ),
-    ]
-
+    candidates: list[Path] = []
+    patterns = (
+        "*database.sql.gz",
+        "*.sql.gz",
+        "ledgix-backup-*.env",
+        "*site_config_backup.json",
+    )
+    seen = set()
+    for pattern in patterns:
+        for path in backup_dir.glob(pattern):
+            key = str(path)
+            if key not in seen and path.is_file():
+                seen.add(key)
+                candidates.append(path)
+    return sorted(candidates, key=lambda path: path.stat().st_mtime, reverse=True)
 
 
 def _evidence_checks(strict_evidence: bool) -> tuple[list[dict], dict]:
-    site_root = Path(frappe.get_site_path())
-    provisioning = site_root / "private" / "ledgix-provisioning" / "initial-provisioning.env"
-    release = site_root / "private" / "ledgix-release" / "last-successful.env"
-    backup_dir = site_root / "private" / "backups"
-    backups = sorted(backup_dir.glob("ledgix-backup-*.env"), key=lambda path: path.stat().st_mtime, reverse=True) if backup_dir.exists() else []
+    backups = _backup_candidates()
+    compatibility_dirs = [
+        Path(frappe.get_site_path("private", "ledgix-provisioning")),
+        Path(frappe.get_site_path("private", "ledgix-release")),
+    ]
+    release_compatibility_evidence = any(path.exists() for path in compatibility_dirs)
 
-    identity_evidence = provisioning.exists() or release.exists()
     summary = {
-        "provisioning_evidence": provisioning.exists(),
-        "release_evidence": release.exists(),
-        "verified_backup_metadata": bool(backups),
-        "latest_backup_metadata": backups[0].name if backups else "",
+        "backup_evidence_present": bool(backups),
+        "latest_backup_evidence": backups[0].name if backups else "",
+        "legacy_release_evidence_present": release_compatibility_evidence,
     }
     checks = [
         _check(
-            "release_identity_evidence",
-            identity_evidence,
-            "Retain provisioning or release identity evidence for this client site.",
-            category="Operational evidence",
-            blocking=strict_evidence,
-            target="Site private Ledgix evidence",
-            details=summary,
-        ),
-        _check(
-            "verified_backup_evidence",
+            "backup_evidence",
             bool(backups),
-            "Retain a verified backup metadata set before production acceptance.",
+            "Retain a recent ERPNext site backup before production acceptance.",
             category="Operational evidence",
             blocking=strict_evidence,
-            target="Verified backup",
+            target="Site private backups",
             details=summary,
-        ),
+        )
     ]
     return checks, summary
 
 
 def evaluate_client_readiness(strict_evidence: int | str = 0) -> dict:
-    """Read-only operational readiness evaluation for an already configured site."""
+    """Read-only readiness for a standalone ERPNext + FBR V1.2 installation."""
 
     _require_admin()
-    strict = bool(cint(strict_evidence))
-    profile = frappe.get_single("Ledgix Business Profile")
-    company = str(profile.get("setup_company") or "").strip()
-    setup_evaluation = client_setup.evaluate_client_setup(
-        {
-            "business_profile": profile.get("business_profile"),
-            "company": company,
-        }
-    )
-    features = dict(setup_evaluation.get("features") or {})
-    resolved = dict(setup_evaluation.get("resolved") or {})
-    company = resolved.get("company") or company
+    strict = str(strict_evidence or "0").strip() not in {"", "0", "false", "False"}
+    company, company_resolution = _resolve_company()
 
-    checks = [
+    checks: list[dict] = [
         _check(
-            "client_setup_applied",
-            bool(cint(profile.get("setup_complete"))),
-            "Apply the Ledgix client setup profile before operational handover.",
-            category="Ledgix setup",
-            target="Ledgix Client Setup",
-        ),
-        _check(
-            "client_setup_current_readiness",
-            bool(setup_evaluation.get("ready")),
-            "The current Business Profile must still satisfy its ERPNext configuration prerequisites.",
-            category="Ledgix setup",
-            target="Ledgix Client Setup",
-            details={"setup_blockers": [row.get("key") for row in setup_evaluation.get("blockers") or []]},
-        ),
+            "company_resolved",
+            bool(company) and frappe.db.exists("Company", company),
+            "Configure one ERPNext Company for the FBR integration.",
+            category="ERPNext company",
+            target="Company",
+            details=company_resolution,
+        )
     ]
-    checks.extend(_company_checks(company, features))
-    checks.extend(_payment_checks(company, features))
-    checks.extend(_user_checks(features))
-    checks.extend(_fbr_checks(features))
+
+    company_doc = (
+        frappe.get_doc("Company", company)
+        if company and frappe.db.exists("Company", company)
+        else None
+    )
+    if company_doc:
+        checks.append(
+            _check(
+                "chart_of_accounts",
+                frappe.db.count("Account", {"company": company}) > 0,
+                "ERPNext Company must have a Chart of Accounts.",
+                category="ERPNext accounting",
+                target="Chart of Accounts",
+            )
+        )
+
+    profile_bundle = (
+        fbr_v2_readiness.get_company_profile_state(company)
+        if company
+        else {"profile": {}, "sandbox_certification": {}}
+    )
+    profile = dict(profile_bundle.get("profile") or {})
+    checks.append(
+        _check(
+            "fbr_integration_profile",
+            bool(profile.get("exists")),
+            "Create a company-scoped FBR Integration Profile.",
+            category="FBR configuration",
+            target=PROFILE_DOCTYPE,
+            details={"company": company, "profile": profile.get("name") or ""},
+        )
+    )
+
+    identity = (
+        erpnext_fbr_identity.resolve_company_seller_identity(company)
+        if company
+        else {"ready": False, "errors": ["Company is unresolved."]}
+    )
+    checks.append(
+        _check(
+            "fbr_seller_identity",
+            bool(identity.get("ready")),
+            "Complete ERPNext Company Tax ID and Company Address/Province for FBR.",
+            category="FBR configuration",
+            target="Company / Address",
+            details={"errors": list(identity.get("errors") or [])},
+        )
+    )
+
+    users = _operational_user_summary()
+    checks.append(
+        _check(
+            "named_operational_user",
+            users["enabled_operational_users"] > 0,
+            "Assign at least one enabled named user an ERPNext accounting/sales operational role.",
+            category="Users and roles",
+            blocking=False,
+            target="User",
+            details=users,
+        )
+    )
+
     evidence_checks, evidence_summary = _evidence_checks(strict)
     checks.extend(evidence_checks)
 
     blockers = [row for row in checks if row["blocking"] and not row["passed"]]
     warnings = [row for row in checks if not row["blocking"] and not row["passed"]]
 
-    company_doc = frappe.get_doc("Company", company) if company and frappe.db.exists("Company", company) else None
-    system_timezone = str(frappe.db.get_single_value("System Settings", "time_zone") or "").strip()
-    installed_apps = sorted(frappe.get_installed_apps())
+    pos_enabled = False
+    if company and frappe.db.exists("DocType", "POS Profile"):
+        pos_enabled = bool(frappe.db.count("POS Profile", {"company": company}))
+
+    system_timezone = str(
+        frappe.db.get_single_value("System Settings", "time_zone") or ""
+    ).strip()
 
     return {
         "schema_version": READINESS_SCHEMA_VERSION,
         "site": getattr(frappe.local, "site", ""),
         "strict_evidence": strict,
-        "business_profile": profile.get("business_profile"),
-        "features": features,
+        "business_profile": "Standalone FBR V1.2",
+        "features": {
+            "enable_fbr": True,
+            "enable_pos": pos_enabled,
+            "enable_sales_invoice": True,
+        },
         "identity": {
             "company": company,
-            "country": _field_value(company_doc, "country") if company_doc else "",
-            "currency": _field_value(company_doc, "default_currency") if company_doc else "",
+            "country": _field_value(company_doc, "country"),
+            "currency": _field_value(company_doc, "default_currency"),
             "timezone": system_timezone,
-            "setup_completed_at": profile.get("setup_completed_at"),
-            "setup_completed_by": profile.get("setup_completed_by") or "",
         },
-        "installed_apps": installed_apps,
-        "resolved": resolved,
+        "installed_apps": sorted(frappe.get_installed_apps()),
+        "resolved": company_resolution,
         "evidence": evidence_summary,
         "checks": checks,
         "blockers": blockers,
         "warnings": warnings,
         "ready": not blockers,
-        "next_workstream": "FBR Sandbox -> Production activation" if features.get("enable_fbr") else "Printing / devices / profile UAT",
-        "authority": "ERPNext business configuration + Ledgix onboarding evidence",
+        "next_workstream": "FBR Sandbox -> Production activation",
+        "authority": "ERPNext business configuration + FBR V1.2 readiness evidence",
     }
 
 
@@ -423,11 +356,11 @@ def generate_client_readiness_evidence(
         "business_data_authority": "ERPNext",
     }
 
-    evidence_dir = Path(frappe.get_site_path("private", "ledgix-readiness"))
+    evidence_dir = Path(frappe.get_site_path("private", "fbr-v12-readiness"))
     evidence_dir.mkdir(parents=True, exist_ok=True)
     os.chmod(evidence_dir, 0o700)
     timestamp = generated_at.strftime("%Y%m%dT%H%M%SZ")
-    evidence_path = evidence_dir / f"client-readiness-{timestamp}.json"
+    evidence_path = evidence_dir / f"site-readiness-{timestamp}.json"
     latest_path = evidence_dir / "latest.json"
     content = json.dumps(payload, sort_keys=True, indent=2, default=str) + "\n"
     evidence_path.write_text(content, encoding="utf-8")
@@ -437,8 +370,8 @@ def generate_client_readiness_evidence(
 
     return {
         **readiness,
-        "evidence_file": f"private/ledgix-readiness/{evidence_path.name}",
-        "latest_evidence_file": "private/ledgix-readiness/latest.json",
+        "evidence_file": f"private/fbr-v12-readiness/{evidence_path.name}",
+        "latest_evidence_file": "private/fbr-v12-readiness/latest.json",
         "release_sha": release_sha,
         "site_url": site_url,
         "evidence_written": True,
