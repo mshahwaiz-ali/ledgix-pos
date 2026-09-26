@@ -14,7 +14,7 @@ import frappe
 from frappe.utils import cint
 from frappe.utils.password import get_decrypted_password
 
-from fbr_v12.api import fbr_transport
+from fbr_v1.api import fbr_transport
 
 
 PROFILE_DOCTYPE = "Ledgix FBR Integration Profile"

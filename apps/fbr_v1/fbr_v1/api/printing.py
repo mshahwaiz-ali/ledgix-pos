@@ -7,7 +7,7 @@ from io import BytesIO
 import frappe
 from frappe.utils import cint, flt
 
-from fbr_v12.services import erpnext_fbr_identity, fbr_v2_snapshot_persistence
+from fbr_v1.services import erpnext_fbr_identity, fbr_v2_snapshot_persistence
 
 
 SUPPORTED_PRINT_DOCTYPES = {"Sales Invoice", "POS Invoice"}
@@ -36,7 +36,7 @@ def _print_brand(company: str) -> dict:
                 legacy.get("full_logo") or legacy.get("symbol_logo") or ""
             )
             return {
-                "brand_name": legacy.get("brand_name") or company or "FBR V1.2",
+                "brand_name": legacy.get("brand_name") or company or "FBR V1",
                 "logo": logo,
                 "source": "legacy_ledgix_brand_settings",
             }
@@ -60,7 +60,7 @@ def _print_brand(company: str) -> dict:
             "source": "erpnext_company",
         }
 
-    return {"brand_name": company or "FBR V1.2", "logo": "", "source": "fallback"}
+    return {"brand_name": company or "FBR V1", "logo": "", "source": "fallback"}
 
 
 def get_fbr_qr_data_uri(fbr_invoice_number) -> str:
@@ -158,7 +158,7 @@ def _seller(doc, identity: dict) -> dict:
     seller = dict(identity.get("seller") or {})
     profile = _v2_profile_public(doc.get("company"))
     return {
-        "name": seller.get("business_name") or doc.get("company") or brand.get("brand_name") or "FBR V1.2",
+        "name": seller.get("business_name") or doc.get("company") or brand.get("brand_name") or "FBR V1",
         "address": seller.get("address") or "",
         "phone": "",
         "email": "",

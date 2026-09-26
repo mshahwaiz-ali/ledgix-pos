@@ -10,7 +10,7 @@ readiness. It never calculates tax and never submits an FBR invoice.
 import frappe
 from frappe.utils import cint
 
-from fbr_v12.services.fbr_v2_readiness import evaluate_invoice_readiness
+from fbr_v1.services.fbr_v2_readiness import evaluate_invoice_readiness
 
 
 VIEW_ROLES = {"System Manager", "Accounts Manager", "Accounts User", "Sales Manager", "Ledgix Admin", "Ledgix Manager"}

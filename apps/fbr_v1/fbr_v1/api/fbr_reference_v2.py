@@ -15,7 +15,7 @@ import frappe
 from frappe.utils import now_datetime
 from frappe.utils.password import get_decrypted_password
 
-from fbr_v12.api import fbr_transport
+from fbr_v1.api import fbr_transport
 
 
 PROVINCES_URL = "https://gw.fbr.gov.pk/pdi/v1/provinces"

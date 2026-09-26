@@ -2,7 +2,7 @@ from __future__ import annotations
 
 """ERPNext-native legal taxable-base inputs for FBR special tax treatment.
 
-FBR V1.2 does not calculate monetary tax here. It supplies the legally defined
+FBR V1 does not calculate monetary tax here. It supplies the legally defined
 per-line taxable base to ERPNext's ``erpnext_taxable_base_resolvers`` extension
 point. ERPNext remains responsible for rate application, totals and GL.
 """
@@ -11,7 +11,7 @@ import frappe
 from frappe.utils import cint, flt, getdate
 
 SUPPORTED_DOCTYPES = {"Sales Invoice", "POS Invoice"}
-MAPPING_DOCTYPE = "FBR V1.2 FBR Item Mapping"
+MAPPING_DOCTYPE = "FBR V1 FBR Item Mapping"
 
 CHARGE_TYPE = "On Notified Retail Price"
 TRANSACTION_VALUE = "Transaction Value"
