@@ -7,10 +7,10 @@
  "idx": 0,
  "modified": "2026-09-27 00:00:00.000000",
  "modified_by": "Administrator",
- "module": "FBR V12",
- "name": "fbr-v12-center",
+ "module": "FBR V1",
+ "name": "fbr-v1-center",
  "owner": "Administrator",
- "page_name": "fbr-v12-center",
+ "page_name": "fbr-v1-center",
  "roles": [
   {
    "role": "System Manager"
@@ -32,5 +32,5 @@
  "standard": "Yes",
  "style": null,
  "system_page": 0,
- "title": "FBR V1.2 Center"
+ "title": "FBR V1 Center"
 }

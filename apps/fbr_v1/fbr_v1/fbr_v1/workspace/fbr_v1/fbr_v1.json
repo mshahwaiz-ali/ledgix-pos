@@ -1,6 +1,6 @@
 {
  "charts": [],
- "content": "[{\"id\":\"fbr_header\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>FBR V1.2</b></span>\",\"col\":12}},{\"id\":\"fbr_center\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"FBR V1.2 Center\",\"col\":3}},{\"id\":\"fbr_profiles\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Integration Profiles\",\"col\":3}},{\"id\":\"fbr_items\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Item Mappings\",\"col\":3}},{\"id\":\"fbr_components\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Tax Component Mappings\",\"col\":3}},{\"id\":\"fbr_refs\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Reference Data\",\"col\":3}},{\"id\":\"fbr_cert\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Sandbox Certifications\",\"col\":3}},{\"id\":\"fbr_logs\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Submission Logs\",\"col\":3}},{\"id\":\"fbr_corrections\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Correction Requests\",\"col\":3}},{\"id\":\"erpnext_header\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>ERPNext Native Invoices</b></span>\",\"col\":12}},{\"id\":\"sales_invoice\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Sales Invoice\",\"col\":3}},{\"id\":\"pos_invoice\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"POS Invoice\",\"col\":3}}]",
+ "content": "[{\"id\":\"fbr_header\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>FBR V1</b></span>\",\"col\":12}},{\"id\":\"fbr_center\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"FBR V1 Center\",\"col\":3}},{\"id\":\"fbr_profiles\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Integration Profiles\",\"col\":3}},{\"id\":\"fbr_items\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Item Mappings\",\"col\":3}},{\"id\":\"fbr_components\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Tax Component Mappings\",\"col\":3}},{\"id\":\"fbr_refs\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Reference Data\",\"col\":3}},{\"id\":\"fbr_cert\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Sandbox Certifications\",\"col\":3}},{\"id\":\"fbr_logs\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Submission Logs\",\"col\":3}},{\"id\":\"fbr_corrections\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Correction Requests\",\"col\":3}},{\"id\":\"erpnext_header\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>ERPNext Native Invoices</b></span>\",\"col\":12}},{\"id\":\"sales_invoice\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Sales Invoice\",\"col\":3}},{\"id\":\"pos_invoice\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"POS Invoice\",\"col\":3}}]",
  "custom_blocks": [],
  "docstatus": 0,
  "doctype": "Workspace",
@@ -8,7 +8,7 @@
  "hide_custom": 0,
  "indicator_color": "orange",
  "is_hidden": 0,
- "label": "FBR V1.2",
+ "label": "FBR V1",
  "links": [
   {
    "description": "",
@@ -23,9 +23,9 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "FBR V1.2 Center",
+   "label": "FBR V1 Center",
    "link_count": 0,
-   "link_to": "fbr-v12-center",
+   "link_to": "fbr-v1-center",
    "link_type": "Page",
    "onboard": 0,
    "type": "Link"
@@ -131,8 +131,8 @@
    "type": "Link"
   }
  ],
- "module": "FBR V12",
- "name": "FBR V1.2",
+ "module": "FBR V1",
+ "name": "FBR V1",
  "number_cards": [],
  "parent_page": "",
  "public": 1,
@@ -159,8 +159,8 @@
   {
    "color": "Orange",
    "doc_view": "List",
-   "label": "FBR V1.2 Center",
-   "link_to": "fbr-v12-center",
+   "label": "FBR V1 Center",
+   "link_to": "fbr-v1-center",
    "type": "Page"
   },
   {
@@ -227,5 +227,5 @@
    "type": "DocType"
   }
  ],
- "title": "FBR V1.2"
+ "title": "FBR V1"
 }

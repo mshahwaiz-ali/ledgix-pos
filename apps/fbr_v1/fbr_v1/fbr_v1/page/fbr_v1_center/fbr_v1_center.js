@@ -1,27 +1,27 @@
 /* global frappe, $ */
 
-frappe.pages["fbr-v12-center"].on_page_load = function (wrapper) {
-	frappe.fbr_v12_center = new FBRV12Center(wrapper);
+frappe.pages["fbr-v1-center"].on_page_load = function (wrapper) {
+	frappe.fbr_v1_center = new FBRV1Center(wrapper);
 };
 
-class FBRV12Center {
+class FBRV1Center {
 	constructor(wrapper) {
 		this.wrapper = wrapper;
 		this.page = frappe.ui.make_app_page({
 			parent: wrapper,
-			title: "FBR V1.2 Center",
+			title: "FBR V1 Center",
 			single_column: true,
 		});
 		this.page.clear_actions_menu();
 
 		this.methods = {
-			boot: "fbr_v12.api.fbr_v2_center.get_v2_center_boot",
-			mappings: "fbr_v12.api.fbr_v2_center.get_v2_item_mappings",
-			syncCore: "fbr_v12.api.fbr_reference_v2.sync_core_reference_data",
-			readiness: "fbr_v12.api.fbr_v2_center.evaluate_v2_invoice_readiness",
-			offlineQueue: "fbr_v12.api.fbr_offline.get_offline_queue",
-			offlineDeclare: "fbr_v12.api.fbr_offline.declare_known_offline",
-			offlineUpload: "fbr_v12.api.fbr_offline.upload_offline_invoice",
+			boot: "fbr_v1.api.fbr_v2_center.get_v2_center_boot",
+			mappings: "fbr_v1.api.fbr_v2_center.get_v2_item_mappings",
+			syncCore: "fbr_v1.api.fbr_reference_v2.sync_core_reference_data",
+			readiness: "fbr_v1.api.fbr_v2_center.evaluate_v2_invoice_readiness",
+			offlineQueue: "fbr_v1.api.fbr_offline.get_offline_queue",
+			offlineDeclare: "fbr_v1.api.fbr_offline.declare_known_offline",
+			offlineUpload: "fbr_v1.api.fbr_offline.upload_offline_invoice",
 		};
 
 		this.areas = [
@@ -82,8 +82,8 @@ class FBRV12Center {
 				<div class="lx-tax-intro">
 					<div>
 						<div class="lx-tax-kicker">ERPNext-native compliance workspace</div>
-						<h2>FBR V1.2 Center</h2>
-						<p>ERPNext owns monetary tax and accounting. FBR V1.2 manages classification, reference data, certification and readiness.</p>
+						<h2>FBR V1 Center</h2>
+						<p>ERPNext owns monetary tax and accounting. FBR V1 manages classification, reference data, certification and readiness.</p>
 					</div>
 					<button class="btn btn-default btn-sm lx-tax-refresh" type="button">Refresh</button>
 				</div>
@@ -171,7 +171,7 @@ class FBRV12Center {
 			}
 			await this.load_area();
 		} catch (error) {
-			this.show_error("FBR V1.2 Center could not load.", error);
+			this.show_error("FBR V1 Center could not load.", error);
 		} finally {
 			this.set_loading(false);
 		}
@@ -180,7 +180,7 @@ class FBRV12Center {
 	async switch_area(area) {
 		if (!this.areas.some(row => row.key === area) || area === this.state.area) return;
 		this.state.area = area;
-		window.history.replaceState({}, "", `/app/fbr-v12-center?area=${area}`);
+		window.history.replaceState({}, "", `/app/fbr-v1-center?area=${area}`);
 		this.render_nav();
 		await this.load_area();
 	}
@@ -275,7 +275,7 @@ class FBRV12Center {
 
 			<section class="lx-tax-section">
 				<div class="lx-tax-section-head">
-					<div><h3>Native tax masters</h3><p>FBR V1.2 does not duplicate these monetary authorities.</p></div>
+					<div><h3>Native tax masters</h3><p>FBR V1 does not duplicate these monetary authorities.</p></div>
 				</div>
 				<div class="lx-native-grid">
 					${this.native_link("Tax Categories", "Customer/transaction tax categorization", "Tax Category")}
