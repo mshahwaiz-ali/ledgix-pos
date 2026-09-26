@@ -63,9 +63,9 @@ def _sandbox_network_exercise_allowed(mode: str | None) -> bool:
 
 def _require_role(action: str, *, submit: bool = False) -> None:
     roles = set(frappe.get_roles(frappe.session.user))
-    allowed = {"System Manager", "Ledgix Admin"}
+    allowed = {"System Manager", "Accounts Manager", "Ledgix Admin"}
     if not submit:
-        allowed.add("Ledgix Manager")
+        allowed.update({"Accounts User", "Sales Manager", "Ledgix Manager"})
     if not roles.intersection(allowed):
         frappe.throw(
             f"Only {', '.join(sorted(allowed))} can {action} native FBR data.",
