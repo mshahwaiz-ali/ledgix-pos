@@ -22,10 +22,6 @@ app_include_js = [
 web_include_css = ["/assets/ledgix_saas/css/ledgix_brand.css"]
 web_include_js = ["/assets/ledgix_saas/js/ledgix_brand.js"]
 
-erpnext_taxable_base_resolvers = {
-	"On Notified Retail Price": "ledgix_saas.services.erpnext_taxable_base.resolve_notified_retail_price",
-}
-
 # Desk landing is profile-aware in Phase 11. A static role_home_page hook would
 # incorrectly send Invoice-only/B2B Cashiers into POS when POS is disabled.
 
@@ -33,8 +29,6 @@ jinja = {
 	"methods": [
 		"ledgix_saas.api.brand.get_splash_logo_url",
 		"ledgix_saas.api.brand.get_print_logo_url",
-		"ledgix_saas.api.printing.get_fbr_qr_data_uri",
-		"ledgix_saas.api.printing.get_native_invoice_print_context",
 	],
 }
 
@@ -45,8 +39,6 @@ after_migrate = [
 	"ledgix_saas.setup.erpnext_phase6_extensions.after_migrate",
 	"ledgix_saas.setup.erpnext_phase7_extensions.after_migrate",
 	"ledgix_saas.setup.erpnext_phase8_extensions.after_migrate",
-	"ledgix_saas.setup.erpnext_phase9_extensions.after_migrate",
-	"ledgix_saas.setup.erpnext_phase10_print_formats.after_migrate",
 	"ledgix_saas.setup.fast_permissions.after_migrate",
 	"ledgix_saas.setup.erpnext_phase11_product_shell.after_migrate",
 	# This runs after the normal permission policy so a previously frozen site
@@ -62,7 +54,7 @@ update_website_context = ["ledgix_saas.api.brand.update_website_context"]
 
 # Keep Ledgix screen/RPC contracts stable while ERPNext owns the business engine.
 override_whitelisted_methods = {
-	"ledgix_saas.api.tax_center.get_fbr_readiness": "ledgix_saas.api.fbr_v2_center.get_fbr_readiness",
+	"ledgix_saas.api.tax_center.get_fbr_readiness": "fbr_v12.api.fbr_v2_center.get_fbr_readiness",
 	"ledgix_saas.api.tax_center.get_tax_center_boot": "ledgix_saas.api.legacy_tax_guard.reject_legacy_tax_action",
 	"ledgix_saas.api.tax_center.save_tax_profile_settings": "ledgix_saas.api.legacy_tax_guard.reject_legacy_tax_action",
 	"ledgix_saas.api.tax_center.preview_tax_calculation": "ledgix_saas.api.legacy_tax_guard.reject_legacy_tax_action",
@@ -127,18 +119,6 @@ override_whitelisted_methods = {
 doc_events = {
 	"Payment Entry": {
 		"validate": "ledgix_saas.services.erpnext_payment_policy.validate_ledgix_payment_entry",
-	},
-	"Sales Invoice": {
-		"before_validate": "ledgix_saas.services.erpnext_taxable_base.stamp_fbr_taxable_base_inputs",
-		"before_submit": "ledgix_saas.services.fbr_v2_snapshot_persistence.before_submit_capture",
-		"on_submit": "ledgix_saas.api.fbr_native.on_native_invoice_submit",
-		"before_cancel": "ledgix_saas.api.fbr_native.block_cancel_after_fbr_submission",
-	},
-	"POS Invoice": {
-		"before_validate": "ledgix_saas.services.erpnext_taxable_base.stamp_fbr_taxable_base_inputs",
-		"before_submit": "ledgix_saas.services.fbr_v2_snapshot_persistence.before_submit_capture",
-		"on_submit": "ledgix_saas.api.fbr_native.on_native_invoice_submit",
-		"before_cancel": "ledgix_saas.api.fbr_native.block_cancel_after_fbr_submission",
 	},
 }
 
