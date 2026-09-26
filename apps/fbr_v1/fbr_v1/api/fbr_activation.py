@@ -18,8 +18,8 @@ from frappe import _
 from frappe.contacts.doctype.address.address import get_default_address
 from frappe.utils import cint, now_datetime
 
-from fbr_v12.api import client_readiness, fbr_transport
-from fbr_v12.services import fbr_v2_readiness
+from fbr_v1.api import client_readiness, fbr_transport
+from fbr_v1.services import fbr_v2_readiness
 
 ACTIVATION_SCHEMA_VERSION = 1
 ADMIN_ROLES = {"System Manager", "Accounts Manager", "Ledgix Admin"}
@@ -32,7 +32,7 @@ DEFAULT_MAX_BACKUP_AGE_HOURS = 24
 def _require_admin() -> None:
     roles = set(frappe.get_roles())
     if not roles.intersection(ADMIN_ROLES):
-        frappe.throw(_("FBR V1.2 activation readiness requires System Manager or Accounts Manager access."), frappe.PermissionError)
+        frappe.throw(_("FBR V1 activation readiness requires System Manager or Accounts Manager access."), frappe.PermissionError)
 
 
 def _check(key: str, passed: bool, message: str, *, category: str, details: dict | None = None) -> dict:
@@ -388,7 +388,7 @@ def evaluate_fbr_activation_readiness(
         "network_call_made": False,
         "production_armed_by_gate": False,
         "contains_secrets": False,
-        "authority": "ERPNext native Sales Invoice/POS Invoice + FBR V1.2 audit/safety layer",
+        "authority": "ERPNext native Sales Invoice/POS Invoice + FBR V1 audit/safety layer",
         "next_action": (
             "Production switch approval" if production_switch_ready
             else "Complete Sandbox configuration/proof and production release evidence"

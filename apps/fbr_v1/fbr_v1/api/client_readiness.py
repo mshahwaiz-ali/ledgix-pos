@@ -15,7 +15,7 @@ import frappe
 from frappe import _
 from frappe.utils import now_datetime
 
-from fbr_v12.services import erpnext_fbr_identity, fbr_v2_readiness
+from fbr_v1.services import erpnext_fbr_identity, fbr_v2_readiness
 
 READINESS_SCHEMA_VERSION = 2
 PROFILE_DOCTYPE = "Ledgix FBR Integration Profile"
@@ -34,7 +34,7 @@ def _require_admin() -> None:
     roles = set(frappe.get_roles())
     if not roles.intersection(ADMIN_ROLES):
         frappe.throw(
-            _("FBR V1.2 readiness requires System Manager or Accounts Manager access."),
+            _("FBR V1 readiness requires System Manager or Accounts Manager access."),
             frappe.PermissionError,
         )
 
@@ -199,7 +199,7 @@ def _evidence_checks(strict_evidence: bool) -> tuple[list[dict], dict]:
 
 
 def evaluate_client_readiness(strict_evidence: int | str = 0) -> dict:
-    """Read-only readiness for a standalone ERPNext + FBR V1.2 installation."""
+    """Read-only readiness for a standalone ERPNext + FBR V1 installation."""
 
     _require_admin()
     strict = str(strict_evidence or "0").strip() not in {"", "0", "false", "False"}
@@ -296,7 +296,7 @@ def evaluate_client_readiness(strict_evidence: int | str = 0) -> dict:
         "schema_version": READINESS_SCHEMA_VERSION,
         "site": getattr(frappe.local, "site", ""),
         "strict_evidence": strict,
-        "business_profile": "Standalone FBR V1.2",
+        "business_profile": "Standalone FBR V1",
         "features": {
             "enable_fbr": True,
             "enable_pos": pos_enabled,
@@ -316,7 +316,7 @@ def evaluate_client_readiness(strict_evidence: int | str = 0) -> dict:
         "warnings": warnings,
         "ready": not blockers,
         "next_workstream": "FBR Sandbox -> Production activation",
-        "authority": "ERPNext business configuration + FBR V1.2 readiness evidence",
+        "authority": "ERPNext business configuration + FBR V1 readiness evidence",
     }
 
 

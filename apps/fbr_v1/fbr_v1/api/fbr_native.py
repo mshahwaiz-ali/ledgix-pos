@@ -14,10 +14,10 @@ import frappe
 from frappe import _
 from frappe.utils import cint, flt, now_datetime
 
-from fbr_v12.api import fbr_v2_transport
-from fbr_v12.setup import erpnext_phase9_extensions
-from fbr_v12.services import fbr_v2_payload_builder, fbr_v2_readiness
-from fbr_v12.services.fbr_submission_support import (
+from fbr_v1.api import fbr_v2_transport
+from fbr_v1.setup import erpnext_phase9_extensions
+from fbr_v1.services import fbr_v2_payload_builder, fbr_v2_readiness
+from fbr_v1.services.fbr_submission_support import (
     create_submission_log,
     parse_fbr_response,
     resolve_submission_status,

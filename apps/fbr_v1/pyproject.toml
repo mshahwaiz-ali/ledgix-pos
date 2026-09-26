@@ -1,5 +1,5 @@
 [project]
-name = "fbr_v12"
+name = "fbr_v1"
 authors = [{ name = "Ali", email = "alishahwaiz96@gmail.com" }]
 description = "ERPNext integration for FBR Digital Invoicing V1.2"
 requires-python = ">=3.10"
@@ -10,7 +10,7 @@ dependencies = [
 ]
 
 [tool.setuptools.dynamic]
-version = { attr = "fbr_v12.__version__" }
+version = { attr = "fbr_v1.__version__" }
 
 [build-system]
 requires = ["setuptools>=61"]
@@ -18,11 +18,11 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["fbr_v12*"]
+include = ["fbr_v1*"]
 
 [tool.setuptools.package-data]
-"fbr_v12" = ["*.json", "*.md", "*.txt", "*.html", "*.css", "*.js", "*.xml", "modules.txt", "patches.txt", "public/**/*", "fixtures/**/*"]
-"fbr_v12.fbr_v12" = ["**/*.json", "**/*.js", "**/*.css", "**/*.html", "**/*.md", "**/*.txt", "**/*.xml", "**/*.png", "**/*.svg", "**/*.jpg", "**/*.jpeg", "**/*.gif", "**/*.ico", "**/*.csv"]
+"fbr_v1" = ["*.json", "*.md", "*.txt", "*.html", "*.css", "*.js", "*.xml", "modules.txt", "patches.txt", "public/**/*", "fixtures/**/*"]
+"fbr_v1.fbr_v1" = ["**/*.json", "**/*.js", "**/*.css", "**/*.html", "**/*.md", "**/*.txt", "**/*.xml", "**/*.png", "**/*.svg", "**/*.jpg", "**/*.jpeg", "**/*.gif", "**/*.ico", "**/*.csv"]
 
 [tool.setuptools.exclude-package-data]
 "*" = ["**/__pycache__/*", "**/*.pyc"]

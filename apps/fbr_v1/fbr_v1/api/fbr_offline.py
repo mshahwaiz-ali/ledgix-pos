@@ -11,8 +11,8 @@ import json
 import frappe
 from frappe.utils import add_to_date, cint, get_datetime, now_datetime
 
-from fbr_v12.api import fbr_native
-from fbr_v12.services import fbr_submission_support, fbr_v2_readiness
+from fbr_v1.api import fbr_native
+from fbr_v1.services import fbr_submission_support, fbr_v2_readiness
 
 
 PROFILE_DOCTYPE = "Ledgix FBR Integration Profile"

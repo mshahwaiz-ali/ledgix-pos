@@ -1,31 +1,27 @@
-# FBR V1.2
+# FBR V1
 
-Standalone Frappe/ERPNext application for the extracted FBR Digital Invoicing V1.2 runtime.
+Bootstrap Frappe/ERPNext application for the FBR V1 / Tier-1 POS integration redesign.
 
-## App identity
+## Identity
 
-- Technical app name: `fbr_v12`
-- Desk title: **FBR V1.2**
-- Runtime dependencies: **Frappe 15 + ERPNext 15**
-- Python dependencies: `requests` and `PyQRCode`
-- `ledgix_saas` is intentionally **not** a required app.
+- Technical app name: `fbr_v1`
+- Desk/module title: **FBR V1**
+- Runtime base: Frappe 15 + ERPNext 15
+- Starting point: the frozen `fbr_v12` extraction, copied only to accelerate redesign.
 
-## Current extraction status
+## Status
 
-The FBR V1.2 runtime ownership cutover has been completed on the extraction branch for local validation:
+This is a **bootstrap clone**, not a claim that inherited V1.2 behavior is valid for FBR V1 / Tier-1 POS.
 
-- FBR DocTypes are owned by module **FBR V12** while their existing DocType names are preserved for data continuity.
-- ERPNext FBR custom fields and the Third Schedule charge-type extension are owned by **FBR V12**.
-- Sales Invoice and POS Invoice FBR hooks point to `fbr_v12.*`.
-- FBR print formats, the **FBR V1.2** workspace and the `fbr-v12-center` Desk page are provided by this app.
-- The extracted runtime contains no hard Python import dependency on `ledgix_saas`.
-- Automatic FBR retransmission remains disabled; Production network cutover remains fail-closed.
-- Local migration preserved existing FBR data and completed with the extracted app installed.
+Internal modules that still use `v2` terminology are inherited scaffolding. Their endpoints, payload fields, token flow, POS registration rules, QR/printing behavior, offline behavior, returns and certification rules must be checked against authoritative FBR V1 / Tier-1 documentation before real use.
 
-Standalone no-network runtime coverage verifies snapshot immutability, payload construction, transport policy and offline policy. A clean-site installation without `ledgix_saas` remains the final independence proof before the extraction PR is considered ready to merge.
+## Isolation
 
-## Compatibility
+The Python/Frappe package is `fbr_v1`, separate from `fbr_v12`. Package imports and module ownership are renamed to `fbr_v1` / **FBR V1**.
 
-Existing fieldnames and DocType names that contain the `Ledgix` prefix are deliberately preserved during extraction to avoid destructive data/schema renames. They are compatibility identifiers, not runtime dependencies on `ledgix_saas`.
+Compatibility DocType and field identifiers inherited from V1.2 are intentionally left for the next design phase. Until that redesign is complete, do not install `fbr_v1` alongside `fbr_v12` on the same site.
 
-Production deployment is not part of this extraction branch validation and must remain a separate guarded step.
+## Documentation
+
+- V1 / Tier-1 work: `docs/fbr/fbr_v1/`
+- Frozen V1.2 reference docs: `docs/fbr/fbr_v12/`
