@@ -67,7 +67,6 @@ packages = [
     "ledgix.doctype.ledgix_tax_profile",
     "ledgix.doctype.ledgix_invoice_tax_detail",
     "ledgix.doctype.ledgix_pos_hold_item",
-    "ledgix.doctype.ledgix_fbr_submission_log",
     "ledgix.doctype.ledgix_stock_movement",
     "ledgix.doctype.ledgix_purchase_item",
     "ledgix.doctype.ledgix_price_list",
