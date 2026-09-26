@@ -1,7 +1,7 @@
 app_name = "fbr_v1"
 app_title = "FBR V1"
 app_publisher = "Ledgix"
-app_description = "ERPNext integration for FBR Digital Invoicing V1.2"
+app_description = "Bootstrap ERPNext integration for FBR V1 / Tier-1 POS redesign"
 app_email = "alishahwaiz96@gmail.com"
 app_license = "mit"
 
