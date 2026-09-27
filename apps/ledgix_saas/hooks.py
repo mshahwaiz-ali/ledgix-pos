@@ -54,7 +54,7 @@ update_website_context = ["ledgix_saas.api.brand.update_website_context"]
 
 # Keep Ledgix screen/RPC contracts stable while ERPNext owns the business engine.
 override_whitelisted_methods = {
-	"ledgix_saas.api.tax_center.get_fbr_readiness": "fbr_v12.api.fbr_v2_center.get_fbr_readiness",
+	"ledgix_saas.api.tax_center.get_fbr_readiness": "ledgix_saas.api.fbr_legacy_guard.reject_legacy_fbr_action",
 	"ledgix_saas.api.tax_center.get_tax_center_boot": "ledgix_saas.api.legacy_tax_guard.reject_legacy_tax_action",
 	"ledgix_saas.api.tax_center.save_tax_profile_settings": "ledgix_saas.api.legacy_tax_guard.reject_legacy_tax_action",
 	"ledgix_saas.api.tax_center.preview_tax_calculation": "ledgix_saas.api.legacy_tax_guard.reject_legacy_tax_action",
