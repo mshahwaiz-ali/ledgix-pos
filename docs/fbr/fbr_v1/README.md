@@ -28,6 +28,9 @@ A complete forensic audit and current-source review has established a critical r
 4. [FBR_V1_CANONICAL_REDESIGN_PLAN.md](FBR_V1_CANONICAL_REDESIGN_PLAN.md)  
    Target architecture, DocTypes, ERPNext fields/hooks, migrations, tests, acceptance gates and phased implementation sequence.
 
+5. [FBR_V1_PHASE0_REGIME_PROTOCOL_GATE.md](FBR_V1_PHASE0_REGIME_PROTOCOL_GATE.md)  
+   Phase-0 evidence result, exact client evidence required to prove grandfathered SDC eligibility, and the Gate-1 machine-contract checklist.
+
 ## Non-negotiable constraints
 
 - ERPNext remains the accounting, stock, payment and tax authority.
@@ -41,4 +44,4 @@ A complete forensic audit and current-source review has established a critical r
 
 ## Next step
 
-Review the canonical redesign plan. No runtime implementation begins until the plan is accepted and the legacy-regime / machine-contract Gate 0 and Gate 1 evidence is available.
+Phase 0 is now active and blocked on client/FBR evidence. Inspect the client's existing/old FBR-integrated POS machine and FBR registration evidence, then resolve Gate 0 and Gate 1 before any legacy transport code is enabled.
