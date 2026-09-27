@@ -340,7 +340,12 @@ def preview_sales_invoice(**kwargs) -> dict:
     return invoice_summary(invoice, include_items=True)
 
 
-def create_sales_invoice(*, submit: bool = True, **kwargs):
+def create_sales_invoice(
+    *,
+    submit: bool = True,
+    fbr_v1_payment_evidence: dict | None = None,
+    **kwargs,
+):
     company = _company(kwargs.get("company"))
     client_sale_id = str(kwargs.get("client_sale_id") or "").strip()
     _lock_company(company)
@@ -351,6 +356,10 @@ def create_sales_invoice(*, submit: bool = True, **kwargs):
 
     kwargs["company"] = company
     invoice = build_sales_invoice(**kwargs)
+    if fbr_v1_payment_evidence is not None:
+        # Transient bridge only: the before_submit snapshot may consume this,
+        # but it never becomes a second payment or accounting ledger.
+        invoice.flags.ledgix_fbr_v1_payment_evidence = fbr_v1_payment_evidence
     invoice.insert(ignore_permissions=True)
     if submit:
         invoice.submit()

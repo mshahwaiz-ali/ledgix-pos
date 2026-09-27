@@ -112,10 +112,22 @@ class TestERPNextPhase8Contract(unittest.TestCase):
         self.assertIn('result["sale"] = ""', source)
         self.assertIn('result["native_document"] = native_document', source)
         self.assertIn('result["print_doctype"] = doctype', source)
-        self.assertIn('result["print_deferred"] = False', source)
+        self.assertIn('fbr_v1.api.fiscalization.get_invoice_fiscal_state', source)
+        self.assertIn('result["print_deferred"] = bool(', source)
         self.assertIn('"Ledgix ERPNext POS Receipt"', source)
         self.assertIn('"Ledgix ERPNext Tax Invoice"', source)
         self.assertNotIn('print_doctype"] = "Ledgix Sale"', source)
+
+    def test_b2b_fiscal_tenders_are_transient_before_submit(self):
+        selling = (APP_ROOT / "api" / "selling.py").read_text(encoding="utf-8")
+        service = (APP_ROOT / "services" / "erpnext_selling.py").read_text(encoding="utf-8")
+        self.assertIn('"source": "Ledgix B2B Checkout"', selling)
+        self.assertIn('fbr_v1_payment_evidence', selling)
+        self.assertIn('invoice.flags.ledgix_fbr_v1_payment_evidence', service)
+        self.assertLess(
+            service.index('invoice.flags.ledgix_fbr_v1_payment_evidence'),
+            service.index('invoice.insert(ignore_permissions=True)', service.index('def create_sales_invoice')),
+        )
 
     def test_phase8_schema_is_installed_after_migrate(self):
         hooks = (APP_ROOT / "hooks.py").read_text(encoding="utf-8")

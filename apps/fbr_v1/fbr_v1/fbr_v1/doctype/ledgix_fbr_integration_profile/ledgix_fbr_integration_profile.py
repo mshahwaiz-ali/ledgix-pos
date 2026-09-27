@@ -1,5 +1,6 @@
 import frappe
 from frappe.model.document import Document
+from frappe.utils import cint
 from fbr_v1.services.authority_evidence import AUTHORITY_STATES, stamp_verification
 
 
@@ -14,6 +15,15 @@ class LedgixFBRIntegrationProfile(Document):
             self.transport_enabled = self.production_post_armed = 0
         if self.mode != "Production":
             self.production_post_armed = 0
+        if self.mode == "Production":
+            if self.submit_trigger != "On Submit":
+                frappe.throw(
+                    "Production Federal V1 profiles must use the On Submit trigger."
+                )
+            if cint(self.block_print_without_fiscal_result) != 1:
+                frappe.throw(
+                    "Production Federal V1 profiles must block printing until a fiscal result exists."
+                )
         if self.mode == "Paused" and not self.pause_reason:
             frappe.throw("Pause Reason is required.")
         if self.default_pos_device and frappe.db.get_value("Ledgix FBR POS Device", self.default_pos_device, "company") != self.company:

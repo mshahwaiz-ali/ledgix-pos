@@ -144,6 +144,18 @@ def invoice_readiness(reference_doctype, reference_name):
     return {k: ready[k] for k in ("ready", "network_ready", "errors", "network_blockers", "unresolved_contracts")}
 
 
+@frappe.whitelist()
+def get_invoice_fiscal_state(reference_doctype, reference_name):
+    """Read current fiscal wait/print state without transport or mutation."""
+
+    from fbr_v1.api.printing import get_invoice_fiscal_print_state
+
+    state = get_invoice_fiscal_print_state(
+        source(reference_doctype, reference_name, "read")
+    )
+    return {**state, "network_call": False}
+
+
 def on_native_invoice_submit(doc, method=None):
     if is_consolidated(doc) or not profile_active(get_profile(doc.company)):
         return

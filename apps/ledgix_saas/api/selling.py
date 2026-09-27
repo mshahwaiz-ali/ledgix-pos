@@ -148,6 +148,17 @@ def complete_b2b_sale(
     """Current Ledgix B2B checkout contract backed only by ERPNext finance docs."""
 
     _require_manager()
+    fiscal_tenders = []
+    for tender in _parse(tenders) or []:
+        mode = tender.get("payment_method") or tender.get("mode_of_payment")
+        fiscal_tenders.append({
+            "mode_of_payment": (
+                erpnext_selling._resolve_mode_of_payment(mode) if mode else ""
+            ),
+            "amount": tender.get("amount"),
+            "reference_no": tender.get("reference_number")
+            or tender.get("reference_no"),
+        })
     invoice = erpnext_selling.create_sales_invoice(
         customer=customer,
         items=_invoice_items_from_cart(cart_items),
@@ -160,6 +171,11 @@ def complete_b2b_sale(
         allow_rate_override=_allow_rate_override(),
         update_stock=False,
         checkout_source="Ledgix POS B2B Checkout",
+        fbr_v1_payment_evidence={
+            "source": "Ledgix B2B Checkout",
+            "require_full_coverage": True,
+            "rows": fiscal_tenders,
+        },
         submit=True,
     )
     duplicate = bool(getattr(invoice.flags, "ledgix_duplicate_client_sale", False))

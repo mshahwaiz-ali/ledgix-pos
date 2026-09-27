@@ -140,11 +140,12 @@ class TestERPNextPhase10Contract(unittest.TestCase):
         self.assertIn("custom_ledgix_fbr_snapshot_json", source)
         self.assertNotIn('frappe.get_doc("Ledgix Sale"', source)
 
-    def test_pos_print_target_is_native_and_not_deferred(self):
+    def test_pos_print_target_is_native_and_uses_fiscal_state(self):
         source = (APP_ROOT / "api" / "pos_compat.py").read_text(encoding="utf-8")
         self.assertIn('result["native_document"] = native_document', source)
         self.assertIn('result["print_doctype"] = doctype', source)
-        self.assertIn('result["print_deferred"] = False', source)
+        self.assertIn('fbr_v1.api.fiscalization.get_invoice_fiscal_state', source)
+        self.assertIn('result["print_deferred"] = bool(', source)
         self.assertIn('"Ledgix ERPNext Tax Invoice"', source)
         self.assertIn('"Ledgix ERPNext POS Receipt"', source)
         self.assertIn('result["sale"] = ""', source)

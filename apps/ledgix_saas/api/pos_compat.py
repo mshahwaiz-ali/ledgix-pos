@@ -23,6 +23,24 @@ def _allow_rate_override() -> bool:
     return has_any_role(LEDGIX_MANAGER_OR_ABOVE)
 
 
+def _fiscal_print_state(native_document: str, doctype: str) -> dict:
+    """Dynamically read optional FBR V1 state without an import-time dependency."""
+
+    if "fbr_v1" not in set(frappe.get_installed_apps()):
+        return {
+            "fbr_required": False,
+            "status": "Not Required",
+            "invoice_number": "",
+            "print_ready": True,
+            "print_blocked": False,
+            "automatic_submission_expected": False,
+            "message": "Federal V1 integration is not installed.",
+            "network_call": False,
+        }
+    reader = frappe.get_attr("fbr_v1.api.fiscalization.get_invoice_fiscal_state")
+    return reader(reference_doctype=doctype, reference_name=native_document)
+
+
 def _native_print_target(result: dict, *, native_document: str, doctype: str) -> dict:
     """Attach the Phase 10 native print target without restoring legacy Sale IDs."""
 
@@ -37,7 +55,24 @@ def _native_print_target(result: dict, *, native_document: str, doctype: str) ->
     else:
         result["print_mode"] = "A4"
         result["print_format"] = "Ledgix ERPNext Tax Invoice"
-    result["print_deferred"] = False
+    fiscal_state = _fiscal_print_state(native_document, doctype)
+    result.update({
+        "fbr_required": bool(fiscal_state.get("fbr_required")),
+        "fbr_status": fiscal_state.get("status") or "Not Required",
+        "fbr_invoice_number": fiscal_state.get("invoice_number") or "",
+        "fbr_print_ready": bool(fiscal_state.get("print_ready")),
+        "fbr_offline_pending": bool(fiscal_state.get("offline_pending")),
+        "fbr_reconciliation_required": bool(
+            fiscal_state.get("reconciliation_required")
+        ),
+        "fbr_automatic_submission_expected": bool(
+            fiscal_state.get("automatic_submission_expected")
+        ),
+        "fbr_message": fiscal_state.get("message") or "",
+    })
+    result["print_deferred"] = bool(
+        result["fbr_required"] and not result["fbr_print_ready"]
+    )
     result["print_authority"] = "ERPNext native document + Ledgix print format"
     return result
 

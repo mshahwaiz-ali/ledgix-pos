@@ -66,3 +66,36 @@ class TestV1Payload(NoNetworkTest):
         with self.assertRaises(frappe.ValidationError):capture_payment(doc,lookup)
         doc.custom_ledgix_fbr_mode_of_payment='Card'
         self.assertEqual(capture_payment(doc,lookup)['payment_mode'],2)
+
+    def test_fully_tendered_transient_b2b_payment_evidence(self):
+        lookup=lambda mode: {'Cash':'1 - Cash','Card':'2 - Card'}.get(mode)
+        evidence=lambda rows: Row(source='Ledgix B2B Checkout',require_full_coverage=True,rows=rows)
+        doc=Row(doctype='Sales Invoice',is_return=0,payments=[],grand_total=118,
+                flags=Row(ledgix_fbr_v1_payment_evidence=evidence([
+                    {'mode_of_payment':'Cash','amount':118,'reference_no':''}
+                ])))
+        payment=capture_payment(doc,lookup)
+        self.assertEqual(payment['payment_mode'],1)
+        self.assertEqual(payment['evidence'][0]['source'],'Ledgix B2B Checkout')
+
+        doc.flags.ledgix_fbr_v1_payment_evidence=evidence([
+            {'mode_of_payment':'Cash','amount':50},
+            {'mode_of_payment':'Card','amount':68,'reference_no':'CARD-1'},
+        ])
+        self.assertEqual(capture_payment(doc,lookup)['payment_mode'],5)
+
+    def test_transient_b2b_payment_evidence_fails_closed(self):
+        lookup=lambda mode: {'Cash':'1 - Cash'}.get(mode)
+        def doc(rows):
+            return Row(doctype='Sales Invoice',is_return=0,payments=[],grand_total=118,
+                       flags=Row(ledgix_fbr_v1_payment_evidence=Row(
+                           source='Ledgix B2B Checkout',require_full_coverage=True,rows=rows)))
+        with self.assertRaisesRegex(frappe.ValidationError,'fully tendered'):
+            capture_payment(doc([]),lookup)
+        with self.assertRaisesRegex(frappe.ValidationError,'fully cover'):
+            capture_payment(doc([{'mode_of_payment':'Cash','amount':100}]),lookup)
+        with self.assertRaisesRegex(frappe.ValidationError,'Missing Federal V1 payment mapping'):
+            capture_payment(doc([{'mode_of_payment':'Unmapped','amount':118}]),lookup)
+        credit=doc([{'mode_of_payment':'Cash','amount':118}]); credit.is_return=1
+        with self.assertRaisesRegex(frappe.ValidationError,'Credit Note payment semantics are unresolved'):
+            capture_payment(credit,lookup)

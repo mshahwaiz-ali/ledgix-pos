@@ -9,6 +9,7 @@ from fbr_v1.services import pos_identity as identity, fbr_v1_readiness as readin
 from fbr_v1.api import fbr_offline as offline
 from fbr_v1.services import fiscal_closing as closing
 from fbr_v1.api import fiscalization as fiscal
+from fbr_v1.fbr_v1.doctype.ledgix_fbr_integration_profile import ledgix_fbr_integration_profile as profile_controller
 
 class TestReadiness(NoNetworkTest):
     def test_device_ambiguity_environment_and_pos_profile(self):
@@ -82,6 +83,7 @@ class TestReadiness(NoNetworkTest):
     def _production_configuration(self):
         profile = Row(company='Test Company', provider_type='PRAL', protocol_version=identity.PROTOCOL,
                       mode='Production', enabled=1, transport_enabled=1, production_post_armed=1,
+                      submit_trigger='On Submit', block_print_without_fiscal_result=1,
                       authority_status='FBR / PRAL Directed', authority_reference='AUTH-1',
                       authority_evidence='/private/files/authority', authority_verified_at='2026-09-01',
                       authority_verified_by='test@example.invalid', activation_reference='ACT-1',
@@ -97,6 +99,32 @@ class TestReadiness(NoNetworkTest):
                 prefix + '_verified_at': '2026-09-01', prefix + '_verified_by': 'test@example.invalid'})
         self.db.exists.return_value = True
         return profile, compliance
+
+    def test_production_profile_requires_submit_and_print_invariants(self):
+        base = dict(protocol_version=identity.PROTOCOL, mode='Production', enabled=1,
+                    transport_enabled=1, production_post_armed=1, provider_type='PRAL',
+                    offline_policy='Disabled', default_pos_device=None,
+                    submit_trigger='On Submit', block_print_without_fiscal_result=1)
+        with patch.object(profile_controller, 'stamp_verification'):
+            manual = Row(**base); manual.submit_trigger = 'Manual'
+            with self.assertRaisesRegex(frappe.ValidationError, 'On Submit'):
+                profile_controller.LedgixFBRIntegrationProfile.validate(manual)
+            unblocked = Row(**base); unblocked.block_print_without_fiscal_result = 0
+            with self.assertRaisesRegex(frappe.ValidationError, 'block printing'):
+                profile_controller.LedgixFBRIntegrationProfile.validate(unblocked)
+            profile_controller.LedgixFBRIntegrationProfile.validate(Row(**base))
+
+        profile, _ = self._production_configuration()
+        profile.submit_trigger = 'Manual'
+        blockers = configuration.configuration_blockers(profile, None, 'Production')
+        self.assertIn('Production profile must use the On Submit trigger.', blockers)
+        profile.submit_trigger = 'On Submit'
+        profile.block_print_without_fiscal_result = 0
+        blockers = configuration.configuration_blockers(profile, None, 'Production')
+        self.assertIn('Production profile must block printing until a fiscal result exists.', blockers)
+        profile.block_print_without_fiscal_result = 1
+        blockers = configuration.configuration_blockers(profile, None, 'Production')
+        self.assertFalse(any('On Submit trigger' in row or 'block printing' in row for row in blockers))
 
     def test_production_requires_current_authority_retention_qr_and_signature_evidence(self):
         for field, message in [('authority_evidence', 'authority evidence'),

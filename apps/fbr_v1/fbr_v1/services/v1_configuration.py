@@ -32,6 +32,10 @@ def configuration_blockers(profile, device, mode):
     if profile.get("provider_type") == "Licensed Integrator" and not profile.get("licensed_integrator_name"):
         errors.append("Licensed integrator name is required.")
     if mode == "Production":
+        if profile.get("submit_trigger") != "On Submit":
+            errors.append("Production profile must use the On Submit trigger.")
+        if cint(profile.get("block_print_without_fiscal_result")) != 1:
+            errors.append("Production profile must block printing until a fiscal result exists.")
         if not cint(profile.get("production_post_armed")):
             errors.append("Production posting is not armed.")
         if profile.get("authority_status") not in AUTHORITY_STATES:

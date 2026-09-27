@@ -255,7 +255,7 @@ class LedgixPOSV2 {
 			const reference = result.native_document || result.invoice_number || result.invoice || "ERPNext invoice";
 			frappe.show_alert({ message: `${reference} completed`, indicator: "green" }, 5);
 			this.clear_cart();
-			if (!result.print_deferred && result.native_document) this.handle_post_sale_print(result);
+			if (result.native_document) await this.handle_fiscal_print(result);
 			await this.refresh_context();
 			await this.load_items();
 		} catch (error) {
@@ -263,6 +263,75 @@ class LedgixPOSV2 {
 		} finally {
 			this.set_loading(false);
 		}
+	}
+
+	show_fiscal_stop(state) {
+		const status = state.status || state.fbr_status || "Pending";
+		let title = "Fiscal receipt not printed";
+		let message = state.message || state.fbr_message || "Fiscalization is not ready.";
+		if (status === "Failed") {
+			message = "Fiscalization failed. Receipt was not printed. Do not resend automatically; review the fiscal result.";
+		} else if (status === "Reconciliation Required" || state.reconciliation_required || state.fbr_reconciliation_required) {
+			title = "FBR reconciliation required";
+			message = "Receipt was not printed. Reconciliation is required; do not retransmit automatically.";
+		}
+		frappe.msgprint({ title, message, indicator: "orange" });
+	}
+
+	async handle_fiscal_print(result) {
+		let state = {
+			fbr_required: !!result.fbr_required,
+			status: result.fbr_status,
+			invoice_number: result.fbr_invoice_number,
+			print_ready: !!result.fbr_print_ready,
+			offline_pending: !!result.fbr_offline_pending,
+			reconciliation_required: !!result.fbr_reconciliation_required,
+			automatic_submission_expected: !!result.fbr_automatic_submission_expected,
+			message: result.fbr_message,
+		};
+		if (!state.fbr_required || state.print_ready) {
+			this.handle_post_sale_print(result);
+			return;
+		}
+		if (["Failed", "Reconciliation Required"].includes(state.status) || state.reconciliation_required) {
+			this.show_fiscal_stop(state);
+			return;
+		}
+		if (!state.automatic_submission_expected) {
+			this.show_fiscal_stop(state);
+			return;
+		}
+
+		frappe.show_alert({ message: "Fiscalizing…", indicator: "blue" }, 5);
+		for (let attempt = 0; attempt < 40; attempt += 1) {
+			await new Promise(resolve => setTimeout(resolve, 1000));
+			try {
+				state = await this.call("fbr_v1.api.fiscalization.get_invoice_fiscal_state", {
+					reference_doctype: result.print_doctype || result.doctype,
+					reference_name: result.native_document,
+				});
+			} catch (error) {
+				this.show_fiscal_stop({ message: "Fiscal state could not be verified. Receipt was not printed; recheck the invoice before reprinting." });
+				return;
+			}
+			if (state.print_ready) {
+				result.fbr_status = state.status;
+				result.fbr_invoice_number = state.invoice_number || "";
+				result.fbr_offline_pending = !!state.offline_pending;
+				result.print_deferred = false;
+				this.handle_post_sale_print(result);
+				return;
+			}
+			if (state.terminal || !state.automatic_submission_expected) {
+				this.show_fiscal_stop(state);
+				return;
+			}
+		}
+		frappe.msgprint({
+			title: "Fiscalization still pending",
+			message: "Fiscalization is still pending. Receipt was not printed. Reprint after the fiscal result is available.",
+			indicator: "orange",
+		});
 	}
 
 	print_url(result) {

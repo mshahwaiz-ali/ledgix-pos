@@ -7,10 +7,196 @@ from io import BytesIO
 import frappe
 from frappe.utils import cint, flt
 
+from fbr_v1.protocol import transport
 from fbr_v1.services import erpnext_fbr_identity, fbr_v1_snapshot_persistence
+from fbr_v1.services.pos_identity import PROTOCOL, get_profile, profile_active
+from fbr_v1.services.v1_configuration import (
+    configuration_blockers,
+    get_device_compliance_state,
+)
 
 
 SUPPORTED_PRINT_DOCTYPES = {"Sales Invoice", "POS Invoice"}
+TERMINAL_FISCAL_STATUSES = {
+    "Submitted",
+    "Failed",
+    "Reconciliation Required",
+    "Offline Pending",
+}
+
+
+def _automatic_submission_expected(profile, status: str, snapshot) -> bool:
+    if status != "Pending" or not snapshot or not profile_active(profile):
+        return False
+    if (
+        profile.get("mode") not in {"Sandbox", "Production"}
+        or profile.get("submit_trigger") != "On Submit"
+        or not cint(profile.get("transport_enabled"))
+    ):
+        return False
+    if not transport.network_cutover_active():
+        return False
+    if profile.get("mode") == "Production":
+        if not transport.production_cutover_active():
+            return False
+    device = dict(
+        ((snapshot.get("header") or {}).get("pos_device") or {})
+    )
+    mode = profile.get("mode")
+    compliance = get_device_compliance_state(
+        device.get("name"),
+        include_production=mode == "Production",
+    )
+    return not configuration_blockers(profile, {**device, **compliance}, mode)
+
+
+def _authorized_offline_evidence(doc, profile, snapshot) -> tuple[bool, str]:
+    if not profile_active(profile):
+        return False, "An active Federal V1 profile is required for offline printing."
+    if profile.get("offline_policy") != "Operator Confirmed":
+        return False, "The profile does not authorize Operator Confirmed offline receipts."
+    authority_reference = str(profile.get("offline_authority_reference") or "").strip()
+    authority_evidence = str(profile.get("offline_authority_evidence") or "").strip()
+    if not authority_reference or not authority_evidence:
+        return False, "Offline authority reference and attachment are required."
+    if not frappe.db.exists("File", {"file_url": authority_evidence}):
+        return False, "The offline authority evidence attachment is missing."
+    if not doc.get("custom_ledgix_fbr_offline_issued_at"):
+        return False, "The durable offline issue timestamp is missing."
+
+    if not snapshot:
+        return False, "The immutable Federal V1 snapshot is missing or failed verification."
+
+    snapshot_hash = str(snapshot.get("snapshot_hash") or "").strip()
+    snapshot_device = str(
+        ((snapshot.get("header") or {}).get("pos_device") or {}).get("name") or ""
+    ).strip()
+    invoice_device = str(doc.get("custom_ledgix_fbr_pos_device") or "").strip()
+    if not snapshot_hash or not snapshot_device or invoice_device != snapshot_device:
+        return False, "Invoice POS Device does not match the immutable Federal V1 snapshot."
+
+    common = {
+        "reference_doctype": doc.doctype,
+        "reference_name": doc.name,
+        "pos_device": snapshot_device,
+    }
+    if not frappe.db.exists(
+        "Ledgix FBR Submission Log",
+        {
+            **common,
+            "protocol": PROTOCOL,
+            "transport_outcome": "Offline Deferred",
+            "source_snapshot_hash": snapshot_hash,
+        },
+    ):
+        return False, "Matching durable Offline Deferred submission evidence is missing."
+    if not frappe.db.exists(
+        "Ledgix FBR Fiscal Event Log",
+        {**common, "event_type": "Offline Invoice Issued"},
+    ):
+        return False, "Matching Offline Invoice Issued event evidence is missing."
+    return True, "Authorized offline evidence is complete."
+
+
+def get_invoice_fiscal_print_state(doc) -> dict:
+    """Return the authoritative read-only fiscal wait/print decision."""
+
+    if not doc or doc.doctype not in SUPPORTED_PRINT_DOCTYPES:
+        frappe.throw("Fiscal print state requires Sales Invoice or POS Invoice.")
+
+    profile = get_profile(doc.get("company"))
+    has_v1_snapshot = doc.get("custom_ledgix_fbr_snapshot_protocol") == PROTOCOL
+    fbr_required = bool(has_v1_snapshot or profile_active(profile))
+    status = str(doc.get("custom_ledgix_fbr_status") or "").strip()
+    if not fbr_required:
+        status = "Not Required"
+        message = "Federal V1 fiscalization is not required; normal printing is available."
+        return {
+            "fbr_required": False,
+            "status": status,
+            "invoice_number": "",
+            "print_ready": True,
+            "print_blocked": False,
+            "offline_pending": False,
+            "reconciliation_required": False,
+            "terminal": True,
+            "automatic_submission_expected": False,
+            "reason": message,
+            "message": message,
+        }
+
+    status = status or "Pending"
+    snapshot = None
+    if has_v1_snapshot:
+        try:
+            snapshot = fbr_v1_snapshot_persistence.read_persisted_v1_snapshot(
+                doc.doctype,
+                doc.name,
+            )
+        except Exception:
+            snapshot = None
+    invoice_number = str(doc.get("custom_ledgix_fbr_invoice_number") or "").strip()
+    automatic = _automatic_submission_expected(profile, status, snapshot)
+    terminal = status in TERMINAL_FISCAL_STATUSES or (
+        status == "Pending" and not automatic
+    )
+    reconciliation = bool(
+        status == "Reconciliation Required"
+        or cint(doc.get("custom_ledgix_fbr_reconciliation_required"))
+    )
+    print_ready = False
+    offline_pending = False
+
+    if not snapshot:
+        message = "The immutable Federal V1 snapshot is missing or failed verification."
+    elif reconciliation:
+        message = (
+            "FBR reconciliation is required. Receipt printing is blocked; "
+            "do not retransmit automatically."
+        )
+    elif status == "Submitted" and invoice_number:
+        print_ready = True
+        message = "The authoritative Federal V1 result is ready for printing."
+    elif status == "Submitted":
+        message = "Submitted status has no authoritative FBR invoice number; printing is blocked."
+    elif status == "Offline Pending":
+        print_ready, evidence_message = _authorized_offline_evidence(
+            doc,
+            profile,
+            snapshot,
+        )
+        offline_pending = print_ready
+        invoice_number = ""
+        message = (
+            "Authorized offline evidence is complete; print the OFFLINE PENDING receipt "
+            "without an FBR number or QR."
+            if print_ready
+            else evidence_message
+        )
+    elif status == "Failed":
+        message = "Fiscalization failed. Receipt printing is blocked; do not resend automatically."
+    elif status == "Pending" and automatic:
+        message = "Fiscalization is pending and automatic backend submission is expected."
+    elif status == "Pending" and profile and profile.get("mode") == "Sandbox" and profile.get("submit_trigger") == "Manual":
+        message = "Fiscal submission is pending manual Sandbox action."
+    elif status == "Pending":
+        message = "Fiscalization is pending, but automatic backend submission is not currently expected."
+    else:
+        message = f"Federal V1 status {status} is not ready for printing."
+
+    return {
+        "fbr_required": True,
+        "status": status,
+        "invoice_number": invoice_number if print_ready and not offline_pending else "",
+        "print_ready": print_ready,
+        "print_blocked": not print_ready,
+        "offline_pending": offline_pending,
+        "reconciliation_required": reconciliation,
+        "terminal": terminal,
+        "automatic_submission_expected": automatic,
+        "reason": message,
+        "message": message,
+    }
 
 
 def _asset_url(path: str | None) -> str:
@@ -218,14 +404,12 @@ def get_native_invoice_print_context(reference_doctype, reference_name) -> dict:
         frappe.throw("Ledgix native print source must be Sales Invoice or POS Invoice.")
     doc = frappe.get_doc(doctype, name)
     doc.check_permission("read")
-    from fbr_v1.services.pos_identity import get_profile, profile_active, PROTOCOL
-    profile = get_profile(doc.company)
+    fiscal_state = get_invoice_fiscal_print_state(doc)
+    if fiscal_state["print_blocked"]:
+        frappe.throw(fiscal_state["message"])
     snapshot = None
     if doc.get("custom_ledgix_fbr_snapshot_protocol") == PROTOCOL:
         snapshot = fbr_v1_snapshot_persistence.read_persisted_v1_snapshot(doctype, name)
-    if profile_active(profile) and cint(profile.get("block_print_without_fiscal_result")):
-        if not snapshot or doc.get("custom_ledgix_fbr_status") != "Submitted" or not doc.get("custom_ledgix_fbr_invoice_number"):
-            frappe.throw("Fiscal print is blocked until a valid V1 fiscal result exists.")
     is_return = bool(cint(doc.get("is_return")))
     original = None
     if is_return and doc.get("return_against") and frappe.db.exists(doctype, doc.return_against):
@@ -233,7 +417,7 @@ def get_native_invoice_print_context(reference_doctype, reference_name) -> dict:
 
     identity, identity_source, identity_snapshot_hash = _identity_for_print(doc)
 
-    fbr_invoice_number = str(doc.get("custom_ledgix_fbr_invoice_number") or "").strip()
+    fbr_invoice_number = fiscal_state["invoice_number"]
     original_fbr_invoice = str(original.get("custom_ledgix_fbr_invoice_number") or "").strip() if original else ""
     seller = _seller(doc, identity)
     if snapshot:
@@ -286,20 +470,18 @@ def get_native_invoice_print_context(reference_doctype, reference_name) -> dict:
         "change_amount": abs(flt(doc.get("change_amount"), 2)),
         "payments": payments,
         "remarks": doc.get("remarks") or "",
-        "fbr_status": doc.get("custom_ledgix_fbr_status") or "Not Submitted",
+        "fbr_status": fiscal_state["status"],
         "fbr_invoice_number": fbr_invoice_number,
         "fbr_reference": doc.get("custom_ledgix_fbr_reference") or "",
         "fbr_submitted_at": doc.get("custom_ledgix_fbr_submitted_at"),
         "fbr_generated_at": doc.get("custom_ledgix_fbr_generated_at"),
-        "fbr_offline_pending": (
-            (doc.get("custom_ledgix_fbr_status") or "") == "Offline Pending"
-        ),
+        "fbr_offline_pending": fiscal_state["offline_pending"],
         "fbr_offline_issued_at": doc.get("custom_ledgix_fbr_offline_issued_at"),
         "fbr_upload_due_at": doc.get("custom_ledgix_fbr_upload_due_at"),
         "fbr_offline_reason": doc.get("custom_ledgix_fbr_offline_reason") or "",
         "fbr_qr_data_uri": get_fbr_qr_data_uri(fbr_invoice_number),
         "original_fbr_invoice_number": original_fbr_invoice,
-        "fbr_reconciliation_required": bool(cint(doc.get("custom_ledgix_fbr_reconciliation_required"))),
+        "fbr_reconciliation_required": fiscal_state["reconciliation_required"],
         "snapshot_version": cint(doc.get("custom_ledgix_fbr_snapshot_version")),
         "authority": "ERPNext Sales/POS Invoice + Ledgix FBR metadata",
     }
