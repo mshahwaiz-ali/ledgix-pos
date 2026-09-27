@@ -4,28 +4,22 @@ frappe.pages['fbr-v1-center'].on_page_load = function (wrapper) {
         title: __('FBR V1 Center'),
         single_column: true,
     });
+
+    $(wrapper).addClass('lx-fbr-v1-wrapper');
     $(page.main).addClass('lx-fbr-page-shell');
     const body = $('<div class="lx-fbr-v1-center"></div>').appendTo(page.main);
-    const company = page.add_field({
-        fieldname: 'company',
-        label: __('Company'),
-        fieldtype: 'Link',
-        options: 'Company',
-        change: refresh,
-    });
-    if (company.$wrapper) company.$wrapper.addClass('lx-fbr-company-selector');
-    const iconUrl = '/assets/ledgix_saas/images/brand/fbr_v1.png';
+
+    const iconUrl = '/assets/ledgix_saas/images/brand/fbr-logo-1.png';
     const canOperate = () => frappe.user.has_role('System Manager') || frappe.user.has_role('Accounts Manager');
     const canManageCutover = () => frappe.user.has_role('System Manager');
-    let busy = false;
 
-    const uniq = (rows) => [...new Set((rows || []).filter(Boolean))];
-    const without = (rows, excluded) => {
-        const omit = new Set(excluded || []);
-        return uniq(rows).filter((row) => !omit.has(row));
-    };
-    const yesNo = (value) => value ? __('ON') : __('OFF');
-    const textOrDash = (value) => value === 0 ? '0' : (value || '—');
+    const TABS = [
+        ['overview', 'Overview'],
+        ['sandbox', 'Sandbox'],
+        ['setup', 'Setup'],
+        ['evidence', 'Evidence'],
+        ['production', 'Production'],
+    ];
 
     const ICONS = {
         seller: '<path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="7" r="4"/>',
@@ -36,160 +30,715 @@ frappe.pages['fbr-v1-center'].on_page_load = function (wrapper) {
         production: '<path d="M12 3l8 4v5c0 5-3.4 8-8 9-4.6-1-8-4-8-9V7l8-4z"/><path d="M9 12l2 2 4-4"/>',
         shield: '<path d="M12 3l8 4v5c0 5-3.4 8-8 9-4.6-1-8-4-8-9V7l8-4z"/>',
         alert: '<path d="M12 3L2.8 19h18.4L12 3z"/><path d="M12 9v4M12 16h.01"/>',
-        operations: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
         setup: '<path d="M14.7 6.3a4 4 0 0 0-5 5L4 17l3 3 5.7-5.7a4 4 0 0 0 5-5l-2.2 2.2-3-3 2.2-2.2z"/>',
         evidence: '<path d="M6 3h9l3 3v15H6z"/><path d="M14 3v4h4M9 12h6M9 16h6"/>',
-        transaction: '<path d="M4 7h16M6 3h12v18H6z"/><path d="M9 12h6M9 16h4"/>',
-        test: '<path d="M9 3h6M10 3v5l-5 9a3 3 0 0 0 2.6 4.5h8.8A3 3 0 0 0 19 17l-5-9V3"/><path d="M8 16h8"/>',
-        arrow: '<path d="M5 12h14M14 7l5 5-5 5"/>',
+        invoice: '<path d="M6 3h12v18H6z"/><path d="M9 8h6M9 12h6M9 16h4"/>',
         check: '<path d="M5 12l4 4L19 6"/>',
         lock: '<rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>',
+        arrow: '<path d="M5 12h14M14 7l5 5-5 5"/>',
+        activity: '<path d="M3 12h4l2-5 4 10 2-5h6"/>',
     };
 
-    const CARD_META = {
-        'Seller Identity': {icon: 'seller', step: '01'},
-        'Integration Profile': {icon: 'profile', step: '02'},
-        'POS Device / POSID': {icon: 'device', step: '03'},
-        'Item & Tax Mapping': {icon: 'mapping', step: '04'},
-        'Sandbox': {icon: 'sandbox', step: '05'},
-        'Production': {icon: 'production', step: '06'},
-    };
+    let busy = false;
+    let activeTab = 'overview';
+    let currentCompany = null;
+    let lastData = null;
+    let invoiceType = 'POS Invoice';
+    let invoiceName = '';
+    let sandboxActionResult = null;
 
-    const SECTION_META = {
-        'Safety & Transport': 'shield',
-        'Readiness Blockers': 'alert',
-        'Operations': 'operations',
-        'POS Devices': 'device',
-    };
+    const uniq = (rows) => [...new Set((rows || []).filter(Boolean))];
+    const textOrDash = (value) => value === 0 ? '0' : (value || '—');
+    const yesNo = (value) => value ? __('ON') : __('OFF');
 
-    function iconNode(name, extraClass = '') {
-        const paths = ICONS[name] || ICONS.operations;
-        return $(`<span class="lx-fbr-icon ${extraClass}" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${paths}</svg></span>`);
+    function iconNode(name, extraClass) {
+        const paths = ICONS[name] || ICONS.activity;
+        return $('<span class="lx-fbr-icon ' + (extraClass || '') + '" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + paths + '</svg></span>');
     }
 
     function routeList(doctype, filters) {
         frappe.set_route('List', doctype, filters || {});
     }
 
-    function makeButton(label, onClick, options = {}) {
+    function makeButton(label, onClick, options) {
+        options = options || {};
         const button = $('<button type="button" class="btn btn-sm lx-fbr-action-button"></button>')
             .addClass(options.primary ? 'btn-primary' : 'btn-default')
             .text(__(label));
+
         if (options.danger) button.addClass('lx-fbr-danger-action');
+
         if (options.disabled) {
             button.prop('disabled', true);
             if (options.reason) button.attr('title', options.reason);
-        } else {
+        } else if (onClick) {
             button.on('click', onClick);
         }
+
         return button;
     }
 
-    function badge(label, tone = 'neutral') {
+    function badge(label, tone) {
         return $('<span class="lx-fbr-status-badge"></span>')
-            .addClass(`is-${tone}`)
+            .addClass('is-' + (tone || 'neutral'))
             .text(__(label));
     }
 
-    function overallState(readiness, profile) {
-        if (!readiness.enabled || readiness.mode === 'Disabled') return ['Disabled', 'neutral'];
-        if (readiness.mode === 'Paused') return ['Paused', 'warning'];
-        if (!readiness.source_accounting_ready || !readiness.setup_ready) return ['Setup Required', 'warning'];
-        if (readiness.mode === 'Sandbox') {
-            return readiness.sandbox_configuration_ready
-                ? [readiness.network_cutover_active && profile.transport_enabled ? 'Sandbox Ready' : 'Sandbox Configured', 'good']
-                : ['Sandbox Setup Required', 'warning'];
-        }
-        if (readiness.mode === 'Production') {
-            return readiness.production_ready && profile.transport_enabled && profile.production_post_armed
-                ? ['Production Ready', 'danger']
-                : ['Production Setup Required', 'warning'];
-        }
-        return [readiness.mode || 'Unknown', 'neutral'];
-    }
+    function panel(parent, title, icon, options) {
+        options = options || {};
+        const node = $('<section class="lx-fbr-panel"></section>').appendTo(parent);
+        if (options.className) node.addClass(options.className);
 
+        const head = $('<div class="lx-fbr-panel-head"></div>').appendTo(node);
+        const identity = $('<div class="lx-fbr-panel-title"></div>').appendTo(head);
+        if (icon) iconNode(icon, 'is-panel').appendTo(identity);
+        $('<h3></h3>').text(__(title)).appendTo(identity);
 
-    function cardBlockers(card, blockers) {
-        const rows = uniq(blockers);
-        if (!rows.length) return;
-        const wrap = $('<div class="lx-fbr-card-blockers"></div>').appendTo(card);
-        iconNode('alert', 'is-warning').appendTo(wrap);
-        const copy = $('<div class="lx-fbr-card-blocker-copy"></div>').appendTo(wrap);
-        $('<strong></strong>').text(rows[0]).appendTo(copy);
-        if (rows.length > 1) {
-            $('<span></span>').text(__('{0} additional blocker(s)', [rows.length - 1])).appendTo(copy);
-        }
-    }
-
-    function statusCard({title, status, tone, detail, blockers, actionLabel, action}) {
-        const meta = CARD_META[title] || {icon: 'operations', step: ''};
-        const card = $('<section class="lx-fbr-status-card"></section>').addClass(`is-${tone}`);
-        const head = $('<div class="lx-fbr-card-head"></div>').appendTo(card);
-        const identity = $('<div class="lx-fbr-card-identity"></div>').appendTo(head);
-        iconNode(meta.icon, `is-${tone}`).appendTo(identity);
-        const titleWrap = $('<div class="lx-fbr-card-title"></div>').appendTo(identity);
-        if (meta.step) $('<span class="lx-fbr-card-step"></span>').text(meta.step).appendTo(titleWrap);
-        $('<strong></strong>').text(__(title)).appendTo(titleWrap);
-        badge(status, tone).appendTo(head);
-
-        if (detail && detail.length) {
-            const detailWrap = $('<div class="lx-fbr-card-detail"></div>').appendTo(card);
-            detail.filter((row) => row && row.value !== undefined).forEach((row) => {
-                const line = $('<div class="lx-fbr-detail-row"></div>').appendTo(detailWrap);
-                $('<span></span>').text(__(row.label)).appendTo(line);
-                $('<strong></strong>').text(textOrDash(row.value)).appendTo(line);
-            });
+        if (options.badge) {
+            badge(options.badge.label, options.badge.tone).appendTo(head);
         }
 
-        cardBlockers(card, blockers);
-        if (actionLabel && action) {
-            const footer = $('<div class="lx-fbr-card-action"></div>').appendTo(card);
-            const button = makeButton(actionLabel, action).addClass('lx-fbr-card-link');
-            iconNode('arrow', 'is-arrow').appendTo(button);
-            button.appendTo(footer);
-        }
-        return card;
-    }
-
-    function section(title, description) {
-        const node = $('<section class="lx-fbr-section"></section>');
-        const head = $('<div class="lx-fbr-section-head"></div>').appendTo(node);
-        const heading = $('<div class="lx-fbr-section-heading"></div>').appendTo(head);
-        iconNode(SECTION_META[title] || 'operations', 'is-section').appendTo(heading);
-        const copy = $('<div></div>').appendTo(heading);
-        $('<h3></h3>').text(__(title)).appendTo(copy);
-        if (description) $('<p></p>').text(__(description)).appendTo(copy);
         return node;
     }
 
-    function actionGroup(parent, title, description, actions) {
-        const iconMap = {Setup: 'setup', 'Evidence / Operations': 'evidence', Transactions: 'transaction', Testing: 'test'};
-        const group = $('<div class="lx-fbr-action-group"></div>').appendTo(parent);
-        const head = $('<div class="lx-fbr-action-group-head"></div>').appendTo(group);
-        iconNode(iconMap[title] || 'operations', 'is-action').appendTo(head);
-        const copy = $('<div></div>').appendTo(head);
-        $('<h4></h4>').text(__(title)).appendTo(copy);
-        if (description) $('<p></p>').text(__(description)).appendTo(copy);
-        const buttons = $('<div class="lx-fbr-action-buttons"></div>').appendTo(group);
-        actions.forEach((action) => makeButton(action.label, action.onClick, action).appendTo(buttons));
+    function notice(parent, tone, title, detail) {
+        const node = $('<div class="lx-fbr-notice"></div>').addClass('is-' + tone).appendTo(parent);
+        iconNode(tone === 'good' ? 'check' : (tone === 'danger' ? 'lock' : 'alert'), 'is-notice').appendTo(node);
+        const copy = $('<div></div>').appendTo(node);
+        $('<strong></strong>').text(__(title)).appendTo(copy);
+        if (detail) $('<span></span>').text(__(detail)).appendTo(copy);
+        return node;
     }
 
-    function blockerGroup(parent, title, blockers, open = false) {
-        const rows = uniq(blockers);
-        const details = $('<details class="lx-fbr-blocker-group"></details>')
-            .addClass(rows.length ? 'has-blockers' : 'is-clear')
-            .prop('open', open && rows.length > 0)
+    function factGrid(parent, rows) {
+        const grid = $('<div class="lx-fbr-fact-grid"></div>').appendTo(parent);
+        rows.filter((row) => row && row.value !== undefined).forEach((row) => {
+            const item = $('<div class="lx-fbr-fact"></div>').appendTo(grid);
+            $('<span></span>').text(__(row.label)).appendTo(item);
+            const value = $('<strong></strong>').text(textOrDash(row.value)).appendTo(item);
+            if (row.tone) value.addClass('is-' + row.tone);
+        });
+        return grid;
+    }
+
+    function buttonRow(parent, actions) {
+        const row = $('<div class="lx-fbr-button-row"></div>').appendTo(parent);
+        actions.forEach((action) => {
+            makeButton(action.label, action.onClick, action).appendTo(row);
+        });
+        return row;
+    }
+
+    function actionTile(parent, config) {
+        const tile = $('<button type="button" class="lx-fbr-action-tile"></button>')
+            .on('click', config.onClick)
             .appendTo(parent);
-        const summary = $('<summary></summary>').appendTo(details);
-        const left = $('<div class="lx-fbr-blocker-summary"></div>').appendTo(summary);
-        iconNode(rows.length ? 'alert' : 'check', rows.length ? 'is-warning' : 'is-good').appendTo(left);
+        iconNode(config.icon || 'arrow', 'is-action-tile').appendTo(tile);
+        const copy = $('<span class="lx-fbr-action-tile-copy"></span>').appendTo(tile);
+        $('<strong></strong>').text(__(config.title)).appendTo(copy);
+        if (config.meta) $('<span></span>').text(config.meta).appendTo(copy);
+        if (config.status) badge(config.status, config.tone || 'neutral').appendTo(tile);
+        iconNode('arrow', 'is-arrow').appendTo(tile);
+        return tile;
+    }
+
+    function pickDevice(data, environment) {
+        const devices = data.devices || [];
+        const matching = environment ? devices.filter((row) => row.environment === environment) : devices;
+        return matching.find((row) => row.active) || matching[0] || devices.find((row) => row.active) || devices[0] || null;
+    }
+
+    function deriveState(data) {
+        const readiness = data.readiness || {};
+        const profile = readiness.profile_state || {};
+        const mapping = data.mapping_summary || {};
+        const currentDevice = pickDevice(data, readiness.mode);
+        const activeItems = Number(mapping.active_item_mappings || 0);
+        const reviewedItems = Number(mapping.reviewed_item_mappings || 0);
+        const mappingReady = activeItems > 0
+            && reviewedItems === activeItems
+            && Number(mapping.active_tax_component_mappings || 0) > 0
+            && Number(mapping.payment_mappings || 0) > 0;
+
+        const internalBlockers = uniq([
+            ...(readiness.source_blockers || []),
+            ...(readiness.setup_blockers || []),
+            ...(readiness.blockers || []),
+        ]);
+
+        return {
+            readiness,
+            profile,
+            mapping,
+            currentDevice,
+            mappingReady,
+            internalBlockers,
+            externalBlockers: uniq(readiness.unresolved_contracts || []),
+        };
+    }
+
+    function mountCompanyControl(parent, data) {
+        const host = $('<div class="lx-fbr-company-field"></div>').appendTo(parent);
+        const control = frappe.ui.form.make_control({
+            parent: host,
+            df: {
+                fieldname: 'company',
+                label: __('Company'),
+                fieldtype: 'Link',
+                options: 'Company',
+                default: data.company,
+            },
+            render_input: true,
+        });
+        control.refresh();
+
+        if (control.$input) {
+            control.$input.on('change', () => {
+                const value = control.get_value();
+                if (value && value !== currentCompany) {
+                    currentCompany = value;
+                    refresh(value);
+                }
+            });
+        }
+    }
+
+    function renderHeader(data, state) {
+        const readiness = state.readiness;
+        const profile = state.profile;
+        const header = $('<header class="lx-fbr-console-header"></header>').appendTo(body);
+        const top = $('<div class="lx-fbr-console-top"></div>').appendTo(header);
+
+        const brand = $('<div class="lx-fbr-brand"></div>').appendTo(top);
+        $('<div class="lx-fbr-logo-wrap"></div>')
+            .append($('<img class="lx-fbr-logo" alt="">').attr('src', iconUrl))
+            .appendTo(brand);
+
+        const copy = $('<div class="lx-fbr-brand-copy"></div>').appendTo(brand);
+        $('<span class="lx-fbr-eyebrow"></span>').text(__('Federal fiscal integration')).appendTo(copy);
+        $('<h1></h1>').text(__('Federal FBR POS / IMS V1')).appendTo(copy);
+
+        const controls = $('<div class="lx-fbr-header-controls"></div>').appendTo(top);
+        mountCompanyControl(controls, data);
+
+        const strip = $('<div class="lx-fbr-state-strip"></div>').appendTo(header);
+        const mode = readiness.mode || 'Disabled';
+        const modeTone = mode === 'Production' ? 'danger' : (mode === 'Sandbox' ? 'good' : 'neutral');
+        badge(mode, modeTone).appendTo(strip);
+        badge(readiness.network_cutover_active ? 'Network ON' : 'Network OFF', readiness.network_cutover_active ? 'warning' : 'good').appendTo(strip);
+        badge(profile.submit_trigger === 'Manual' ? 'Manual Submit' : (profile.submit_trigger || 'Submit Not Configured'), profile.submit_trigger === 'Manual' ? 'neutral' : 'warning').appendTo(strip);
+
+        const productionLocked = !readiness.production_cutover_active && !profile.production_post_armed;
+        badge(
+            productionLocked ? 'Production Locked' : 'Production Attention',
+            productionLocked ? 'good' : 'danger'
+        ).appendTo(strip);
+    }
+
+    function renderTabs(data) {
+        const tabs = $('<nav class="lx-fbr-tabs" role="tablist"></nav>').appendTo(body);
+        TABS.forEach(([key, label]) => {
+            const button = $('<button type="button" class="lx-fbr-tab" role="tab"></button>')
+                .toggleClass('is-active', activeTab === key)
+                .attr('aria-selected', activeTab === key ? 'true' : 'false')
+                .text(__(label))
+                .on('click', () => {
+                    if (activeTab === key) return;
+                    activeTab = key;
+                    render(data);
+                })
+                .appendTo(tabs);
+
+            if (key === 'production') {
+                iconNode('lock', 'is-tab-lock').prependTo(button);
+            }
+        });
+    }
+
+    function statusTile(parent, config) {
+        const tile = $('<div class="lx-fbr-status-tile"></div>').appendTo(parent);
+        const left = $('<div class="lx-fbr-status-tile-main"></div>').appendTo(tile);
+        iconNode(config.icon, 'is-' + config.tone).appendTo(left);
         const copy = $('<div></div>').appendTo(left);
-        $('<strong></strong>').text(__(title)).appendTo(copy);
-        $('<span></span>').text(rows.length ? __('Needs attention') : __('No blockers')).appendTo(copy);
-        badge(rows.length ? __('{0}', [rows.length]) : __('Clear'), rows.length ? 'warning' : 'good').appendTo(summary);
-        if (!rows.length) return;
-        const list = $('<ul></ul>').appendTo(details);
-        rows.forEach((message) => $('<li></li>').text(message).appendTo(list));
+        $('<strong></strong>').text(__(config.title)).appendTo(copy);
+        if (config.meta) $('<span></span>').text(config.meta).appendTo(copy);
+        badge(config.status, config.tone).appendTo(tile);
+        if (config.onClick) {
+            tile.addClass('is-clickable').on('click', config.onClick);
+        }
+        return tile;
+    }
+
+    function renderBlockers(parent, state) {
+        if (!state.internalBlockers.length && !state.externalBlockers.length) {
+            notice(parent, 'good', 'Configuration ready', 'No current internal readiness blocker is reported.');
+            return;
+        }
+
+        const blockers = $('<div class="lx-fbr-blockers"></div>').appendTo(parent);
+
+        if (state.internalBlockers.length) {
+            const group = $('<div class="lx-fbr-blocker-box"></div>').appendTo(blockers);
+            $('<strong></strong>').text(__('{0} item(s) require attention', [state.internalBlockers.length])).appendTo(group);
+            const list = $('<ul></ul>').appendTo(group);
+            state.internalBlockers.forEach((message) => $('<li></li>').text(message).appendTo(list));
+        }
+
+        if (state.externalBlockers.length) {
+            const group = $('<div class="lx-fbr-blocker-box"></div>').appendTo(blockers);
+            $('<strong></strong>').text(__('Authority / external requirements')).appendTo(group);
+            const list = $('<ul></ul>').appendTo(group);
+            state.externalBlockers.forEach((message) => $('<li></li>').text(message).appendTo(list));
+        }
+    }
+
+    function renderOverview(data, state, workspace) {
+        const readiness = state.readiness;
+        const profile = state.profile;
+        const seller = readiness.seller_identity || {};
+        const device = state.currentDevice;
+
+        const config = panel(workspace, 'Configuration', 'activity');
+        const grid = $('<div class="lx-fbr-status-grid"></div>').appendTo(config);
+
+        statusTile(grid, {
+            icon: 'seller',
+            title: 'Seller Identity',
+            status: readiness.source_accounting_ready ? 'Ready' : 'Setup Required',
+            tone: readiness.source_accounting_ready ? 'good' : 'warning',
+            meta: [seller.business_name, seller.ntn_cnic, seller.province].filter(Boolean).join(' · ') || 'Not configured',
+            onClick: () => frappe.set_route('Form', 'Company', data.company),
+        });
+
+        statusTile(grid, {
+            icon: 'profile',
+            title: 'Integration Profile',
+            status: readiness.profile ? (readiness.enabled ? readiness.mode : 'Disabled') : 'Not Configured',
+            tone: readiness.profile && readiness.enabled ? (readiness.mode === 'Production' ? 'danger' : 'good') : 'warning',
+            meta: [profile.provider_type, profile.submit_trigger].filter(Boolean).join(' · ') || 'No active profile',
+            onClick: () => readiness.profile
+                ? frappe.set_route('Form', 'Ledgix FBR Integration Profile', readiness.profile)
+                : routeList('Ledgix FBR Integration Profile', {company: data.company}),
+        });
+
+        statusTile(grid, {
+            icon: 'device',
+            title: 'POS Device / POSID',
+            status: device && device.active ? (device.operational_state || 'Configured') : 'Setup Required',
+            tone: device && device.active && device.operational_state === 'Operational' ? 'good' : 'warning',
+            meta: device ? [device.display_label || device.name, device.pos_id ? 'POSID ' + device.pos_id : null, device.transport_topology].filter(Boolean).join(' · ') : 'No active device',
+            onClick: () => routeList('Ledgix FBR POS Device', {company: data.company}),
+        });
+
+        statusTile(grid, {
+            icon: 'mapping',
+            title: 'Mappings',
+            status: state.mappingReady ? 'Ready' : 'Setup Required',
+            tone: state.mappingReady ? 'good' : 'warning',
+            meta: __('{0}/{1} items reviewed · {2} tax · {3} payment', [
+                state.mapping.reviewed_item_mappings || 0,
+                state.mapping.active_item_mappings || 0,
+                state.mapping.active_tax_component_mappings || 0,
+                state.mapping.payment_mappings || 0,
+            ]),
+            onClick: () => routeList('Ledgix FBR Item Mapping', {company: data.company}),
+        });
+
+        const blockerPanel = panel(workspace, 'Readiness', 'check');
+        renderBlockers(blockerPanel, state);
+    }
+
+    function toggleSandboxNetwork(data, state, button) {
+        const readiness = state.readiness;
+        const gateOn = Boolean(readiness.network_cutover_active);
+        const enabling = !gateOn;
+        const confirmMessage = enabling
+            ? __('Enable REAL FBR Sandbox networking for this site? Production cutover cannot be enabled by this action.')
+            : __('Disable FBR Sandbox networking for this site?');
+
+        frappe.confirm(confirmMessage, async () => {
+            button.prop('disabled', true);
+            try {
+                const {message: result} = await frappe.call({
+                    method: 'fbr_v1.api.center.set_sandbox_network_cutover',
+                    args: {
+                        company: data.company,
+                        enabled: enabling ? 1 : 0,
+                    },
+                });
+
+                if (result.production_cutover_active) {
+                    frappe.throw(__('Safety interlock violation: Production transport must remain OFF.'));
+                }
+
+                sandboxActionResult = {
+                    tone: result.network_cutover_active ? 'warning' : 'good',
+                    title: result.network_cutover_active ? 'Sandbox network is live' : 'Sandbox network is off',
+                    lines: [result.network_cutover_active ? 'Production remains locked.' : 'No FBR network action is enabled.'],
+                };
+                await refresh();
+            } finally {
+                button.prop('disabled', false);
+            }
+        });
+    }
+
+    function renderSandboxNetwork(data, state, parent) {
+        const readiness = state.readiness;
+        const gateOn = Boolean(readiness.network_cutover_active);
+        const sandboxMode = readiness.mode === 'Sandbox';
+        const canToggle = canManageCutover() && (sandboxMode || gateOn);
+
+        const network = panel(parent, 'Network', 'shield', {
+            badge: {
+                label: gateOn ? 'Sandbox Network ON' : 'Sandbox Network OFF',
+                tone: gateOn ? 'warning' : 'good',
+            },
+        });
+
+        factGrid(network, [
+            {label: 'Sandbox Network', value: yesNo(gateOn), tone: gateOn ? 'warning' : 'good'},
+            {label: 'Production Gate', value: yesNo(readiness.production_cutover_active), tone: readiness.production_cutover_active ? 'danger' : 'good'},
+            {label: 'Production Posting', value: state.profile.production_post_armed ? 'ARMED' : 'LOCKED', tone: state.profile.production_post_armed ? 'danger' : 'good'},
+            {label: 'Submit Mode', value: state.profile.submit_trigger || 'Not configured'},
+        ]);
+
+        if (gateOn) {
+            notice(network, 'warning', 'Sandbox network is live', 'Only explicitly authorized Sandbox actions should be performed.');
+        }
+
+        const reason = !canManageCutover()
+            ? __('System Manager permission is required.')
+            : (!sandboxMode && !gateOn ? __('The active FBR profile must be in Sandbox mode.') : '');
+
+        const row = $('<div class="lx-fbr-button-row"></div>').appendTo(network);
+        const button = makeButton(
+            gateOn ? 'Disable Sandbox Network' : 'Enable Sandbox Network',
+            null,
+            {
+                primary: !gateOn,
+                disabled: !canToggle,
+                reason,
+            }
+        ).appendTo(row);
+
+        if (canToggle) {
+            button.on('click', () => toggleSandboxNetwork(data, state, button));
+        }
+    }
+
+    function mountInvoiceControls(parent, data) {
+        const fields = $('<div class="lx-fbr-invoice-fields"></div>').appendTo(parent);
+
+        const typeHost = $('<div></div>').appendTo(fields);
+        const typeControl = frappe.ui.form.make_control({
+            parent: typeHost,
+            df: {
+                fieldname: 'sandbox_invoice_type',
+                label: __('Invoice Type'),
+                fieldtype: 'Select',
+                options: 'Sales Invoice\nPOS Invoice',
+                default: invoiceType,
+            },
+            render_input: true,
+        });
+        typeControl.refresh();
+
+        const invoiceHost = $('<div></div>').appendTo(fields);
+        const invoiceControl = frappe.ui.form.make_control({
+            parent: invoiceHost,
+            df: {
+                fieldname: 'sandbox_invoice',
+                label: __('Invoice'),
+                fieldtype: 'Link',
+                options: invoiceType,
+                default: invoiceName,
+            },
+            render_input: true,
+        });
+        invoiceControl.refresh();
+
+        if (typeControl.$input) {
+            typeControl.$input.on('change', () => {
+                const value = typeControl.get_value() || 'POS Invoice';
+                if (value !== invoiceType) {
+                    invoiceType = value;
+                    invoiceName = '';
+                    sandboxActionResult = null;
+                    render(data);
+                }
+            });
+        }
+
+        if (invoiceControl.$input) {
+            invoiceControl.$input.on('change', () => {
+                const value = invoiceControl.get_value() || '';
+                if (value !== invoiceName) {
+                    invoiceName = value;
+                    sandboxActionResult = null;
+                    render(data);
+                }
+            });
+        }
+    }
+
+    function renderSandboxActionResult(parent) {
+        if (!sandboxActionResult) return;
+        const result = $('<div class="lx-fbr-inline-result"></div>')
+            .addClass('is-' + sandboxActionResult.tone)
+            .appendTo(parent);
+        $('<strong></strong>').text(__(sandboxActionResult.title)).appendTo(result);
+        (sandboxActionResult.lines || []).forEach((line) => $('<span></span>').text(line).appendTo(result));
+    }
+
+    async function checkInvoiceReadiness(data, button) {
+        if (!invoiceName) return;
+
+        button.prop('disabled', true);
+        try {
+            const {message: result} = await frappe.call({
+                method: 'fbr_v1.api.fiscalization.invoice_readiness',
+                args: {
+                    reference_doctype: invoiceType,
+                    reference_name: invoiceName,
+                },
+            });
+
+            const errors = uniq([...(result.errors || []), ...(result.network_blockers || [])]);
+            sandboxActionResult = errors.length
+                ? {tone: 'warning', title: 'Invoice not ready', lines: errors}
+                : {tone: 'good', title: 'Invoice ready', lines: ['Current invoice and transport prerequisites are clear.']};
+            render(data);
+        } finally {
+            button.prop('disabled', false);
+        }
+    }
+
+    function fiscalizeSandboxInvoice(data, state, button) {
+        if (!invoiceName) return;
+
+        frappe.confirm(
+            __('This performs one REAL FBR Sandbox POST for the selected invoice. Production remains locked. Continue?'),
+            async () => {
+                button.prop('disabled', true);
+                try {
+                    const {message: result} = await frappe.call({
+                        method: 'fbr_v1.api.fiscalization.submit_invoice',
+                        args: {
+                            reference_doctype: invoiceType,
+                            reference_name: invoiceName,
+                        },
+                    });
+
+                    const status = result.status || 'Completed';
+                    const normalized = String(status).toLowerCase();
+                    const tone = normalized.includes('fail') || normalized.includes('reject')
+                        ? 'danger'
+                        : (normalized.includes('reconciliation') || normalized.includes('ambiguous') ? 'warning' : 'good');
+
+                    sandboxActionResult = {
+                        tone,
+                        title: status,
+                        lines: result.errors || [],
+                    };
+                    await refresh();
+                } finally {
+                    button.prop('disabled', false);
+                }
+            }
+        );
+    }
+
+    function renderLatestSubmission(parent, data) {
+        const latest = data.latest_submission;
+        const evidence = panel(parent, 'Latest Submission / Evidence', 'evidence', {
+            badge: latest ? {label: latest.fbr_status || 'Unknown', tone: latest.reconciliation_required ? 'warning' : (latest.transport_outcome === 'Accepted' ? 'good' : 'neutral')} : null,
+        });
+
+        if (!latest) {
+            notice(evidence, 'good', 'No submission evidence yet', 'No company device submission log is currently available.');
+            buttonRow(evidence, [
+                {label: 'Open Submission Logs', onClick: () => routeList('Ledgix FBR Submission Log')},
+            ]);
+            return;
+        }
+
+        factGrid(evidence, [
+            {label: 'Reference', value: [latest.reference_doctype, latest.reference_name].filter(Boolean).join(' · ')},
+            {label: 'FBR Status', value: latest.fbr_status},
+            {label: 'Transport Outcome', value: latest.transport_outcome},
+            {label: 'FBR Invoice Number', value: latest.fbr_invoice_number},
+            {label: 'Attempt ID', value: latest.attempt_id},
+            {label: 'Reconciliation', value: latest.reconciliation_required ? 'Required' : 'No', tone: latest.reconciliation_required ? 'warning' : 'good'},
+            {label: 'Transport Started', value: latest.transport_started_at},
+            {label: 'Transport Finished', value: latest.transport_finished_at},
+            {label: 'Request Hash', value: latest.request_hash},
+            {label: 'Snapshot Hash', value: latest.source_snapshot_hash},
+        ]);
+
+        if (latest.error_code || latest.error_message) {
+            notice(evidence, 'warning', latest.error_code || 'Submission issue', latest.error_message || '');
+        }
+
+        buttonRow(evidence, [
+            {label: 'Open Submission Log', onClick: () => frappe.set_route('Form', 'Ledgix FBR Submission Log', latest.name)},
+            {label: 'All Submission Logs', onClick: () => routeList('Ledgix FBR Submission Log')},
+        ]);
+    }
+
+    function renderSandboxAdvanced(data, state, parent) {
+        const localDevices = (data.devices || []).filter((device) => device.transport_topology === 'Local IMS - Server Reachable');
+        if (!localDevices.length) return;
+
+        const details = $('<details class="lx-fbr-advanced"></details>').appendTo(parent);
+        $('<summary></summary>').text(__('Advanced diagnostics')).appendTo(details);
+        const content = $('<div class="lx-fbr-advanced-content"></div>').appendTo(details);
+
+        const canHealth = canOperate() && state.readiness.network_cutover_active;
+        buttonRow(content, [
+            {
+                label: 'Local IMS Health',
+                disabled: !canHealth,
+                reason: !state.readiness.network_cutover_active ? __('Sandbox network is OFF.') : __('Accounts Manager permission is required.'),
+                onClick: () => actionDialog(
+                    'Local IMS Health',
+                    [{
+                        fieldname: 'pos_device',
+                        label: __('POS Device'),
+                        fieldtype: 'Link',
+                        options: 'Ledgix FBR POS Device',
+                        reqd: 1,
+                        default: localDevices[0].name,
+                    }],
+                    'fbr_v1.api.center.test_local_ims_health',
+                    (result) => result.ok ? __('Local IMS health check succeeded') : (result.error || __('Local IMS health check failed'))
+                ),
+            },
+        ]);
+    }
+
+    function renderSandbox(data, state, workspace) {
+        const readiness = state.readiness;
+        const profile = state.profile;
+        const device = pickDevice(data, 'Sandbox');
+
+        const environment = panel(workspace, 'Sandbox Environment', 'sandbox', {
+            badge: {label: readiness.mode === 'Sandbox' ? 'Active' : 'Not Active', tone: readiness.mode === 'Sandbox' ? 'good' : 'warning'},
+        });
+
+        factGrid(environment, [
+            {label: 'Environment', value: 'Sandbox'},
+            {label: 'Device', value: device && (device.display_label || device.name)},
+            {label: 'POSID', value: device && device.pos_id},
+            {label: 'Topology', value: device && device.transport_topology},
+            {label: 'Device State', value: device && device.operational_state},
+            {label: 'Submit Mode', value: profile.submit_trigger || 'Not configured'},
+        ]);
+
+        if (readiness.mode !== 'Sandbox') {
+            notice(environment, 'warning', 'Sandbox profile is not active', 'Sandbox network and submission controls remain unavailable until the active profile is Sandbox.');
+        }
+
+        renderSandboxNetwork(data, state, workspace);
+
+        const invoice = panel(workspace, 'Invoice Test', 'invoice');
+        mountInvoiceControls(invoice, data);
+
+        const productionSafe = !readiness.production_cutover_active && !profile.production_post_armed;
+        const canFiscalize = canOperate()
+            && readiness.enabled
+            && readiness.mode === 'Sandbox'
+            && readiness.sandbox_configuration_ready
+            && Boolean(profile.transport_enabled)
+            && readiness.network_cutover_active
+            && productionSafe
+            && Boolean(invoiceName);
+
+        const canCheck = Boolean(invoiceName);
+        const actions = $('<div class="lx-fbr-button-row"></div>').appendTo(invoice);
+
+        const readinessButton = makeButton(
+            'Check Readiness',
+            null,
+            {
+                primary: true,
+                disabled: !canCheck,
+                reason: canCheck ? '' : __('Select an invoice first.'),
+            }
+        ).appendTo(actions);
+        if (canCheck) readinessButton.on('click', () => checkInvoiceReadiness(data, readinessButton));
+
+        const fiscalizeReason = !invoiceName
+            ? __('Select an invoice first.')
+            : (!canOperate()
+                ? __('Accounts Manager permission is required.')
+                : (readiness.mode !== 'Sandbox'
+                    ? __('The active FBR profile must be Sandbox.')
+                    : (!readiness.network_cutover_active
+                        ? __('Sandbox network is OFF.')
+                        : (!productionSafe
+                            ? __('Production must remain fully locked.')
+                            : __('Sandbox configuration is not ready.')))));
+
+        const fiscalizeButton = makeButton(
+            'Fiscalize Invoice',
+            null,
+            {
+                disabled: !canFiscalize,
+                reason: fiscalizeReason,
+            }
+        ).appendTo(actions);
+        if (canFiscalize) fiscalizeButton.on('click', () => fiscalizeSandboxInvoice(data, state, fiscalizeButton));
+
+        renderSandboxActionResult(invoice);
+        renderLatestSubmission(workspace, data);
+        renderSandboxAdvanced(data, state, workspace);
+    }
+
+    function renderSetup(data, state, workspace) {
+        const setup = panel(workspace, 'Setup', 'setup');
+        const grid = $('<div class="lx-fbr-action-grid"></div>').appendTo(setup);
+
+        actionTile(grid, {
+            icon: 'profile',
+            title: 'Integration Profile',
+            meta: state.readiness.profile ? [state.profile.provider_type, state.readiness.mode].filter(Boolean).join(' · ') : 'Not configured',
+            status: state.readiness.profile ? state.readiness.mode : 'Required',
+            tone: state.readiness.profile ? (state.readiness.mode === 'Production' ? 'danger' : 'good') : 'warning',
+            onClick: () => state.readiness.profile
+                ? frappe.set_route('Form', 'Ledgix FBR Integration Profile', state.readiness.profile)
+                : routeList('Ledgix FBR Integration Profile', {company: data.company}),
+        });
+
+        actionTile(grid, {
+            icon: 'device',
+            title: 'POS Devices',
+            meta: __('{0} configured', [(data.devices || []).length]),
+            onClick: () => routeList('Ledgix FBR POS Device', {company: data.company}),
+        });
+
+        actionTile(grid, {
+            icon: 'mapping',
+            title: 'Item Mapping',
+            meta: __('{0}/{1} reviewed', [state.mapping.reviewed_item_mappings || 0, state.mapping.active_item_mappings || 0]),
+            status: state.mappingReady ? 'Ready' : 'Review',
+            tone: state.mappingReady ? 'good' : 'warning',
+            onClick: () => routeList('Ledgix FBR Item Mapping', {company: data.company}),
+        });
+
+        actionTile(grid, {
+            icon: 'mapping',
+            title: 'Tax Component Mapping',
+            meta: __('{0} active', [state.mapping.active_tax_component_mappings || 0]),
+            onClick: () => routeList('Ledgix FBR Tax Component Mapping', {company: data.company}),
+        });
+
+        actionTile(grid, {
+            icon: 'mapping',
+            title: 'Payment Mapping',
+            meta: __('{0} mapped', [state.mapping.payment_mappings || 0]),
+            onClick: () => routeList('Mode of Payment'),
+        });
     }
 
     function invoiceFields() {
@@ -209,13 +758,17 @@ frappe.pages['fbr-v1-center'].on_page_load = function (wrapper) {
                     dialog.get_primary_btn().prop('disabled', true);
                     try {
                         const {message: result} = await frappe.call({method, args: values});
-                        frappe.msgprint({title: __(title), message: frappe.utils.escape_html(resultText(result))});
+                        frappe.msgprint({
+                            title: __(title),
+                            message: frappe.utils.escape_html(resultText(result)),
+                        });
                         dialog.hide();
-                        refresh();
+                        await refresh();
                     } finally {
                         dialog.get_primary_btn().prop('disabled', false);
                     }
                 };
+
                 if (confirmMessage) frappe.confirm(__(confirmMessage), run);
                 else run();
             },
@@ -223,490 +776,199 @@ frappe.pages['fbr-v1-center'].on_page_load = function (wrapper) {
         dialog.show();
     }
 
-    function openInvoiceReadiness() {
-        const dialog = new frappe.ui.Dialog({
-            title: __('Invoice Readiness'),
-            fields: invoiceFields(),
-            primary_action_label: __('Check'),
-            primary_action: async (values) => {
-                const {message: result} = await frappe.call({
-                    method: 'fbr_v1.api.fiscalization.invoice_readiness',
-                    args: values,
-                });
-                const errors = uniq([...(result.errors || []), ...(result.network_blockers || [])]);
-                const content = $('<div></div>');
-                if (!errors.length) {
-                    $('<p></p>').text(__('Internal prerequisites and current transport readiness are clear for this invoice.')).appendTo(content);
-                } else {
-                    const list = $('<ul class="lx-fbr-dialog-list"></ul>').appendTo(content);
-                    errors.forEach((message) => $('<li></li>').text(message).appendTo(list));
-                }
-                frappe.msgprint({
-                    title: __('Invoice Readiness'),
-                    message: content.prop('outerHTML'),
-                    indicator: errors.length ? 'orange' : 'green',
-                });
-                dialog.hide();
-            },
-        });
-        dialog.show();
-    }
+    function renderAdvancedEvidence(parent) {
+        if (!canOperate()) return;
 
-
-    function renderHero(data, readiness, profile) {
-        const hero = $('<section class="lx-fbr-hero"></section>').appendTo(body);
-        const main = $('<div class="lx-fbr-hero-main"></div>').appendTo(hero);
-        const brand = $('<div class="lx-fbr-hero-brand"></div>').appendTo(main);
-        $('<div class="lx-fbr-hero-icon-wrap"></div>')
-            .append($('<img class="lx-fbr-hero-icon" alt="">').attr('src', iconUrl))
-            .appendTo(brand);
-
-        const copy = $('<div class="lx-fbr-hero-copy"></div>').appendTo(brand);
-        $('<div class="lx-fbr-kicker"></div>').text(__('Federal fiscal integration')).appendTo(copy);
-        $('<h2></h2>').text(__('Federal FBR POS / IMS V1')).appendTo(copy);
-        $('<p></p>').text(__('ERPNext-native configuration, fiscal readiness and guarded operations.')).appendTo(copy);
-
-        const chips = $('<div class="lx-fbr-hero-chips"></div>').appendTo(copy);
-        $('<span class="lx-fbr-meta-chip"></span>').text(data.company).appendTo(chips);
-        $('<span class="lx-fbr-meta-chip"></span>').text(__('Mode: {0}', [readiness.mode || 'Disabled'])).appendTo(chips);
-        $('<span class="lx-fbr-meta-chip"></span>').text(readiness.profile ? __('Profile linked') : __('No profile yet')).appendTo(chips);
-
-        const [label, tone] = overallState(readiness, profile);
-        const state = $('<aside class="lx-fbr-hero-state"></aside>').addClass(`is-${tone}`).appendTo(hero);
-        const stateTop = $('<div class="lx-fbr-hero-state-top"></div>').appendTo(state);
-        const stateCopy = $('<div></div>').appendTo(stateTop);
-        $('<span></span>').text(__('Overall state')).appendTo(stateCopy);
-        $('<strong></strong>').text(__(label)).appendTo(stateCopy);
-        badge(label, tone).appendTo(stateTop);
-
-        const mini = $('<div class="lx-fbr-hero-state-grid"></div>').appendTo(state);
-        [
-            ['Network gate', yesNo(readiness.network_cutover_active), readiness.network_cutover_active ? 'warning' : 'good'],
-            ['Production gate', yesNo(readiness.production_cutover_active), readiness.production_cutover_active ? 'danger' : 'good'],
-        ].forEach(([name, value, stateTone]) => {
-            const item = $('<div class="lx-fbr-hero-mini"></div>').appendTo(mini);
-            $('<span></span>').text(__(name)).appendTo(item);
-            $('<strong></strong>').addClass(`is-${stateTone}`).text(__(value)).appendTo(item);
-        });
-
-        $('<div class="lx-fbr-hero-safe-note"></div>')
-            .append(iconNode('lock', 'is-small'))
-            .append($('<span></span>').text(__('This Center never switches cutover gates.')))
-            .appendTo(state);
-    }
-
-
-    function renderStatusCards(data, readiness, profile) {
-        const shell = $('<section class="lx-fbr-readiness-wrap"></section>').appendTo(body);
-        const readinessHead = $('<div class="lx-fbr-readiness-head"></div>').appendTo(shell);
-        const readinessCopy = $('<div></div>').appendTo(readinessHead);
-        $('<div class="lx-fbr-kicker"></div>').text(__('Configuration path')).appendTo(readinessCopy);
-        $('<h3></h3>').text(__('Readiness Overview')).appendTo(readinessCopy);
-        $('<p></p>').text(__('Complete the shared ERPNext setup first, then validate Sandbox before Production.')).appendTo(readinessCopy);
-        const sharedCount = uniq(readiness.setup_blockers || []).length;
-        badge(sharedCount ? __('{0} shared blocker(s)', [sharedCount]) : __('Shared setup clear'), sharedCount ? 'warning' : 'good').appendTo(readinessHead);
-
-        const cards = $('<div class="lx-fbr-status-grid"></div>').appendTo(shell);
-        const seller = readiness.seller_identity || {};
-        const sourceBlockers = readiness.source_blockers || [];
-        const currentState = readiness.configuration?.[String(readiness.mode || '').toLowerCase()] || {};
-        const currentDeviceChecks = currentState.devices || [];
-        const modeDevices = (data.devices || []).filter((device) => device.environment === readiness.mode);
-        const device = modeDevices.find((row) => row.active) || modeDevices[0] || (data.devices || []).find((row) => row.active) || (data.devices || [])[0];
-        const deviceBlockers = uniq(currentDeviceChecks.flatMap((row) => row.blockers || []).filter((message) => /device|posid|topology/i.test(message)));
-        const mapping = data.mapping_summary || {};
-        const mappingReady = Number(mapping.reviewed_item_mappings || 0) > 0
-            && Number(mapping.active_tax_component_mappings || 0) > 0
-            && Number(mapping.payment_mappings || 0) > 0;
-        const mappingBlockers = uniq((readiness.setup_blockers || []).filter((message) => /mapping/i.test(message)));
-
-        statusCard({
-            title: 'Seller Identity',
-            status: readiness.source_accounting_ready ? 'Ready' : 'Setup Required',
-            tone: readiness.source_accounting_ready ? 'good' : 'warning',
-            detail: [
-                {label: 'Legal name', value: seller.business_name},
-                {label: 'NTN / CNIC', value: seller.ntn_cnic},
-                {label: 'Province', value: seller.province},
-            ],
-            blockers: sourceBlockers,
-            actionLabel: 'Open Company',
-            action: () => frappe.set_route('Form', 'Company', data.company),
-        }).appendTo(cards);
-
-        const profileBlockers = readiness.profile
-            ? uniq((readiness.setup_blockers || []).filter((message) => /profile/i.test(message)))
-            : ['Create a Federal V1 Integration Profile for this company.'];
-        statusCard({
-            title: 'Integration Profile',
-            status: readiness.profile ? (readiness.enabled ? readiness.mode : 'Disabled') : 'Not Configured',
-            tone: readiness.enabled ? (readiness.mode === 'Production' ? 'danger' : 'good') : 'warning',
-            detail: [
-                {label: 'Provider', value: profile.provider_type},
-                {label: 'Submit trigger', value: profile.submit_trigger},
-                {label: 'Transport', value: readiness.profile ? yesNo(profile.transport_enabled) : 'Not configured'},
-            ],
-            blockers: profileBlockers,
-            actionLabel: readiness.profile ? 'Open Profile' : 'Create / Open Profiles',
-            action: () => readiness.profile
-                ? frappe.set_route('Form', 'Ledgix FBR Integration Profile', readiness.profile)
-                : routeList('Ledgix FBR Integration Profile', {company: data.company}),
-        }).appendTo(cards);
-
-        statusCard({
-            title: 'POS Device / POSID',
-            status: device && device.active ? (device.operational_state || 'Configured') : 'Setup Required',
-            tone: device && device.active && device.operational_state === 'Operational' ? 'good' : 'warning',
-            detail: [
-                {label: 'Device', value: device && (device.display_label || device.name)},
-                {label: 'POSID', value: device && device.pos_id},
-                {label: 'Topology', value: device && device.transport_topology},
-            ],
-            blockers: device ? deviceBlockers : ['Configure an active Federal V1 POS device for this company.'],
-            actionLabel: 'Open POS Devices',
-            action: () => routeList('Ledgix FBR POS Device', {company: data.company}),
-        }).appendTo(cards);
-
-        statusCard({
-            title: 'Item & Tax Mapping',
-            status: mappingReady ? 'Configured' : 'Setup Required',
-            tone: mappingReady ? 'good' : 'warning',
-            detail: [
-                {label: 'Reviewed items', value: mapping.reviewed_item_mappings || 0},
-                {label: 'Tax components', value: mapping.active_tax_component_mappings || 0},
-                {label: 'Payment mappings', value: mapping.payment_mappings || 0},
-            ],
-            blockers: mappingBlockers,
-            actionLabel: 'Open Item Mappings',
-            action: () => routeList('Ledgix FBR Item Mapping', {company: data.company}),
-        }).appendTo(cards);
-
-        const sandbox = readiness.configuration?.sandbox || {};
-        const sandboxBlockers = without(sandbox.blockers || [], readiness.setup_blockers || []);
-        if (!readiness.setup_ready) sandboxBlockers.unshift('Complete the shared setup prerequisites first.');
-        statusCard({
-            title: 'Sandbox',
-            status: readiness.sandbox_configuration_ready ? 'Configuration Ready' : 'Setup Required',
-            tone: readiness.sandbox_configuration_ready ? 'good' : 'warning',
-            detail: [
-                {label: 'Configured devices', value: (sandbox.devices || []).length},
-                {label: 'Network gate', value: yesNo(readiness.network_cutover_active)},
-                {label: 'Mode', value: readiness.mode === 'Sandbox' ? 'Active mode' : 'Available for setup'},
-            ],
-            blockers: uniq(sandboxBlockers),
-            actionLabel: 'Open Sandbox Devices',
-            action: () => routeList('Ledgix FBR POS Device', {company: data.company, environment: 'Sandbox'}),
-        }).appendTo(cards);
-
-        const production = readiness.configuration?.production || {};
-        const productionBlockers = without(production.blockers || [], readiness.setup_blockers || []);
-        if (!readiness.setup_ready) productionBlockers.unshift('Complete shared setup and Sandbox validation before Production.');
-        statusCard({
-            title: 'Production',
-            status: readiness.production_ready ? 'Ready' : (readiness.production_configuration_ready ? 'Configuration Ready' : 'Locked'),
-            tone: readiness.production_ready ? 'danger' : (readiness.production_configuration_ready ? 'warning' : 'neutral'),
-            detail: [
-                {label: 'Configured devices', value: (production.devices || []).length},
-                {label: 'Production gate', value: yesNo(readiness.production_cutover_active)},
-                {label: 'Posting armed', value: readiness.profile ? yesNo(profile.production_post_armed) : 'Not configured'},
-            ],
-            blockers: uniq(productionBlockers),
-            actionLabel: 'Open Production Devices',
-            action: () => routeList('Ledgix FBR POS Device', {company: data.company, environment: 'Production'}),
-        }).appendTo(cards);
-    }
-
-
-    function renderSafety(data, readiness, profile) {
-        const node = section(
-            'Safety & Transport',
-            'Sandbox networking can be controlled here by System Manager; Production cutover remains externally controlled.'
-        ).appendTo(body);
-
-        const banner = $('<div class="lx-fbr-safety-banner"></div>').appendTo(node);
-        iconNode('shield', 'is-safety').appendTo(banner);
-        const bannerCopy = $('<div></div>').appendTo(banner);
-        $('<strong></strong>').text(__('Fail-closed by design')).appendTo(bannerCopy);
-        $('<span></span>').text(__('Sandbox networking requires an explicit operator action. Production cutover cannot be enabled from this Center.')).appendTo(bannerCopy);
-        badge(readiness.production_cutover_active ? 'Production gate ON' : 'Production locked', readiness.production_cutover_active ? 'danger' : 'good').appendTo(banner);
-
-        const grid = $('<div class="lx-fbr-safety-grid"></div>').appendTo(node);
-        const hasProfile = Boolean(readiness.profile);
-        const rows = [
-            ['General Network Cutover', yesNo(readiness.network_cutover_active), readiness.network_cutover_active ? 'warning' : 'good'],
-            ['Production Cutover', yesNo(readiness.production_cutover_active), readiness.production_cutover_active ? 'danger' : 'good'],
-            ['Transport Enabled', hasProfile ? yesNo(profile.transport_enabled) : 'Not configured', !hasProfile ? 'neutral' : (profile.transport_enabled ? 'warning' : 'good')],
-            ['Production Posting Armed', hasProfile ? yesNo(profile.production_post_armed) : 'Not configured', !hasProfile ? 'neutral' : (profile.production_post_armed ? 'danger' : 'good')],
-            ['Submit Trigger', profile.submit_trigger || 'Not configured', profile.submit_trigger === 'On Submit' ? 'warning' : 'neutral'],
-            ['Offline Policy', profile.offline_policy || 'Not configured', profile.offline_policy === 'Operator Confirmed' ? 'warning' : 'neutral'],
-        ];
-        rows.forEach(([label, value, tone]) => {
-            const item = $('<div class="lx-fbr-safety-item"></div>').addClass(`is-${tone}`).appendTo(grid);
-            const top = $('<div class="lx-fbr-safety-item-top"></div>').appendTo(item);
-            $('<span></span>').text(__(label)).appendTo(top);
-            $('<i class="lx-fbr-state-dot"></i>').addClass(`is-${tone}`).appendTo(top);
-            $('<strong></strong>').text(__(value)).appendTo(item);
-        });
-
-        const gateOn = Boolean(readiness.network_cutover_active);
-        const sandboxMode = readiness.mode === 'Sandbox';
-        const canToggle = canManageCutover() && (sandboxMode || gateOn);
-        const controls = $('<div class="lx-fbr-action-buttons"></div>').appendTo(node);
-
-        const toggleLabel = gateOn
-            ? 'Disable Sandbox Network'
-            : 'Enable Sandbox Network';
-
-        const toggleReason = !canManageCutover()
-            ? __('System Manager permission is required.')
-            : (!sandboxMode && !gateOn
-                ? __('The active FBR profile must be in Sandbox mode.')
-                : '');
-
-        const toggleButton = makeButton(
-            toggleLabel,
-            () => {
-                const enabling = !gateOn;
-                const confirmMessage = enabling
-                    ? __('Enable REAL FBR Sandbox networking for this site? Production cutover cannot be enabled by this action.')
-                    : __('Disable FBR Sandbox networking for this site?');
-
-                frappe.confirm(confirmMessage, async () => {
-                    toggleButton.prop('disabled', true);
-                    try {
-                        const {message: result} = await frappe.call({
-                            method: 'fbr_v1.api.center.set_sandbox_network_cutover',
-                            args: {
-                                company: data.company,
-                                enabled: enabling ? 1 : 0,
-                            },
-                        });
-
-                        if (result.production_cutover_active) {
-                            frappe.throw(
-                                __('Safety interlock violation: Production transport must remain OFF.')
-                            );
-                        }
-
-                        frappe.msgprint({
-                            title: __('Sandbox Network'),
-                            message: result.network_cutover_active
-                                ? __('Sandbox network gate is ON. Production remains OFF.')
-                                : __('Sandbox network gate is OFF.'),
-                            indicator: result.network_cutover_active ? 'orange' : 'green',
-                        });
-
-                        await refresh();
-                    } finally {
-                        toggleButton.prop('disabled', false);
-                    }
-                });
-            },
-            {
-                primary: !gateOn,
-                disabled: !canToggle,
-                reason: toggleReason,
-            }
-        );
-
-        toggleButton.appendTo(controls);
-    }
-
-
-    function renderBlockers(readiness) {
-        const node = section('Readiness Blockers', 'Resolve internal prerequisites first; external authority contracts remain isolated and clearly labelled.').appendTo(body);
-        const source = uniq(readiness.source_blockers || []);
-        const setup = without(readiness.setup_blockers || [], source);
-        const transport = without(readiness.blockers || [], [...source, ...setup]);
-        const external = uniq(readiness.unresolved_contracts || []);
-        const totalInternal = source.length + setup.length + transport.length;
-
-        const summary = $('<div class="lx-fbr-blocker-overview"></div>').appendTo(node);
-        const summaryCopy = $('<div></div>').appendTo(summary);
-        $('<strong></strong>').text(totalInternal ? __('{0} internal blocker(s)', [totalInternal]) : __('Internal readiness clear')).appendTo(summaryCopy);
-        $('<span></span>').text(totalInternal ? __('Work through the open groups below in order.') : __('No current internal blocker is reported for the selected company and mode.')).appendTo(summaryCopy);
-        badge(totalInternal ? 'Action required' : 'Clear', totalInternal ? 'warning' : 'good').appendTo(summary);
-
-        const grid = $('<div class="lx-fbr-blocker-grid"></div>').appendTo(node);
-        blockerGroup(grid, 'Seller identity', source, true);
-        blockerGroup(grid, 'Internal setup & mappings', setup, true);
-        blockerGroup(grid, 'Current mode / transport', transport, transport.length > 0);
-        blockerGroup(grid, 'External / authority contracts', external, false);
-    }
-
-    function renderOperations(data, readiness, profile) {
-        const node = section('Operations', 'Open authoritative records, evidence and guarded diagnostics from one place.').appendTo(body);
-        const groups = $('<div class="lx-fbr-operation-grid"></div>').appendTo(node);
-        actionGroup(groups, 'Setup', 'Configure the ERPNext and Federal V1 records used by fiscalization.', [
-            {label: 'Integration Profile', onClick: () => readiness.profile ? frappe.set_route('Form', 'Ledgix FBR Integration Profile', readiness.profile) : routeList('Ledgix FBR Integration Profile', {company: data.company})},
-            {label: 'POS Devices', onClick: () => routeList('Ledgix FBR POS Device', {company: data.company})},
-            {label: 'Item Mappings', onClick: () => routeList('Ledgix FBR Item Mapping', {company: data.company})},
-            {label: 'Tax Component Mappings', onClick: () => routeList('Ledgix FBR Tax Component Mapping', {company: data.company})},
-            {label: 'Payment Mapping', onClick: () => routeList('Mode of Payment')},
-        ]);
-        actionGroup(groups, 'Evidence / Operations', 'Review immutable evidence, fiscal events and reconciliation work.', [
-            {label: 'Submission Logs', onClick: () => routeList('Ledgix FBR Submission Log')},
-            {label: 'Fiscal Events', onClick: () => routeList('Ledgix FBR Fiscal Event Log')},
-            {label: 'Fiscal Closings', onClick: () => routeList('Ledgix FBR Fiscal Closing')},
-            {label: 'Correction Requests', onClick: () => routeList('Ledgix FBR Correction Request')},
-            {label: 'Reconciliation', onClick: () => routeList('Ledgix FBR Submission Log', {fbr_status: 'Reconciliation Required'})},
-        ]);
-        actionGroup(groups, 'Transactions', 'Open native ERPNext transaction lists without bypassing invoice-level checks.', [
-            {label: 'Sales Invoice', onClick: () => routeList('Sales Invoice')},
-            {label: 'POS Invoice', onClick: () => routeList('POS Invoice')},
-        ]);
-
-        const modeReady = readiness.mode === 'Sandbox'
-            ? readiness.sandbox_configuration_ready
-            : readiness.mode === 'Production' && readiness.production_configuration_ready;
-        const productionSafe = readiness.mode !== 'Production'
-            || (readiness.production_cutover_active && profile.production_post_armed);
-        const canFiscalize = canOperate()
-            && readiness.enabled
-            && modeReady
-            && Boolean(profile.transport_enabled)
-            && readiness.network_cutover_active
-            && productionSafe;
-        const localDevices = (data.devices || []).filter((device) => device.transport_topology === 'Local IMS - Server Reachable');
-        const canHealth = canOperate() && localDevices.length > 0 && readiness.network_cutover_active;
-
-        const testing = [
-            {label: 'Invoice Readiness', primary: true, onClick: openInvoiceReadiness},
-        ];
-        if (localDevices.length) {
-            testing.push({
-                label: 'Local IMS Health',
-                disabled: !canHealth,
-                reason: !readiness.network_cutover_active ? __('General network cutover is OFF.') : __('Accounts Manager permission is required.'),
-                onClick: () => actionDialog(
-                    'Local IMS Health',
-                    [{fieldname: 'pos_device', label: __('POS Device'), fieldtype: 'Link', options: 'Ledgix FBR POS Device', reqd: 1, default: localDevices[0].name}],
-                    'fbr_v1.api.center.test_local_ims_health',
-                    (result) => result.ok ? __('Local IMS health check succeeded') : (result.error || __('Local IMS health check failed'))
-                ),
-            });
-        }
-        testing.push({
-            label: readiness.mode === 'Production' ? 'Fiscalize Invoice - Production' : 'Fiscalize Invoice',
-            danger: readiness.mode === 'Production',
-            disabled: !canFiscalize,
-            reason: !canOperate()
-                ? __('Accounts Manager permission is required.')
-                : __('Requires a ready active mode, Transport Enabled, and the applicable network cutover gate.'),
-            onClick: () => actionDialog(
-                'Fiscalize Invoice',
-                invoiceFields(),
-                'fbr_v1.api.fiscalization.submit_invoice',
-                (result) => [result.status, ...(result.errors || [])].join(' · '),
-                readiness.mode === 'Production'
-                    ? 'This may perform a REAL PRODUCTION FBR POST. Continue only with explicit production authorization.'
-                    : 'This may perform a real FBR Sandbox POST. Continue only when Sandbox submission is explicitly authorized.'
-            ),
-        });
-        actionGroup(groups, 'Testing', 'Invoice readiness is read-only. Network actions remain disabled until their gates are explicitly enabled.', testing);
-
-        if (canOperate()) renderAdvancedOperations(node);
-    }
-
-    function renderAdvancedOperations(parent) {
         const details = $('<details class="lx-fbr-advanced"></details>').appendTo(parent);
-        $('<summary></summary>').text(__('Advanced operator evidence actions')).appendTo(details);
-        $('<p></p>').text(__('These actions write audit/evidence records but do not enable network or production cutover gates.')).appendTo(details);
-        const buttons = $('<div class="lx-fbr-action-buttons"></div>').appendTo(details);
-        const deviceField = () => ({fieldname: 'pos_device', label: __('POS Device'), fieldtype: 'Link', options: 'Ledgix FBR POS Device', reqd: 1});
+        $('<summary></summary>').text(__('Advanced evidence actions')).appendTo(details);
+        const content = $('<div class="lx-fbr-advanced-content"></div>').appendTo(details);
+        notice(content, 'warning', 'Audit / evidence writes', 'These actions create compliance evidence records but do not enable network or Production cutover.');
+
+        const deviceField = () => ({
+            fieldname: 'pos_device',
+            label: __('POS Device'),
+            fieldtype: 'Link',
+            options: 'Ledgix FBR POS Device',
+            reqd: 1,
+        });
         const externalFields = () => [
             {fieldname: 'external_reference', label: __('Authoritative External Reference'), fieldtype: 'Data', reqd: 1},
             {fieldname: 'external_evidence', label: __('External Evidence'), fieldtype: 'Attach', reqd: 1},
         ];
-        const add = (label, fn) => makeButton(label, fn).appendTo(buttons);
 
-        add('Record Device Event', () => actionDialog(
-            'Record Device Event',
-            [deviceField(), {fieldname: 'event_type', label: __('Event'), fieldtype: 'Select', options: 'Startup\nShutdown\nConnectivity Failure\nSoftware Failure\nPower Failure\nRestoration', reqd: 1}],
-            'fbr_v1.api.fbr_offline.record_device_event',
-            (result) => __('Event recorded: {0}', [result.event])
-        ));
-        add('Generate Internal Closing', () => actionDialog(
-            'Generate Internal Closing',
-            [deviceField(), {fieldname: 'period_type', label: __('Period'), fieldtype: 'Select', options: 'Daily\nWeekly\nMonthly', reqd: 1}, {fieldname: 'date', label: __('Date in completed period'), fieldtype: 'Date', reqd: 1}],
-            'fbr_v1.services.fiscal_closing.generate_closing',
-            (result) => __('Internal closing: {0}', [result.name])
-        ));
-        add('Record External Compliance Evidence', () => actionDialog(
-            'Record External Compliance Evidence',
-            [deviceField(), {fieldname: 'event_type', label: __('Event'), fieldtype: 'Select', options: 'Outage Report Filed\nAlert Report Filed\nOffline Upload Confirmed\nCorrection Filed\nCommissioner Approval Recorded', reqd: 1}, ...externalFields(), ...invoiceFields().map((field) => ({...field, reqd: 0, ...(field.fieldname === 'reference_doctype' ? {options: '\nSales Invoice\nPOS Invoice'} : {})})), {fieldname: 'occurred_at', label: __('External Event Time'), fieldtype: 'Datetime'}],
-            'fbr_v1.api.compliance_evidence.record_external_compliance_evidence',
-            (result) => __('Evidence recorded; invoice unchanged: {0}', [result.event])
-        ));
-        add('Record Offline Upload Confirmation', () => actionDialog(
-            'Record Offline Upload Confirmation',
-            [...invoiceFields(), ...externalFields(), {fieldname: 'fbr_invoice_number', label: __('Official FBR Invoice Number'), fieldtype: 'Data', reqd: 1}],
-            'fbr_v1.api.fbr_offline.record_offline_upload_confirmation',
-            (result) => `${result.status} · ${result.confirmed_after_deadline ? __('Recorded after deadline') : __('Recorded within deadline')}`
-        ));
-        add('Create Correction Request', () => actionDialog(
-            'Create Correction Request',
-            [...invoiceFields(), {fieldname: 'action_type', label: __('Action'), fieldtype: 'Select', options: 'Cancel\nDelete\nEdit', reqd: 1}, {fieldname: 'reason', label: __('Bona-fide Reason'), fieldtype: 'Small Text', reqd: 1}, {fieldname: 'fbr_generated_at', label: __('Authoritative FBR Generation Time'), fieldtype: 'Datetime'}, {fieldname: 'generation_time_reference', label: __('Generation Time Authority Reference'), fieldtype: 'Data'}, {fieldname: 'generation_time_evidence', label: __('Generation Time Evidence'), fieldtype: 'Attach'}],
-            'fbr_v1.api.corrections.request_correction',
-            (result) => `${result.name} · ${result.status}`
-        ));
-        add('Record Correction Result', () => actionDialog(
-            'Record Correction Result',
-            [{fieldname: 'correction_request', label: __('Correction Request'), fieldtype: 'Link', options: 'Ledgix FBR Correction Request', reqd: 1}, {fieldname: 'status', label: __('Externally Confirmed Result'), fieldtype: 'Select', options: 'Completed\nRejected', reqd: 1}, {fieldname: 'board_reference', label: __('Board / PRAL Reference'), fieldtype: 'Data', reqd: 1}, {fieldname: 'external_evidence', label: __('External Evidence'), fieldtype: 'Attach', reqd: 1}, {fieldname: 'commissioner_approval_reference', label: __('Commissioner Approval Reference'), fieldtype: 'Data'}],
-            'fbr_v1.api.corrections.record_correction_result',
-            (result) => `${result.name} · ${result.status}`
-        ));
+        buttonRow(content, [
+            {
+                label: 'Record Device Event',
+                onClick: () => actionDialog(
+                    'Record Device Event',
+                    [deviceField(), {fieldname: 'event_type', label: __('Event'), fieldtype: 'Select', options: 'Startup\nShutdown\nConnectivity Failure\nSoftware Failure\nPower Failure\nRestoration', reqd: 1}],
+                    'fbr_v1.api.fbr_offline.record_device_event',
+                    (result) => __('Event recorded: {0}', [result.event])
+                ),
+            },
+            {
+                label: 'Generate Internal Closing',
+                onClick: () => actionDialog(
+                    'Generate Internal Closing',
+                    [deviceField(), {fieldname: 'period_type', label: __('Period'), fieldtype: 'Select', options: 'Daily\nWeekly\nMonthly', reqd: 1}, {fieldname: 'date', label: __('Date in completed period'), fieldtype: 'Date', reqd: 1}],
+                    'fbr_v1.services.fiscal_closing.generate_closing',
+                    (result) => __('Internal closing: {0}', [result.name])
+                ),
+            },
+            {
+                label: 'Record External Compliance Evidence',
+                onClick: () => actionDialog(
+                    'Record External Compliance Evidence',
+                    [deviceField(), {fieldname: 'event_type', label: __('Event'), fieldtype: 'Select', options: 'Outage Report Filed\nAlert Report Filed\nOffline Upload Confirmed\nCorrection Filed\nCommissioner Approval Recorded', reqd: 1}, ...externalFields(), ...invoiceFields().map((field) => ({...field, reqd: 0, ...(field.fieldname === 'reference_doctype' ? {options: '\nSales Invoice\nPOS Invoice'} : {})})), {fieldname: 'occurred_at', label: __('External Event Time'), fieldtype: 'Datetime'}],
+                    'fbr_v1.api.compliance_evidence.record_external_compliance_evidence',
+                    (result) => __('Evidence recorded; invoice unchanged: {0}', [result.event])
+                ),
+            },
+            {
+                label: 'Record Offline Upload Confirmation',
+                onClick: () => actionDialog(
+                    'Record Offline Upload Confirmation',
+                    [...invoiceFields(), ...externalFields(), {fieldname: 'fbr_invoice_number', label: __('Official FBR Invoice Number'), fieldtype: 'Data', reqd: 1}],
+                    'fbr_v1.api.fbr_offline.record_offline_upload_confirmation',
+                    (result) => result.status + ' · ' + (result.confirmed_after_deadline ? __('Recorded after deadline') : __('Recorded within deadline'))
+                ),
+            },
+            {
+                label: 'Create Correction Request',
+                onClick: () => actionDialog(
+                    'Create Correction Request',
+                    [...invoiceFields(), {fieldname: 'action_type', label: __('Action'), fieldtype: 'Select', options: 'Cancel\nDelete\nEdit', reqd: 1}, {fieldname: 'reason', label: __('Bona-fide Reason'), fieldtype: 'Small Text', reqd: 1}, {fieldname: 'fbr_generated_at', label: __('Authoritative FBR Generation Time'), fieldtype: 'Datetime'}, {fieldname: 'generation_time_reference', label: __('Generation Time Authority Reference'), fieldtype: 'Data'}, {fieldname: 'generation_time_evidence', label: __('Generation Time Evidence'), fieldtype: 'Attach'}],
+                    'fbr_v1.api.corrections.request_correction',
+                    (result) => result.name + ' · ' + result.status
+                ),
+            },
+            {
+                label: 'Record Correction Result',
+                onClick: () => actionDialog(
+                    'Record Correction Result',
+                    [{fieldname: 'correction_request', label: __('Correction Request'), fieldtype: 'Link', options: 'Ledgix FBR Correction Request', reqd: 1}, {fieldname: 'status', label: __('Externally Confirmed Result'), fieldtype: 'Select', options: 'Completed\nRejected', reqd: 1}, {fieldname: 'board_reference', label: __('Board / PRAL Reference'), fieldtype: 'Data', reqd: 1}, {fieldname: 'external_evidence', label: __('External Evidence'), fieldtype: 'Attach', reqd: 1}, {fieldname: 'commissioner_approval_reference', label: __('Commissioner Approval Reference'), fieldtype: 'Data'}],
+                    'fbr_v1.api.corrections.record_correction_result',
+                    (result) => result.name + ' · ' + result.status
+                ),
+            },
+        ]);
     }
 
+    function renderEvidence(data, state, workspace) {
+        const evidence = panel(workspace, 'Evidence & Compliance', 'evidence');
+        const grid = $('<div class="lx-fbr-action-grid"></div>').appendTo(evidence);
 
-    function renderDevices(data) {
-        if (!(data.devices || []).length) return;
-        const node = section('POS Devices', 'Current company device inventory. Open a card to inspect or edit the authoritative device record.').appendTo(body);
-        const grid = $('<div class="lx-fbr-device-grid"></div>').appendTo(node);
-        data.devices.forEach((device) => {
-            const card = $('<button type="button" class="lx-fbr-device-card"></button>')
-                .on('click', () => frappe.set_route('Form', 'Ledgix FBR POS Device', device.name))
-                .appendTo(grid);
-            const top = $('<div class="lx-fbr-device-top"></div>').appendTo(card);
-            const identity = $('<div class="lx-fbr-device-identity"></div>').appendTo(top);
-            iconNode('device', device.active ? 'is-good' : 'is-neutral').appendTo(identity);
-            const copy = $('<div></div>').appendTo(identity);
-            $('<strong></strong>').text(device.display_label || device.name).appendTo(copy);
-            $('<span></span>').text(device.pos_id ? __('POSID {0}', [device.pos_id]) : __('POSID not assigned')).appendTo(copy);
-            badge(device.environment || 'Unknown', device.environment === 'Production' ? 'danger' : 'neutral').appendTo(top);
-
-            const meta = $('<div class="lx-fbr-device-meta"></div>').appendTo(card);
-            $('<span></span>').text(device.transport_topology || '—').appendTo(meta);
-            $('<span></span>').text(device.operational_state || '—').appendTo(meta);
-            $('<span></span>').text(device.active ? __('Active') : __('Inactive')).appendTo(meta);
+        actionTile(grid, {
+            icon: 'evidence',
+            title: 'Submission Logs',
+            meta: data.latest_submission ? (data.latest_submission.reference_name || data.latest_submission.name) : 'No recent company-device log',
+            onClick: () => routeList('Ledgix FBR Submission Log'),
         });
+        actionTile(grid, {
+            icon: 'activity',
+            title: 'Fiscal Events',
+            onClick: () => routeList('Ledgix FBR Fiscal Event Log'),
+        });
+        actionTile(grid, {
+            icon: 'alert',
+            title: 'Reconciliation',
+            onClick: () => routeList('Ledgix FBR Submission Log', {fbr_status: 'Reconciliation Required'}),
+        });
+        actionTile(grid, {
+            icon: 'evidence',
+            title: 'Fiscal Closings',
+            onClick: () => routeList('Ledgix FBR Fiscal Closing'),
+        });
+        actionTile(grid, {
+            icon: 'evidence',
+            title: 'Correction Requests',
+            onClick: () => routeList('Ledgix FBR Correction Request'),
+        });
+
+        renderAdvancedEvidence(evidence);
+    }
+
+    function renderProduction(data, state, workspace) {
+        const readiness = state.readiness;
+        const profile = state.profile;
+        const production = readiness.configuration && readiness.configuration.production
+            ? readiness.configuration.production
+            : {};
+        const locked = !readiness.production_cutover_active && !profile.production_post_armed;
+
+        const productionPanel = panel(workspace, 'Production', 'production', {
+            className: 'lx-fbr-production-panel',
+            badge: {label: locked ? 'LOCKED' : 'ATTENTION', tone: locked ? 'good' : 'danger'},
+        });
+
+        notice(
+            productionPanel,
+            locked ? 'good' : 'danger',
+            locked ? 'Production is locked' : 'Production safety state requires attention',
+            'Production cutover cannot be enabled from FBR V1 Center.'
+        );
+
+        factGrid(productionPanel, [
+            {label: 'Production Gate', value: yesNo(readiness.production_cutover_active), tone: readiness.production_cutover_active ? 'danger' : 'good'},
+            {label: 'Posting Armed', value: yesNo(profile.production_post_armed), tone: profile.production_post_armed ? 'danger' : 'good'},
+            {label: 'Current Profile', value: readiness.mode || 'Disabled'},
+            {label: 'Transport', value: readiness.profile ? yesNo(profile.transport_enabled) : 'Not configured'},
+            {label: 'Configured Devices', value: (production.devices || []).length},
+            {label: 'Production Configuration', value: readiness.production_configuration_ready ? 'Ready' : 'Not Ready'},
+        ]);
+
+        const productionBlockers = uniq(production.blockers || []);
+        if (productionBlockers.length) {
+            const blockers = $('<div class="lx-fbr-blocker-box"></div>').appendTo(productionPanel);
+            $('<strong></strong>').text(__('Production requirements')).appendTo(blockers);
+            const list = $('<ul></ul>').appendTo(blockers);
+            productionBlockers.forEach((message) => $('<li></li>').text(message).appendTo(list));
+        }
+
+        buttonRow(productionPanel, [
+            {
+                label: 'Open Integration Profile',
+                onClick: () => readiness.profile
+                    ? frappe.set_route('Form', 'Ledgix FBR Integration Profile', readiness.profile)
+                    : routeList('Ledgix FBR Integration Profile', {company: data.company}),
+            },
+            {
+                label: 'Production Devices',
+                onClick: () => routeList('Ledgix FBR POS Device', {company: data.company, environment: 'Production'}),
+            },
+        ]);
+    }
+
+    function renderWorkspace(data, state) {
+        const workspace = $('<main class="lx-fbr-workspace" role="tabpanel"></main>').appendTo(body);
+
+        if (activeTab === 'sandbox') renderSandbox(data, state, workspace);
+        else if (activeTab === 'setup') renderSetup(data, state, workspace);
+        else if (activeTab === 'evidence') renderEvidence(data, state, workspace);
+        else if (activeTab === 'production') renderProduction(data, state, workspace);
+        else renderOverview(data, state, workspace);
     }
 
     function render(data) {
-        const readiness = data.readiness || {};
-        const profile = readiness.profile_state || {};
+        lastData = data;
+        const state = deriveState(data);
         body.empty();
-        renderHero(data, readiness, profile);
-        renderStatusCards(data, readiness, profile);
-        renderSafety(data, readiness, profile);
-        renderBlockers(readiness);
-        renderOperations(data, readiness, profile);
-        renderDevices(data);
-        $('<p class="lx-fbr-footnote"></p>')
-            .text(__('Each invoice still requires immutable-snapshot, payment, accounting and reconciliation checks. Internal closings do not imply FBR acceptance.'))
-            .appendTo(body);
+        renderHeader(data, state);
+        renderTabs(data);
+        renderWorkspace(data, state);
     }
 
-    async function refresh() {
+    async function refresh(companyName) {
         if (busy) return;
+
         busy = true;
         body.addClass('is-loading');
         try {
             const {message: data} = await frappe.call({
                 method: 'fbr_v1.api.center.get_center_boot',
-                args: {company: company.get_value()},
+                args: {company: companyName || currentCompany},
             });
-            if (!company.get_value() && data.company) company.set_value(data.company);
+            currentCompany = data.company;
             render(data);
         } finally {
             busy = false;
@@ -714,5 +976,6 @@ frappe.pages['fbr-v1-center'].on_page_load = function (wrapper) {
         }
     }
 
+    $(wrapper).find('.page-head .title-text').addClass('lx-fbr-native-title-hidden');
     refresh();
 };

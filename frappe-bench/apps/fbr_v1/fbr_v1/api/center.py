@@ -16,7 +16,24 @@ DEVICE_FIELDS = [
     "outlet_address",
     "active",
 ]
-
+SUBMISSION_SUMMARY_FIELDS = [
+    "name",
+    "reference_doctype",
+    "reference_name",
+    "fbr_status",
+    "fbr_invoice_number",
+    "attempt_count",
+    "attempt_id",
+    "source_snapshot_hash",
+    "request_hash",
+    "transport_started_at",
+    "transport_finished_at",
+    "transport_outcome",
+    "reconciliation_required",
+    "error_code",
+    "error_message",
+    "modified",
+]
 
 
 def _cutover_bool(value):
@@ -138,6 +155,7 @@ def set_sandbox_network_cutover(company, enabled):
         "network_call": False,
     }
 
+
 def _mapping_summary(company):
     item_rows = frappe.get_list(
         "Ledgix FBR Item Mapping",
@@ -166,6 +184,21 @@ def _mapping_summary(company):
     }
 
 
+def _latest_submission_summary(devices):
+    device_names = [row.get("name") for row in (devices or []) if row.get("name")]
+    if not device_names:
+        return None
+
+    rows = frappe.get_list(
+        "Ledgix FBR Submission Log",
+        filters={"pos_device": ["in", device_names]},
+        fields=SUBMISSION_SUMMARY_FIELDS,
+        order_by="modified desc",
+        limit_page_length=1,
+    )
+    return rows[0] if rows else None
+
+
 @frappe.whitelist()
 def get_center_boot(company=None):
     companies = frappe.get_list("Company", pluck="name", limit_page_length=0)
@@ -173,17 +206,20 @@ def get_center_boot(company=None):
     if company not in companies:
         frappe.throw("Select a permitted company.", frappe.PermissionError)
 
+    devices = frappe.get_list(
+        "Ledgix FBR POS Device",
+        filters={"company": company},
+        fields=DEVICE_FIELDS,
+        limit_page_length=0,
+    )
+
     return {
         "companies": companies,
         "company": company,
         "readiness": get_client_readiness(company),
-        "devices": frappe.get_list(
-            "Ledgix FBR POS Device",
-            filters={"company": company},
-            fields=DEVICE_FIELDS,
-            limit_page_length=0,
-        ),
+        "devices": devices,
         "mapping_summary": _mapping_summary(company),
+        "latest_submission": _latest_submission_summary(devices),
         "network_call": False,
     }
 
@@ -203,6 +239,14 @@ def test_local_ims_health(pos_device):
     try:
         result = transport.health_local()
     except Exception:
-        return {"ok": False, "network_call": True, "error": "IMS health check unavailable; inspect the local service."}
+        return {
+            "ok": False,
+            "network_call": True,
+            "error": "IMS health check unavailable; inspect the local service.",
+        }
     # Service bodies and exception details are deliberately not returned to browsers.
-    return {"ok": result["ok"], "http_status": result["http_status"], "network_call": True}
+    return {
+        "ok": result["ok"],
+        "http_status": result["http_status"],
+        "network_call": True,
+    }
