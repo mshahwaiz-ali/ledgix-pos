@@ -453,28 +453,24 @@ frappe.pages['fbr-v1-center'].on_page_load = function (wrapper) {
         invoiceControl.refresh();
         if (invoiceName) invoiceControl.set_value(invoiceName);
 
-        if (typeControl.$input) {
-            typeControl.$input.on('change', () => {
-                const value = typeControl.get_value() || 'POS Invoice';
-                if (value !== invoiceType) {
-                    invoiceType = value;
-                    invoiceName = '';
-                    sandboxActionResult = null;
-                    render(data);
-                }
-            });
-        }
+        typeControl.df.change = () => {
+            const value = typeControl.get_value() || 'POS Invoice';
+            if (value !== invoiceType) {
+                invoiceType = value;
+                invoiceName = '';
+                sandboxActionResult = null;
+                render(data);
+            }
+        };
 
-        if (invoiceControl.$input) {
-            invoiceControl.$input.on('change', () => {
-                const value = invoiceControl.get_value() || '';
-                if (value !== invoiceName) {
-                    invoiceName = value;
-                    sandboxActionResult = null;
-                    render(data);
-                }
-            });
-        }
+        invoiceControl.df.change = () => {
+            const value = invoiceControl.get_value() || '';
+            if (value !== invoiceName) {
+                invoiceName = value;
+                sandboxActionResult = null;
+                render(data);
+            }
+        };
     }
 
     function renderSandboxActionResult(parent) {
