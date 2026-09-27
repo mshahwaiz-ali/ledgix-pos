@@ -60,6 +60,6 @@ class NoNetworkTest(unittest.TestCase):
         self.stack.enter_context(patch("socket.socket.connect", side_effect=AssertionError("Network forbidden in tests")))
         self.stack.enter_context(patch("requests.sessions.Session.request", side_effect=AssertionError("HTTP forbidden in tests")))
         self.stack.enter_context(patch.object(frappe, "get_system_settings", return_value="Asia/Karachi"))
-        self.stack.enter_context(patch.object(frappe.local, "flags", Row(in_test=False), create=True))
+        self.stack.enter_context(patch.object(frappe.flags, "in_test", False, create=True))
         self.db = self.stack.enter_context(patch.object(frappe, "db", Mock(), create=True))
         self.stack.enter_context(patch.object(frappe, "session", Row(user="test@example.invalid"), create=True))
