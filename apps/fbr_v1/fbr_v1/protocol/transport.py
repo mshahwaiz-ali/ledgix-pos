@@ -16,11 +16,17 @@ from fbr_v1.protocol.constants import (
 from fbr_v1.protocol.response import parse_fiscal_response
 
 
+V1_NETWORK_CUTOVER_ACTIVE = False
+
+
 class TransportUnavailable(RuntimeError):
     pass
 
 
 def _client(http_client=None):
+    real_client = http_client is None or (requests is not None and (http_client is requests or isinstance(http_client, requests.Session)))
+    if real_client and not V1_NETWORK_CUTOVER_ACTIVE:
+        raise TransportUnavailable("V1 network cutover is disabled.")
     client = http_client or requests
     if client is None:
         raise TransportUnavailable("Python requests is required for FBR V1 transport.")

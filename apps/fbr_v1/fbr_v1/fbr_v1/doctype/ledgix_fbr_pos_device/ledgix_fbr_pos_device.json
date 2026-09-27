@@ -1,0 +1,145 @@
+{
+ "doctype": "DocType",
+ "name": "Ledgix FBR POS Device",
+ "module": "FBR V1",
+ "autoname": "hash",
+ "engine": "InnoDB",
+ "field_order": [
+  "company",
+  "pos_profile",
+  "outlet_address",
+  "display_label",
+  "pos_id",
+  "software_registration_number",
+  "environment",
+  "transport_topology",
+  "onboarding_reference",
+  "onboarding_evidence",
+  "active",
+  "operational_state",
+  "last_successful_fiscalization",
+  "last_daily_closing",
+  "last_weekly_closing",
+  "last_monthly_closing"
+ ],
+ "fields": [
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Company",
+   "reqd": 1
+  },
+  {
+   "fieldname": "pos_profile",
+   "fieldtype": "Link",
+   "label": "Pos Profile",
+   "options": "POS Profile"
+  },
+  {
+   "fieldname": "outlet_address",
+   "fieldtype": "Link",
+   "label": "Outlet Address",
+   "options": "Address"
+  },
+  {
+   "fieldname": "display_label",
+   "fieldtype": "Data",
+   "label": "Display Label"
+  },
+  {
+   "fieldname": "pos_id",
+   "fieldtype": "Data",
+   "label": "Pos Id"
+  },
+  {
+   "fieldname": "software_registration_number",
+   "fieldtype": "Data",
+   "label": "Software Registration Number"
+  },
+  {
+   "fieldname": "environment",
+   "fieldtype": "Select",
+   "label": "Environment",
+   "options": "Sandbox\nProduction",
+   "default": "Sandbox",
+   "reqd": 1
+  },
+  {
+   "fieldname": "transport_topology",
+   "fieldtype": "Select",
+   "label": "Transport Topology",
+   "options": "Local IMS - Server Reachable\nCloud API\nWorkstation Local - Unsupported\nUnresolved",
+   "default": "Unresolved",
+   "reqd": 1
+  },
+  {
+   "fieldname": "onboarding_reference",
+   "fieldtype": "Data",
+   "label": "Onboarding Reference"
+  },
+  {
+   "fieldname": "onboarding_evidence",
+   "fieldtype": "Attach",
+   "label": "Onboarding Evidence"
+  },
+  {
+   "fieldname": "active",
+   "fieldtype": "Check",
+   "label": "Active",
+   "default": "0"
+  },
+  {
+   "fieldname": "operational_state",
+   "fieldtype": "Select",
+   "label": "Operational State",
+   "options": "Unresolved\nOperational\nOffline",
+   "default": "Unresolved",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_successful_fiscalization",
+   "fieldtype": "Datetime",
+   "label": "Last Successful Fiscalization",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_daily_closing",
+   "fieldtype": "Datetime",
+   "label": "Last Daily Closing",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_weekly_closing",
+   "fieldtype": "Datetime",
+   "label": "Last Weekly Closing",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_monthly_closing",
+   "fieldtype": "Datetime",
+   "label": "Last Monthly Closing",
+   "read_only": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "report": 1,
+   "export": 1,
+   "create": 1,
+   "write": 1
+  },
+  {
+   "role": "Accounts Manager",
+   "read": 1,
+   "report": 1,
+   "export": 1,
+   "create": 1,
+   "write": 1
+  }
+ ],
+ "track_changes": 1,
+ "allow_rename": 0
+}

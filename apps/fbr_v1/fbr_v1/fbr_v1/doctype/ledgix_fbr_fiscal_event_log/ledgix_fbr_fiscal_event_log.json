@@ -1,0 +1,102 @@
+{
+ "doctype": "DocType",
+ "name": "Ledgix FBR Fiscal Event Log",
+ "module": "FBR V1",
+ "autoname": "hash",
+ "engine": "InnoDB",
+ "field_order": [
+  "pos_device",
+  "event_type",
+  "occurred_at",
+  "reference_doctype",
+  "reference_name",
+  "external_reference",
+  "event_json",
+  "event_hash",
+  "severity",
+  "created_by"
+ ],
+ "fields": [
+  {
+   "fieldname": "pos_device",
+   "fieldtype": "Link",
+   "label": "Pos Device",
+   "options": "Ledgix FBR POS Device",
+   "reqd": 1
+  },
+  {
+   "fieldname": "event_type",
+   "fieldtype": "Select",
+   "label": "Event Type",
+   "options": "Startup\nShutdown\nConnectivity Failure\nSoftware Failure\nPower Failure\nRestoration\nOffline Invoice Issued\nOffline Upload\nAdjustment\nModification\nCancellation Attempt\nDebit Note\nCredit Note\nClosing\nReconciliation\nAlert",
+   "reqd": 1
+  },
+  {
+   "fieldname": "occurred_at",
+   "fieldtype": "Datetime",
+   "label": "Occurred At",
+   "reqd": 1
+  },
+  {
+   "fieldname": "reference_doctype",
+   "fieldtype": "Link",
+   "label": "Reference Doctype",
+   "options": "DocType"
+  },
+  {
+   "fieldname": "reference_name",
+   "fieldtype": "Dynamic Link",
+   "label": "Reference Name",
+   "options": "reference_doctype"
+  },
+  {
+   "fieldname": "external_reference",
+   "fieldtype": "Data",
+   "label": "External Reference"
+  },
+  {
+   "fieldname": "event_json",
+   "fieldtype": "Code",
+   "label": "Event Json",
+   "options": "JSON"
+  },
+  {
+   "fieldname": "event_hash",
+   "fieldtype": "Data",
+   "label": "Event Hash"
+  },
+  {
+   "fieldname": "severity",
+   "fieldtype": "Select",
+   "label": "Severity",
+   "options": "Info\nWarning\nError",
+   "default": "Info"
+  },
+  {
+   "fieldname": "created_by",
+   "fieldtype": "Link",
+   "label": "Created By",
+   "options": "User"
+  }
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "report": 1,
+   "export": 1,
+   "create": 0,
+   "write": 0
+  },
+  {
+   "role": "Accounts Manager",
+   "read": 1,
+   "report": 1,
+   "export": 1,
+   "create": 0,
+   "write": 0
+  }
+ ],
+ "track_changes": 1,
+ "allow_rename": 0
+}

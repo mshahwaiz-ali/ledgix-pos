@@ -71,6 +71,12 @@ class TestDocumentedFBRV1Protocol(unittest.TestCase):
             items=(item,),
         )
 
+    def test_nonfinite_wire_amounts_are_rejected(self):
+        from dataclasses import replace
+        for value in (float("nan"), float("inf"), float("-inf")):
+            with self.subTest(value=value), self.assertRaises(ProtocolValidationError):
+                replace(self._invoice(), total_bill_amount=value)
+
     def test_exact_documented_payload_shape(self):
         payload = self._invoice().to_payload()
         self.assertEqual(payload["InvoiceNumber"], "")

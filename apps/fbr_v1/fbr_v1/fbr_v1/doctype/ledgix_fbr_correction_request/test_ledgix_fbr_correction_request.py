@@ -1,13 +1,9 @@
-import unittest
+from unittest.mock import Mock
+import frappe
+from fbr_v1.setup.v1_test_support import NoNetworkTest
+from fbr_v1.fbr_v1.doctype.ledgix_fbr_correction_request.ledgix_fbr_correction_request import LedgixFBRCorrectionRequest
 
-
-LEGACY_BUSINESS_TEST_RETIRED = True
-LEGACY_HISTORICAL_SOURCE_COMMIT = "808f384311b0545e1d3e39791f085db5678832bb"
-LEGACY_HISTORICAL_SOURCE_PATH = "ledgix/doctype/ledgix_fbr_correction_request/test_ledgix_fbr_correction_request.py"
-LEGACY_BUSINESS_TEST_RETIREMENT_REASON = 'Retired after Phase 12 ERPNext cutover: this historical suite exercised the frozen pre-cutover Ledgix business engine. ERPNext-native gates are authoritative.'
-
-
-@unittest.skip(LEGACY_BUSINESS_TEST_RETIREMENT_REASON)
-class TestLegacyBusinessSuiteRetired(unittest.TestCase):
-    def test_historical_suite_retired_after_phase12_cutover(self):
-        self.fail("retired historical suite must remain skipped")
+class TestRetiredCorrections(NoNetworkTest):
+    def test_unsupported_window_is_retired_and_history_preserved(self):
+        with self.assertRaises(frappe.ValidationError):LedgixFBRCorrectionRequest.validate(Mock())
+        with self.assertRaises(frappe.ValidationError):LedgixFBRCorrectionRequest.on_trash(Mock())

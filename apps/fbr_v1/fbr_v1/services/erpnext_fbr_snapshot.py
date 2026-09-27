@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""ERPNext-native per-line tax capture for the FBR V2 redesign.
+"""ERPNext-native per-line tax capture for the FBR V1 redesign.
 
 This module does not calculate tax with Ledgix formulas. It instruments the
 pinned ERPNext taxes_and_totals engine and records the engine's own per-line
@@ -95,13 +95,13 @@ class ERPNextNativeTaxCollector(ERPNextTaxesAndTotals):
 
 def _assert_capture_supported(doc) -> None:
     if not doc or doc.doctype not in SUPPORTED_DOCTYPES:
-        frappe.throw("Native FBR V2 tax capture requires Sales Invoice or POS Invoice.")
+        frappe.throw("Native FBR V1 tax capture requires Sales Invoice or POS Invoice.")
 
     if cint(
         frappe.db.get_single_value("Accounts Settings", "round_row_wise_tax")
     ):
         frappe.throw(
-            "FBR V2 native line capture is not yet enabled when ERPNext "
+            "FBR V1 native line capture is not yet enabled when ERPNext "
             "Round Tax Amount Row-wise is on. Keep this fail-closed until "
             "row-wise rounding parity is runtime-proven."
         )
@@ -282,7 +282,7 @@ def _reconcile_mapped_tax_rows(doc, collector, component_mappings: dict[str, str
             frappe.throw(
                 f"Mapped FBR tax Account {account} uses ERPNext charge type Actual. "
                 "Pinned v15.121.3 applies final Actual-row distribution adjustment "
-                "outside the per-line calculation hook, so V2 refuses to guess a line split."
+                "outside the per-line calculation hook, so V1 refuses to guess a line split."
             )
 
         if getattr(tax, "category", None) == "Valuation":
@@ -383,6 +383,10 @@ def collect_native_tax_breakdown(doc) -> dict:
                 "idx": item.get("idx"),
                 "item_code": item.get("item_code") or "",
                 "item_name": item.get("item_name") or "",
+                "description": item.get("description") or "",
+                "uom": item.get("uom") or "",
+                "sales_invoice_item": item.get("sales_invoice_item") or "",
+                "pos_invoice_item": item.get("pos_invoice_item") or "",
                 "qty": flt(item.get("qty")),
                 "price_list_rate": flt(item.get("price_list_rate")),
                 "rate_with_margin": flt(item.get("rate_with_margin")),
@@ -423,7 +427,7 @@ def collect_native_tax_breakdown(doc) -> dict:
 
 
 def build_snapshot_candidate(reference_doctype: str, reference_name: str) -> dict:
-    """Read an ERPNext invoice and build a non-persisted V2 snapshot candidate."""
+    """Read an ERPNext invoice and build a non-persisted V1 snapshot candidate."""
 
     reference_doctype = str(reference_doctype or "").strip()
     reference_name = str(reference_name or "").strip()
@@ -436,12 +440,12 @@ def build_snapshot_candidate(reference_doctype: str, reference_name: str) -> dic
 
     # Recalculate a detached in-memory document so this diagnostic cannot alter
     # the persisted invoice. Submitted returns are intentionally excluded from
-    # after-the-fact reconstruction; their final V2 snapshot must be captured
+    # after-the-fact reconstruction; their final V1 snapshot must be captured
     # during the draft/submission lifecycle.
     if cint(source.get("is_return")) and cint(source.docstatus) == 1:
         frappe.throw(
             "Submitted return snapshots must not be reconstructed after the fact. "
-            "Capture V2 return evidence during the native draft/submission lifecycle."
+            "Capture V1 return evidence during the native draft/submission lifecycle."
         )
 
     clone = frappe.get_doc(source.as_dict())

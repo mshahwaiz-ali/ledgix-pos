@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""ERPNext-authoritative legal identity resolver for FBR V2.
+"""ERPNext-authoritative legal identity resolver for FBR V1.
 
 No FBR network requests and no database writes occur here. Seller identity is
 resolved from ERPNext Company + Company Address. Buyer identity is resolved
@@ -140,7 +140,7 @@ def resolve_invoice_identity(doc) -> dict:
     """Resolve seller/buyer identity without mutating the invoice."""
 
     if not doc or doc.doctype not in SUPPORTED_DOCTYPES:
-        frappe.throw("FBR V2 identity resolution requires Sales Invoice or POS Invoice.")
+        frappe.throw("FBR V1 identity resolution requires Sales Invoice or POS Invoice.")
 
     errors: list[str] = []
     warnings: list[str] = []
@@ -187,7 +187,7 @@ def resolve_invoice_identity(doc) -> dict:
     if native_tax_id and legacy_tax_id and native_tax_id != legacy_tax_id:
         errors.append(
             "ERPNext Customer Tax ID conflicts with legacy Ledgix Buyer NTN/CNIC. "
-            "Resolve the master-data conflict before FBR V2 cutover."
+            "Resolve the master-data conflict before FBR V1 cutover."
         )
 
     legacy_province = _text(customer.get("custom_ledgix_buyer_province"))
@@ -195,55 +195,34 @@ def resolve_invoice_identity(doc) -> dict:
     if legacy_province and buyer_address["province"] and legacy_province != buyer_address["province"]:
         warnings.append(
             "Legacy Buyer Province differs from ERPNext Address State/Province; "
-            "V2 uses the ERPNext Address authority."
+            "V1 uses the ERPNext Address authority."
         )
     if legacy_address and buyer_address["address"] and legacy_address != buyer_address["address"]:
         warnings.append(
             "Legacy Buyer FBR Address differs from ERPNext Address; "
-            "V2 uses the ERPNext Address authority."
+            "V1 uses the ERPNext Address authority."
         )
 
     buyer = {
-        "ntn_cnic": native_tax_id or legacy_tax_id,
+        "ntn_cnic": native_tax_id,
+        "phone": _text(doc.get("contact_mobile") or customer.get("mobile_no")),
         "business_name": _text(customer.get("customer_name") or customer.name),
         "province": buyer_address["province"],
         "address": buyer_address["address"],
         "address_name": buyer_address["name"],
         "registration_type": registration_type,
-        "tax_id_source": (
-            "Customer.tax_id"
-            if native_tax_id
-            else (
-                "Customer.custom_ledgix_buyer_ntn_cnic (transition fallback)"
-                if legacy_tax_id
-                else ""
-            )
-        ),
+        "tax_id_source": "Customer.tax_id",
         "business_name_source": "Customer.customer_name",
         "province_source": "Address.state",
         "address_source": "Address",
         "registration_type_source": "Customer.custom_ledgix_buyer_registration_type",
     }
 
-    if not buyer["business_name"]:
-        errors.append("ERPNext Customer Name is required for FBR buyer business name.")
-    if not buyer["address_name"]:
-        errors.append("ERPNext Customer requires a billing/primary Address for FBR.")
-    if not buyer["province"]:
-        errors.append("ERPNext Customer Address State/Province is required for FBR.")
-    if not buyer["address"]:
-        errors.append("ERPNext Customer Address is required for FBR.")
-    if not registration_type:
-        errors.append(
-            "Buyer Registration Type must be explicitly Registered or Unregistered."
-        )
-    if registration_type == "Registered" and not buyer["ntn_cnic"]:
-        errors.append("Registered FBR buyer requires ERPNext Customer Tax ID.")
 
     if not native_tax_id and legacy_tax_id:
         warnings.append(
-            "Buyer NTN/CNIC is using the legacy Ledgix transition fallback. "
-            "Move it to ERPNext Customer Tax ID before final V2 cutover."
+            "Legacy Buyer NTN/CNIC is not used as V1 identity. "
+            "Move it to ERPNext Customer Tax ID before final V1 cutover."
         )
 
     return {

@@ -24,15 +24,15 @@ erpnext_taxable_base_resolvers = {
 doc_events = {
     "Sales Invoice": {
         "before_validate": "fbr_v1.services.erpnext_taxable_base.stamp_fbr_taxable_base_inputs",
-        "before_submit": "fbr_v1.services.fbr_v2_snapshot_persistence.before_submit_capture",
-        "on_submit": "fbr_v1.api.fbr_native.on_native_invoice_submit",
-        "before_cancel": "fbr_v1.api.fbr_native.block_cancel_after_fbr_submission",
+        "before_submit": "fbr_v1.services.fbr_v1_snapshot_persistence.before_submit_capture",
+        "on_submit": "fbr_v1.api.fiscalization.on_native_invoice_submit",
+        "before_cancel": "fbr_v1.api.fiscalization.block_cancel_after_fbr_submission",
     },
     "POS Invoice": {
         "before_validate": "fbr_v1.services.erpnext_taxable_base.stamp_fbr_taxable_base_inputs",
-        "before_submit": "fbr_v1.services.fbr_v2_snapshot_persistence.before_submit_capture",
-        "on_submit": "fbr_v1.api.fbr_native.on_native_invoice_submit",
-        "before_cancel": "fbr_v1.api.fbr_native.block_cancel_after_fbr_submission",
+        "before_submit": "fbr_v1.services.fbr_v1_snapshot_persistence.before_submit_capture",
+        "on_submit": "fbr_v1.api.fiscalization.on_native_invoice_submit",
+        "before_cancel": "fbr_v1.api.fiscalization.block_cancel_after_fbr_submission",
     },
 }
 

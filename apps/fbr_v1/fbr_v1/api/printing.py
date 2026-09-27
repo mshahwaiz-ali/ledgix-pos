@@ -7,7 +7,7 @@ from io import BytesIO
 import frappe
 from frappe.utils import cint, flt
 
-from fbr_v1.services import erpnext_fbr_identity, fbr_v2_snapshot_persistence
+from fbr_v1.services import erpnext_fbr_identity, fbr_v1_snapshot_persistence
 
 
 SUPPORTED_PRINT_DOCTYPES = {"Sales Invoice", "POS Invoice"}
@@ -63,16 +63,21 @@ def _print_brand(company: str) -> dict:
     return {"brand_name": company or "FBR V1", "logo": "", "source": "fallback"}
 
 
+def provisional_qr_payload(fbr_invoice_number):
+    """Returned number only; production verification encoding remains unresolved."""
+    return str(fbr_invoice_number or "").strip()
+
+
 def get_fbr_qr_data_uri(fbr_invoice_number) -> str:
     """Return a self-contained SVG QR for the unique FBR invoice number."""
 
-    value = str(fbr_invoice_number or "").strip()
+    value = provisional_qr_payload(fbr_invoice_number)
     if not value:
         return ""
 
     from pyqrcode import create as qrcreate
 
-    qr = qrcreate(value, error="L", version=2)
+    qr = qrcreate(value, error="L")
     stream = BytesIO()
     try:
         qr.svg(stream, scale=4, background="#ffffff", module_color="#000000")
@@ -94,7 +99,7 @@ def _json(value) -> dict:
         return {}
 
 
-def _v2_profile_public(company: str) -> dict:
+def _v1_profile_public(company: str) -> dict:
     company = str(company or "").strip()
     if not company or not frappe.db.exists("DocType", "Ledgix FBR Integration Profile"):
         return {
@@ -122,15 +127,15 @@ def _v2_profile_public(company: str) -> dict:
 
 
 def _identity_for_print(doc) -> tuple[dict, str, str]:
-    version = cint(doc.get("custom_ledgix_fbr_v2_snapshot_version"))
-    if version == fbr_v2_snapshot_persistence.SNAPSHOT_VERSION:
-        persisted = fbr_v2_snapshot_persistence.read_persisted_v2_snapshot(
+    version = cint(doc.get("custom_ledgix_fbr_snapshot_version"))
+    if version == fbr_v1_snapshot_persistence.SNAPSHOT_VERSION and doc.get("custom_ledgix_fbr_snapshot_protocol") == "Federal POS/IMS V1":
+        persisted = fbr_v1_snapshot_persistence.read_persisted_v1_snapshot(
             doc.doctype,
             doc.name,
         )
         return (
             dict((persisted.get("header") or {}).get("identity") or {}),
-            "persisted_v2",
+            "persisted_v1",
             persisted.get("snapshot_hash") or "",
         )
 
@@ -156,7 +161,7 @@ def _buyer(doc, identity: dict) -> dict:
 def _seller(doc, identity: dict) -> dict:
     brand = _print_brand(doc.get("company"))
     seller = dict(identity.get("seller") or {})
-    profile = _v2_profile_public(doc.get("company"))
+    profile = _v1_profile_public(doc.get("company"))
     return {
         "name": seller.get("business_name") or doc.get("company") or brand.get("brand_name") or "FBR V1",
         "address": seller.get("address") or "",
@@ -172,40 +177,31 @@ def _seller(doc, identity: dict) -> dict:
     }
 
 
-def _line_context(row) -> dict:
-    snapshot = _json(row.get("custom_ledgix_fbr_snapshot_json"))
-    tax = abs(flt(snapshot.get("sales_tax"), 2))
-    extra = abs(flt(snapshot.get("extra_tax"), 2))
-    further = abs(flt(snapshot.get("further_tax"), 2))
-    fed = abs(flt(snapshot.get("fed_payable"), 2))
-    withheld = abs(flt(snapshot.get("sales_tax_withheld_at_source"), 2))
-    return {
-        "item_code": row.get("item_code") or "",
-        "item_name": row.get("item_name") or row.get("description") or row.get("item_code") or "",
-        "description": row.get("description") or "",
-        "qty": abs(flt(row.get("qty"), 3)),
-        "uom": row.get("uom") or row.get("stock_uom") or "",
-        "rate": abs(flt(row.get("rate"), 2)),
-        "amount": abs(flt(row.get("amount"), 2)),
-        "net_amount": abs(flt(row.get("net_amount"), 2)),
-        "discount_amount": abs(flt(row.get("discount_amount"), 2)),
-        "hs_code": snapshot.get("hs_code") or row.get("custom_ledgix_fbr_hs_code") or "",
-        "fbr_uom": snapshot.get("uom_for_fbr") or row.get("custom_ledgix_fbr_uom") or "",
-        "sales_type": snapshot.get("sales_type") or row.get("custom_ledgix_fbr_sales_type") or "",
-        "rate_description": snapshot.get("fbr_rate_description") or row.get("custom_ledgix_fbr_rate_description") or "",
-        "tax_rate": abs(flt(snapshot.get("tax_rate"), 2)),
-        "taxable_amount": abs(flt(snapshot.get("taxable_amount"), 2)),
-        "sales_tax": tax,
-        "extra_tax": extra,
-        "further_tax": further,
-        "fed_payable": fed,
-        "withheld_tax": withheld,
-        "other_tax": extra + further + fed,
-        "line_total": abs(flt(snapshot.get("erpnext_line_total") or row.get("amount"), 2)),
-        "tax_basis": snapshot.get("tax_basis") or row.get("custom_ledgix_fbr_tax_basis") or "",
-        "notified_retail_price": abs(flt(snapshot.get("notified_retail_price"), 2)),
-        "snapshot_version": cint(snapshot.get("snapshot_version") or row.get("custom_ledgix_fbr_snapshot_version")),
-    }
+def _line_context(row, evidence=None):
+    line = (evidence or {}).get("line") or {}
+    mapping = line.get("fbr_mapping") or {}
+    components = line.get("components") or {}
+    rates = [r.get("tax_rate") for r in line.get("component_rows", []) if r.get("component") == "Sales Tax Applicable"]
+    result = {k: line.get(k, row.get(k)) or "" for k in ("item_code", "item_name", "description", "uom")}
+    for k in ("qty", "rate", "amount", "net_amount"):
+        result[k] = abs(flt(line.get(k, row.get(k))))
+    result.update({
+        "hs_code": mapping.get("hs_code") or "", "fbr_uom": mapping.get("fbr_uom") or "",
+        "sro_schedule_number": mapping.get("sro_schedule_number") or "",
+        "sro_item_serial_number": mapping.get("sro_item_serial_number") or "",
+        "sales_type": "", "rate_description": "", "tax_rate": rates[0] if len(rates) == 1 else 0,
+        "tax_basis": mapping.get("tax_basis") or "", "notified_retail_price": mapping.get("notified_retail_price") or 0,
+        "taxable_amount": result["net_amount"],
+        "discount_amount": abs(flt(line.get("discount_amount")) * flt(line.get("qty"))) + abs(flt(line.get("distributed_discount_amount"))),
+        "sales_tax": abs(flt(components.get("sales_tax"))),
+        "extra_tax": abs(flt(components.get("extra_tax"))), "further_tax": abs(flt(components.get("further_tax"))),
+        "fed_payable": abs(flt(components.get("fed_payable"))),
+        "withheld_tax": abs(flt(components.get("sales_tax_withheld_at_source"))),
+        "snapshot_version": (evidence or {}).get("snapshot_version", 0),
+    })
+    result["other_tax"] = result["extra_tax"] + result["further_tax"] + result["fed_payable"]
+    result["line_total"] = result["net_amount"] + result["sales_tax"] + result["other_tax"]
+    return result
 
 
 def get_native_invoice_print_context(reference_doctype, reference_name) -> dict:
@@ -221,6 +217,15 @@ def get_native_invoice_print_context(reference_doctype, reference_name) -> dict:
     if doctype not in SUPPORTED_PRINT_DOCTYPES:
         frappe.throw("Ledgix native print source must be Sales Invoice or POS Invoice.")
     doc = frappe.get_doc(doctype, name)
+    doc.check_permission("read")
+    from fbr_v1.services.pos_identity import get_profile, profile_active, PROTOCOL
+    profile = get_profile(doc.company)
+    snapshot = None
+    if doc.get("custom_ledgix_fbr_snapshot_protocol") == PROTOCOL:
+        snapshot = fbr_v1_snapshot_persistence.read_persisted_v1_snapshot(doctype, name)
+    if profile_active(profile) and cint(profile.get("block_print_without_fiscal_result")):
+        if not snapshot or doc.get("custom_ledgix_fbr_status") != "Submitted" or not doc.get("custom_ledgix_fbr_invoice_number"):
+            frappe.throw("Fiscal print is blocked until a valid V1 fiscal result exists.")
     is_return = bool(cint(doc.get("is_return")))
     original = None
     if is_return and doc.get("return_against") and frappe.db.exists(doctype, doc.return_against):
@@ -230,6 +235,14 @@ def get_native_invoice_print_context(reference_doctype, reference_name) -> dict:
 
     fbr_invoice_number = str(doc.get("custom_ledgix_fbr_invoice_number") or "").strip()
     original_fbr_invoice = str(original.get("custom_ledgix_fbr_invoice_number") or "").strip() if original else ""
+    seller = _seller(doc, identity)
+    if snapshot:
+        device = snapshot["header"]["pos_device"]
+        seller["software_registration_number"] = device.get("software_registration_number") or ""
+        seller["pos_id"] = device["pos_id"]
+    else:
+        seller["pos_id"] = ""
+        fbr_invoice_number = ""
     payments = []
     for payment in doc.get("payments") or []:
         payments.append(
@@ -252,9 +265,12 @@ def get_native_invoice_print_context(reference_doctype, reference_name) -> dict:
         "currency": doc.get("currency") or "PKR",
         "identity_source": identity_source,
         "identity_snapshot_hash": identity_snapshot_hash,
-        "seller": _seller(doc, identity),
+        "seller": seller,
+        "tax_period": str(doc.get("posting_date") or "")[:7],
+        "total_discount": sum(_line_context(r, snapshot["lines"].get(r.name))["discount_amount"] for r in doc.get("items") or []) if snapshot else abs(flt(doc.get("discount_amount"))),
+        "qr_verification_status": "Provisional number-only payload; verification contract unresolved",
         "buyer": _buyer(doc, identity),
-        "items": [_line_context(row) for row in doc.get("items") or []],
+        "items": [_line_context(row, snapshot["lines"].get(row.name) if snapshot else None) for row in doc.get("items") or []],
         "net_total": abs(flt(doc.get("net_total"), 2)),
         "tax_total": abs(flt(doc.get("total_taxes_and_charges"), 2)),
         "grand_total": abs(flt(doc.get("grand_total"), 2)),

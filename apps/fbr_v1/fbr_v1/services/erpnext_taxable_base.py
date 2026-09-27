@@ -11,7 +11,7 @@ import frappe
 from frappe.utils import cint, flt, getdate
 
 SUPPORTED_DOCTYPES = {"Sales Invoice", "POS Invoice"}
-MAPPING_DOCTYPE = "FBR V1 FBR Item Mapping"
+MAPPING_DOCTYPE = "Ledgix FBR Item Mapping"
 
 CHARGE_TYPE = "On Notified Retail Price"
 TRANSACTION_VALUE = "Transaction Value"

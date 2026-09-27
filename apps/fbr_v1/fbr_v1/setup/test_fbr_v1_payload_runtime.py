@@ -1,145 +1,68 @@
-from __future__ import annotations
-
-import unittest
-from unittest.mock import patch
-
+from copy import deepcopy
 import frappe
+from fbr_v1.setup.v1_test_support import NoNetworkTest, Row, fixture, rehash
+from fbr_v1.services.fbr_v1_payload_builder import build_invoice
+from fbr_v1.services.payment_snapshot import capture_payment
 
-from fbr_v1.services import fbr_v2_payload_builder as builder
+class TestV1Payload(NoNetworkTest):
+    def test_sales_pos_credit_and_third_schedule_matrix(self):
+        for dt in ("Sales Invoice", "POS Invoice"):
+            for credit in (False, True):
+                for third in (False, True):
+                    with self.subTest(dt=dt, credit=credit, third=third):
+                        invoice = build_invoice(fixture(dt, credit, third))
+                        self.assertEqual(invoice.invoice_type, 3 if credit else 1)
+                        self.assertEqual(invoice.items[0].invoice_type, (12 if third else 3) if credit else (11 if third else 1))
+                        self.assertEqual(invoice.total_bill_amount, 118)
+                        self.assertEqual(invoice.items[0].quantity, 1)
+                        self.assertEqual(invoice.ref_usin, "ORIGINAL" if credit else None)
 
+    def test_hash_tamper_rejected_even_with_hash_verified_flag(self):
+        s = fixture(); s['hash_verified'] = True; s['lines']['ROW-1']['line']['net_amount'] = 999
+        with self.assertRaisesRegex(ValueError, "manifest"):
+            build_invoice(s)
 
-class TestFBRV1PayloadRuntime(unittest.TestCase):
-    def _invoice(self):
-        return frappe._dict(
-            {
-                "doctype": "Sales Invoice",
-                "name": "SINV-FBR-V12-PAYLOAD",
-                "company": "Standalone FBR Test Company",
-                "docstatus": 1,
-                "is_return": 0,
-                "posting_date": "2026-09-27",
-            }
-        )
+    def test_unsupported_tax_debit_and_missing_reference(self):
+        for key in ('extra_tax', 'fed_payable', 'sales_tax_withheld_at_source'):
+            s = fixture(); s['lines']['ROW-1']['line']['components'][key] = 1
+            with self.assertRaisesRegex(ValueError, 'Unresolved'):
+                build_invoice(rehash(s))
+        s = fixture(); s['header']['note_type'] = 'Debit'
+        with self.assertRaisesRegex(ValueError, 'Debit'):
+            build_invoice(rehash(s))
+        s = fixture(credit=True); s['header']['ref_usin'] = ''
+        with self.assertRaisesRegex(ValueError, 'original'):
+            build_invoice(rehash(s))
 
-    def _readiness(self, mode="Sandbox"):
-        return {
-            "errors": [],
-            "warnings": [],
-            "payload_input_ready": True,
-            "profile": {"mode": mode},
-            "identity": {
-                "ready": True,
-                "errors": [],
-                "seller": {
-                    "ntn_cnic": "1234567-8",
-                    "business_name": "Standalone Seller",
-                    "province": "Sindh",
-                    "address": "Karachi",
-                },
-                "buyer": {
-                    "ntn_cnic": "7654321-0",
-                    "business_name": "Standalone Buyer",
-                    "province": "Sindh",
-                    "address": "Karachi",
-                    "registration_type": "Registered",
-                },
-            },
-            "native_snapshot_candidate": {
-                "snapshot_source": "persisted_v2",
-                "hash_verified": True,
-                "snapshot_version": 2,
-                "snapshot_hash": "abc123",
-                "posting_date": "2026-09-27",
-                "grand_total": 118.0,
-                "lines": [
-                    {
-                        "idx": 1,
-                        "item_code": "TEST-ITEM",
-                        "item_name": "Test Item",
-                        "qty": 1,
-                        "amount": 100.0,
-                        "net_amount": 100.0,
-                        "discount_amount": 0,
-                        "distributed_discount_amount": 0,
-                        "components": {
-                            "sales_tax": 18.0,
-                            "sales_tax_withheld_at_source": 0,
-                            "extra_tax": 0,
-                            "further_tax": 0,
-                            "fed_payable": 0,
-                        },
-                        "fbr_mapping": {
-                            "name": "MAP-TEST",
-                            "needs_review": 0,
-                            "hs_code": "0101.21",
-                            "fbr_uom": "Numbers, pieces, units",
-                            "sales_type": "Goods at standard rate (default)",
-                            "fbr_rate_description": "18%",
-                            "tax_basis": "Transaction Value",
-                            "notified_retail_price": 0,
-                            "sro_schedule_number": "",
-                            "sro_item_serial_number": "",
-                        },
-                    }
-                ],
-            },
-        }
+    def test_totals_signs_pct_and_mapping_fail_closed(self):
+        cases = [lambda s: s['header'].update(grand_total=119),
+                 lambda s: s['lines']['ROW-1']['line'].update(qty=-1),
+                 lambda s: s['lines']['ROW-1']['line']['fbr_mapping'].update(hs_code='123456789'),
+                 lambda s: s['lines']['ROW-1']['line']['fbr_mapping'].update(needs_review=1)]
+        for mutate in cases:
+            s=fixture(); mutate(s)
+            with self.assertRaises(ValueError): build_invoice(rehash(s))
 
-    @staticmethod
-    def _exists(doctype, name_or_filters):
-        if doctype == "Sales Invoice" and name_or_filters == "SINV-FBR-V12-PAYLOAD":
-            return "SINV-FBR-V12-PAYLOAD"
-        if doctype == "POS Invoice" and isinstance(name_or_filters, dict):
-            return None
-        return None
+    def test_native_discount_and_further_tax_serialize_without_tax_recalculation(self):
+        s=fixture(); line=s['lines']['ROW-1']['line']
+        line.update(net_amount=90, distributed_discount_amount=10)
+        line['components'].update(sales_tax=16.2, further_tax=3.6)
+        s['header'].update(net_total=90, total_taxes_and_charges=19.8, grand_total=109.8)
+        inv=build_invoice(rehash(s))
+        self.assertEqual((inv.total_sale_value, inv.discount, inv.total_bill_amount), (100,10,109.8))
+        self.assertEqual(inv.further_tax,3.6)
 
-    def test_payload_is_deterministic_non_writing_and_non_networked(self):
-        invoice = self._invoice()
-
-        with patch.object(frappe.db, "exists", side_effect=self._exists), patch.object(
-            frappe, "get_doc", return_value=invoice
-        ), patch.object(
-            builder.fbr_v2_readiness,
-            "evaluate_invoice_readiness",
-            return_value=self._readiness(),
-        ):
-            result = builder.build_payload_candidate(
-                "Sales Invoice",
-                invoice.name,
-                scenario_id="SN001",
-            )
-
-        payload = result["payload"]
-        self.assertEqual(payload["invoiceType"], "Sale Invoice")
-        self.assertEqual(payload["invoiceDate"], "2026-09-27")
-        self.assertEqual(payload["sellerNTNCNIC"], "12345678")
-        self.assertEqual(payload["buyerNTNCNIC"], "76543210")
-        self.assertEqual(payload["scenarioId"], "SN001")
-        self.assertEqual(len(payload["items"]), 1)
-        self.assertEqual(payload["items"][0]["totalValues"], 118.0)
-        self.assertTrue(result["reconciliation"]["passed"])
-        self.assertEqual(result["reconciliation"]["difference"], 0.0)
-        self.assertFalse(result["database_write"])
-        self.assertFalse(result["fbr_network_call"])
-        self.assertFalse(result["contains_secrets"])
-
-    def test_scenario_id_fails_closed_outside_sandbox(self):
-        invoice = self._invoice()
-
-        with patch.object(frappe.db, "exists", side_effect=self._exists), patch.object(
-            frappe, "get_doc", return_value=invoice
-        ), patch.object(
-            builder.fbr_v2_readiness,
-            "evaluate_invoice_readiness",
-            return_value=self._readiness(mode="Production"),
-        ):
-            with self.assertRaises(frappe.ValidationError):
-                builder.build_payload_candidate(
-                    "Sales Invoice",
-                    invoice.name,
-                    scenario_id="SN001",
-                )
-
-
-if __name__ == "__main__":
-    unittest.main()
+    def test_payment_single_mixed_zero_and_missing(self):
+        lookup=lambda mode: {'Cash':'1 - Cash','Card':'2 - Card','Other Cash':'1 - Cash'}.get(mode)
+        doc=Row(doctype='POS Invoice',payments=[Row(mode_of_payment='Cash', amount=100),Row(mode_of_payment='Card',amount=0)])
+        self.assertEqual(capture_payment(doc,lookup)['payment_mode'],1)
+        doc.payments[1].amount=10
+        self.assertEqual(capture_payment(doc,lookup)['payment_mode'],5)
+        doc.payments[1].mode_of_payment='Other Cash'
+        self.assertEqual(capture_payment(doc,lookup)['payment_mode'],5)
+        doc.payments[1].mode_of_payment='Unknown'
+        with self.assertRaises(frappe.ValidationError):capture_payment(doc,lookup)
+        doc=Row(doctype='Sales Invoice',payments=[])
+        with self.assertRaises(frappe.ValidationError):capture_payment(doc,lookup)
+        doc.custom_ledgix_fbr_mode_of_payment='Card'
+        self.assertEqual(capture_payment(doc,lookup)['payment_mode'],2)

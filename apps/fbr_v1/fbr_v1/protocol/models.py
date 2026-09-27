@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from math import isfinite
 from datetime import datetime
 from typing import Any, Iterable
 
@@ -25,6 +26,8 @@ def _number(value: Any, label: str, *, non_negative: bool = True) -> float:
         number = float(value)
     except (TypeError, ValueError) as exc:
         raise ProtocolValidationError(f"{label} must be numeric.") from exc
+    if not isfinite(number):
+        raise ProtocolValidationError(f"{label} must be finite.")
     if non_negative and number < 0:
         raise ProtocolValidationError(f"{label} cannot be negative.")
     return number

@@ -471,6 +471,29 @@ CUSTOM_FIELDS = {
 
 
 
+# Federal V1 evidence is separate from the retained V2 fields.
+for _dt in ("Sales Invoice", "POS Invoice", "Sales Invoice Item", "POS Invoice Item"):
+    _fields = CUSTOM_FIELDS[_dt]
+    for _name, _type in (("protocol", "Data"), ("hash", "Data")):
+        _fields.append(_cf("custom_ledgix_fbr_snapshot_" + _name, _type,
+                           "FBR Snapshot " + _name.title(), read_only=1, no_copy=1))
+    for _f in _fields:
+        if _f["fieldname"].startswith("custom_ledgix_fbr_snapshot_"):
+            _f.update(read_only=1, no_copy=1, allow_on_submit=0)
+    if not _dt.endswith(" Item"):
+        _fields.extend([
+            _cf("custom_ledgix_fbr_snapshot_captured_at", "Datetime", "FBR Snapshot Captured At", read_only=1, no_copy=1),
+            _cf("custom_ledgix_fbr_pos_device", "Link", "FBR POS Device", options="Ledgix FBR POS Device"),
+            _cf("custom_ledgix_fbr_mode_of_payment", "Link", "Fiscal Mode of Payment", options="Mode of Payment"),
+            _cf("custom_ledgix_fbr_note_type", "Select", "Fiscal Note Type", options="New\nCredit\nDebit", default="New"),
+            _cf("custom_ledgix_fbr_restored_at", "Datetime", "FBR Restoration At", read_only=1, no_copy=1),
+        ])
+CUSTOM_FIELDS["Mode of Payment"] = [
+    _cf("custom_ledgix_fbr_v1_payment_mode", "Select", "Federal V1 Payment Mode",
+        options="\n1 - Cash\n2 - Card\n3 - Gift Voucher\n4 - Loyalty Card\n6 - Cheque")
+]
+
+
 def sync_sales_tax_charge_type_extension() -> dict:
     """Expose the FBR Third Schedule taxable-base charge type without core edits."""
 

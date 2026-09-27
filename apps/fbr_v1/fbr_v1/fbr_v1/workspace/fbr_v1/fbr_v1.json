@@ -1,6 +1,6 @@
 {
  "charts": [],
- "content": "[{\"id\":\"fbr_header\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>FBR V1</b></span>\",\"col\":12}},{\"id\":\"fbr_center\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"FBR V1 Center\",\"col\":3}},{\"id\":\"fbr_profiles\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Integration Profiles\",\"col\":3}},{\"id\":\"fbr_items\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Item Mappings\",\"col\":3}},{\"id\":\"fbr_components\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Tax Component Mappings\",\"col\":3}},{\"id\":\"fbr_refs\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Reference Data\",\"col\":3}},{\"id\":\"fbr_cert\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Sandbox Certifications\",\"col\":3}},{\"id\":\"fbr_logs\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Submission Logs\",\"col\":3}},{\"id\":\"fbr_corrections\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Correction Requests\",\"col\":3}},{\"id\":\"erpnext_header\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>ERPNext Native Invoices</b></span>\",\"col\":12}},{\"id\":\"sales_invoice\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Sales Invoice\",\"col\":3}},{\"id\":\"pos_invoice\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"POS Invoice\",\"col\":3}}]",
+ "content": "[{\"id\": \"fbr_header\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>FBR V1</b></span>\", \"col\": 12}}, {\"id\": \"fbr_center\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"FBR V1 Center\", \"col\": 3}}, {\"id\": \"fbr_profiles\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Integration Profiles\", \"col\": 3}}, {\"id\": \"fbr_items\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Item Mappings\", \"col\": 3}}, {\"id\": \"fbr_components\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Tax Component Mappings\", \"col\": 3}}, {\"id\": \"fbr_logs\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Submission Logs\", \"col\": 3}}, {\"id\": \"erpnext_header\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>ERPNext Native Invoices</b></span>\", \"col\": 12}}, {\"id\": \"sales_invoice\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Sales Invoice\", \"col\": 3}}, {\"id\": \"pos_invoice\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"POS Invoice\", \"col\": 3}}, {\"id\": \"ledgix_fbr_pos_device\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"POS Devices\", \"col\": 3}}, {\"id\": \"ledgix_fbr_fiscal_event_log\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Fiscal Event Logs\", \"col\": 3}}, {\"id\": \"ledgix_fbr_fiscal_closing\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Fiscal Closings\", \"col\": 3}}, {\"id\": \"mode_of_payment\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Payment Mapping\", \"col\": 3}}]",
  "custom_blocks": [],
  "docstatus": 0,
  "doctype": "Workspace",
@@ -63,39 +63,9 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "Reference Data",
-   "link_count": 0,
-   "link_to": "Ledgix FBR Reference Data",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Sandbox Certifications",
-   "link_count": 0,
-   "link_to": "Ledgix FBR Sandbox Certification",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
    "label": "Submission Logs",
    "link_count": 0,
    "link_to": "Ledgix FBR Submission Log",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Correction Requests",
-   "link_count": 0,
-   "link_to": "Ledgix FBR Correction Request",
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
@@ -129,6 +99,30 @@
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
+  },
+  {
+   "type": "Link",
+   "label": "POS Devices",
+   "link_type": "DocType",
+   "link_to": "Ledgix FBR POS Device"
+  },
+  {
+   "type": "Link",
+   "label": "Fiscal Event Logs",
+   "link_type": "DocType",
+   "link_to": "Ledgix FBR Fiscal Event Log"
+  },
+  {
+   "type": "Link",
+   "label": "Fiscal Closings",
+   "link_type": "DocType",
+   "link_to": "Ledgix FBR Fiscal Closing"
+  },
+  {
+   "type": "Link",
+   "label": "Payment Mapping",
+   "link_type": "DocType",
+   "link_to": "Mode of Payment"
   }
  ],
  "module": "FBR V1",
@@ -187,29 +181,8 @@
   {
    "color": "Orange",
    "doc_view": "List",
-   "label": "Reference Data",
-   "link_to": "Ledgix FBR Reference Data",
-   "type": "DocType"
-  },
-  {
-   "color": "Orange",
-   "doc_view": "List",
-   "label": "Sandbox Certifications",
-   "link_to": "Ledgix FBR Sandbox Certification",
-   "type": "DocType"
-  },
-  {
-   "color": "Orange",
-   "doc_view": "List",
    "label": "Submission Logs",
    "link_to": "Ledgix FBR Submission Log",
-   "type": "DocType"
-  },
-  {
-   "color": "Orange",
-   "doc_view": "List",
-   "label": "Correction Requests",
-   "link_to": "Ledgix FBR Correction Request",
    "type": "DocType"
   },
   {
@@ -225,6 +198,30 @@
    "label": "POS Invoice",
    "link_to": "POS Invoice",
    "type": "DocType"
+  },
+  {
+   "label": "POS Devices",
+   "link_to": "Ledgix FBR POS Device",
+   "type": "DocType",
+   "color": "Grey"
+  },
+  {
+   "label": "Fiscal Event Logs",
+   "link_to": "Ledgix FBR Fiscal Event Log",
+   "type": "DocType",
+   "color": "Grey"
+  },
+  {
+   "label": "Fiscal Closings",
+   "link_to": "Ledgix FBR Fiscal Closing",
+   "type": "DocType",
+   "color": "Grey"
+  },
+  {
+   "label": "Payment Mapping",
+   "link_to": "Mode of Payment",
+   "type": "DocType",
+   "color": "Grey"
   }
  ],
  "title": "FBR V1"

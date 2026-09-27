@@ -106,7 +106,9 @@
    "fieldname": "sales_type",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "FBR Sale / Transaction Type"
+   "label": "FBR Sale / Transaction Type",
+   "hidden": 1,
+   "read_only": 1
   },
   {
    "fieldname": "classification_column",
@@ -116,7 +118,9 @@
    "description": "Reference/classification only. This field never calculates ERPNext monetary tax.",
    "fieldname": "fbr_rate_description",
    "fieldtype": "Data",
-   "label": "FBR Rate / Reference Description"
+   "label": "FBR Rate / Reference Description",
+   "hidden": 1,
+   "read_only": 1
   },
   {
    "collapsible": 1,
@@ -163,7 +167,8 @@
    "fieldname": "reference_version",
    "fieldtype": "Data",
    "label": "FBR Reference Version",
-   "read_only": 1
+   "read_only": 1,
+   "hidden": 1
   },
   {
    "fieldname": "last_reviewed_at",

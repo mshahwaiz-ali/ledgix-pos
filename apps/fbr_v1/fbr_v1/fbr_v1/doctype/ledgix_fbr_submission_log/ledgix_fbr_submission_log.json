@@ -1,6 +1,6 @@
 {
  "actions": [],
- "allow_rename": 1,
+ "allow_rename": 0,
  "autoname": "format:FBR-LOG-{YYYY}-{#####}",
  "creation": "2026-05-30 20:06:45.418374",
  "doctype": "DocType",
@@ -31,13 +31,27 @@
   "submitted_at",
   "request__response_section",
   "request_json",
-  "response_json"
+  "response_json",
+  "protocol",
+  "pos_device",
+  "attempt_id",
+  "idempotency_key",
+  "source_snapshot_hash",
+  "request_hash",
+  "response_hash",
+  "transport_started_at",
+  "transport_finished_at",
+  "transport_outcome",
+  "original_fbr_invoice_number",
+  "reconciliation_required",
+  "operator"
  ],
  "fields": [
   {
    "fieldname": "reference_section",
    "fieldtype": "Section Break",
-   "label": "Reference"
+   "label": "Reference",
+   "read_only": 1
   },
   {
    "fieldname": "reference_doctype",
@@ -45,7 +59,8 @@
    "label": "Reference DocType",
    "options": "DocType",
    "reqd": 1,
-   "in_standard_filter": 1
+   "in_standard_filter": 1,
+   "read_only": 1
   },
   {
    "fieldname": "reference_name",
@@ -54,11 +69,13 @@
    "in_standard_filter": 1,
    "label": "Reference",
    "options": "reference_doctype",
-   "reqd": 1
+   "reqd": 1,
+   "read_only": 1
   },
   {
    "fieldname": "reference_column",
-   "fieldtype": "Column Break"
+   "fieldtype": "Column Break",
+   "read_only": 1
   },
   {
    "fieldname": "invoice_type",
@@ -66,12 +83,14 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Invoice Type",
-   "options": "Sale Invoice\nDebit Note\nCredit Note\nReturn"
+   "options": "Sale Invoice\nDebit Note\nCredit Note\nReturn",
+   "read_only": 1
   },
   {
    "fieldname": "fbr_status_section",
    "fieldtype": "Section Break",
-   "label": "FBR Status"
+   "label": "FBR Status",
+   "read_only": 1
   },
   {
    "default": "Pending",
@@ -81,34 +100,40 @@
    "in_standard_filter": 1,
    "label": "FBR Status",
    "options": "Pending\nValidated\nSubmitted\nFailed\nOffline Pending\nReconciliation Required\nSkipped\nPaused\nNot Required",
-   "reqd": 1
+   "reqd": 1,
+   "read_only": 1
   },
   {
    "fieldname": "fbr_invoice_number",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "FBR Invoice Number"
+   "label": "FBR Invoice Number",
+   "read_only": 1
   },
   {
    "fieldname": "fbr_status_column",
-   "fieldtype": "Column Break"
+   "fieldtype": "Column Break",
+   "read_only": 1
   },
   {
    "default": "0",
    "fieldname": "attempt_count",
    "fieldtype": "Int",
-   "label": "Attempt Count"
+   "label": "Attempt Count",
+   "read_only": 1
   },
   {
    "fieldname": "next_retry_time",
    "fieldtype": "Datetime",
-   "label": "Next Retry Time"
+   "label": "Next Retry Time",
+   "read_only": 1
   },
   {
    "collapsible": 1,
    "fieldname": "offline_section",
    "fieldtype": "Section Break",
-   "label": "Known Offline Evidence"
+   "label": "Known Offline Evidence",
+   "read_only": 1
   },
   {
    "fieldname": "offline_issued_at",
@@ -132,27 +157,32 @@
    "collapsible": 1,
    "fieldname": "error_details_section",
    "fieldtype": "Section Break",
-   "label": "Error Details"
+   "label": "Error Details",
+   "read_only": 1
   },
   {
    "fieldname": "error_code",
    "fieldtype": "Data",
-   "label": "Error Code"
+   "label": "Error Code",
+   "read_only": 1
   },
   {
    "fieldname": "error_details_column",
-   "fieldtype": "Column Break"
+   "fieldtype": "Column Break",
+   "read_only": 1
   },
   {
    "fieldname": "error_message",
    "fieldtype": "Small Text",
-   "label": "Error Message"
+   "label": "Error Message",
+   "read_only": 1
   },
   {
    "collapsible": 1,
    "fieldname": "submission_info_section",
    "fieldtype": "Section Break",
-   "label": "Submission Info"
+   "label": "Submission Info",
+   "read_only": 1
   },
   {
    "fieldname": "submitted_by",
@@ -163,7 +193,8 @@
   },
   {
    "fieldname": "submission_info_column",
-   "fieldtype": "Column Break"
+   "fieldtype": "Column Break",
+   "read_only": 1
   },
   {
    "fieldname": "submitted_at",
@@ -176,19 +207,103 @@
    "collapsible": 1,
    "fieldname": "request__response_section",
    "fieldtype": "Section Break",
-   "label": "Request / Response"
+   "label": "Request / Response",
+   "read_only": 1
   },
   {
    "fieldname": "request_json",
    "fieldtype": "Code",
    "label": "Request JSON",
-   "options": "JSON"
+   "options": "JSON",
+   "read_only": 1
   },
   {
    "fieldname": "response_json",
    "fieldtype": "Code",
    "label": "Response JSON",
-   "options": "JSON"
+   "options": "JSON",
+   "read_only": 1
+  },
+  {
+   "fieldname": "protocol",
+   "fieldtype": "Data",
+   "label": "Protocol",
+   "read_only": 1
+  },
+  {
+   "fieldname": "pos_device",
+   "fieldtype": "Link",
+   "label": "Pos Device",
+   "read_only": 1,
+   "options": "Ledgix FBR POS Device"
+  },
+  {
+   "fieldname": "attempt_id",
+   "fieldtype": "Data",
+   "label": "Attempt Id",
+   "read_only": 1
+  },
+  {
+   "fieldname": "idempotency_key",
+   "fieldtype": "Data",
+   "label": "Idempotency Key",
+   "read_only": 1
+  },
+  {
+   "fieldname": "source_snapshot_hash",
+   "fieldtype": "Data",
+   "label": "Source Snapshot Hash",
+   "read_only": 1
+  },
+  {
+   "fieldname": "request_hash",
+   "fieldtype": "Data",
+   "label": "Request Hash",
+   "read_only": 1
+  },
+  {
+   "fieldname": "response_hash",
+   "fieldtype": "Data",
+   "label": "Response Hash",
+   "read_only": 1
+  },
+  {
+   "fieldname": "transport_started_at",
+   "fieldtype": "Datetime",
+   "label": "Transport Started At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "transport_finished_at",
+   "fieldtype": "Datetime",
+   "label": "Transport Finished At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "transport_outcome",
+   "fieldtype": "Select",
+   "label": "Transport Outcome",
+   "read_only": 1,
+   "options": "Not Attempted\nAccepted\nRejected\nAmbiguous\nOffline Deferred"
+  },
+  {
+   "fieldname": "original_fbr_invoice_number",
+   "fieldtype": "Data",
+   "label": "Original Fbr Invoice Number",
+   "read_only": 1
+  },
+  {
+   "fieldname": "reconciliation_required",
+   "fieldtype": "Check",
+   "label": "Reconciliation Required",
+   "read_only": 1
+  },
+  {
+   "fieldname": "operator",
+   "fieldtype": "Link",
+   "label": "Operator",
+   "read_only": 1,
+   "options": "User"
   }
  ],
  "grid_page_length": 50,
@@ -203,30 +318,30 @@
  "permissions": [
   {
    "read": 1,
-   "write": 1,
-   "create": 1,
-   "delete": 1,
+   "write": 0,
+   "create": 0,
+   "delete": 0,
    "submit": 0,
    "cancel": 0,
    "amend": 0,
    "report": 1,
    "export": 1,
-   "share": 1,
+   "share": 0,
    "print": 1,
    "email": 1,
    "role": "System Manager"
   },
   {
    "read": 1,
-   "write": 1,
-   "create": 1,
-   "delete": 1,
+   "write": 0,
+   "create": 0,
+   "delete": 0,
    "submit": 0,
    "cancel": 0,
    "amend": 0,
    "report": 1,
    "export": 1,
-   "share": 1,
+   "share": 0,
    "print": 1,
    "email": 1,
    "role": "Ledgix Admin"
@@ -248,15 +363,15 @@
   },
   {
    "read": 1,
-   "write": 1,
-   "create": 1,
-   "delete": 1,
+   "write": 0,
+   "create": 0,
+   "delete": 0,
    "submit": 0,
    "cancel": 0,
    "amend": 0,
    "report": 1,
    "export": 1,
-   "share": 1,
+   "share": 0,
    "print": 1,
    "email": 1,
    "role": "Accounts Manager"

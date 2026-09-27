@@ -1,142 +1,43 @@
-from __future__ import annotations
-
-import unittest
 from unittest.mock import patch
-
 import frappe
+from fbr_v1.setup.v1_test_support import NoNetworkTest, Row, fixture
+from fbr_v1.services import fbr_v1_snapshot_persistence as snapshots
 
-from fbr_v1.services import fbr_v2_snapshot_persistence as snapshots
+class TestV1Snapshot(NoNetworkTest):
+    def doc(self):
+        return Row(doctype='Sales Invoice',name='INV-1',company='Test Company',docstatus=1,
+                   _action='submit',items=[Row(name='ROW-1',idx=1,doctype='Sales Invoice Item')])
 
+    def test_capture_read_reuse_and_tamper_refusal(self):
+        doc=self.doc(); s=fixture()
+        with patch.object(snapshots,'_build_snapshot_payloads',return_value=(s['header'],s['lines'])), patch.object(snapshots,'is_consolidated',return_value=False):
+            first=snapshots.capture_v1_snapshot(doc,force=True)
+            self.assertEqual(first['snapshot_version'],1)
+            self.assertTrue(snapshots.capture_v1_snapshot(doc,force=True)['reused_existing'])
+        with patch.object(frappe,'get_doc',return_value=doc):
+            persisted=snapshots.read_persisted_v1_snapshot(doc.doctype,doc.name)
+            self.assertEqual(persisted['snapshot_hash'],first['snapshot_hash'])
+            doc["items"][0][snapshots.LINE_JSON_FIELD]='{}'
+            with self.assertRaisesRegex(frappe.ValidationError,'hash verification'):
+                snapshots.read_persisted_v1_snapshot(doc.doctype,doc.name)
 
-class _Meta:
-    def has_field(self, fieldname):
-        return True
-
-
-class _Row:
-    def __init__(self, name: str):
-        self.doctype = "Sales Invoice Item"
-        self.name = name
-        self.idx = 1
-        self.meta = _Meta()
-        self._data = {
-            "name": name,
-            "idx": 1,
-        }
-
-    def get(self, key, default=None):
-        return self._data.get(key, default)
-
-    def set(self, key, value):
-        self._data[key] = value
-
-
-class _Invoice:
-    def __init__(self):
-        self.doctype = "Sales Invoice"
-        self.name = "SINV-FBR-V12-RUNTIME"
-        self.company = "Standalone FBR Test Company"
-        self.docstatus = 1
-        self._action = "submit"
-        self.meta = _Meta()
-        self.items = [_Row("ROW-1")]
-        self._data = {
-            "is_return": 0,
-            "return_against": "",
-            "items": self.items,
-        }
-
-    def get(self, key, default=None):
-        if key == "items":
-            return self.items
-        return self._data.get(key, default)
-
-    def set(self, key, value):
-        self._data[key] = value
-
-    def as_dict(self):
-        return {
-            "doctype": self.doctype,
-            "name": self.name,
-            "company": self.company,
-            "docstatus": self.docstatus,
-        }
-
-
-class TestFBRV1SnapshotRuntime(unittest.TestCase):
-    def _payloads(self):
-        header = {
-            "snapshot_version": snapshots.SNAPSHOT_VERSION,
-            "authority": "ERPNext Native",
-            "source_doctype": "Sales Invoice",
-            "source_name": "SINV-FBR-V12-RUNTIME",
-            "company": "Standalone FBR Test Company",
-            "posting_date": "2026-09-27",
-            "currency": "PKR",
-            "is_return": False,
-            "return_against": "",
-            "net_total": 100.0,
-            "total_taxes_and_charges": 18.0,
-            "grand_total": 118.0,
-            "identity": {"ready": True},
-            "component_mappings": {},
-            "reconciliation": {"passed": True},
-            "line_count": 1,
-            "line_hashes": [],
-        }
-        line = {
-            "snapshot_version": snapshots.SNAPSHOT_VERSION,
-            "authority": "ERPNext Native",
-            "source_doctype": "Sales Invoice",
-            "source_name": "SINV-FBR-V12-RUNTIME",
-            "company": "Standalone FBR Test Company",
-            "posting_date": "2026-09-27",
-            "is_return": False,
-            "return_against": "",
-            "line": {
-                "item_row": "ROW-1",
-                "idx": 1,
-                "item_code": "TEST-ITEM",
-                "qty": 1,
-                "net_amount": 100.0,
-                "amount": 100.0,
-            },
-        }
-        header["line_hashes"] = [
-            {
-                "item_row": "ROW-1",
-                "sha256": snapshots._digest_json(line),
-            }
-        ]
-        return header, {"ROW-1": line}
-
-    def test_capture_reuse_and_tamper_refusal_are_in_memory_only(self):
-        doc = _Invoice()
-        payloads = self._payloads()
-
-        with patch.object(snapshots, "_assert_snapshot_fields", return_value=None), patch.object(
-            snapshots, "_build_snapshot_payloads", return_value=payloads
-        ):
-            first = snapshots.capture_v2_snapshot(doc, force=True)
-
-            self.assertTrue(first["captured"])
-            self.assertFalse(first["reused_existing"])
-            self.assertEqual(first["snapshot_version"], 2)
-            self.assertEqual(first["line_count"], 1)
-            self.assertFalse(first["database_write"])
-            self.assertFalse(first["fbr_network_call"])
-
-            second = snapshots.capture_v2_snapshot(doc, force=True)
-            self.assertTrue(second["captured"])
-            self.assertTrue(second["reused_existing"])
-            self.assertEqual(second["snapshot_hash"], first["snapshot_hash"])
-            self.assertFalse(second["database_write"])
-            self.assertFalse(second["fbr_network_call"])
-
-            doc.items[0].set(snapshots.LINE_JSON_FIELD, '{"tampered":true}')
+    def test_historical_or_v2_evidence_is_never_reconstructed(self):
+        doc=self.doc();doc._action='save'
+        with self.assertRaisesRegex(frappe.ValidationError,'before_submit'):
+            snapshots.capture_v1_snapshot(doc,force=True)
+        doc.custom_ledgix_fbr_v2_snapshot_version=2
+        with patch.object(frappe,'get_doc',return_value=doc):
             with self.assertRaises(frappe.ValidationError):
-                snapshots.capture_v2_snapshot(doc, force=True)
+                snapshots.read_persisted_v1_snapshot(doc.doctype,doc.name)
 
-
-if __name__ == "__main__":
-    unittest.main()
+    def test_full_capture_builder_uses_native_collector_and_device_payment(self):
+        s=fixture();doc=self.doc();doc.update(net_total=100,total_taxes_and_charges=18,grand_total=118,posting_time='12:34:56')
+        candidate={**s['header'],'lines':[s['lines']['ROW-1']['line']]}
+        profile=Row(protocol_version='Federal POS/IMS V1',enabled=1,mode='Sandbox')
+        with patch.object(snapshots,'get_profile',return_value=profile), patch.object(snapshots,'resolve_device',return_value=s['header']['pos_device']), patch.object(snapshots,'capture_payment',return_value={'payment_mode':1}), patch.object(frappe,'get_doc',return_value=doc), patch.object(snapshots,'collect_native_tax_breakdown',return_value=candidate), patch.object(snapshots.erpnext_fbr_identity,'resolve_invoice_identity',return_value=s['header']['identity']):
+            h,lines=snapshots._build_snapshot_payloads(doc)
+            self.assertEqual(h['usin'],'INV-1')
+            self.assertEqual(h['payment']['payment_mode'],1)
+            candidate['grand_total']=119
+            with self.assertRaisesRegex(frappe.ValidationError,'differs'):
+                snapshots._build_snapshot_payloads(doc)

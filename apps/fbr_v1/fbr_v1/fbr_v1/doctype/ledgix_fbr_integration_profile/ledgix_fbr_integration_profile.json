@@ -47,7 +47,14 @@
   "reference_section",
   "reference_sync_status",
   "last_reference_sync_at",
-  "reference_version"
+  "reference_version",
+  "default_pos_device",
+  "transport_enabled",
+  "v1_sandbox_token",
+  "v1_production_token",
+  "block_print_without_fiscal_result",
+  "activation_reference",
+  "activation_evidence"
  ],
  "fields": [
   {
@@ -86,7 +93,7 @@
    "fieldname": "submit_trigger",
    "fieldtype": "Select",
    "label": "Submit Trigger",
-   "options": "Manual\nOn Submit\nValidate Only",
+   "options": "Manual\nOn Submit",
    "reqd": 1
   },
   {
@@ -105,10 +112,11 @@
    "label": "Licensed Integrator / Provider Name"
   },
   {
-   "default": "DI API V1.12",
+   "default": "Federal POS/IMS V1",
    "fieldname": "protocol_version",
    "fieldtype": "Data",
-   "label": "DI Protocol Version"
+   "label": "Protocol Version",
+   "read_only": 1
   },
   {
    "collapsible": 1,
@@ -120,12 +128,18 @@
    "fieldname": "business_natures",
    "fieldtype": "Table",
    "label": "Business Nature(s)",
-   "options": "Ledgix FBR Business Nature"
+   "options": "Ledgix FBR Business Nature",
+   "hidden": 1,
+   "read_only": 1,
+   "reqd": 0
   },
   {
    "fieldname": "sector",
    "fieldtype": "Data",
-   "label": "Sector"
+   "label": "Sector",
+   "hidden": 1,
+   "read_only": 1,
+   "reqd": 0
   },
   {
    "fieldname": "onboarding_column",
@@ -137,7 +151,10 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Onboarding Status",
-   "options": "Not Started\nIn Progress\nSandbox Ready\nCertified\nProduction Ready"
+   "options": "Not Started\nIn Progress\nSandbox Ready\nCertified\nProduction Ready",
+   "hidden": 1,
+   "read_only": 1,
+   "reqd": 0
   },
   {
    "default": "Pending",
@@ -221,7 +238,10 @@
   {
    "fieldname": "sandbox_token",
    "fieldtype": "Password",
-   "label": "Sandbox Token"
+   "label": "Sandbox Token",
+   "hidden": 1,
+   "read_only": 1,
+   "reqd": 0
   },
   {
    "fieldname": "credentials_column",
@@ -230,7 +250,10 @@
   {
    "fieldname": "production_token",
    "fieldtype": "Password",
-   "label": "Production Token"
+   "label": "Production Token",
+   "hidden": 1,
+   "read_only": 1,
+   "reqd": 0
   },
   {
    "collapsible": 1,
@@ -249,7 +272,10 @@
    "default": "0",
    "fieldname": "block_sale_if_fbr_fails",
    "fieldtype": "Check",
-   "label": "Block Submit On FBR Preflight Failure"
+   "label": "Block Submit On FBR Preflight Failure",
+   "hidden": 1,
+   "read_only": 1,
+   "reqd": 0
   },
   {
    "default": "Disabled",
@@ -258,14 +284,19 @@
    "fieldtype": "Select",
    "label": "Known Offline Policy",
    "options": "Disabled\nOperator Confirmed",
-   "reqd": 1
+   "reqd": 0,
+   "hidden": 1,
+   "read_only": 1
   },
   {
    "default": "0",
    "description": "Client/provider-specific upload window. No legal deadline is hardcoded by Ledgix.",
    "fieldname": "offline_upload_window_hours",
    "fieldtype": "Int",
-   "label": "Offline Upload Window (Hours)"
+   "label": "Offline Upload Window (Hours)",
+   "hidden": 1,
+   "read_only": 1,
+   "reqd": 0
   },
   {
    "fieldname": "safety_column",
@@ -280,7 +311,10 @@
    "collapsible": 1,
    "fieldname": "reference_section",
    "fieldtype": "Section Break",
-   "label": "Reference Data"
+   "label": "Reference Data",
+   "hidden": 1,
+   "read_only": 1,
+   "reqd": 0
   },
   {
    "default": "Never Synced",
@@ -288,19 +322,63 @@
    "fieldtype": "Select",
    "label": "Reference Sync Status",
    "options": "Never Synced\nCurrent\nStale\nFailed",
-   "read_only": 1
+   "read_only": 1,
+   "hidden": 1,
+   "reqd": 0
   },
   {
    "fieldname": "last_reference_sync_at",
    "fieldtype": "Datetime",
    "label": "Last Reference Sync At",
-   "read_only": 1
+   "read_only": 1,
+   "hidden": 1,
+   "reqd": 0
   },
   {
    "fieldname": "reference_version",
    "fieldtype": "Data",
    "label": "Reference Version",
-   "read_only": 1
+   "read_only": 1,
+   "hidden": 1,
+   "reqd": 0
+  },
+  {
+   "fieldname": "default_pos_device",
+   "fieldtype": "Link",
+   "label": "Default Pos Device",
+   "options": "Ledgix FBR POS Device"
+  },
+  {
+   "fieldname": "transport_enabled",
+   "fieldtype": "Check",
+   "label": "Transport Enabled",
+   "default": "0"
+  },
+  {
+   "fieldname": "v1_sandbox_token",
+   "fieldtype": "Password",
+   "label": "V1 Sandbox Token"
+  },
+  {
+   "fieldname": "v1_production_token",
+   "fieldtype": "Password",
+   "label": "V1 Production Token"
+  },
+  {
+   "fieldname": "block_print_without_fiscal_result",
+   "fieldtype": "Check",
+   "label": "Block Print Without Fiscal Result",
+   "default": "1"
+  },
+  {
+   "fieldname": "activation_reference",
+   "fieldtype": "Data",
+   "label": "Activation Reference"
+  },
+  {
+   "fieldname": "activation_evidence",
+   "fieldtype": "Attach",
+   "label": "Activation Evidence"
   }
  ],
  "grid_page_length": 50,

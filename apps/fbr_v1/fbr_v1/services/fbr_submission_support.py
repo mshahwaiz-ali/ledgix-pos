@@ -40,114 +40,37 @@ def normalize_fbr_status(status):
     return normalized
 
 
+def sanitize(value, secrets=()):
+    import re
+    if isinstance(value, dict):
+        return {str(k): ("[REDACTED]" if any(x in str(k).lower() for x in
+                ("token", "authorization", "password", "secret")) else sanitize(v, secrets))
+                for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [sanitize(v, secrets) for v in value]
+    if isinstance(value, str):
+        for secret in secrets:
+            if secret:
+                value = value.replace(secret, "[REDACTED]")
+        return re.sub(r"(?i)bearer\s+[^\s\"',}]+", "Bearer [REDACTED]", value)
+    return value
+
+
 def _safe_message(value):
-    text = str(value or "")
-    if "Bearer " in text:
-        text = text.split("Bearer ", 1)[0].rstrip()
-    return text
+    return sanitize(str(value or ""))
 
 
-def _extract_fbr_qr_code(response):
-    if not isinstance(response, dict):
-        return ""
-    for key in ("QRCode", "qrCode", "qr_code", "QR_CODE", "qrString"):
-        value = response.get(key)
-        if value not in (None, ""):
-            return str(value).strip()
-    validation_response = response.get("validationResponse") or {}
-    if isinstance(validation_response, dict):
-        for key in ("QRCode", "qrCode", "qr_code", "QR_CODE", "qrString"):
-            value = validation_response.get(key)
-            if value not in (None, ""):
-                return str(value).strip()
-    return ""
+def parse_fbr_response(response, require_invoice_number=True):
+    from fbr_v1.protocol.response import parse_fiscal_response
+    result = parse_fiscal_response(response)
+    return {"valid": result.success, "invoice_number": result.invoice_number,
+            "status_code": result.code, "error_message": _safe_message(result.response)}
 
 
 def resolve_submission_status(mode, parsed):
-    if not parsed.get("valid"):
-        return "Failed", ""
-    invoice_number = str(parsed.get("invoice_number") or "").strip()
-    qr_code = str(parsed.get("qr_code") or "").strip()
-    if mode == "Production":
-        if invoice_number:
-            return "Submitted", invoice_number
-        return "Failed", ""
-    if invoice_number:
-        return "Submitted", invoice_number
-    if qr_code:
-        return "Validated", ""
-    return "Validated", ""
-
-
-def parse_fbr_response(response, require_invoice_number=False):
-    source = response.get("response") if isinstance(response, dict) and "response" in response else response
-    if not isinstance(source, dict):
-        return {
-            "valid": False, "invoice_number": "", "qr_code": "", "dated": "",
-            "status_code": "", "error_code": "",
-            "error_message": "FBR response was not JSON.", "item_statuses": [],
-        }
-
-    validation_response = source.get("validationResponse") or {}
-    if not isinstance(validation_response, dict):
-        validation_response = {}
-    invoice_statuses = validation_response.get("invoiceStatuses") or []
-    if not isinstance(invoice_statuses, list):
-        invoice_statuses = []
-
-    item_statuses = []
-    item_invalid = False
-    for item in invoice_statuses:
-        item = item if isinstance(item, dict) else {}
-        item_status = str(item.get("status") or "").strip()
-        item_code = str(item.get("statusCode") or "").strip()
-        item_error_code = str(item.get("errorCode") or "").strip()
-        item_error = _safe_message(item.get("error") or item.get("message"))
-        if (item_status and item_status.lower() == "invalid") or (item_code and item_code != "00"):
-            item_invalid = True
-        item_statuses.append({
-            "status": item_status,
-            "status_code": item_code,
-            "error_code": item_error_code,
-            "error": item_error,
-        })
-
-    status = str(validation_response.get("status") or source.get("status") or "").strip()
-    status_code = str(validation_response.get("statusCode") or source.get("statusCode") or "").strip()
-    invoice_number = str(source.get("invoiceNumber") or validation_response.get("invoiceNumber") or "").strip()
-    dated = source.get("dated") or validation_response.get("dated") or ""
-    top_valid = status.lower() == "valid" and status_code == "00"
-    valid = bool(top_valid and not item_invalid)
-    if require_invoice_number and not invoice_number:
-        valid = False
-
-    first_item_error = next((row for row in item_statuses if row.get("error_code") or row.get("error")), {})
-    error_code = (
-        validation_response.get("errorCode")
-        or source.get("errorCode")
-        or first_item_error.get("error_code")
-        or (status_code if status_code and status_code != "00" else "")
-        or ""
-    )
-    error_message = _safe_message(
-        validation_response.get("error")
-        or validation_response.get("message")
-        or source.get("error")
-        or source.get("message")
-        or first_item_error.get("error")
-        or ("FBR invoice number was missing from production post response." if require_invoice_number and not invoice_number else "")
-        or ("FBR validation failed." if not valid else "")
-    )
-    return {
-        "valid": valid,
-        "invoice_number": invoice_number,
-        "qr_code": _extract_fbr_qr_code(source),
-        "dated": dated,
-        "status_code": status_code,
-        "error_code": str(error_code or ""),
-        "error_message": error_message,
-        "item_statuses": item_statuses,
-    }
+    if parsed.get("valid") and parsed.get("invoice_number"):
+        return "Submitted", parsed["invoice_number"]
+    return "Failed", ""
 
 
 def create_submission_log(
@@ -165,6 +88,7 @@ def create_submission_log(
     offline_issued_at=None,
     offline_upload_due_at=None,
     offline_reason=None,
+    **evidence,
 ):
     if not reference_doctype:
         frappe.throw("reference_doctype is required for FBR submission log.")
@@ -185,8 +109,10 @@ def create_submission_log(
         log.offline_upload_due_at = offline_upload_due_at
     if log.meta.has_field("offline_reason"):
         log.offline_reason = _safe_message(offline_reason)
-    log.request_json = serialize_json(request_json)
-    log.response_json = serialize_json(response_json)
+    log.update(evidence)
+    log.protocol = "Federal POS/IMS V1"
+    log.request_json = serialize_json(sanitize(request_json))
+    log.response_json = serialize_json(sanitize(response_json))
     log.error_code = error_code
     log.error_message = _safe_message(error_message)
     log.submitted_by = getattr(frappe.session, "user", None)
@@ -204,28 +130,29 @@ class _SubmissionLock:
         self._db_locked = False
 
     def __enter__(self):
+        # DB advisory lock is authoritative even when Redis is unavailable to only
+        # one worker. Every worker takes it, avoiding split Redis/DB lock domains.
+        import hashlib
+        self.lock_key = "fbr_v1_" + hashlib.sha256(self.reference_key.encode()).hexdigest()[:50]
+        result = frappe.db.sql("SELECT GET_LOCK(%s, 30)", (self.lock_key,))
+        if not result or result[0][0] != 1:
+            frappe.throw("FBR submission is already in progress.")
+        self._db_locked = True
         try:
             self._cache_lock = frappe.cache().lock(
-                f"ledgix:fbr-submit:{self.reference_key}", timeout=120
-            )
+                "ledgix:fbr-v1:" + self.lock_key, timeout=120, blocking_timeout=1)
             self._cache_lock.__enter__()
-            return self
         except Exception:
-            result = frappe.db.sql("SELECT GET_LOCK(%s, 120)", (self.lock_key,))
-            acquired = bool(result and result[0][0] == 1)
-            if not acquired:
-                frappe.throw(
-                    "FBR submission is already in progress for this reference. "
-                    "Please wait and try again."
-                )
-            self._db_locked = True
-            return self
+            self._cache_lock = None
+        return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        if self._cache_lock is not None:
-            return self._cache_lock.__exit__(exc_type, exc_val, exc_tb)
-        if self._db_locked:
-            frappe.db.sql("SELECT RELEASE_LOCK(%s)", (self.lock_key,))
+        try:
+            if self._cache_lock is not None:
+                self._cache_lock.__exit__(exc_type, exc_val, exc_tb)
+        finally:
+            if self._db_locked:
+                frappe.db.sql("SELECT RELEASE_LOCK(%s)", (self.lock_key,))
         return False
 
 
