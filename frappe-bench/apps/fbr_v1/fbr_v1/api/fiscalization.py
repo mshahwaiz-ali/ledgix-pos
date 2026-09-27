@@ -55,11 +55,28 @@ def history_blocker(doc, rows):
 
 def classify_result(result):
     status = result.get("http_status") or 0
-    parsed = parse_fiscal_response(result.get("body"))
+    body = result.get("body")
+    parsed = parse_fiscal_response(body)
+
     if 200 <= status < 300 and parsed.success:
         return "Submitted", "Accepted", parsed.invoice_number
+
+    # Observed FBR Sandbox/API-gateway rejection. This response is explicit
+    # and terminal for the current attempt; it is not an uncertain transport
+    # outcome. Keep this narrow because the complete external error catalogue
+    # remains intentionally unresolved.
+    fault = body.get("fault") if isinstance(body, dict) else None
+    fault_code = (
+        str(fault.get("code") or "").strip()
+        if isinstance(fault, dict)
+        else ""
+    )
+    if 200 <= status < 500 and fault_code == "900908":
+        return "Failed", "Rejected", ""
+
     if 200 <= status < 500 and parsed.code and parsed.code != "100":
         return "Failed", "Rejected", ""
+
     return "Reconciliation Required", "Ambiguous", ""
 
 

@@ -18,6 +18,8 @@ class TestV1Transport(NoNetworkTest):
         for http,body,expected in [(200,{'Code':'100','FBRInvoiceNumber':'11000120181112000369'},'Submitted'),
             (200,{'Code':'100','InvoiceNumber':'A'},'Submitted'),(200,{'Code':'100'},'Reconciliation Required'),
             (200,{'Code':'101','Response':'Rejected'},'Failed'),(500,{'Code':'101'},'Reconciliation Required'),
+            (403,{'fault':{'code':900908,'message':'Resource forbidden'}},'Failed'),
+            (500,{'fault':{'code':900908,'message':'Resource forbidden'}},'Reconciliation Required'),
             (200,{},'Reconciliation Required'),(200,{'invoiceNumber':'DI','validationResponse':{'status':'Valid'}},'Reconciliation Required')]:
             self.assertEqual(api.classify_result({'http_status':http,'body':body})[0],expected)
 
