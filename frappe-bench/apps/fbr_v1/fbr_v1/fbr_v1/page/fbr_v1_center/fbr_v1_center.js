@@ -9,7 +9,7 @@ frappe.pages['fbr-v1-center'].on_page_load = function (wrapper) {
     $(page.main).addClass('lx-fbr-page-shell');
     const body = $('<div class="lx-fbr-v1-center"></div>').appendTo(page.main);
 
-    const iconUrl = '/assets/ledgix_saas/images/brand/fbr-logo-1.png';
+    const iconUrl = '/assets/ledgix_saas/images/brand/fbr_v1.png';
     const canOperate = () => frappe.user.has_role('System Manager') || frappe.user.has_role('Accounts Manager');
     const canManageCutover = () => frappe.user.has_role('System Manager');
 
@@ -410,6 +410,7 @@ frappe.pages['fbr-v1-center'].on_page_load = function (wrapper) {
             null,
             {
                 primary: !gateOn,
+                danger: gateOn,
                 disabled: !canToggle,
                 reason,
             }

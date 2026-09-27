@@ -65,19 +65,19 @@
 .lx-fbr-logo-wrap {
     display: grid;
     place-items: center;
-    width: 64px;
-    height: 38px;
-    flex: 0 0 64px;
+    width: 44px;
+    height: 44px;
+    flex: 0 0 44px;
     overflow: hidden;
-    padding: 4px 5px;
+    padding: 4px;
     border: 1px solid color-mix(in srgb, var(--lx-fbr-accent) 16%, var(--lx-fbr-border));
-    border-radius: 10px;
+    border-radius: 11px;
     background: color-mix(in srgb, var(--lx-fbr-surface) 94%, var(--lx-fbr-accent-soft));
 }
 
 .lx-fbr-logo {
-    width: 54px;
-    height: 27px;
+    width: 36px;
+    height: 36px;
     object-fit: contain;
 }
 
@@ -534,6 +534,14 @@
 
 .lx-fbr-danger-action:not(:disabled) {
     border-color: color-mix(in srgb, #ef4444 42%, var(--lx-fbr-border)) !important;
+    background: color-mix(in srgb, #ef4444 8%, var(--lx-fbr-surface)) !important;
+    color: var(--lx-fbr-danger) !important;
+}
+
+.lx-fbr-danger-action:not(:disabled):hover,
+.lx-fbr-danger-action:not(:disabled):focus {
+    border-color: color-mix(in srgb, #ef4444 55%, var(--lx-fbr-border)) !important;
+    background: color-mix(in srgb, #ef4444 13%, var(--lx-fbr-surface)) !important;
     color: var(--lx-fbr-danger) !important;
 }
 
@@ -777,14 +785,14 @@
 
 @media (max-width: 560px) {
     .lx-fbr-logo-wrap {
-        width: 58px;
-        height: 36px;
-        flex-basis: 58px;
+        width: 40px;
+        height: 40px;
+        flex-basis: 40px;
     }
 
     .lx-fbr-logo {
-        width: 49px;
-        height: 24px;
+        width: 32px;
+        height: 32px;
     }
 
     .lx-fbr-fact-grid,

@@ -311,7 +311,7 @@ class TestFbrV1CenterContract(unittest.TestCase):
         ).read_text(encoding="utf-8")
 
         for marker in (
-            "/assets/ledgix_saas/images/brand/fbr-logo-1.png",
+            "/assets/ledgix_saas/images/brand/fbr_v1.png",
             "Federal FBR POS / IMS V1",
             "Overview",
             "Sandbox",
@@ -340,6 +340,12 @@ class TestFbrV1CenterContract(unittest.TestCase):
         ):
             self.assertIn(marker, js)
 
+        self.assertNotIn(
+            "/assets/ledgix_saas/images/brand/fbr-logo-1.png",
+            js,
+        )
+        self.assertIn("danger: gateOn", js)
+        self.assertIn(".lx-fbr-danger-action:not(:disabled)", css)
         self.assertIn("control.set_value(data.company)", js)
         self.assertIn("typeControl.set_value(invoiceType)", js)
         self.assertIn("ready_for_fiscalize", js)
