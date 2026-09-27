@@ -165,9 +165,46 @@ def on_native_invoice_submit(doc, method=None):
             "fbr_v1.api.fiscalization.submit_internal", doctype=doc.doctype, name=doc.name))
 
 
+def cancellation_requires_credit(doc, rows):
+    if doc.get("custom_ledgix_fbr_invoice_number"):
+        return True
+
+    completed = {
+        r.get("attempt_id")
+        for r in rows
+        if r.get("transport_outcome") in {"Accepted", "Rejected"}
+    }
+
+    if any(
+        r.get("transport_outcome") == "Ambiguous"
+        and r.get("attempt_id") not in completed
+        for r in rows
+    ):
+        return True
+
+    if any(r.get("transport_outcome") in {"Accepted", "Offline Deferred"} for r in rows):
+        return True
+
+    if any(
+        r.get("protocol") != PROTOCOL
+        and r.get("fbr_status") in {"Submitted", "Reconciliation Required", "Offline Pending"}
+        for r in rows
+    ):
+        return True
+
+    if doc.get("custom_ledgix_fbr_reconciliation_required"):
+        return True
+
+    return doc.get("custom_ledgix_fbr_status") in {
+        "Submitted",
+        "Reconciliation Required",
+        "Offline Pending",
+    }
+
+
 def block_cancel_after_fbr_submission(doc, method=None):
     rows = history(doc)
-    if rows or doc.get("custom_ledgix_fbr_invoice_number") or doc.get("custom_ledgix_fbr_snapshot_hash"):
+    if cancellation_requires_credit(doc, rows):
         device = doc.get("custom_ledgix_fbr_pos_device")
         if device:
             # The rejected cancellation rolls back its transaction. Persist only
@@ -178,4 +215,7 @@ def block_cancel_after_fbr_submission(doc, method=None):
                              doctype=doc.doctype, name=doc.name)
                 frappe.db.commit()
             frappe.db.after_rollback.add(record_attempt)
-        frappe.throw("Fiscal history is retained. Use a native linked credit/return and reconciliation; cancellation is blocked.")
+        frappe.throw(
+            "Fiscal history is retained. Use a native linked credit/return "
+            "and reconciliation; cancellation is blocked."
+        )

@@ -7,6 +7,7 @@ from fbr_v1.api.fiscalization import require_operator, source, history, history_
 from fbr_v1.services.fbr_submission_support import sanitize, submission_lock, create_submission_log
 from fbr_v1.services.fbr_v1_payload_builder import digest
 from fbr_v1.services.fbr_v1_snapshot_persistence import read_persisted_v1_snapshot
+from fbr_v1.services.pos_identity import get_profile
 
 EVENT = "Ledgix FBR Fiscal Event Log"
 FAILURES = {"Connectivity Failure", "Software Failure", "Power Failure"}
@@ -26,6 +27,13 @@ def append_event(device, event_type, evidence=None, *, occurred_at=None, doctype
 
 
 def offline_invoice(doc):
+    profile = get_profile(doc.company)
+    if not profile or profile.get("offline_policy") != "Operator Confirmed":
+        frappe.throw(
+            "Known-offline issuance is disabled. "
+            "The Federal V1 offline policy must be explicitly authorized before use."
+        )
+
     with submission_lock(f"{doc.doctype}:{doc.name}"):
         doc.reload()
         if doc.get("custom_ledgix_fbr_status") == "Offline Pending":

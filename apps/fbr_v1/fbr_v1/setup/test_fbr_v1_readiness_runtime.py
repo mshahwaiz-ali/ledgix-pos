@@ -89,3 +89,82 @@ class TestReadiness(NoNetworkTest):
             self.assertIn('custom_ledgix_fbr_snapshot_protocol',fields)
             self.assertIn('custom_ledgix_fbr_v2_snapshot_json',fields)
             self.assertFalse(fields['custom_ledgix_fbr_snapshot_json']['allow_on_submit'])
+
+
+    def test_offline_policy_disabled_fails_closed(self):
+        doc=Row(
+            doctype='Sales Invoice',
+            name='INV-OFFLINE',
+            company='Test Company',
+            docstatus=1,
+        )
+        profile=Row(offline_policy='Disabled')
+
+        with patch.object(offline,'get_profile',return_value=profile):
+            with self.assertRaisesRegex(
+                frappe.ValidationError,
+                'Known-offline issuance is disabled',
+            ):
+                offline.offline_invoice(doc)
+
+
+    def test_cancellation_only_blocks_real_fiscal_history(self):
+        doc=Row(
+            doctype='Sales Invoice',
+            name='INV-1',
+            custom_ledgix_fbr_snapshot_hash='SNAPSHOT',
+            custom_ledgix_fbr_status='Pending',
+            custom_ledgix_fbr_reconciliation_required=0,
+        )
+
+        # Internal snapshot/Pending evidence alone must not make the
+        # ERPNext document permanently uncancellable.
+        pending=[
+            Row(
+                protocol=fiscal.PROTOCOL,
+                attempt_id=None,
+                transport_outcome='Not Attempted',
+                fbr_status='Pending',
+            )
+        ]
+        self.assertFalse(fiscal.cancellation_requires_credit(doc,pending))
+
+        # Durable ambiguous intent followed by definite rejection is resolved.
+        rejected=[
+            Row(
+                protocol=fiscal.PROTOCOL,
+                attempt_id='A',
+                transport_outcome='Ambiguous',
+                fbr_status='Reconciliation Required',
+            ),
+            Row(
+                protocol=fiscal.PROTOCOL,
+                attempt_id='A',
+                transport_outcome='Rejected',
+                fbr_status='Failed',
+            ),
+        ]
+        doc.custom_ledgix_fbr_status='Failed'
+        self.assertFalse(fiscal.cancellation_requires_credit(doc,rejected))
+
+        # Unresolved ambiguity is external-risk fiscal history.
+        ambiguous=[
+            Row(
+                protocol=fiscal.PROTOCOL,
+                attempt_id='B',
+                transport_outcome='Ambiguous',
+                fbr_status='Reconciliation Required',
+            )
+        ]
+        self.assertTrue(fiscal.cancellation_requires_credit(doc,ambiguous))
+
+        # Offline fiscal issuance is retained and must use a credit/return.
+        offline_rows=[
+            Row(
+                protocol=fiscal.PROTOCOL,
+                attempt_id=None,
+                transport_outcome='Offline Deferred',
+                fbr_status='Offline Pending',
+            )
+        ]
+        self.assertTrue(fiscal.cancellation_requires_credit(doc,offline_rows))
