@@ -23,7 +23,7 @@
     max-width: 1220px;
     min-width: 0;
     margin: 0 auto;
-    padding: 8px 18px 32px;
+    padding: 6px 18px 28px;
     color: var(--lx-fbr-text);
 }
 
@@ -50,33 +50,34 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 20px;
-    min-height: 82px;
-    padding: 14px 16px;
+    gap: 16px;
+    min-height: 70px;
+    padding: 10px 14px;
 }
 
 .lx-fbr-brand {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
     min-width: 0;
 }
 
 .lx-fbr-logo-wrap {
     display: grid;
     place-items: center;
-    width: 50px;
-    height: 50px;
-    flex: 0 0 50px;
+    width: 64px;
+    height: 38px;
+    flex: 0 0 64px;
     overflow: hidden;
-    border: 1px solid color-mix(in srgb, var(--lx-fbr-accent) 18%, var(--lx-fbr-border));
-    border-radius: 12px;
-    background: var(--lx-fbr-accent-soft);
+    padding: 4px 5px;
+    border: 1px solid color-mix(in srgb, var(--lx-fbr-accent) 16%, var(--lx-fbr-border));
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--lx-fbr-surface) 94%, var(--lx-fbr-accent-soft));
 }
 
 .lx-fbr-logo {
-    width: 42px;
-    height: 42px;
+    width: 54px;
+    height: 27px;
     object-fit: contain;
 }
 
@@ -97,32 +98,46 @@
 .lx-fbr-brand-copy h1 {
     margin: 0;
     color: var(--lx-fbr-text);
-    font-size: clamp(19px, 2vw, 23px);
+    font-size: clamp(18px, 1.8vw, 22px);
     font-weight: 720;
     letter-spacing: -.015em;
     line-height: 1.2;
 }
 
 .lx-fbr-header-controls {
-    width: min(360px, 38vw);
-    flex: 0 1 360px;
+    width: min(330px, 34vw);
+    flex: 0 1 330px;
 }
 
 .lx-fbr-company-field .frappe-control {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
     margin-bottom: 0 !important;
+    padding: 5px 7px;
+    border: 1px solid var(--lx-fbr-border);
+    border-radius: 9px;
+    background: color-mix(in srgb, var(--lx-fbr-subtle) 58%, var(--lx-fbr-surface));
 }
 
 .lx-fbr-company-field .control-label {
-    margin-bottom: 3px;
+    margin: 0;
     color: var(--lx-fbr-muted);
     font-size: 9.5px;
     font-weight: 650;
+    white-space: nowrap;
+}
+
+.lx-fbr-company-field .control-input,
+.lx-fbr-company-field .control-input-wrapper {
+    min-width: 0;
 }
 
 .lx-fbr-company-field .control-input input,
 .lx-fbr-company-field .control-value {
-    min-height: 34px;
-    border-radius: 8px !important;
+    min-height: 32px;
+    border-radius: 7px !important;
 }
 
 .lx-fbr-state-strip {
@@ -130,7 +145,7 @@
     align-items: center;
     flex-wrap: wrap;
     gap: 7px;
-    padding: 9px 16px;
+    padding: 7px 14px;
     border-top: 1px solid var(--lx-fbr-border);
     background: color-mix(in srgb, var(--lx-fbr-subtle) 72%, var(--lx-fbr-surface));
 }
@@ -171,7 +186,7 @@
     display: flex;
     align-items: center;
     gap: 2px;
-    margin-top: 10px;
+    margin-top: 8px;
     overflow-x: auto;
     border-bottom: 1px solid var(--lx-fbr-border);
     scrollbar-width: thin;
@@ -181,8 +196,8 @@
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    min-height: 38px;
-    padding: 7px 13px;
+    min-height: 36px;
+    padding: 6px 12px;
     border: 0;
     border-bottom: 2px solid transparent;
     background: transparent;
@@ -206,14 +221,14 @@
 
 .lx-fbr-workspace {
     display: grid;
-    gap: 10px;
-    margin-top: 10px;
+    gap: 8px;
+    margin-top: 8px;
 }
 
 .lx-fbr-sandbox-top-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
+    gap: 8px;
 }
 
 .lx-fbr-sandbox-top-grid .lx-fbr-panel {
@@ -226,7 +241,7 @@
 
 .lx-fbr-panel {
     min-width: 0;
-    padding: 14px;
+    padding: 12px;
     border: 1px solid var(--lx-fbr-border);
     border-radius: 12px;
     background: var(--lx-fbr-surface);
@@ -237,8 +252,8 @@
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    min-height: 30px;
-    margin-bottom: 11px;
+    min-height: 28px;
+    margin-bottom: 9px;
 }
 
 .lx-fbr-panel-title {
@@ -375,8 +390,8 @@
 
 .lx-fbr-fact {
     min-width: 0;
-    min-height: 54px;
-    padding: 8px 9px;
+    min-height: 48px;
+    padding: 7px 8px;
     border: 1px solid var(--lx-fbr-border);
     border-radius: 8px;
     background: color-mix(in srgb, var(--lx-fbr-subtle) 64%, var(--lx-fbr-surface));
@@ -503,7 +518,7 @@
     align-items: center;
     flex-wrap: wrap;
     gap: 6px;
-    margin-top: 10px;
+    margin-top: 9px;
 }
 
 .lx-fbr-action-button {
@@ -571,8 +586,8 @@
 
 .lx-fbr-invoice-fields {
     display: grid;
-    grid-template-columns: minmax(180px, .45fr) minmax(260px, 1fr);
-    gap: 10px;
+    grid-template-columns: minmax(165px, .38fr) minmax(260px, 1fr);
+    gap: 8px;
 }
 
 .lx-fbr-invoice-fields .frappe-control {
@@ -588,8 +603,8 @@
 
 .lx-fbr-invoice-fields .control-input input,
 .lx-fbr-invoice-fields select {
-    min-height: 34px;
-    border-radius: 8px !important;
+    min-height: 32px;
+    border-radius: 7px !important;
 }
 
 .lx-fbr-inline-result {
@@ -687,7 +702,37 @@
 }
 
 .lx-fbr-evidence-details {
-    margin-top: 9px;
+    margin-top: 8px;
+}
+
+/* Final Center polish: compact, business-first, fail-closed. */
+.lx-fbr-sandbox-summary-panel,
+.lx-fbr-sandbox-network-panel {
+    padding: 11px 12px;
+}
+
+.lx-fbr-invoice-test-panel {
+    border-color: color-mix(in srgb, var(--lx-fbr-accent) 30%, var(--lx-fbr-border));
+    box-shadow: inset 3px 0 0 color-mix(in srgb, var(--lx-fbr-accent) 70%, transparent);
+}
+
+.lx-fbr-invoice-test-panel .lx-fbr-panel-head {
+    padding-bottom: 8px;
+    border-bottom: 1px solid color-mix(in srgb, var(--lx-fbr-accent) 14%, var(--lx-fbr-border));
+}
+
+.lx-fbr-invoice-test-panel .btn-primary {
+    min-width: 118px;
+    font-weight: 700;
+}
+
+.lx-fbr-latest-evidence .lx-fbr-button-row,
+.lx-fbr-production-panel .lx-fbr-button-row {
+    margin-top: 8px;
+}
+
+.lx-fbr-production-panel .lx-fbr-notice {
+    margin-top: 0;
 }
 
 @media (max-width: 980px) {
@@ -732,14 +777,14 @@
 
 @media (max-width: 560px) {
     .lx-fbr-logo-wrap {
-        width: 44px;
-        height: 44px;
-        flex-basis: 44px;
+        width: 58px;
+        height: 36px;
+        flex-basis: 58px;
     }
 
     .lx-fbr-logo {
-        width: 36px;
-        height: 36px;
+        width: 49px;
+        height: 24px;
     }
 
     .lx-fbr-fact-grid,

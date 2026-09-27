@@ -227,7 +227,7 @@ frappe.pages['fbr-v1-center'].on_page_load = function (wrapper) {
         const mode = readiness.mode || 'Disabled';
         const modeTone = mode === 'Production' ? 'danger' : (mode === 'Sandbox' ? 'good' : 'neutral');
         badge(mode, modeTone).appendTo(strip);
-        badge(readiness.network_cutover_active ? 'Network ON' : 'Network OFF', readiness.network_cutover_active ? 'warning' : 'good').appendTo(strip);
+        badge(readiness.network_cutover_active ? 'Sandbox Network ON' : 'Sandbox Network OFF', readiness.network_cutover_active ? 'warning' : 'good').appendTo(strip);
         badge(profile.submit_trigger === 'Manual' ? 'Manual Submit' : (profile.submit_trigger || 'Submit Not Configured'), profile.submit_trigger === 'Manual' ? 'neutral' : 'warning').appendTo(strip);
 
         const productionLocked = !readiness.production_cutover_active && !profile.production_post_armed;
@@ -382,6 +382,7 @@ frappe.pages['fbr-v1-center'].on_page_load = function (wrapper) {
         const canToggle = canManageCutover() && (sandboxMode || gateOn);
 
         const network = panel(parent, 'Network', 'shield', {
+            className: 'lx-fbr-sandbox-network-panel',
             badge: {
                 label: gateOn ? 'Sandbox Network ON' : 'Sandbox Network OFF',
                 tone: gateOn ? 'warning' : 'good',
@@ -500,8 +501,18 @@ frappe.pages['fbr-v1-center'].on_page_load = function (wrapper) {
 
             const errors = uniq([...(result.errors || []), ...(result.network_blockers || [])]);
             sandboxActionResult = errors.length
-                ? {tone: 'warning', title: 'Invoice not ready', lines: errors}
-                : {tone: 'good', title: 'Invoice ready', lines: ['Current invoice and transport prerequisites are clear.']};
+                ? {
+                    tone: 'warning',
+                    title: 'Invoice not ready',
+                    lines: errors,
+                    ready_for_fiscalize: false,
+                }
+                : {
+                    tone: 'good',
+                    title: 'Invoice ready',
+                    lines: ['Readiness passed. Sandbox fiscalization is available while all safety gates remain valid.'],
+                    ready_for_fiscalize: true,
+                };
             render(data);
         } finally {
             button.prop('disabled', false);
@@ -546,6 +557,7 @@ frappe.pages['fbr-v1-center'].on_page_load = function (wrapper) {
     function renderLatestSubmission(parent, data) {
         const latest = data.latest_submission;
         const evidence = panel(parent, 'Latest Submission / Evidence', 'evidence', {
+            className: 'lx-fbr-latest-evidence',
             badge: latest ? {label: latest.fbr_status || 'Unknown', tone: latest.reconciliation_required ? 'warning' : (latest.transport_outcome === 'Accepted' ? 'good' : 'neutral')} : null,
         });
 
@@ -560,9 +572,7 @@ frappe.pages['fbr-v1-center'].on_page_load = function (wrapper) {
         factGrid(evidence, [
             {label: 'Reference', value: [latest.reference_doctype, latest.reference_name].filter(Boolean).join(' · ')},
             {label: 'FBR Status', value: latest.fbr_status},
-            {label: 'Transport Outcome', value: latest.transport_outcome},
             {label: 'FBR Invoice Number', value: latest.fbr_invoice_number},
-            {label: 'Attempt ID', value: latest.attempt_id},
             {label: 'Reconciliation', value: latest.reconciliation_required ? 'Required' : 'No', tone: latest.reconciliation_required ? 'warning' : 'good'},
         ]);
 
@@ -570,6 +580,8 @@ frappe.pages['fbr-v1-center'].on_page_load = function (wrapper) {
         $('<summary></summary>').text(__('Technical evidence')).appendTo(technical);
         const technicalContent = $('<div class="lx-fbr-advanced-content"></div>').appendTo(technical);
         factGrid(technicalContent, [
+            {label: 'Transport Outcome', value: latest.transport_outcome},
+            {label: 'Attempt ID', value: latest.attempt_id},
             {label: 'Transport Started', value: latest.transport_started_at},
             {label: 'Transport Finished', value: latest.transport_finished_at},
             {label: 'Request Hash', value: latest.request_hash},
@@ -624,16 +636,15 @@ frappe.pages['fbr-v1-center'].on_page_load = function (wrapper) {
 
         const topGrid = $('<div class="lx-fbr-sandbox-top-grid"></div>').appendTo(workspace);
         const environment = panel(topGrid, 'Sandbox Environment', 'sandbox', {
+            className: 'lx-fbr-sandbox-summary-panel',
             badge: {label: readiness.mode === 'Sandbox' ? 'Active' : 'Not Active', tone: readiness.mode === 'Sandbox' ? 'good' : 'warning'},
         });
 
         factGrid(environment, [
-            {label: 'Environment', value: 'Sandbox'},
             {label: 'Device', value: device && (device.display_label || device.name)},
             {label: 'POSID', value: device && device.pos_id},
             {label: 'Topology', value: device && device.transport_topology},
             {label: 'Device State', value: device && device.operational_state},
-            {label: 'Submit Mode', value: profile.submit_trigger || 'Not configured'},
         ]);
 
         if (readiness.mode !== 'Sandbox') {
@@ -642,10 +653,15 @@ frappe.pages['fbr-v1-center'].on_page_load = function (wrapper) {
 
         renderSandboxNetwork(data, state, topGrid);
 
-        const invoice = panel(workspace, 'Invoice Test', 'invoice');
+        const invoice = panel(workspace, 'Invoice Test', 'invoice', {
+            className: 'lx-fbr-invoice-test-panel',
+        });
         mountInvoiceControls(invoice, data);
 
         const productionSafe = !readiness.production_cutover_active && !profile.production_post_armed;
+        const readinessPassed = Boolean(
+            sandboxActionResult && sandboxActionResult.ready_for_fiscalize
+        );
         const canFiscalize = canOperate()
             && readiness.enabled
             && readiness.mode === 'Sandbox'
@@ -653,6 +669,7 @@ frappe.pages['fbr-v1-center'].on_page_load = function (wrapper) {
             && Boolean(profile.transport_enabled)
             && readiness.network_cutover_active
             && productionSafe
+            && readinessPassed
             && Boolean(invoiceName);
 
         const canCheck = Boolean(invoiceName);
@@ -669,17 +686,22 @@ frappe.pages['fbr-v1-center'].on_page_load = function (wrapper) {
         ).appendTo(actions);
         if (canCheck) readinessButton.on('click', () => checkInvoiceReadiness(data, readinessButton));
 
-        const fiscalizeReason = !invoiceName
-            ? __('Select an invoice first.')
-            : (!canOperate()
-                ? __('Accounts Manager permission is required.')
-                : (readiness.mode !== 'Sandbox'
-                    ? __('The active FBR profile must be Sandbox.')
-                    : (!readiness.network_cutover_active
-                        ? __('Sandbox network is OFF.')
-                        : (!productionSafe
-                            ? __('Production must remain fully locked.')
-                            : __('Sandbox configuration is not ready.')))));
+        let fiscalizeReason = '';
+        if (!invoiceName) {
+            fiscalizeReason = __('Select an invoice first.');
+        } else if (!canOperate()) {
+            fiscalizeReason = __('Accounts Manager permission is required.');
+        } else if (!readiness.enabled || readiness.mode !== 'Sandbox') {
+            fiscalizeReason = __('The active FBR profile must be Sandbox.');
+        } else if (!readiness.sandbox_configuration_ready || !profile.transport_enabled) {
+            fiscalizeReason = __('Sandbox configuration is not ready.');
+        } else if (!readiness.network_cutover_active) {
+            fiscalizeReason = __('Sandbox network is OFF.');
+        } else if (!productionSafe) {
+            fiscalizeReason = __('Production must remain fully locked.');
+        } else if (!readinessPassed) {
+            fiscalizeReason = __('Run Check Readiness first.');
+        }
 
         const fiscalizeButton = makeButton(
             'Fiscalize Invoice',
@@ -913,9 +935,7 @@ frappe.pages['fbr-v1-center'].on_page_load = function (wrapper) {
             {label: 'Production Gate', value: yesNo(readiness.production_cutover_active), tone: readiness.production_cutover_active ? 'danger' : 'good'},
             {label: 'Posting Armed', value: yesNo(profile.production_post_armed), tone: profile.production_post_armed ? 'danger' : 'good'},
             {label: 'Current Profile', value: readiness.mode || 'Disabled'},
-            {label: 'Profile Transport', value: readiness.profile ? yesNo(profile.transport_enabled) : 'Not configured'},
-            {label: 'Configured Devices', value: (production.devices || []).length},
-            {label: 'Production Configuration', value: readiness.production_configuration_ready ? 'Ready' : 'Not Ready'},
+            {label: 'Configuration', value: readiness.production_configuration_ready ? 'Ready' : 'Not Ready'},
         ]);
 
         const productionBlockers = uniq([
@@ -933,13 +953,13 @@ frappe.pages['fbr-v1-center'].on_page_load = function (wrapper) {
 
         buttonRow(productionPanel, [
             {
-                label: 'Open Integration Profile',
+                label: 'Integration Profile',
                 onClick: () => readiness.profile
                     ? frappe.set_route('Form', 'Ledgix FBR Integration Profile', readiness.profile)
                     : routeList('Ledgix FBR Integration Profile', {company: data.company}),
             },
             {
-                label: 'Production Devices',
+                label: 'Devices',
                 onClick: () => routeList('Ledgix FBR POS Device', {company: data.company, environment: 'Production'}),
             },
         ]);

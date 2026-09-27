@@ -342,6 +342,10 @@ class TestFbrV1CenterContract(unittest.TestCase):
 
         self.assertIn("control.set_value(data.company)", js)
         self.assertIn("typeControl.set_value(invoiceType)", js)
+        self.assertIn("ready_for_fiscalize", js)
+        self.assertIn("Run Check Readiness first.", js)
+        self.assertIn(".lx-fbr-invoice-test-panel", css)
+        self.assertIn(".lx-fbr-latest-evidence", css)
         self.assertNotIn("Authority / external requirements", js)
 
         for forbidden in (
