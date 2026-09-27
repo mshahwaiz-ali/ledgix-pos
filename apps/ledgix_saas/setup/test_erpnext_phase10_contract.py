@@ -233,6 +233,30 @@ class TestERPNextPhase10Contract(unittest.TestCase):
         self.assertIn("p.items", sync)
         self.assertIn("stale", sync)
 
+    def test_legacy_tax_fbr_center_cannot_route_to_v12(self):
+        hooks = (APP_ROOT / "hooks.py").read_text(encoding="utf-8")
+        page = (
+            APP_ROOT
+            / "ledgix"
+            / "page"
+            / "ledgix_tax_center"
+            / "ledgix_tax_center.js"
+        ).read_text(encoding="utf-8")
+        self.assertNotIn("fbr_v12.api.fbr_v2_center.get_fbr_readiness", hooks)
+        self.assertIn(
+            '"ledgix_saas.api.tax_center.get_fbr_readiness": "ledgix_saas.api.fbr_legacy_guard.reject_legacy_fbr_action"',
+            hooks,
+        )
+        for forbidden in (
+            "fbr_v2_center",
+            "fbr_reference_v2",
+            "upload_offline_invoice",
+            "evaluate_v2_invoice_readiness",
+        ):
+            self.assertNotIn(forbidden, page)
+        self.assertIn('frappe.set_route("fbr-v1-center")', page)
+        self.assertIn("Federal Tier-1 POS / IMS V1", page)
+
     def test_phase10_runner_is_fail_closed(self):
         runner = REPO_ROOT / "scripts" / "run_erpnext_phase10_final_gate.sh"
         if not runner.exists():
