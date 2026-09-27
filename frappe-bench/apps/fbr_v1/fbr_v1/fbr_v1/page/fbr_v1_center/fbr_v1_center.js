@@ -160,10 +160,11 @@ frappe.pages['fbr-v1-center'].on_page_load = function (wrapper) {
             && Number(mapping.active_tax_component_mappings || 0) > 0
             && Number(mapping.payment_mappings || 0) > 0;
 
+        // Overview is configuration-focused. An intentionally closed network
+        // gate is a safe runtime state, not a setup blocker.
         const internalBlockers = uniq([
             ...(readiness.source_blockers || []),
             ...(readiness.setup_blockers || []),
-            ...(readiness.blockers || []),
         ]);
 
         return {
@@ -191,6 +192,7 @@ frappe.pages['fbr-v1-center'].on_page_load = function (wrapper) {
             render_input: true,
         });
         control.refresh();
+        control.set_value(data.company);
 
         if (control.$input) {
             control.$input.on('change', () => {
@@ -270,26 +272,16 @@ frappe.pages['fbr-v1-center'].on_page_load = function (wrapper) {
     }
 
     function renderBlockers(parent, state) {
-        if (!state.internalBlockers.length && !state.externalBlockers.length) {
-            notice(parent, 'good', 'Configuration ready', 'No current internal readiness blocker is reported.');
+        if (!state.internalBlockers.length) {
+            notice(parent, 'good', 'Configuration ready', 'No current configuration blocker is reported.');
             return;
         }
 
         const blockers = $('<div class="lx-fbr-blockers"></div>').appendTo(parent);
-
-        if (state.internalBlockers.length) {
-            const group = $('<div class="lx-fbr-blocker-box"></div>').appendTo(blockers);
-            $('<strong></strong>').text(__('{0} item(s) require attention', [state.internalBlockers.length])).appendTo(group);
-            const list = $('<ul></ul>').appendTo(group);
-            state.internalBlockers.forEach((message) => $('<li></li>').text(message).appendTo(list));
-        }
-
-        if (state.externalBlockers.length) {
-            const group = $('<div class="lx-fbr-blocker-box"></div>').appendTo(blockers);
-            $('<strong></strong>').text(__('Authority / external requirements')).appendTo(group);
-            const list = $('<ul></ul>').appendTo(group);
-            state.externalBlockers.forEach((message) => $('<li></li>').text(message).appendTo(list));
-        }
+        const group = $('<div class="lx-fbr-blocker-box"></div>').appendTo(blockers);
+        $('<strong></strong>').text(__('{0} item(s) require attention', [state.internalBlockers.length])).appendTo(group);
+        const list = $('<ul></ul>').appendTo(group);
+        state.internalBlockers.forEach((message) => $('<li></li>').text(message).appendTo(list));
     }
 
     function renderOverview(data, state, workspace) {
@@ -443,6 +435,7 @@ frappe.pages['fbr-v1-center'].on_page_load = function (wrapper) {
             render_input: true,
         });
         typeControl.refresh();
+        typeControl.set_value(invoiceType);
 
         const invoiceHost = $('<div></div>').appendTo(fields);
         const invoiceControl = frappe.ui.form.make_control({
@@ -457,6 +450,7 @@ frappe.pages['fbr-v1-center'].on_page_load = function (wrapper) {
             render_input: true,
         });
         invoiceControl.refresh();
+        if (invoiceName) invoiceControl.set_value(invoiceName);
 
         if (typeControl.$input) {
             typeControl.$input.on('change', () => {
@@ -570,6 +564,12 @@ frappe.pages['fbr-v1-center'].on_page_load = function (wrapper) {
             {label: 'FBR Invoice Number', value: latest.fbr_invoice_number},
             {label: 'Attempt ID', value: latest.attempt_id},
             {label: 'Reconciliation', value: latest.reconciliation_required ? 'Required' : 'No', tone: latest.reconciliation_required ? 'warning' : 'good'},
+        ]);
+
+        const technical = $('<details class="lx-fbr-advanced lx-fbr-evidence-details"></details>').appendTo(evidence);
+        $('<summary></summary>').text(__('Technical evidence')).appendTo(technical);
+        const technicalContent = $('<div class="lx-fbr-advanced-content"></div>').appendTo(technical);
+        factGrid(technicalContent, [
             {label: 'Transport Started', value: latest.transport_started_at},
             {label: 'Transport Finished', value: latest.transport_finished_at},
             {label: 'Request Hash', value: latest.request_hash},
@@ -622,7 +622,8 @@ frappe.pages['fbr-v1-center'].on_page_load = function (wrapper) {
         const profile = state.profile;
         const device = pickDevice(data, 'Sandbox');
 
-        const environment = panel(workspace, 'Sandbox Environment', 'sandbox', {
+        const topGrid = $('<div class="lx-fbr-sandbox-top-grid"></div>').appendTo(workspace);
+        const environment = panel(topGrid, 'Sandbox Environment', 'sandbox', {
             badge: {label: readiness.mode === 'Sandbox' ? 'Active' : 'Not Active', tone: readiness.mode === 'Sandbox' ? 'good' : 'warning'},
         });
 
@@ -639,7 +640,7 @@ frappe.pages['fbr-v1-center'].on_page_load = function (wrapper) {
             notice(environment, 'warning', 'Sandbox profile is not active', 'Sandbox network and submission controls remain unavailable until the active profile is Sandbox.');
         }
 
-        renderSandboxNetwork(data, state, workspace);
+        renderSandboxNetwork(data, state, topGrid);
 
         const invoice = panel(workspace, 'Invoice Test', 'invoice');
         mountInvoiceControls(invoice, data);
@@ -912,16 +913,21 @@ frappe.pages['fbr-v1-center'].on_page_load = function (wrapper) {
             {label: 'Production Gate', value: yesNo(readiness.production_cutover_active), tone: readiness.production_cutover_active ? 'danger' : 'good'},
             {label: 'Posting Armed', value: yesNo(profile.production_post_armed), tone: profile.production_post_armed ? 'danger' : 'good'},
             {label: 'Current Profile', value: readiness.mode || 'Disabled'},
-            {label: 'Transport', value: readiness.profile ? yesNo(profile.transport_enabled) : 'Not configured'},
+            {label: 'Profile Transport', value: readiness.profile ? yesNo(profile.transport_enabled) : 'Not configured'},
             {label: 'Configured Devices', value: (production.devices || []).length},
             {label: 'Production Configuration', value: readiness.production_configuration_ready ? 'Ready' : 'Not Ready'},
         ]);
 
-        const productionBlockers = uniq(production.blockers || []);
+        const productionBlockers = uniq([
+            ...(production.blockers || []),
+            ...(state.externalBlockers || []),
+        ]);
         if (productionBlockers.length) {
-            const blockers = $('<div class="lx-fbr-blocker-box"></div>').appendTo(productionPanel);
-            $('<strong></strong>').text(__('Production requirements')).appendTo(blockers);
-            const list = $('<ul></ul>').appendTo(blockers);
+            const requirements = $('<details class="lx-fbr-requirements"></details>').appendTo(productionPanel);
+            const summary = $('<summary></summary>').appendTo(requirements);
+            $('<strong></strong>').text(__('Production readiness requirements')).appendTo(summary);
+            badge(__('{0} open', [productionBlockers.length]), 'warning').appendTo(summary);
+            const list = $('<ul></ul>').appendTo(requirements);
             productionBlockers.forEach((message) => $('<li></li>').text(message).appendTo(list));
         }
 
@@ -976,6 +982,6 @@ frappe.pages['fbr-v1-center'].on_page_load = function (wrapper) {
         }
     }
 
-    $(wrapper).find('.page-head .title-text').addClass('lx-fbr-native-title-hidden');
+    $(wrapper).find('.page-head').attr('aria-hidden', 'true');
     refresh();
 };

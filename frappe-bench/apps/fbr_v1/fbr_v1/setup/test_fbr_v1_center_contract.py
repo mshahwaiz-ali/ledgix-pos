@@ -340,6 +340,10 @@ class TestFbrV1CenterContract(unittest.TestCase):
         ):
             self.assertIn(marker, js)
 
+        self.assertIn("control.set_value(data.company)", js)
+        self.assertIn("typeControl.set_value(invoiceType)", js)
+        self.assertNotIn("Authority / external requirements", js)
+
         for forbidden in (
             "This Center never switches cutover gates.",
             "Enable Production",
@@ -359,6 +363,8 @@ class TestFbrV1CenterContract(unittest.TestCase):
             ".lx-fbr-invoice-fields",
             ".lx-fbr-advanced",
             ".lx-fbr-production-panel",
-            ".lx-fbr-native-title-hidden",
+            ".lx-fbr-sandbox-top-grid",
+            ".lx-fbr-requirements",
+            ".lx-fbr-v1-wrapper .page-head",
         ):
             self.assertIn(marker, css)

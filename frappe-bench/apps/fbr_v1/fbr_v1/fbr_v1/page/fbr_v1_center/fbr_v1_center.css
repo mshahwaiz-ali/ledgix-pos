@@ -1,4 +1,4 @@
-.lx-fbr-v1-wrapper .page-head .title-text.lx-fbr-native-title-hidden {
+.lx-fbr-v1-wrapper .page-head {
     display: none !important;
 }
 
@@ -208,6 +208,20 @@
     display: grid;
     gap: 10px;
     margin-top: 10px;
+}
+
+.lx-fbr-sandbox-top-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.lx-fbr-sandbox-top-grid .lx-fbr-panel {
+    height: 100%;
+}
+
+.lx-fbr-sandbox-top-grid .lx-fbr-fact-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .lx-fbr-panel {
@@ -633,7 +647,54 @@
     border-color: color-mix(in srgb, #9ca3af 30%, var(--lx-fbr-border));
 }
 
+.lx-fbr-requirements {
+    margin-top: 10px;
+    border: 1px solid color-mix(in srgb, #f59f00 20%, var(--lx-fbr-border));
+    border-radius: 8px;
+    background: color-mix(in srgb, #f59f00 5%, var(--lx-fbr-surface));
+}
+
+.lx-fbr-requirements summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 9px 10px;
+    list-style: none;
+    cursor: pointer;
+}
+
+.lx-fbr-requirements summary::-webkit-details-marker {
+    display: none;
+}
+
+.lx-fbr-requirements summary strong {
+    color: var(--lx-fbr-warning);
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.lx-fbr-requirements ul {
+    margin: 0;
+    padding: 0 18px 10px 28px;
+    color: var(--lx-fbr-muted);
+    font-size: 9.5px;
+    line-height: 1.45;
+}
+
+.lx-fbr-requirements li + li {
+    margin-top: 3px;
+}
+
+.lx-fbr-evidence-details {
+    margin-top: 9px;
+}
+
 @media (max-width: 980px) {
+    .lx-fbr-sandbox-top-grid {
+        grid-template-columns: 1fr;
+    }
+
     .lx-fbr-fact-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
