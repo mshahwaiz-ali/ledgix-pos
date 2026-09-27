@@ -6,7 +6,7 @@
  "doctype": "Workspace",
  "for_user": "",
  "hide_custom": 0,
- "indicator_color": "orange",
+ "indicator_color": "red",
  "is_hidden": 0,
  "label": "FBR V1.2",
  "links": [
@@ -227,5 +227,6 @@
    "type": "DocType"
   }
  ],
- "title": "FBR V1.2"
+ "title": "FBR V1.2",
+ "icon": "archive"
 }
