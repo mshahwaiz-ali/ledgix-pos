@@ -1,6 +1,6 @@
-# FBR V1 / Tier-1 Legacy POS — Canonical Redesign Plan
+# FBR V1 / Tier-1 POS IMS — Canonical Redesign Plan
 
-**Plan status:** REVIEW REQUIRED — no implementation authorized by this document  
+**Plan status:** APPROVED FOR IMPLEMENTATION — no real FBR traffic authorized  
 **Baseline:** `main@17f81554a0eeea85e9a6868719a9b76c0dcf4e36`  
 **Target app:** `apps/fbr_v1`  
 **Accounting/tax authority:** ERPNext  
@@ -8,16 +8,15 @@
 
 ## 1. Canonical decision
 
-The app name `fbr_v1` means **legacy/grandfathered Federal POS/SDC compatibility**, not “all Tier-1 retailers use V1”.
+`fbr_v1` is a fresh implementation of the documented Federal FBR Tier-1 POS / IMS V1 protocol.
 
-Current Chapter XIV contains a grandfathering proviso for persons already POS-integrated with FBR. Current registration/testing rollout is through a licensed integrator or PRAL. Therefore:
+The existing V1.2 clone is scaffolding only.
 
-- `fbr_v1` may service an already-integrated legacy POS/SDC installation, or a taxpayer explicitly directed by FBR/PRAL to that interface.
-- `fbr_v1` must **not** self-authorize a new taxpayer into the historical SDC protocol merely because the taxpayer is Tier-1.
-- If the client is a new/current Chapter-XIV integration, use the current Digital Invoicing path (`fbr_v12`) instead.
-- Until the client's regime and legacy technical packet are proven, V1 transport remains disabled and all protocol-specific fields are unresolved.
+The V1 development contract is now locked in `FBR_V1_DOCUMENTED_PROTOCOL_CONTRACT.md` and includes the local IMS routes, cloud V1 routes, Bearer cloud auth, POSID/USIN request model, payment modes, invoice types, Third Schedule item types and fiscal response.
 
-This gate is non-negotiable because it prevents us from building a technically correct implementation of the wrong legal integration regime.
+Current FBR/PRAL onboarding determines how a client ultimately receives POS identity and credentials. That is an activation concern, not a blocker for developing the adapter.
+
+Real Sandbox and Production traffic remain separately gated.
 
 ## 2. Design invariants
 
@@ -682,26 +681,33 @@ Start from the exact bootstrap-clone schema and prove:
 
 ## 15. Acceptance gates
 
-### Gate 0 — regime proof
-**Required before protocol implementation.**
-- client is confirmed as grandfathered legacy POS/SDC, or
-- FBR/PRAL provides current written direction to legacy SDC.
+### Gate 0 — documented source lock — PASS
 
-Failure => stop V1 network work and use/review `fbr_v12`.
+The V1 POS/IMS source and core wire contract are locked.
 
-### Gate 1 — authoritative machine contract
-Must have:
-- official/current endpoint/topology;
-- test/production configuration;
-- auth;
-- request/response schema;
-- enums;
-- error behavior;
-- return/note behavior;
-- offline behavior;
-- closing behavior.
+No old client machine is required for development.
 
-Anything missing stays unresolved and blocked.
+### Gate 1 — core machine contract — PASS / PARTIAL
+
+Resolved:
+- local IMS health/fiscalization routes;
+- cloud Sandbox/Production routes;
+- Bearer cloud auth;
+- request schema;
+- payment enum;
+- header invoice types;
+- sale/credit/Third Schedule item types;
+- success response.
+
+Deferred/fail-closed:
+- item-level Debit ambiguity;
+- full error catalogue;
+- duplicate-USIN behavior;
+- external offline upload API;
+- external closing API;
+- exact QR encoding.
+
+These deferred areas do not block core sale/credit fiscalization development.
 
 ### Gate 2 — structural cutover
 - V2 DI network/reference/certification code removed from active V1;
@@ -747,13 +753,13 @@ This redesign task does **not** authorize Gate 4+ network traffic or production.
 
 ## 16. Phased implementation sequence
 
-### Phase 0 — source and regime closure
-Deliver:
-- client regime evidence;
-- authoritative legacy technical pack;
-- final machine contract appendix.
+### Phase 0 — source and protocol lock — COMPLETE
 
-No code if Gate 0/1 fails.
+Deliverables:
+- source inventory;
+- forensic audit;
+- V1.2 -> V1 matrix;
+- documented V1 protocol contract.
 
 ### Phase 1 — remove V2 protocol authority from V1
 Code:
@@ -780,19 +786,19 @@ Acceptance:
 - immutable hashes;
 - no GL/stock mutation outside ERPNext.
 
-### Phase 3 — legacy SDC adapter
-Only after Gate 1:
-- exact request/response models;
-- exact auth;
-- exact topology;
-- exact test/prod configuration;
-- deterministic parser;
-- idempotency/reconciliation.
+### Phase 3 — V1 IMS / Software Fiscal Component adapter
+
+- documented local/cloud request/response models;
+- POSID/USIN identity;
+- Bearer cloud auth;
+- local health/fiscalize transport;
+- deterministic response parser;
+- idempotency/reconciliation controls.
 
 Acceptance:
-- official fixtures pass;
-- mock transport reproduces official examples;
-- still no real FBR call in automated suite.
+- official-shaped fixtures pass;
+- fake transport exercises every route;
+- no real FBR call in automated tests.
 
 ### Phase 4 — print / QR
 - Chapter-XIV particulars;
@@ -823,37 +829,34 @@ Only after explicit user approval for real Test traffic.
 ### Phase 8 — production deployment
 Separate project step; not part of this plan approval.
 
-## 17. Explicitly unresolved backlog
+## 17. Explicitly unresolved / deferred backlog
 
-Do not code assumptions for:
+Do not guess:
+1. current IMS installer/package/version;
+2. current portal POSID/token issuance workflow;
+3. item-level Debit semantics;
+4. complete error-code catalogue;
+5. duplicate-USIN server behavior;
+6. separate offline batch-upload API;
+7. external daily/weekly/monthly closing API;
+8. exact QR encoded payload.
 
-1. current legacy SDC download/package/version;
-2. legacy endpoint host/port/routes;
-3. auth/access-code exchange;
-4. exact sale request body;
-5. exact response body;
-6. external USIN/reference semantics;
-7. payment-mode enum;
-8. invoice/note-type enum;
-9. return/refund/cancellation API;
-10. duplicate/idempotency response behavior;
-11. offline invoice fiscal-number behavior;
-12. offline upload call/schema;
-13. closing call/schema;
-14. alert/report API;
-15. exact QR encoded payload;
-16. browser/server/SDC network topology for this client;
-17. whether the client's new deployment is legally eligible to use legacy SDC at all.
+These do not block the now-documented core sale/credit V1 contract.
 
 ## 18. Implementation authorization boundary
 
-Review and approve this plan first.
+Implementation of the documented V1 design is approved.
 
-Until approval:
-- do not modify `apps/fbr_v1` runtime code;
-- do not install/migrate the V1 app on a site;
-- do not call any FBR endpoint;
-- do not touch production;
-- do not add a branch.
+Authorized:
+- source changes on `main`;
+- mock/pure protocol code;
+- ERPNext-native V1 mapping;
+- local schema/migration/test work;
+- no-network integration work.
 
-The next implementation action after approval is **Phase 0 / Gate 0 evidence closure**, not endpoint coding.
+Not authorized:
+- real FBR Sandbox traffic;
+- real Production traffic;
+- production-site changes;
+- ERPNext/Frappe core edits;
+- new git branches.
