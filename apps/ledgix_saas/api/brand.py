@@ -24,6 +24,27 @@ def _asset_url(path: str | None) -> str:
 	return f"/files/{path}"
 
 
+def _usable_custom_asset(path: str | None) -> str:
+	url = _asset_url(path)
+	if not url:
+		return ""
+
+	# External and bundled assets are already stable URLs.
+	if url.startswith(("http://", "https://", "/assets/")):
+		return url
+
+	# Attach/Attach Image values should resolve to a live public File row. A
+	# stale Brand Settings attachment must never override the bundled Ledgix
+	# identity after cache clears or file cleanup.
+	if url.startswith("/files/") and frappe.db.exists(
+		"File",
+		{"file_url": url, "is_private": 0},
+	):
+		return url
+
+	return ""
+
+
 def _get_settings_doc():
 	if not frappe.db.exists("DocType", SETTINGS_DOCTYPE):
 		return None
@@ -39,13 +60,13 @@ def get_brand_settings():
 	brand_tagline = (doc and doc.brand_tagline) or "Retail operations"
 	primary_color = (doc and doc.primary_brand_color) or DEFAULT_PRIMARY_COLOR
 
-	has_custom_symbol = bool(doc and doc.symbol_logo)
-	has_custom_full = bool(doc and doc.full_logo)
-	has_custom_favicon = bool(doc and doc.favicon)
+	custom_symbol = _usable_custom_asset(doc.symbol_logo) if doc else ""
+	custom_full = _usable_custom_asset(doc.full_logo) if doc else ""
+	custom_favicon = _usable_custom_asset(doc.favicon) if doc else ""
 
-	custom_symbol = _asset_url(doc.symbol_logo) if has_custom_symbol else ""
-	custom_full = _asset_url(doc.full_logo) if has_custom_full else ""
-	custom_favicon = _asset_url(doc.favicon) if has_custom_favicon else ""
+	has_custom_symbol = bool(custom_symbol)
+	has_custom_full = bool(custom_full)
+	has_custom_favicon = bool(custom_favicon)
 
 	# Ledgix owns its default identity. Brand Settings may override these assets,
 	# but an empty setting must never fall back to Frappe's framework logo.
