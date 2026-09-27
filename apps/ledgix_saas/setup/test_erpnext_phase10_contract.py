@@ -15,7 +15,9 @@ REPO_ROOT = next(
     APP_ROOT.parents[1],
 )
 REPORT_ROOT = APP_ROOT / "ledgix" / "report"
-PRINT_ROOT = APP_ROOT / "ledgix" / "print_format"
+LEDGIX_PRINT_ROOT = APP_ROOT / "ledgix" / "print_format"
+FBR_APP_ROOT = REPO_ROOT / "apps" / "fbr_v1" / "fbr_v1"
+FBR_PRINT_ROOT = FBR_APP_ROOT / "fbr_v1" / "print_format"
 
 
 class TestERPNextPhase10Contract(unittest.TestCase):
@@ -109,10 +111,10 @@ class TestERPNextPhase10Contract(unittest.TestCase):
 
     def test_native_print_formats_target_erpnext_documents(self):
         tax = json.loads(
-            (PRINT_ROOT / "ledgix_erpnext_tax_invoice" / "ledgix_erpnext_tax_invoice.json").read_text(encoding="utf-8")
+            (FBR_PRINT_ROOT / "ledgix_erpnext_tax_invoice" / "ledgix_erpnext_tax_invoice.json").read_text(encoding="utf-8")
         )
         pos = json.loads(
-            (PRINT_ROOT / "ledgix_erpnext_pos_receipt" / "ledgix_erpnext_pos_receipt.json").read_text(encoding="utf-8")
+            (FBR_PRINT_ROOT / "ledgix_erpnext_pos_receipt" / "ledgix_erpnext_pos_receipt.json").read_text(encoding="utf-8")
         )
         self.assertEqual(tax["doc_type"], "Sales Invoice")
         self.assertEqual(pos["doc_type"], "POS Invoice")
@@ -124,20 +126,21 @@ class TestERPNextPhase10Contract(unittest.TestCase):
 
     def test_legacy_print_formats_remain_history_only(self):
         b2b = json.loads(
-            (PRINT_ROOT / "ledgix_b2b_invoice" / "ledgix_b2b_invoice.json").read_text(encoding="utf-8")
+            (LEDGIX_PRINT_ROOT / "ledgix_b2b_invoice" / "ledgix_b2b_invoice.json").read_text(encoding="utf-8")
         )
         thermal = json.loads(
-            (PRINT_ROOT / "ledgix_thermal_receipt" / "ledgix_thermal_receipt.json").read_text(encoding="utf-8")
+            (LEDGIX_PRINT_ROOT / "ledgix_thermal_receipt" / "ledgix_thermal_receipt.json").read_text(encoding="utf-8")
         )
         self.assertEqual(b2b["doc_type"], "Ledgix Sale")
         self.assertEqual(thermal["doc_type"], "Ledgix Sale")
 
     def test_native_print_context_reads_same_erpnext_transaction(self):
-        source = (APP_ROOT / "api" / "printing.py").read_text(encoding="utf-8")
+        source = (FBR_APP_ROOT / "api" / "printing.py").read_text(encoding="utf-8")
         self.assertIn('SUPPORTED_PRINT_DOCTYPES = {"Sales Invoice", "POS Invoice"}', source)
         self.assertIn("custom_ledgix_fbr_invoice_number", source)
         self.assertIn("get_fbr_qr_data_uri(fbr_invoice_number)", source)
-        self.assertIn("custom_ledgix_fbr_snapshot_json", source)
+        self.assertIn("read_persisted_v1_snapshot", source)
+        self.assertIn("get_invoice_fiscal_print_state", source)
         self.assertNotIn('frappe.get_doc("Ledgix Sale"', source)
 
     def test_pos_print_target_is_native_and_uses_fiscal_state(self):
@@ -194,10 +197,10 @@ class TestERPNextPhase10Contract(unittest.TestCase):
 
     def test_phase10_print_and_pos_cost_follow_pinned_erpnext_v15(self):
         tax = json.loads(
-            (PRINT_ROOT / "ledgix_erpnext_tax_invoice" / "ledgix_erpnext_tax_invoice.json").read_text(encoding="utf-8")
+            (FBR_PRINT_ROOT / "ledgix_erpnext_tax_invoice" / "ledgix_erpnext_tax_invoice.json").read_text(encoding="utf-8")
         )
         pos = json.loads(
-            (PRINT_ROOT / "ledgix_erpnext_pos_receipt" / "ledgix_erpnext_pos_receipt.json").read_text(encoding="utf-8")
+            (FBR_PRINT_ROOT / "ledgix_erpnext_pos_receipt" / "ledgix_erpnext_pos_receipt.json").read_text(encoding="utf-8")
         )
         for payload in (tax, pos):
             self.assertIn("p['items']", payload["html"])
@@ -220,10 +223,12 @@ class TestERPNextPhase10Contract(unittest.TestCase):
             self.assertIn("erpnext_reporting_compat", source)
 
     def test_phase10_print_formats_force_sync_after_migrate(self):
-        hooks = (APP_ROOT / "hooks.py").read_text(encoding="utf-8")
-        sync = (APP_ROOT / "setup" / "erpnext_phase10_print_formats.py").read_text(encoding="utf-8")
-        self.assertIn("ledgix_saas.setup.erpnext_phase10_print_formats.after_migrate", hooks)
-        self.assertIn('frappe.reload_doc("ledgix", "print_format", docname, force=True)', sync)
+        hooks = (FBR_APP_ROOT / "hooks.py").read_text(encoding="utf-8")
+        install = (FBR_APP_ROOT / "setup" / "install.py").read_text(encoding="utf-8")
+        sync = (FBR_APP_ROOT / "setup" / "print_formats.py").read_text(encoding="utf-8")
+        self.assertIn('after_migrate = ["fbr_v1.setup.install.after_migrate"]', hooks)
+        self.assertIn("print_formats.sync_native_print_formats()", install)
+        self.assertIn('frappe.reload_doc("fbr_v1", "print_format", docname, force=True)', sync)
         self.assertIn("p['items']", sync)
         self.assertIn("p.items", sync)
         self.assertIn("stale", sync)
