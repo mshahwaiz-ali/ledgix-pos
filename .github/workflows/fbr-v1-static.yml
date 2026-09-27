@@ -43,3 +43,8 @@ jobs:
             echo "FBR V12 module ownership found in FBR V1 metadata"
             exit 1
           fi
+
+      - name: Run pure V1 protocol tests
+        env:
+          PYTHONPATH: apps/fbr_v1
+        run: python -m unittest discover -s apps/fbr_v1/fbr_v1/protocol/tests -p 'test_*.py'

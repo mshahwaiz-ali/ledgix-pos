@@ -1,0 +1,106 @@
+from __future__ import annotations
+
+from typing import Any
+
+try:
+    import requests
+except ImportError:  # pragma: no cover
+    requests = None
+
+from fbr_v1.protocol.constants import (
+    CLOUD_PRODUCTION_URL,
+    CLOUD_SANDBOX_URL,
+    LOCAL_HEALTH_URL,
+    LOCAL_POST_URL,
+)
+from fbr_v1.protocol.response import parse_fiscal_response
+
+
+class TransportUnavailable(RuntimeError):
+    pass
+
+
+def _client(http_client=None):
+    client = http_client or requests
+    if client is None:
+        raise TransportUnavailable("Python requests is required for FBR V1 transport.")
+    return client
+
+
+def _response_body(response) -> Any:
+    try:
+        return response.json()
+    except Exception:
+        return getattr(response, "text", "") or ""
+
+
+def health_local(*, timeout: int = 5, http_client=None) -> dict[str, Any]:
+    response = _client(http_client).get(LOCAL_HEALTH_URL, timeout=timeout)
+    return {
+        "network_call": True,
+        "url": LOCAL_HEALTH_URL,
+        "http_status": getattr(response, "status_code", None),
+        "ok": bool(getattr(response, "ok", False)),
+        "body": _response_body(response),
+        "contains_secrets": False,
+    }
+
+
+def post_local(payload: dict[str, Any], *, timeout: int = 30, http_client=None) -> dict[str, Any]:
+    response = _client(http_client).post(
+        LOCAL_POST_URL,
+        json=payload,
+        headers={"Content-Type": "application/json"},
+        timeout=timeout,
+    )
+    body = _response_body(response)
+    return {
+        "network_call": True,
+        "url": LOCAL_POST_URL,
+        "http_status": getattr(response, "status_code", None),
+        "http_ok": bool(getattr(response, "ok", False)),
+        "fiscal": parse_fiscal_response(body),
+        "body": body,
+        "contains_secrets": False,
+    }
+
+
+def post_cloud(
+    payload: dict[str, Any],
+    *,
+    token: str,
+    environment: str,
+    timeout: int = 30,
+    http_client=None,
+) -> dict[str, Any]:
+    token = str(token or "").strip()
+    if not token:
+        raise TransportUnavailable("FBR V1 cloud Bearer token is required.")
+
+    mode = str(environment or "").strip().lower()
+    if mode == "sandbox":
+        url = CLOUD_SANDBOX_URL
+    elif mode == "production":
+        url = CLOUD_PRODUCTION_URL
+    else:
+        raise ValueError("environment must be 'sandbox' or 'production'.")
+
+    response = _client(http_client).post(
+        url,
+        json=payload,
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        },
+        timeout=timeout,
+    )
+    body = _response_body(response)
+    return {
+        "network_call": True,
+        "url": url,
+        "http_status": getattr(response, "status_code", None),
+        "http_ok": bool(getattr(response, "ok", False)),
+        "fiscal": parse_fiscal_response(body),
+        "body": body,
+        "contains_secrets": False,
+    }
