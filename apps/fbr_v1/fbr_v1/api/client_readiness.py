@@ -7,6 +7,21 @@ from fbr_v1.services.erpnext_fbr_identity import resolve_company_seller_identity
 from fbr_v1.protocol import transport
 
 
+PROFILE_STATE_FIELDS = (
+    "enabled",
+    "mode",
+    "provider_type",
+    "default_pos_device",
+    "transport_enabled",
+    "production_post_armed",
+    "submit_trigger",
+    "offline_policy",
+    "block_print_without_fiscal_result",
+    "authority_status",
+    "ip_whitelist_status",
+)
+
+
 @frappe.whitelist()
 def get_client_readiness(company):
     frappe.get_doc("Company", company).check_permission("read")
@@ -47,7 +62,13 @@ def get_client_readiness(company):
         blockers.append("General network cutover is disabled.")
     if mode == "Production" and not transport.production_cutover_active():
         blockers.append("Production network cutover is disabled.")
+    profile_state = {field: profile.get(field) for field in PROFILE_STATE_FIELDS} if profile else None
+    seller = source.get("seller") or {}
+    seller_identity = {key: seller.get(key) for key in (
+        "ntn_cnic", "business_name", "province", "address", "address_name",
+    )}
     return {"protocol": PROTOCOL, "profile": profile.name if profile else None,
+            "profile_state": profile_state, "seller_identity": seller_identity,
             "enabled": profile_active(profile), "mode": mode,
             "source_accounting_ready": source["ready"], "source_blockers": source["errors"],
             "setup_ready": not setup_blockers, "setup_blockers": setup_blockers,
