@@ -87,5 +87,8 @@ def capture_payment(doc, lookup=None):
         if code not in ALLOWED:
             frappe.throw(f"Missing Federal V1 payment mapping for {row['mode_of_payment']}.")
         row["fbr_code"] = code
-    methods = {row["mode_of_payment"] for row in rows}
-    return {"payment_mode": 5 if len(methods) > 1 else rows[0]["fbr_code"], "evidence": rows}
+    mapped_codes = {row["fbr_code"] for row in rows}
+    return {
+        "payment_mode": 5 if len(mapped_codes) > 1 else rows[0]["fbr_code"],
+        "evidence": rows,
+    }
