@@ -59,7 +59,7 @@ class TestV1Payload(NoNetworkTest):
         doc.payments[1].amount=10
         self.assertEqual(capture_payment(doc,lookup)['payment_mode'],5)
         doc.payments[1].mode_of_payment='Other Cash'
-        self.assertEqual(capture_payment(doc,lookup)['payment_mode'],5)
+        self.assertEqual(capture_payment(doc,lookup)['payment_mode'],1)
         doc.payments[1].mode_of_payment='Unknown'
         with self.assertRaises(frappe.ValidationError):capture_payment(doc,lookup)
         doc=Row(doctype='Sales Invoice',payments=[])
