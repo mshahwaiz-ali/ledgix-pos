@@ -6,7 +6,7 @@
  "doctype": "Workspace",
  "for_user": "",
  "hide_custom": 0,
- "indicator_color": "orange",
+ "indicator_color": "cyan",
  "is_hidden": 0,
  "label": "FBR V1",
  "links": [
@@ -237,5 +237,6 @@
    "color": "Grey"
   }
  ],
- "title": "FBR V1"
+ "title": "FBR V1",
+ "icon": "shield-check"
 }
