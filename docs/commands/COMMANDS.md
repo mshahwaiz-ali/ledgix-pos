@@ -3,20 +3,20 @@
 ## Local Development
 
 ```bash
-./install.sh
-./site_setup.sh
-./start.sh --background
-./start.sh --status
-./start.sh --smoke --site ledgix-erpnext.local
-./start.sh --stop
+./scripts/core/install.sh
+./scripts/core/site_setup.sh
+./scripts/core/start.sh --background
+./scripts/core/start.sh --status
+./scripts/core/start.sh --smoke --site ledgix-erpnext.local
+./scripts/core/start.sh --stop
 ```
 
 ## Validation
 
 ```bash
-./scripts/validate_repo.sh
-./scripts/check_secrets.sh
-./scripts/ci_local.sh
+./scripts/validation/validate_repo.sh
+./scripts/validation/check_secrets.sh
+./scripts/validation/ci_local.sh
 ```
 
 ## Site/App Checks
@@ -33,9 +33,9 @@ bench --site ledgix-erpnext.local execute ledgix_saas.validation.run_all
 
 ```bash
 ./deploy/production_setup.sh
-./deploy/status.sh
-./deploy/backup.sh
-./deploy/deploy_update.sh
+./deploy/production_setup.sh --action status
+./deploy/production_setup.sh --action backup
+./deploy/production_setup.sh --action deploy-update
 ./deploy/smoke_test.sh --site ledgix-erpnext.local --offline
 ./deploy/smoke_test.sh --site ledgix-erpnext.local --online --url https://domain.example
 ```

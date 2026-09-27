@@ -550,9 +550,9 @@ Check:
 Current compatibility/service boundaries:
 
 ```text
-apps/ledgix_saas/services/erpnext_pos.py
-apps/ledgix_saas/services/erpnext_selling.py
-apps/ledgix_saas/services/erpnext_buying_inventory.py
+frappe-bench/apps/ledgix_saas/services/erpnext_pos.py
+frappe-bench/apps/ledgix_saas/services/erpnext_selling.py
+frappe-bench/apps/ledgix_saas/services/erpnext_buying_inventory.py
 ```
 
 Related architecture/operations documentation:

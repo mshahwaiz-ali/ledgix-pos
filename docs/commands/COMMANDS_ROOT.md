@@ -67,7 +67,7 @@ Use this guide for:
 │ pos/frappe-bench/      │ Generated Frappe bench             │
 │ frappe-bench/apps/          │ Installed bench apps               │
 │ frappe-bench/sites/         │ Sites folder                       │
-│ apps/ledgix_saas/         │ Source Ledgix SaaS app             │
+│ frappe-bench/apps/ledgix_saas/ │ Canonical Ledgix SaaS source             │
 │ deploy/                     │ Production helper scripts          │
 │ env/                        │ Environment examples               │
 └─────────────────────────────┴────────────────────────────────────┘
@@ -812,7 +812,7 @@ ls sites/ledgix-erpnext.local/private/backups/
 
 ```bash
 cd pos
-deploy/backup.sh
+deploy/production_setup.sh --action backup
 ```
 
 ---
@@ -995,7 +995,7 @@ bench build
 ```bash
 cd pos
 git pull
-deploy/deploy_update.sh
+deploy/production_setup.sh --action deploy-update
 ```
 
 ## Manual Production Update
@@ -1151,7 +1151,7 @@ Commands:
 
 ```bash
 cd pos
-deploy/backup.sh
+deploy/production_setup.sh --action backup
 git pull
 cd frappe-bench
 bench --site erp.yourdomain.com maintenance-mode on

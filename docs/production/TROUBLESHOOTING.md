@@ -5,8 +5,8 @@
 ## Local site does not open
 
 ```bash
-./start.sh --status
-./start.sh --smoke --site ledgix-erpnext.local
+./scripts/core/start.sh --status
+./scripts/core/start.sh --smoke --site ledgix-erpnext.local
 ```
 
 Check:
@@ -19,7 +19,7 @@ Check:
 For site repair, prefer:
 
 ```bash
-./site_setup.sh --ensure
+./scripts/core/site_setup.sh --ensure
 ```
 
 Do not jump to destructive `--reset` unless local data may intentionally be destroyed.
@@ -56,22 +56,22 @@ For local repair use the supported installer/site workflow. For production use t
 From the repository root:
 
 ```bash
-bash scripts/ci_local.sh
+bash scripts/validation/ci_local.sh
 ```
 
 Check that the repository app exists at:
 
 ```text
-apps/ledgix_saas/
+frappe-bench/apps/ledgix_saas/
 ```
 
-and that the bench copy/editable install resolves correctly under:
+The same directory is the runtime source. Verify its editable installation under:
 
 ```text
 frappe-bench/apps/ledgix_saas/
 ```
 
-For local repair, `site_setup.sh --ensure` re-synchronizes the current Ledgix app and migrates/builds the canonical site.
+For local repair, `site_setup.sh --ensure` validates/reinstalls the canonical bench app directly and migrates/builds the canonical site.
 
 ---
 

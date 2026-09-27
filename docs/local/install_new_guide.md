@@ -33,7 +33,7 @@ The current repository now uses:
 - standard stack `Frappe -> ERPNext -> ledgix_saas`;
 - `site_setup.sh --reset` with an exact destructive confirmation phrase;
 - `.secrets/sites/` for local credential files outside Git;
-- `start.sh` for development runtime/status/stop/smoke functions;
+- `scripts/core/start.sh` for development runtime/status/stop/smoke functions;
 - production deployment delegated to the `deploy/` workflow.
 
 The old planning ideas about arbitrary app selection, a Ledgix-only site, generic `ledgix.local`, or treating installer design decisions as future work are no longer current.

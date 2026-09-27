@@ -13,7 +13,7 @@ Ledgix is **building** the Federal FBR Tier-1 POS / IMS V1 integration from the 
 
 The client does not need to provide an old POS computer in order for us to implement the documented protocol.
 
-The existing `apps/fbr_v1` tree is only a bootstrap copy of `fbr_v12`; inherited DI V1.2 behavior has no protocol authority.
+The existing `frappe-bench/apps/fbr_v1` tree is only a bootstrap copy of `fbr_v12`; inherited DI V1.2 behavior has no protocol authority.
 
 ## 2. Source lock
 

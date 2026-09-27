@@ -14,7 +14,7 @@ Use the repository installer for a supported Frappe v15 bench:
 
 ```bash
 cd /path/to/pos
-./install.sh
+./scripts/core/install.sh
 ```
 
 The repository dependency contract requires ERPNext v15. Do not install `ledgix_saas` onto a Frappe-only site without ERPNext.
@@ -22,7 +22,7 @@ The repository dependency contract requires ERPNext v15. Do not install `ledgix_
 Before client work, validate the repository:
 
 ```bash
-bash scripts/ci_local.sh
+bash scripts/validation/ci_local.sh
 ```
 
 ---
@@ -38,13 +38,13 @@ ledgix-erpnext.local
 Create or repair it with:
 
 ```bash
-bash site_setup.sh --ensure
+bash scripts/core/site_setup.sh --ensure
 ```
 
 For a deliberate destructive clean reset:
 
 ```bash
-bash site_setup.sh --reset \
+bash scripts/core/site_setup.sh --reset \
   --site ledgix-erpnext.local \
   --confirm "RESET ledgix-erpnext.local"
 ```
@@ -91,7 +91,7 @@ This path:
 After app installation/migration, run:
 
 ```bash
-bash scripts/run_ledgix_client_preflight.sh <site>
+bash scripts/local/run_ledgix_client_preflight.sh <site>
 ```
 
 This is read-only and fails if:

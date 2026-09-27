@@ -82,7 +82,7 @@ bash deploy/deploy_update_safe.sh \
 Final production release gate:
 
 ```bash
-bash scripts/run_ledgix_production_release_gate.sh \
+bash scripts/release/run_ledgix_production_release_gate.sh \
   --site client.example.com \
   --url https://client.example.com \
   --release <approved-immutable-release>
@@ -94,8 +94,8 @@ Older production instructions that use:
 
 - `deploy/production.secrets.md` as the normal credential store;
 - an unpinned fast-forward `git pull` as the release decision;
-- `deploy/deploy_update.sh` instead of the current guarded update path;
-- `deploy/backup.sh` instead of the verified backup contract;
+- `deploy/production_setup.sh --action deploy-update` instead of the current guarded update path;
+- `deploy/production_setup.sh --action backup` instead of the verified backup contract;
 - manual Ledgix-only `bench new-site` / `install-app ledgix_saas` flow;
 
 must not be treated as current authority.

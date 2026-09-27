@@ -1,8 +1,20 @@
-# Installed/generated Frappe + ERPNext bench. Recreated by install/deploy scripts.
-# Do not vendor upstream Frappe/ERPNext or site runtime data into this repo.
-/frappe-bench/
+# Frappe bench runtime.
+# Track only Ledgix-owned apps in their actual bench runtime location.
+# Frappe, ERPNext, sites, env, logs and other bench runtime remain untracked.
+/frappe-bench/*
+!/frappe-bench/apps/
+/frappe-bench/apps/*
+!/frappe-bench/apps/ledgix_saas/
+!/frappe-bench/apps/ledgix_saas/**
+!/frappe-bench/apps/fbr_v1/
+!/frappe-bench/apps/fbr_v1/**
+!/frappe-bench/apps/fbr_v12/
+!/frappe-bench/apps/fbr_v12/**
 /frappe-bench.incomplete-*/
 /frappe-bench-*/
+
+# Old duplicate app-source location must not return.
+/apps/
 
 # Runtime output and logs.
 logs/
@@ -56,10 +68,12 @@ node_modules/
 dist/
 build/
 apps/*/build/
-apps/*.egg-info/
-apps/*/*.egg-info/
+*.egg-info/
 
 # Local Python environments (directory, symlink, or file at repo root).
 /env
 /venv
 /.venv
+
+# Local tooling and generated Python/runtime residue.
+/frappe-bench/apps/*.before-sync-*/

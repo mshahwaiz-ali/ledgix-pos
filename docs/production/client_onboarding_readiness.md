@@ -59,13 +59,13 @@ The UI uses the non-strict evidence mode because a development/integration site 
 Read-only evaluation:
 
 ```bash
-bash scripts/run_r5_client_readiness_gate.sh ledgix-erpnext.local
+bash scripts/archive/release_migration/run_r5_client_readiness_gate.sh ledgix-erpnext.local
 ```
 
 If the output proves that `client_setup_applied` is the **only** blocker and all current profile prerequisites pass, the integration setup marker/configuration can be applied safely and then re-evaluated in one run:
 
 ```bash
-bash scripts/run_r5_client_readiness_gate.sh ledgix-erpnext.local \
+bash scripts/archive/release_migration/run_r5_client_readiness_gate.sh ledgix-erpnext.local \
   --apply-setup \
   --require-ready
 ```
@@ -112,7 +112,7 @@ so an integration audit can show real remaining client blockers without treating
 For a real client acceptance run, use strict evidence and require a fully green result:
 
 ```bash
-bash scripts/run_r5_client_readiness_gate.sh client.local \
+bash scripts/archive/release_migration/run_r5_client_readiness_gate.sh client.local \
   --strict-evidence \
   --require-ready
 ```

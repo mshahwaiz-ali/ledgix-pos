@@ -70,13 +70,13 @@ This is the canonical local acceptance state unless an explicit maintenance/rese
 Primary operating-data modules:
 
 ```text
-apps/ledgix_saas/setup/demo_data.py
-apps/ledgix_saas/setup/retail_operating_profile.py
-apps/ledgix_saas/setup/retail_v15_compat.py
-apps/ledgix_saas/setup/retail_seed_safe.py
-apps/ledgix_saas/setup/retail_cleanup_safe.py
-apps/ledgix_saas/setup/erpnext_demo_data.py
-scripts/prepare_local_demo.sh
+frappe-bench/apps/ledgix_saas/setup/demo_data.py
+frappe-bench/apps/ledgix_saas/setup/retail_operating_profile.py
+frappe-bench/apps/ledgix_saas/setup/retail_v15_compat.py
+frappe-bench/apps/ledgix_saas/setup/retail_seed_safe.py
+frappe-bench/apps/ledgix_saas/setup/retail_cleanup_safe.py
+frappe-bench/apps/ledgix_saas/setup/erpnext_demo_data.py
+scripts/local/prepare_local_demo.sh
 ```
 
 `retail_operating_profile.py` defines the realistic fictional retail masters and dataset marker.
@@ -145,7 +145,7 @@ It:
 
 The previous documentation described the local data as a disposable V2 demo set that could be deleted and recreated on normal reruns. That is no longer the current operating model.
 
-Current `scripts/prepare_local_demo.sh` explicitly preserves the managed submitted retail history because ERPNext POS closings/consolidation produce linked accounting/audit records that should not be destroyed merely to obtain a visually clean local site.
+Current `scripts/local/prepare_local_demo.sh` explicitly preserves the managed submitted retail history because ERPNext POS closings/consolidation produce linked accounting/audit records that should not be destroyed merely to obtain a visually clean local site.
 
 Normal reruns are intended to be marker-idempotent and preserve submitted history.
 
@@ -166,12 +166,12 @@ Do **not** cancel/delete the completed dataset casually.
 From repository root:
 
 ```bash
-./scripts/prepare_local_demo.sh ledgix-erpnext.local
+./scripts/local/prepare_local_demo.sh ledgix-erpnext.local
 ```
 
 The current script performs:
 
-1. exact-sync current Ledgix app source into the local bench;
+1. validate the canonical Ledgix source directly under `frappe-bench/apps/ledgix_saas/`;
 2. verify installed apps;
 3. create a backup **with files**;
 4. inspect the site before mutation;

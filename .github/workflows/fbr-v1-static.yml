@@ -3,7 +3,7 @@ name: FBR V1 static gate
 on:
   pull_request:
     paths:
-      - "apps/fbr_v1/**"
+      - "frappe-bench/apps/fbr_v1/**"
       - "docs/fbr/fbr_v1/**"
       - ".github/workflows/fbr-v1-static.yml"
   workflow_dispatch:
@@ -17,13 +17,13 @@ jobs:
         with:
           python-version: "3.11"
       - name: Compile Python
-        run: python -m compileall -q apps/fbr_v1
+        run: python -m compileall -q frappe-bench/apps/fbr_v1
       - name: Validate JSON and pyproject
         shell: bash
         run: |
           python - <<'PY'
           import json, pathlib, tomllib
-          root = pathlib.Path("apps/fbr_v1")
+          root = pathlib.Path("frappe-bench/apps/fbr_v1")
           tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
           for path in root.rglob("*.json"):
               json.loads(path.read_text(encoding="utf-8"))
@@ -32,19 +32,19 @@ jobs:
       - name: Reject hard V1.2 package imports
         shell: bash
         run: |
-          if grep -R -n -E '(^|[[:space:]])(from|import)[[:space:]]+fbr_v12' apps/fbr_v1; then
+          if grep -R -n -E '(^|[[:space:]])(from|import)[[:space:]]+fbr_v12' frappe-bench/apps/fbr_v1; then
             echo "Hard fbr_v12 import found in FBR V1 app"
             exit 1
           fi
       - name: Reject V1.2 module ownership
         shell: bash
         run: |
-          if grep -R -n '"module"[[:space:]]*:[[:space:]]*"FBR V12"' apps/fbr_v1; then
+          if grep -R -n '"module"[[:space:]]*:[[:space:]]*"FBR V12"' frappe-bench/apps/fbr_v1; then
             echo "FBR V12 module ownership found in FBR V1 metadata"
             exit 1
           fi
 
       - name: Run pure V1 protocol tests
         env:
-          PYTHONPATH: apps/fbr_v1
-        run: python -m unittest discover -s apps/fbr_v1/fbr_v1/protocol/tests -p 'test_*.py'
+          PYTHONPATH: frappe-bench/apps/fbr_v1
+        run: python -m unittest discover -s frappe-bench/apps/fbr_v1/fbr_v1/protocol/tests -p 'test_*.py'

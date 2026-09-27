@@ -98,7 +98,7 @@ case "$BENCH_DIR_INPUT" in
   *) BENCH_DIR="$REPO_ROOT/$BENCH_DIR_INPUT" ;;
 esac
 
-SRC_APP="$REPO_ROOT/apps/$APP"
+SRC_APP="$REPO_ROOT/frappe-bench/apps/$APP"
 DEST_APP="$BENCH_DIR/apps/$APP"
 TMP_APP="$BENCH_DIR/apps/.${APP}.shared-deploy.$$"
 
@@ -186,7 +186,7 @@ for site in "${APPROVED_SORTED[@]}"; do
     || die "$site Frappe version mismatch: expected ${LEDGIX_EXPECTED_FRAPPE_VERSION:-unset}, found ${frappe_version:-missing}"
   [[ "$erpnext_version" == "${LEDGIX_EXPECTED_ERPNEXT_VERSION:-}" ]] \
     || die "$site ERPNext version mismatch: expected ${LEDGIX_EXPECTED_ERPNEXT_VERSION:-unset}, found ${erpnext_version:-missing}"
-  BENCH_DIR="$BENCH_DIR" bash "$REPO_ROOT/scripts/run_ledgix_client_preflight.sh" "$site"
+  BENCH_DIR="$BENCH_DIR" bash "$REPO_ROOT/scripts/local/run_ledgix_client_preflight.sh" "$site"
   ok "$site pre-mutation contract passed"
 done
 
@@ -219,24 +219,32 @@ git -C "$REPO_ROOT" checkout --detach "$TARGET_SHA"
 [[ "$(git -C "$REPO_ROOT" rev-parse HEAD)" == "$TARGET_SHA" ]] || die 'repository did not land on approved release SHA'
 [[ -d "$SRC_APP" ]] || die "source app missing after checkout: $SRC_APP"
 
-printf '\n===== EXACT SHARED APP SYNC + BUILD ONCE =====\n'
-rm -rf "$TMP_APP"
-cp -a "$SRC_APP" "$TMP_APP"
-rm -rf "$DEST_APP"
-mv "$TMP_APP" "$DEST_APP"
+printf '\n===== SHARED LEDGIX RELEASE MATERIALIZATION + BUILD =====\n'
+if [[ "$(readlink -f "$SRC_APP")" != "$(readlink -f "$DEST_APP")" ]]; then
+  rm -rf "$TMP_APP"
+  cp -a "$SRC_APP" "$TMP_APP"
+  rm -rf "$DEST_APP"
+  mv "$TMP_APP" "$DEST_APP"
+  ok 'approved release materialized into external shared bench'
+else
+  ok 'repository canonical app is already the shared bench app; no copy required'
+fi
+
 "$BENCH_DIR/env/bin/python" -m pip install -e "$DEST_APP"
+
 if [[ -f "$SCRIPT_DIR/repair_apps_txt.sh" ]]; then
   BENCH_DIR="$BENCH_DIR" bash "$SCRIPT_DIR/repair_apps_txt.sh"
 fi
+
 bench_run build --app "$APP"
-ok 'approved Ledgix release synced and built once for the shared bench'
+ok 'approved Ledgix release built once for the shared bench'
 
 printf '\n===== MIGRATE + VERIFY EVERY TENANT =====\n'
 for site in "${APPROVED_SORTED[@]}"; do
   bench_run --site "$site" migrate
   bench_run --site "$site" clear-cache
   bench_run --site "$site" clear-website-cache
-  BENCH_DIR="$BENCH_DIR" bash "$REPO_ROOT/scripts/run_ledgix_client_preflight.sh" "$site"
+  BENCH_DIR="$BENCH_DIR" bash "$REPO_ROOT/scripts/local/run_ledgix_client_preflight.sh" "$site"
   bash "$SCRIPT_DIR/smoke_test.sh" --site "$site" --bench-dir "$BENCH_DIR" --offline
   ok "$site migration and offline verification passed"
 done

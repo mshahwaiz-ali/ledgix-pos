@@ -1,6 +1,6 @@
 # Federal Tier-1 POS / IMS V1 — Current Authority
 
-This directory is the current operating and machine-contract authority for `apps/fbr_v1`.
+This directory is the current operating and machine-contract authority for `frappe-bench/apps/fbr_v1`.
 
 Implementation closure is verified locally at `e6f9b8f9986841584904a500f356e746ad1b415e`: 46/46 V1 tests, existing-site migration, database acceptance, first-attempt reinstall, and post-reinstall migration/idempotency passed. Both network gates remained off. Real client evidence, Sandbox acceptance, and Production activation remain external and pending.
 

@@ -5,7 +5,7 @@ The final gate is an **acceptance audit**, not a deployment mechanism. Productio
 ## Required command
 
 ```bash
-bash scripts/run_ledgix_production_release_gate.sh \
+bash scripts/release/run_ledgix_production_release_gate.sh \
   --site client.example.com \
   --url https://client.example.com \
   --release <full-40-character-SHA-or-immutable-tag>
@@ -66,5 +66,5 @@ ledgix_production_release_gate_complete=true
 If external FBR certification or physical/manual UAT is not yet available, use the local acceptance readiness gate to prove that application setup is ready without claiming production acceptance:
 
 ```bash
-bash scripts/run_release_acceptance_readiness_gate.sh ledgix-erpnext.local
+bash scripts/release/run_release_acceptance_readiness_gate.sh ledgix-erpnext.local
 ```

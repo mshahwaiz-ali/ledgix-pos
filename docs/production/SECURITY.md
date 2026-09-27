@@ -33,7 +33,7 @@ Older `secrets.md` / `deploy/production.secrets.md` files are not the current cr
 Run the repository secret scan before commits/releases:
 
 ```bash
-bash scripts/check_secrets.sh
+bash scripts/validation/check_secrets.sh
 ```
 
 ## 2. Production service boundary

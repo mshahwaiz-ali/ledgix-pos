@@ -3,7 +3,7 @@ name: FBR V1.2 static gate
 on:
   pull_request:
     paths:
-      - "apps/fbr_v12/**"
+      - "frappe-bench/apps/fbr_v12/**"
       - ".github/workflows/fbr-v12-static.yml"
   workflow_dispatch:
 
@@ -18,7 +18,7 @@ jobs:
           python-version: "3.11"
 
       - name: Compile Python
-        run: python -m compileall -q apps/fbr_v12
+        run: python -m compileall -q frappe-bench/apps/fbr_v12
 
       - name: Validate JSON and pyproject
         shell: bash
@@ -28,7 +28,7 @@ jobs:
           import pathlib
           import tomllib
 
-          root = pathlib.Path("apps/fbr_v12")
+          root = pathlib.Path("frappe-bench/apps/fbr_v12")
           tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
 
           for path in root.rglob("*.json"):
@@ -40,7 +40,7 @@ jobs:
       - name: Reject hard Ledgix package imports
         shell: bash
         run: |
-          if grep -R -n -E '(^|[[:space:]])(from|import)[[:space:]]+ledgix_saas' apps/fbr_v12; then
+          if grep -R -n -E '(^|[[:space:]])(from|import)[[:space:]]+ledgix_saas' frappe-bench/apps/fbr_v12; then
             echo "Hard ledgix_saas import found in standalone app"
             exit 1
           fi
@@ -48,7 +48,7 @@ jobs:
       - name: Reject old module ownership
         shell: bash
         run: |
-          if grep -R -n '"module"[[:space:]]*:[[:space:]]*"Ledgix"' apps/fbr_v12/fbr_v12/fbr_v12; then
+          if grep -R -n '"module"[[:space:]]*:[[:space:]]*"Ledgix"' frappe-bench/apps/fbr_v12/fbr_v12/fbr_v12; then
             echo "Old Ledgix module ownership found in FBR V1.2 metadata"
             exit 1
           fi

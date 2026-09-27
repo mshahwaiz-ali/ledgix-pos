@@ -16,8 +16,8 @@ Legend:
 
 | Path / component | Disposition | Canonical action |
 |---|---|---|
-| `apps/fbr_v1/README.md` | MODIFY | Replace bootstrap warning with final regime boundary after implementation. |
-| `apps/fbr_v1/pyproject.toml` | MODIFY | Keep Frappe/ERPNext v15 dependency; reassess `requests`/QR dependency after transport/printing design. |
+| `frappe-bench/apps/fbr_v1/README.md` | MODIFY | Replace bootstrap warning with final regime boundary after implementation. |
+| `frappe-bench/apps/fbr_v1/pyproject.toml` | MODIFY | Keep Frappe/ERPNext v15 dependency; reassess `requests`/QR dependency after transport/printing design. |
 | package/module `__init__.py` files | KEEP | Mechanical Frappe package scaffolding. |
 | `fbr_v1/modules.txt` | KEEP | FBR V1 module remains isolated. |
 | `fbr_v1/patches.txt` | MODIFY | Add only non-destructive migration patches once schema is approved. |
@@ -114,7 +114,7 @@ Legend:
 |---|---|---|
 | DI `validateinvoicedata[_sb]` | DELETE | Not legacy SDC authority. |
 | DI `postinvoicedata[_sb]` | DELETE | Not legacy SDC authority. |
-| Bearer sandbox/production tokens | DELETE/UNRESOLVED | Legacy auth not proven. |
+| Sandbox/production Bearer-token credentials | DELETE/UNRESOLVED | Legacy auth not proven. |
 | `scenarioId` | DELETE | DI sandbox concept, not proven legacy SDC concept. |
 | DI province/UOM/rate/SRO reference APIs | DELETE from V1 | Belong current DI unless proven otherwise. |
 | Production “arming” safety concept | KEEP/MODIFY | Keep an explicit human safety gate, but it must require legacy-regime proof rather than DI certification. |

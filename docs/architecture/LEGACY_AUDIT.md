@@ -48,7 +48,7 @@ These records may augment ERPNext transactions. They must not become parallel Cu
 
 ### 1.2 Frozen historical business-engine data — RETAIN READ-ONLY
 
-`apps/ledgix_saas/api/legacy_retirement.py` defines the authoritative frozen set.
+`frappe-bench/apps/ledgix_saas/api/legacy_retirement.py` defines the authoritative frozen set.
 
 Top-level frozen DocTypes:
 
@@ -209,12 +209,12 @@ Corrections to current business activity belong in the authoritative ERPNext doc
 Implementation behavior:
 
 ```text
-apps/ledgix_saas/api/legacy_retirement.py
-apps/ledgix_saas/setup/erpnext_phase12_legacy_retirement.py
-apps/ledgix_saas/hooks.py
-apps/ledgix_saas/services/erpnext_pos.py
-apps/ledgix_saas/services/erpnext_selling.py
-apps/ledgix_saas/services/erpnext_buying_inventory.py
+frappe-bench/apps/ledgix_saas/api/legacy_retirement.py
+frappe-bench/apps/ledgix_saas/setup/erpnext_phase12_legacy_retirement.py
+frappe-bench/apps/ledgix_saas/hooks.py
+frappe-bench/apps/ledgix_saas/services/erpnext_pos.py
+frappe-bench/apps/ledgix_saas/services/erpnext_selling.py
+frappe-bench/apps/ledgix_saas/services/erpnext_buying_inventory.py
 ```
 
 Current architecture:

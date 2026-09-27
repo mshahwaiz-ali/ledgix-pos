@@ -15,6 +15,6 @@ Software implementation is verified locally; real Sandbox acceptance and Product
 7. Obtain Production credential and activation approval/evidence, verify backup/release identity, and clear all offline/reconciliation blockers.
 8. During an approved window, enable the independent Production gate and `production_post_armed`; manually observe the first Production fiscalization.
 
-Do not use `scripts/configure_fbr_sandbox_local.sh`, `scripts/run_fbr_sandbox_exercise_local.sh`, `scripts/run_fbr_activation_readiness_gate.sh`, `scripts/run_fbr_activation_static_gate.sh`, or `scripts/run_fbr_client_certification_handoff_gate.sh` for current V1. They target the frozen `ledgix_saas` Digital Invoicing V1.2 workflow.
+Do not use `scripts/archive/fbr_v12/configure_fbr_sandbox_local.sh`, `scripts/archive/fbr_v12/run_fbr_sandbox_exercise_local.sh`, `scripts/archive/fbr_v12/run_fbr_activation_readiness_gate.sh`, `scripts/archive/fbr_v12/run_fbr_activation_static_gate.sh`, or `scripts/archive/fbr_v12/run_fbr_client_certification_handoff_gate.sh` for current V1. They target the frozen `ledgix_saas` Digital Invoicing V1.2 workflow.
 
 Do not invent a replacement network script, copy V1.2 validate/post/reference behavior, expose tokens, or claim Sandbox/Production acceptance without real external evidence.

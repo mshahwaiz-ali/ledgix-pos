@@ -129,36 +129,27 @@ run_offline() {
   require_dir "$BENCH_DIR/sites" "bench sites directory"
   require_file "$BENCH_DIR/sites/$SITE/site_config.json" "site_config.json for $SITE"
   require_file "$BENCH_DIR/sites/apps.txt" "bench apps.txt"
-  require_dir "$REPO_ROOT/apps/ledgix_saas" "Ledgix source app"
-  require_file "$REPO_ROOT/apps/ledgix_saas/hooks.py" "Ledgix hooks.py"
-  require_file "$REPO_ROOT/apps/ledgix_saas/pyproject.toml" "Ledgix pyproject.toml"
-  require_file "$REPO_ROOT/apps/ledgix_saas/modules.txt" "Ledgix modules.txt"
-  require_file "$REPO_ROOT/apps/ledgix_saas/public/css/ledgix_brand.css" "brand CSS asset"
-  require_file "$REPO_ROOT/apps/ledgix_saas/public/js/ledgix_brand.js" "brand JS asset"
-  require_file "$REPO_ROOT/apps/ledgix_saas/api/client_setup.py" "client setup service"
-  require_file "$REPO_ROOT/apps/ledgix_saas/api/client_readiness.py" "client readiness service"
-  require_file "$REPO_ROOT/apps/ledgix_saas/api/fbr_activation.py" "FBR activation readiness service"
-  require_file "$REPO_ROOT/apps/ledgix_saas/api/product_shell.py" "product shell service"
-  require_file "$REPO_ROOT/apps/ledgix_saas/api/fbr_native.py" "ERPNext-native FBR adapter"
-  require_file "$REPO_ROOT/apps/ledgix_saas/services/erpnext_selling.py" "ERPNext-native selling service"
-  require_file "$REPO_ROOT/apps/ledgix_saas/services/erpnext_pos.py" "ERPNext-native POS service"
-  require_file "$REPO_ROOT/apps/ledgix_saas/ledgix/page/ledgix_setup/ledgix_setup.json" "client setup Desk page"
-  require_file "$REPO_ROOT/apps/ledgix_saas/ledgix/doctype/ledgix_fbr_settings/ledgix_fbr_settings.json" "FBR Settings DocType JSON"
-  require_file "$REPO_ROOT/apps/ledgix_saas/ledgix/doctype/ledgix_fbr_submission_log/ledgix_fbr_submission_log.json" "FBR Submission Log DocType JSON"
-
-  if [[ -d "$BENCH_DIR/apps/ledgix_saas" ]] &&
-    { [[ ! -f "$BENCH_DIR/apps/ledgix_saas/api/client_setup.py" ]] ||
-      [[ ! -f "$BENCH_DIR/apps/ledgix_saas/api/client_readiness.py" ]] ||
-      [[ ! -f "$BENCH_DIR/apps/ledgix_saas/api/fbr_activation.py" ]] ||
-      [[ ! -f "$BENCH_DIR/apps/ledgix_saas/api/fbr_native.py" ]] ||
-      [[ ! -f "$BENCH_DIR/apps/ledgix_saas/services/erpnext_selling.py" ]]; }; then
-    warn "bench app copy is missing current ERPNext-native Ledgix source files; sync apps before bench execute checks"
-  fi
+  require_dir "$BENCH_DIR/apps/ledgix_saas" "Ledgix source app"
+  require_file "$BENCH_DIR/apps/ledgix_saas/hooks.py" "Ledgix hooks.py"
+  require_file "$BENCH_DIR/apps/ledgix_saas/pyproject.toml" "Ledgix pyproject.toml"
+  require_file "$BENCH_DIR/apps/ledgix_saas/modules.txt" "Ledgix modules.txt"
+  require_file "$BENCH_DIR/apps/ledgix_saas/public/css/ledgix_brand.css" "brand CSS asset"
+  require_file "$BENCH_DIR/apps/ledgix_saas/public/js/ledgix_brand.js" "brand JS asset"
+  require_file "$BENCH_DIR/apps/ledgix_saas/api/client_setup.py" "client setup service"
+  require_file "$BENCH_DIR/apps/ledgix_saas/api/client_readiness.py" "client readiness service"
+  require_file "$BENCH_DIR/apps/ledgix_saas/api/fbr_activation.py" "FBR activation readiness service"
+  require_file "$BENCH_DIR/apps/ledgix_saas/api/product_shell.py" "product shell service"
+  require_file "$BENCH_DIR/apps/ledgix_saas/api/fbr_native.py" "ERPNext-native FBR adapter"
+  require_file "$BENCH_DIR/apps/ledgix_saas/services/erpnext_selling.py" "ERPNext-native selling service"
+  require_file "$BENCH_DIR/apps/ledgix_saas/services/erpnext_pos.py" "ERPNext-native POS service"
+  require_file "$BENCH_DIR/apps/ledgix_saas/ledgix/page/ledgix_setup/ledgix_setup.json" "client setup Desk page"
+  require_file "$BENCH_DIR/apps/fbr_v1/fbr_v1/fbr_v1/doctype/ledgix_fbr_integration_profile/ledgix_fbr_integration_profile.json" "FBR V1 Integration Profile DocType JSON"
+  require_file "$BENCH_DIR/apps/fbr_v1/fbr_v1/fbr_v1/doctype/ledgix_fbr_submission_log/ledgix_fbr_submission_log.json" "FBR V1 Submission Log DocType JSON"
 
   local py
   py="$(bench_python 2>/dev/null || true)"
   if [[ -n "$py" ]]; then
-    if PYTHONPATH="$REPO_ROOT/apps${PYTHONPATH:+:$PYTHONPATH}" "$py" - <<'PY'
+    if PYTHONPATH="$BENCH_DIR/apps${PYTHONPATH:+:$PYTHONPATH}" "$py" - <<'PY'
 import importlib
 for name in (
     "ledgix_saas",

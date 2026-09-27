@@ -119,7 +119,7 @@ services/erpnext_reporting_compat.py
 api/client_setup.py
 ```
 
-`hooks.py` explicitly routes old POS/selling RPC names to the ERPNext-native compatibility layer. Historical `ledgix_saas` FBR/DI endpoints are fail-closed legacy guards; current Federal V1 lives in `apps/fbr_v1`.
+`hooks.py` explicitly routes old POS/selling RPC names to the ERPNext-native compatibility layer. Historical `ledgix_saas` FBR/DI endpoints are fail-closed legacy guards; current Federal V1 lives in `frappe-bench/apps/fbr_v1`.
 
 ---
 
@@ -236,7 +236,7 @@ Rules:
 
 ## 9. Tax and FBR architecture
 
-Detailed current authority is documented in `docs/fbr/fbr_v1/FBR_V1_RUNTIME_ARCHITECTURE.md`. Digital Invoicing V1.2 under `apps/fbr_v12` and `docs/fbr/fbr_v12/` is frozen historical reference.
+Detailed current authority is documented in `docs/fbr/fbr_v1/FBR_V1_RUNTIME_ARCHITECTURE.md`. Digital Invoicing V1.2 under `frappe-bench/apps/fbr_v12` and `docs/fbr/fbr_v12/` is frozen historical reference.
 
 The current flow is:
 

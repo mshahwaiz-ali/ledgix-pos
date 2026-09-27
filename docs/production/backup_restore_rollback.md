@@ -19,7 +19,7 @@ Ledgix local development uses one canonical site with one standard application o
 Frappe -> ERPNext -> Ledgix
 ```
 
-`site_setup.sh` is Ledgix-specific. It does not ask the operator to choose applications. ERPNext is mandatory and Ledgix is always installed after ERPNext.
+`scripts/core/site_setup.sh` is Ledgix-specific. It does not ask the operator to choose applications. ERPNext is mandatory and Ledgix is always installed after ERPNext.
 
 Default local site:
 
@@ -30,13 +30,13 @@ ledgix-erpnext.local
 Create or repair the standard site:
 
 ```bash
-./site_setup.sh --ensure
+./scripts/core/site_setup.sh --ensure
 ```
 
 Destructively delete every active `.local` / `.localhost` site and recreate only the canonical site:
 
 ```bash
-./site_setup.sh \
+./scripts/core/site_setup.sh \
   --reset \
   --site ledgix-erpnext.local \
   --confirm "RESET ledgix-erpnext.local"
@@ -130,7 +130,7 @@ The recovery set is copied outside the active site directory before the site is 
 Run:
 
 ```bash
-bash scripts/run_backup_restore_runtime_gate.sh \
+bash scripts/release/run_backup_restore_runtime_gate.sh \
   ledgix-erpnext.local \
   --confirm "RESET AND RESTORE ledgix-erpnext.local"
 ```
@@ -138,7 +138,7 @@ bash scripts/run_backup_restore_runtime_gate.sh \
 Optional online smoke:
 
 ```bash
-bash scripts/run_backup_restore_runtime_gate.sh \
+bash scripts/release/run_backup_restore_runtime_gate.sh \
   ledgix-erpnext.local \
   --confirm "RESET AND RESTORE ledgix-erpnext.local" \
   --url http://ledgix-erpnext.local:8000

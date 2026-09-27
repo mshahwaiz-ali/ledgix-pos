@@ -90,7 +90,7 @@ If FBR **is** part of go-live:
 Run:
 
 ```bash
-bash scripts/run_ledgix_production_release_gate.sh \
+bash scripts/release/run_ledgix_production_release_gate.sh \
   --site client.example.com \
   --url https://client.example.com \
   --release <approved-immutable-release>

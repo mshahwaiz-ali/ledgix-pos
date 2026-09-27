@@ -82,7 +82,7 @@ case "$BENCH_DIR_INPUT" in
   *) BENCH_DIR="$REPO_ROOT/$BENCH_DIR_INPUT" ;;
 esac
 
-SRC_APP="$REPO_ROOT/apps/$APP"
+SRC_APP="$REPO_ROOT/frappe-bench/apps/$APP"
 DEST_APP="$BENCH_DIR/apps/$APP"
 TMP_APP="$BENCH_DIR/apps/.${APP}.provision.$$"
 
@@ -152,8 +152,8 @@ verify_existing_shared_code_matches_target() {
   command -v tar >/dev/null 2>&1 || die 'tar is required to verify existing shared Ledgix code'
   command -v diff >/dev/null 2>&1 || die 'diff is required to verify existing shared Ledgix code'
   TARGET_STAGE="$(mktemp -d)"
-  git -C "$REPO_ROOT" archive --format=tar "$TARGET_SHA" "apps/$APP" | tar -xf - -C "$TARGET_STAGE"
-  [[ -d "$TARGET_STAGE/apps/$APP" ]] || die 'could not materialize target Ledgix app for shared-code verification'
+  git -C "$REPO_ROOT" archive --format=tar "$TARGET_SHA" "frappe-bench/apps/$APP" | tar -xf - -C "$TARGET_STAGE"
+  [[ -d "$TARGET_STAGE/frappe-bench/apps/$APP" ]] || die 'could not materialize target Ledgix app for shared-code verification'
   if ! diff_output="$(diff -qr \
       --exclude='__pycache__' \
       --exclude='*.pyc' \
@@ -161,7 +161,7 @@ verify_existing_shared_code_matches_target() {
       --exclude='*.egg-info' \
       --exclude='.pytest_cache' \
       --exclude='.ruff_cache' \
-      "$TARGET_STAGE/apps/$APP" "$DEST_APP" 2>&1)"; then
+      "$TARGET_STAGE/frappe-bench/apps/$APP" "$DEST_APP" 2>&1)"; then
     [[ -z "$diff_output" ]] || printf '%s\n' "$diff_output" >&2
     die "existing shared bench Ledgix code does not exactly match requested release $TARGET_SHA; use the approved cohort updater before provisioning"
   fi
@@ -253,15 +253,21 @@ if [[ "$REUSE_EXISTING_SHARED_CODE" -eq 0 ]]; then
   git -C "$REPO_ROOT" checkout --detach "$TARGET_SHA"
   [[ "$(git -C "$REPO_ROOT" rev-parse HEAD)" == "$TARGET_SHA" ]] || die 'repository did not land on approved release'
   [[ -d "$SRC_APP" ]] || die "source app missing after checkout: $SRC_APP"
-  rm -rf "$TMP_APP"
-  cp -a "$SRC_APP" "$TMP_APP"
-  rm -rf "$DEST_APP"
-  mv "$TMP_APP" "$DEST_APP"
+  if [[ "$(readlink -f "$SRC_APP")" != "$(readlink -f "$DEST_APP")" ]]; then
+    rm -rf "$TMP_APP"
+    cp -a "$SRC_APP" "$TMP_APP"
+    rm -rf "$DEST_APP"
+    mv "$TMP_APP" "$DEST_APP"
+    ok 'approved release materialized into external target bench'
+  else
+    ok 'repository canonical app is already the target bench app; no copy required'
+  fi
+
   "$BENCH_DIR/env/bin/python" -m pip install -e "$DEST_APP"
+
   if [[ -f "$SCRIPT_DIR/repair_apps_txt.sh" ]]; then
     BENCH_DIR="$BENCH_DIR" bash "$SCRIPT_DIR/repair_apps_txt.sh"
   fi
-  ok 'bench Ledgix app mirrors approved release exactly for first tenant'
 else
   "$BENCH_DIR/env/bin/python" -m pip install -e "$DEST_APP"
   if [[ -f "$SCRIPT_DIR/repair_apps_txt.sh" ]]; then
@@ -306,7 +312,7 @@ if [[ -n "$URL" ]]; then
 fi
 
 printf '\n===== CLIENT DEPENDENCY PREFLIGHT =====\n'
-BENCH_DIR="$BENCH_DIR" bash "$REPO_ROOT/scripts/run_ledgix_client_preflight.sh" "$SITE"
+BENCH_DIR="$BENCH_DIR" bash "$REPO_ROOT/scripts/local/run_ledgix_client_preflight.sh" "$SITE"
 bash "$SCRIPT_DIR/smoke_test.sh" --site "$SITE" --bench-dir "$BENCH_DIR" --offline
 
 printf '\n===== PROVISIONING EVIDENCE =====\n'

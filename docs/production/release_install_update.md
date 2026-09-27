@@ -180,19 +180,19 @@ Fresh provisioning retains separate initial provisioning evidence under the site
 Release baseline / single-site deployment contract:
 
 ```bash
-bash scripts/run_release_hardening_static_gate.sh
+bash scripts/release/run_release_hardening_static_gate.sh
 ```
 
 Backup/restore contract:
 
 ```bash
-bash scripts/run_backup_restore_static_gate.sh
+bash scripts/release/run_backup_restore_static_gate.sh
 ```
 
 Fresh provisioning + multi-site contract:
 
 ```bash
-bash scripts/run_r1_r4_static_gate.sh
+bash scripts/archive/release_migration/run_r1_r4_static_gate.sh
 ```
 
 These static gates do not deploy production sites.

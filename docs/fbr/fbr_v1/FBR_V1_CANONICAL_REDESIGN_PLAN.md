@@ -4,7 +4,7 @@
 
 **Plan status:** APPROVED FOR IMPLEMENTATION — no real FBR traffic authorized  
 **Baseline:** `main@17f81554a0eeea85e9a6868719a9b76c0dcf4e36`  
-**Target app:** `apps/fbr_v1`  
+**Target app:** `frappe-bench/apps/fbr_v1`  
 **Accounting/tax authority:** ERPNext  
 **Forbidden:** ERPNext/Frappe core edits, production access, real FBR calls during redesign, new git branches, guessed protocol fields/endpoints.
 

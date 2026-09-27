@@ -77,8 +77,8 @@ Confirm:
 Run repository/static validation before approving a release:
 
 ```bash
-bash scripts/ci_local.sh
-bash scripts/run_release_hardening_static_gate.sh
+bash scripts/validation/ci_local.sh
+bash scripts/release/run_release_hardening_static_gate.sh
 ```
 
 Use the additional static gates documented in `docs/production/release_install_update.md` when validating backup/provisioning/multisite contracts.
@@ -92,7 +92,7 @@ Example initial checkout:
 ```bash
 git clone https://github.com/mshahwaiz-ali/pos.git
 cd pos
-chmod +x install.sh site_setup.sh start.sh deploy/*.sh scripts/*.sh
+chmod +x scripts/core/*.sh deploy/*.sh scripts/*.sh
 ```
 
 The production wrapper resolves/checks the explicit release identity. Do not manually run an unpinned `git pull` immediately before go-live and assume that is an approved release.
@@ -256,7 +256,7 @@ Deployment success alone is not client acceptance.
 For final production approval run:
 
 ```bash
-bash scripts/run_ledgix_production_release_gate.sh \
+bash scripts/release/run_ledgix_production_release_gate.sh \
   --site client.example.com \
   --url https://client.example.com \
   --release <full-40-character-SHA-or-immutable-tag>

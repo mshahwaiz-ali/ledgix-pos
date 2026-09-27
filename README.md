@@ -122,17 +122,17 @@ ledgix-erpnext.local
 First-time/repair workflow:
 
 ```bash
-./install.sh --local
-./site_setup.sh --ensure
-./start.sh
+./scripts/core/install.sh --local
+./scripts/core/site_setup.sh --ensure
+./scripts/core/start.sh
 ```
 
 Useful status/smoke:
 
 ```bash
-./site_setup.sh --status
-./start.sh --status
-./start.sh --smoke --site ledgix-erpnext.local
+./scripts/core/site_setup.sh --status
+./scripts/core/start.sh --status
+./scripts/core/start.sh --smoke --site ledgix-erpnext.local
 ```
 
 Current local setup authority:
@@ -172,19 +172,19 @@ FBR transport remains disabled for this local dataset.
 Repository validation:
 
 ```bash
-bash scripts/ci_local.sh
+bash scripts/validation/ci_local.sh
 ```
 
 Current local acceptance/readiness:
 
 ```bash
-bash scripts/run_release_acceptance_readiness_gate.sh ledgix-erpnext.local
+bash scripts/release/run_release_acceptance_readiness_gate.sh ledgix-erpnext.local
 ```
 
 Final production acceptance:
 
 ```bash
-bash scripts/run_ledgix_production_release_gate.sh \
+bash scripts/release/run_ledgix_production_release_gate.sh \
   --site client.example.com \
   --url https://client.example.com \
   --release <approved-immutable-release>
@@ -198,7 +198,7 @@ Historical phase gates remain regression/evidence tools for the completed migrat
 
 ## Federal Tier-1 POS / IMS V1
 
-The active implementation is `apps/fbr_v1`. Submitted ERPNext `Sales Invoice` / `POS Invoice` and native returns/Credit Notes remain the business sources. Digital Invoicing V1.2 is frozen under `apps/fbr_v12` and `docs/fbr/fbr_v12/` for historical reference only.
+The active implementation is `frappe-bench/apps/fbr_v1`. Submitted ERPNext `Sales Invoice` / `POS Invoice` and native returns/Credit Notes remain the business sources. Digital Invoicing V1.2 is frozen under `frappe-bench/apps/fbr_v12` and `docs/fbr/fbr_v12/` for historical reference only.
 
 Key safety rules:
 
@@ -256,9 +256,11 @@ Production uses an approved immutable SHA/tag and verified recovery evidence. A 
 
 ```text
 ledgix-pos/
-├── apps/ledgix_saas/          # product, ERPNext extensions and SaaS tooling
-├── apps/fbr_v1/               # current Federal Tier-1 POS / IMS V1
-├── apps/fbr_v12/              # frozen Digital Invoicing V1.2 reference
+├── frappe-bench/
+│   └── apps/
+│       ├── ledgix_saas/      # product, ERPNext extensions and SaaS tooling
+│       ├── fbr_v1/           # current Federal Tier-1 POS / IMS V1
+│       └── fbr_v12/          # frozen Digital Invoicing V1.2 reference
 ├── deploy/                    # guarded production/backup/update helpers
 ├── docs/
 │   ├── architecture/          # current authority + legacy boundaries
@@ -269,9 +271,9 @@ ledgix-pos/
 │   ├── production/            # production/client/release runbooks
 │   └── archive/migration/     # completed migration history/evidence
 ├── scripts/                   # CI, readiness, release and guarded utilities
-├── install.sh
-├── site_setup.sh
-└── start.sh
+├── scripts/core/install.sh
+├── scripts/core/site_setup.sh
+└── scripts/core/start.sh
 ```
 
 ---
@@ -293,7 +295,7 @@ Local credentials live under `.secrets/sites/`; production provisioning stores o
 Run:
 
 ```bash
-bash scripts/check_secrets.sh
+bash scripts/validation/check_secrets.sh
 ```
 
 before release work.

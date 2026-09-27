@@ -65,7 +65,7 @@ case "$BENCH_DIR_INPUT" in
   *) BENCH_DIR="$REPO_ROOT/$BENCH_DIR_INPUT" ;;
 esac
 
-SRC_APP="$REPO_ROOT/apps/$APP"
+SRC_APP="$REPO_ROOT/frappe-bench/apps/$APP"
 DEST_APP="$BENCH_DIR/apps/$APP"
 TMP_APP="$BENCH_DIR/apps/.${APP}.deploy.$$"
 CONTRACT="$REPO_ROOT/deploy/release_contract.env"
@@ -162,18 +162,24 @@ ok "pinned stack already installed: frappe $FRAPPE_VERSION / erpnext $ERPNEXT_VE
 # Updating Ledgix must never silently pull or rewrite ERPNext core. The exact
 # supported ERPNext/Frappe versions are prerequisites and fail closed above.
 printf '\n===== PRE-MUTATION CLIENT PREFLIGHT =====\n'
-BENCH_DIR="$BENCH_DIR" bash "$REPO_ROOT/scripts/run_ledgix_client_preflight.sh" "$SITE"
+BENCH_DIR="$BENCH_DIR" bash "$REPO_ROOT/scripts/local/run_ledgix_client_preflight.sh" "$SITE"
 
-printf '\n===== EXACT LEDGIX APP SYNC =====\n'
-rm -rf "$TMP_APP"
-cp -a "$SRC_APP" "$TMP_APP"
-rm -rf "$DEST_APP"
-mv "$TMP_APP" "$DEST_APP"
+printf '\n===== LEDGIX APP RELEASE MATERIALIZATION =====\n'
+if [[ "$(readlink -f "$SRC_APP")" != "$(readlink -f "$DEST_APP")" ]]; then
+  rm -rf "$TMP_APP"
+  cp -a "$SRC_APP" "$TMP_APP"
+  rm -rf "$DEST_APP"
+  mv "$TMP_APP" "$DEST_APP"
+  ok "approved release materialized into external target bench"
+else
+  ok "repository canonical app is already the target bench app; no copy required"
+fi
+
 "$BENCH_DIR/env/bin/python" -m pip install -e "$DEST_APP"
+
 if [[ -f "$SCRIPT_DIR/repair_apps_txt.sh" ]]; then
   BENCH_DIR="$BENCH_DIR" bash "$SCRIPT_DIR/repair_apps_txt.sh"
 fi
-ok "bench app mirrors approved repository release exactly"
 
 printf '\n===== BUILD ASSETS =====\n'
 bench_run build
@@ -184,7 +190,7 @@ bench_run --site "$SITE" clear-cache
 bench_run --site "$SITE" clear-website-cache
 
 printf '\n===== POST-MIGRATION CLIENT PREFLIGHT =====\n'
-BENCH_DIR="$BENCH_DIR" bash "$REPO_ROOT/scripts/run_ledgix_client_preflight.sh" "$SITE"
+BENCH_DIR="$BENCH_DIR" bash "$REPO_ROOT/scripts/local/run_ledgix_client_preflight.sh" "$SITE"
 
 printf '\n===== OFFLINE RELEASE SMOKE =====\n'
 bash "$SCRIPT_DIR/smoke_test.sh" --site "$SITE" --bench-dir "$BENCH_DIR" --offline

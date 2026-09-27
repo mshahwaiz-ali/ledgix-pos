@@ -201,7 +201,7 @@ bench_run --site "$TARGET_SITE" clear-cache
 bench_run --site "$TARGET_SITE" clear-website-cache
 
 printf '\n===== RESTORED SITE DEPENDENCY PREFLIGHT =====\n'
-BENCH_DIR="$BENCH_DIR" bash "$REPO_ROOT/scripts/run_ledgix_client_preflight.sh" "$TARGET_SITE"
+BENCH_DIR="$BENCH_DIR" bash "$REPO_ROOT/scripts/local/run_ledgix_client_preflight.sh" "$TARGET_SITE"
 
 printf '\n===== RESTORED SITE OFFLINE SMOKE =====\n'
 bash "$SCRIPT_DIR/smoke_test.sh" --site "$TARGET_SITE" --bench-dir "$BENCH_DIR" --offline

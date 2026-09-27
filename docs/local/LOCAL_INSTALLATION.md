@@ -12,24 +12,34 @@ Older instructions that create arbitrary Ledgix-only sites or install `ledgix_sa
 
 ---
 
+
+Ledgix is not treated as a standalone business application separate from
+ERPNext. The supported product/runtime is one combined stack:
+
+Frappe -> ERPNext -> ledgix_saas -> fbr_v1
+
+Frappe and ERPNext keep their upstream Git histories, while Ledgix-owned
+application source is tracked by this repository directly under
+`frappe-bench/apps/`. There is no duplicate outer `apps/` source tree.
+
 ## 1. Repository layout
 
 Typical local checkout:
 
 ```text
 ~/data_drive/ledgix-pos/
-├── install.sh
-├── site_setup.sh
+├── scripts/core/install.sh
+├── scripts/core/site_setup.sh
 ├── start.sh
-├── apps/ledgix_saas/
-├── apps/fbr_v1/
-├── apps/fbr_v12/              # frozen source reference; not an active local integration
+├── frappe-bench/apps/ledgix_saas/
+├── frappe-bench/apps/fbr_v1/
+├── frappe-bench/apps/fbr_v12/              # frozen source reference; not an active local integration
 ├── deploy/
 ├── docs/
 └── frappe-bench/        # generated/reused locally; not committed
 ```
 
-Repository app sources remain under `apps/ledgix_saas/` and `apps/fbr_v1/`. Local site tooling synchronizes them into the bench application path as required.
+The Ledgix runtime is the combined Frappe -> ERPNext -> ledgix_saas -> fbr_v1 stack. Ledgix-owned source is edited directly under `frappe-bench/apps/`; no duplicate outer source tree or app-sync step exists.
 
 ---
 
@@ -39,8 +49,8 @@ From the repository root:
 
 ```bash
 cd ~/data_drive/ledgix-pos
-chmod +x install.sh site_setup.sh start.sh deploy/*.sh
-./install.sh --local
+chmod +x scripts/core/*.sh deploy/*.sh
+./scripts/core/install.sh --local
 ```
 
 The installer:
@@ -51,16 +61,16 @@ The installer:
 - creates or reuses a valid Frappe v15 bench;
 - ensures ERPNext v15 is present in the bench;
 - validates Frappe/ERPNext branch alignment;
-- leaves site creation to `site_setup.sh`.
+- leaves site creation to `scripts/core/site_setup.sh`.
 
-`install.sh` does **not** start the development server as part of installation.
+`scripts/core/install.sh` does **not** start the development server as part of installation.
 
 ### Sudo behavior
 
 The installer prefers non-interactive/passwordless sudo. On a trusted local machine only, interactive sudo can be explicitly allowed:
 
 ```bash
-ALLOW_INTERACTIVE_SUDO=1 ./install.sh --local
+ALLOW_INTERACTIVE_SUDO=1 ./scripts/core/install.sh --local
 ```
 
 Do not copy that convention into unattended production automation.
@@ -72,7 +82,7 @@ Do not copy that convention into unattended production automation.
 Create or repair the supported integration site:
 
 ```bash
-./site_setup.sh --ensure
+./scripts/core/site_setup.sh --ensure
 ```
 
 Default site:
@@ -92,7 +102,7 @@ There is no local app-selection menu. ERPNext is a required dependency of Ledgix
 Check state with:
 
 ```bash
-./site_setup.sh --status
+./scripts/core/site_setup.sh --status
 ```
 
 ---
@@ -103,7 +113,7 @@ Check state with:
 
 - create the canonical local site when none exists;
 - ensure ERPNext exists in the bench and is installed on the site;
-- synchronize the repository Ledgix app into the bench;
+- validate the canonical Ledgix app directly under `frappe-bench/apps/` and ensure its editable installation;
 - install `ledgix_saas` if missing;
 - install `fbr_v1` if missing, after ERPNext;
 - enable local developer mode;
@@ -125,7 +135,7 @@ A reset is explicitly destructive to active local sites and their databases.
 Use it only when a clean local environment is intentionally required:
 
 ```bash
-./site_setup.sh --reset \
+./scripts/core/site_setup.sh --reset \
   --site ledgix-erpnext.local \
   --confirm "RESET ledgix-erpnext.local"
 ```
@@ -141,19 +151,19 @@ The reset path requires the exact confirmation phrase.
 Start the local development runtime:
 
 ```bash
-./start.sh
+./scripts/core/start.sh
 ```
 
 Useful runner actions include:
 
 ```bash
-./start.sh --status
-./start.sh --background
-./start.sh --stop
-./start.sh --smoke --site ledgix-erpnext.local
+./scripts/core/start.sh --status
+./scripts/core/start.sh --background
+./scripts/core/start.sh --stop
+./scripts/core/start.sh --smoke --site ledgix-erpnext.local
 ```
 
-`start.sh` is for development/local process management only. It is not the production Supervisor/Nginx service workflow.
+`scripts/core/start.sh` is for development/local process management only. It is not the production Supervisor/Nginx service workflow.
 
 Expected URL:
 
@@ -161,7 +171,7 @@ Expected URL:
 http://ledgix-erpnext.local:8000
 ```
 
-If local hostname resolution is missing, `start.sh` can report/add the required `/etc/hosts` mapping interactively. Under WSL, Windows-side host resolution may also need configuration.
+If local hostname resolution is missing, `scripts/core/start.sh` can report/add the required `/etc/hosts` mapping interactively. Under WSL, Windows-side host resolution may also need configuration.
 
 ---
 
@@ -190,7 +200,7 @@ Run the client dependency preflight when appropriate:
 
 ```bash
 cd ~/data_drive/ledgix-pos
-bash scripts/run_ledgix_client_preflight.sh ledgix-erpnext.local
+bash scripts/local/run_ledgix_client_preflight.sh ledgix-erpnext.local
 ```
 
 ---
@@ -210,7 +220,7 @@ bench build --app ledgix_saas
 Run repository validation from the repository root:
 
 ```bash
-bash scripts/ci_local.sh
+bash scripts/validation/ci_local.sh
 ```
 
 Use focused tests in addition to the repository gate when changing a specific service or API.
@@ -288,7 +298,7 @@ Do not commit:
 Run:
 
 ```bash
-./install.sh --local
+./scripts/core/install.sh --local
 ```
 
 The installer reuses a valid bench and moves an incomplete bench aside only through its guarded path.
@@ -298,8 +308,8 @@ The installer reuses a valid bench and moves an incomplete bench aside only thro
 Do not manually install Ledgix alone. Re-run the supported installer/site ensure path:
 
 ```bash
-./install.sh --local
-./site_setup.sh --ensure
+./scripts/core/install.sh --local
+./scripts/core/site_setup.sh --ensure
 ```
 
 ### Site needs repair
@@ -307,7 +317,7 @@ Do not manually install Ledgix alone. Re-run the supported installer/site ensure
 Use:
 
 ```bash
-./site_setup.sh --ensure
+./scripts/core/site_setup.sh --ensure
 ```
 
 before considering any destructive reset.

@@ -4,7 +4,7 @@ Ledgix has two distinct documentation lines. Do not mix their endpoints, payload
 
 ## Current: Federal Tier-1 POS / IMS V1
 
-[`fbr_v1/README.md`](fbr_v1/README.md) is the current operating authority for `apps/fbr_v1`.
+[`fbr_v1/README.md`](fbr_v1/README.md) is the current operating authority for `frappe-bench/apps/fbr_v1`.
 
 - [Documented protocol contract](fbr_v1/FBR_V1_DOCUMENTED_PROTOCOL_CONTRACT.md)
 - [Runtime architecture](fbr_v1/FBR_V1_RUNTIME_ARCHITECTURE.md)

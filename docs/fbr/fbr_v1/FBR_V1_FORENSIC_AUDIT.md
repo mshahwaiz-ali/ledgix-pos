@@ -3,12 +3,12 @@
 > **HISTORICAL IMPLEMENTATION RECORD — not current operating/setup authority. See [README.md](README.md). Implementation closed at `e6f9b8f9986841584904a500f356e746ad1b415e`.**
 
 **Audit baseline:** `main@17f81554a0eeea85e9a6868719a9b76c0dcf4e36`  
-**Scope:** `apps/fbr_v1` only  
+**Scope:** `frappe-bench/apps/fbr_v1` only  
 **Mode:** source inspection only; no site mutation; no FBR network call; no production access.
 
 ## 1. Executive finding
 
-`apps/fbr_v1` is not a Federal Tier-1/V1 implementation yet. It is a bootstrap extraction of `fbr_v12` with package/module labels changed to FBR V1 while substantial DI/V1.2 protocol behavior remains intact.
+`frappe-bench/apps/fbr_v1` is not a Federal Tier-1/V1 implementation yet. It is a bootstrap extraction of `fbr_v12` with package/module labels changed to FBR V1 while substantial DI/V1.2 protocol behavior remains intact.
 
 The inherited code is useful in three areas:
 
