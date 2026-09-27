@@ -25,6 +25,28 @@ class TestBrandWiring(FrappeTestCase):
 		self.assertTrue(brand.DEFAULT_FULL_LOGO.endswith("ledgix-lockup.svg"))
 		self.assertTrue(brand.DEFAULT_FAVICON_LOGO.endswith("ledgix-favicon.svg"))
 
+	def test_stale_uploaded_logo_falls_back_to_bundled_identity(self):
+		doc = frappe._dict(
+			symbol_logo="/files/missing-symbol.png",
+			full_logo="/files/missing-lockup.png",
+			favicon="/files/missing-favicon.png",
+			brand_name="Ledgix",
+			brand_tagline="Retail operations",
+			primary_brand_color="#8C2031",
+		)
+		with (
+			patch.object(brand, "_get_settings_doc", return_value=doc),
+			patch.object(frappe.db, "exists", return_value=False),
+		):
+			settings = brand.get_brand_settings()
+
+		self.assertEqual(settings["symbol_logo_url"], brand.DEFAULT_SYMBOL_LOGO)
+		self.assertEqual(settings["full_logo_url"], brand.DEFAULT_FULL_LOGO)
+		self.assertEqual(settings["favicon_url"], brand.DEFAULT_FAVICON_LOGO)
+		self.assertFalse(settings["has_custom_symbol"])
+		self.assertFalse(settings["has_custom_full"])
+		self.assertFalse(settings["has_custom_favicon"])
+
 	def test_boot_always_publishes_brand_identity(self):
 		bootinfo = frappe._dict()
 		with patch.object(brand, "_get_settings_doc", return_value=None):
@@ -46,10 +68,20 @@ class TestBrandWiring(FrappeTestCase):
 		self.assertIn("ledgix_saas.api.brand.get_public_brand_settings", brand_js)
 		self.assertIn("ledgix-favicon.svg", brand_js)
 		self.assertIn("home.replaceChildren(img)", brand_js)
+		self.assertIn("if (!window.frappe?.boot) return;", brand_js)
+		self.assertNotIn("if (!isLedgixDeskRoute()) return;", brand_js)
 		self.assertIn("LedgixBrand.refresh", settings_js)
 		self.assertIn("#page-ledgix-pos .lx-pos-v2 .btn-primary", brand_css)
 		self.assertIn("#page-ledgix-tax-center .lx-tax-v2", brand_css)
 		self.assertIn("#page-business-intelligence-center .lx-ii-v2 .btn-primary", brand_css)
+
+	def test_sidebar_brands_ledgix_and_fbr_workspaces(self):
+		sidebar_js = (APP_ROOT / "public" / "js" / "ledgix_sidebar_brand.js").read_text(encoding="utf-8")
+		self.assertIn('FBR_V1_COLOR = "#0F766E"', sidebar_js)
+		self.assertIn('FBR_V12_COLOR = "#B42318"', sidebar_js)
+		self.assertIn('value === "fbr v1"', sidebar_js)
+		self.assertIn('value === "fbr v1.2"', sidebar_js)
+		self.assertIn("makeFiscalReceiptIcon", sidebar_js)
 
 	def test_bundled_brand_assets_are_vector_only(self):
 		brand_dir = APP_ROOT / "public" / "images" / "brand"
