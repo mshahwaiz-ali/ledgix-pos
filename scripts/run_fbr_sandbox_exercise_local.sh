@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# RETIRED/LEGACY: performs the ledgix_saas Digital Invoicing V1.2 exercise.
+# Not valid proof for current apps/fbr_v1 Federal Tier-1 POS / IMS V1.
+# See docs/fbr/fbr_v1/FBR_V1_SETUP_AND_ACTIVATION.md.
 set -Eeuo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

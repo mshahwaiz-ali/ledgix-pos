@@ -6,7 +6,7 @@ This directory contains the active production runbooks for Ledgix after the ERPN
 
 ## Core rules
 
-- Frappe v15 + ERPNext v15 + `ledgix_saas` is the supported stack.
+- Frappe v15 + ERPNext v15 + `ledgix_saas` + `fbr_v1` is the supported stack when Federal V1 is in scope.
 - ERPNext is the business/accounting/stock authority.
 - Production deploys an approved immutable SHA/tag, not a moving `main` branch.
 - One client uses one Frappe site/database.
@@ -36,8 +36,8 @@ For a new server/client:
 ## Compliance and hardware
 
 - `fbr_sandbox_production_activation.md` — detailed Sandbox proof and Production activation readiness.
-- `../fbr/FBR_ARCHITECTURE_AND_OPERATIONS.md` — current FBR architecture.
-- `../fbr/FBR_PRODUCTION_CHECKLIST.md` — current FBR go-live checklist.
+- `../fbr/fbr_v1/FBR_V1_SETUP_AND_ACTIVATION.md` — current V1 setup/activation authority.
+- `../fbr/fbr_v1/FBR_V1_PRODUCTION_CHECKLIST.md` — current V1 go-live checklist.
 - `printing_devices_uat.md` — printer/scanner/device manual acceptance.
 
 ## Security and support

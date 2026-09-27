@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# RETIRED/LEGACY: Digital Invoicing V1.2 client-handoff gate for ledgix_saas.
+# It is not current apps/fbr_v1 certification, setup, or activation evidence.
+# See docs/fbr/fbr_v1/README.md.
 set -Eeuo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

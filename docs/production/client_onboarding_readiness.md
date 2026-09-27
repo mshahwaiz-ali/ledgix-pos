@@ -17,7 +17,7 @@ It checks:
 - required Ledgix role definitions exist;
 - at least one enabled named user has a Ledgix operational role;
 - POS-enabled sites are warned when no named Ledgix Cashier exists;
-- FBR Settings exist when the profile enables FBR;
+- `fbr_v1` is installed and a Ledgix FBR Integration Profile/POS Device exist when Federal V1 is enabled;
 - FBR Production posting is still unarmed before the dedicated activation gate;
 - seller identity gaps are surfaced as the next FBR-workstream input;
 - release/provisioning and verified-backup evidence are visible to the readiness audit.
@@ -172,9 +172,9 @@ R5 confirms the site is safe to enter the next compliance workstream. **FBR Prod
 
 For an FBR-enabled profile, R5:
 
-- verifies `Ledgix FBR Settings` exists;
+- verifies current `Ledgix FBR Integration Profile` and `Ledgix FBR POS Device` setup;
 - blocks readiness if Production posting is already armed prematurely;
 - reports missing seller identity fields as warnings/input for the next workstream;
 - does not read or persist token values into readiness evidence.
 
-After R5 acceptance, continue to the dedicated FBR Sandbox -> Production activation workstream.
+After R5 acceptance, continue with `docs/fbr/fbr_v1/FBR_V1_SETUP_AND_ACTIVATION.md`. Software readiness does not prove real Sandbox or Production acceptance.

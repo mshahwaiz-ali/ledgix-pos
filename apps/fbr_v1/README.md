@@ -1,27 +1,15 @@
-# FBR V1
+# Federal Tier-1 POS / IMS V1
 
-Bootstrap Frappe/ERPNext application for the FBR V1 / Tier-1 POS integration redesign.
+`fbr_v1` is the current Ledgix application for the Federal FBR Tier-1 POS / IMS V1 contract on Frappe 15 and ERPNext 15.
 
-## Identity
+ERPNext remains authoritative for Sales Invoice, POS Invoice, native returns/Credit Notes, taxes, GL, stock, payments, receivables, and totals. This app owns fiscal classification, immutable evidence snapshots, exact V1 serialization, guarded transport, fiscal-result metadata, reconciliation, offline/compliance and correction evidence, internal closing evidence, print/QR presentation, and readiness evidence.
 
-- Technical app name: `fbr_v1`
-- Desk/module title: **FBR V1**
-- Runtime base: Frappe 15 + ERPNext 15
-- Starting point: the frozen `fbr_v12` extraction, copied only to accelerate redesign.
+Supported transports are the software-owned Local IMS and Cloud Sandbox/Production endpoints. Cloud authentication uses a Bearer token. Success requires `Code == "100"` and a non-empty `FBRInvoiceNumber` or `InvoiceNumber`.
 
-## Status
+Real transport has two independent site-config gates: `fbr_v1_network_cutover_active` and `fbr_v1_production_cutover_active`, both default `0`. Production also requires its distinct credential, `production_post_armed`, and complete profile/device/authority evidence. General cutover alone cannot authorize Production. Ambiguous sends enter reconciliation; blind retry and fiscal retransmission scheduling are absent.
 
-This is a **bootstrap clone**, not a claim that inherited V1.2 behavior is valid for FBR V1 / Tier-1 POS.
+Software implementation was verified locally at `e6f9b8f9986841584904a500f356e746ad1b415e`: 46/46 V1 tests, existing-site migration, database acceptance, first-attempt reinstall, and post-reinstall migration/idempotency passed while both gates remained off. Real client evidence, credentials, Sandbox acceptance, and Production approval/activation remain external and pending.
 
-Internal modules that still use `v2` terminology are inherited scaffolding. Their endpoints, payload fields, token flow, POS registration rules, QR/printing behavior, offline behavior, returns and certification rules must be checked against authoritative FBR V1 / Tier-1 documentation before real use.
+Unsupported contracts remain fail-closed. See the [current documentation router](../../docs/fbr/README.md), [V1 authority](../../docs/fbr/fbr_v1/README.md), [setup guide](../../docs/fbr/fbr_v1/FBR_V1_SETUP_AND_ACTIVATION.md), and [Production checklist](../../docs/fbr/fbr_v1/FBR_V1_PRODUCTION_CHECKLIST.md).
 
-## Isolation
-
-The Python/Frappe package is `fbr_v1`, separate from `fbr_v12`. Package imports and module ownership are renamed to `fbr_v1` / **FBR V1**.
-
-Compatibility DocType and field identifiers inherited from V1.2 are intentionally left for the next design phase. Until that redesign is complete, do not install `fbr_v1` alongside `fbr_v12` on the same site.
-
-## Documentation
-
-- V1 / Tier-1 work: `docs/fbr/fbr_v1/`
-- Frozen V1.2 reference docs: `docs/fbr/fbr_v12/`
+Fresh installation and normal migration are supported. Install ERPNext before `fbr_v1`; do not install frozen `fbr_v12` alongside it as a second active integration. Historical V1.2 ancestry only supplied safe Frappe structure; dormant V2/DI entry points are retired stubs, not active runtime authority.

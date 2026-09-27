@@ -1,5 +1,7 @@
 # FBR / Tax Redesign — Phase 0 Baseline Inventory
 
+> **FROZEN HISTORICAL DIGITAL INVOICING V1.2 RECORD. Not current Federal V1 guidance. See [README.md](README.md).**
+
 **Status:** STATIC REPOSITORY BASELINE COMPLETE — RUNTIME DATA EVIDENCE PENDING  
 **Date:** 2026-09-23  
 **Repository:** `mshahwaiz-ali/ledgix-pos`  
@@ -1120,4 +1122,3 @@ Proceed to **Phase 1** in a separate coherent change set:
 3. build native-tax transaction behavior without deleting the old path first;
 4. add regression coverage;
 5. cut checkout/return over only after parity is proven.
-

@@ -4,7 +4,7 @@
 **Reviewed:** 2026-09-17  
 **Repository authority:** `main`  
 **Reviewed HEAD:** `74ae6c61c6e6cb55670d64afb2db0892916a22a0`  
-**Supported stack:** Frappe `15.113.4` + ERPNext `15.121.3` + `ledgix_saas`
+**Supported stack:** Frappe `15.113.4` + ERPNext `15.121.3` + `ledgix_saas` + `fbr_v1`
 
 ## Purpose
 
@@ -31,7 +31,7 @@ Ledgix does not vendor, fork or patch ERPNext core.
 | Legacy Ledgix business ledgers | **COMPLETE / FROZEN HISTORY** | Historical custom business records remain only where required for migration/audit evidence. They are not active transaction authority. |
 | Local operating/acceptance dataset | **COMPLETE / VERIFIED** | `LEDGIX-RETAIL-OPERATING-V1` passed `demo_data.verify()` with `ok = true` on `ledgix-erpnext.local`. |
 | Ledgix POS / product shell | **CURRENT** | Retained Ledgix UX runs over ERPNext-native authority. |
-| Tax/FBR application layer | **CURRENT** | ERPNext invoices are the source transactions; Ledgix owns compliance mapping, snapshots, transport controls and audit. |
+| Federal Tier-1 POS / IMS V1 | **CURRENT / LOCALLY VERIFIED** | `fbr_v1` wraps ERPNext source invoices with fiscal mapping, snapshots, guarded transport and evidence. |
 | Real FBR Sandbox certification | **DEFERRED / EXTERNAL INPUT REQUIRED** | Real seller identity/token and actual FBR network evidence are still required. |
 | FBR Production go-live | **NOT YET PRODUCTION-READY** | Production must remain unarmed until client-specific Sandbox proof and production activation gates pass. |
 | Production release tooling | **IMPLEMENTED** | Release/update/backup/provisioning/final-gate tooling exists. |
@@ -92,7 +92,7 @@ Current Ledgix-specific records include, where applicable:
 - `Ledgix Tax Category`;
 - `Ledgix Tax Rate`;
 - `Ledgix Item Tax Profile` linked to ERPNext `Item`;
-- `Ledgix FBR Settings`;
+- `Ledgix FBR Integration Profile` and `Ledgix FBR POS Device`;
 - `Ledgix FBR Submission Log`;
 - `Ledgix Tax Audit Log`;
 - legacy-retirement state/digest controls;
@@ -116,11 +116,10 @@ services/erpnext_selling.py
 services/erpnext_buying_inventory.py
 services/erpnext_reporting.py
 services/erpnext_reporting_compat.py
-api/fbr_native.py
 api/client_setup.py
 ```
 
-`hooks.py` explicitly routes old POS/selling RPC names to the ERPNext-native compatibility layer. The historical `Ledgix Sale` FBR submit endpoint is routed to a fail-closed legacy guard rather than allowed to create a second official submission path.
+`hooks.py` explicitly routes old POS/selling RPC names to the ERPNext-native compatibility layer. Historical `ledgix_saas` FBR/DI endpoints are fail-closed legacy guards; current Federal V1 lives in `apps/fbr_v1`.
 
 ---
 
@@ -237,7 +236,7 @@ Rules:
 
 ## 9. Tax and FBR architecture
 
-Detailed current authority is documented in `docs/fbr/FBR_ARCHITECTURE_AND_OPERATIONS.md`.
+Detailed current authority is documented in `docs/fbr/fbr_v1/FBR_V1_RUNTIME_ARCHITECTURE.md`. Digital Invoicing V1.2 under `apps/fbr_v12` and `docs/fbr/fbr_v12/` is frozen historical reference.
 
 The current flow is:
 
@@ -260,7 +259,7 @@ Important boundaries:
 - `hooks.py` currently registers **no automatic FBR retry/offline scheduler**. Ambiguous Production POST outcomes must enter reconciliation handling rather than blind retransmission.
 - Local operating-data generation keeps FBR transport disabled.
 
-**Current certification state:** application infrastructure exists, but real Sandbox network certification is still pending real seller identity/token/evidence. Production FBR must therefore be treated as **NOT YET PRODUCTION-READY**.
+**Current state:** software implementation is verified locally at `e6f9b8f9986841584904a500f356e746ad1b415e`; real Sandbox acceptance and Production activation remain external/pending. This is not a claim of certification or Production acceptance.
 
 ---
 

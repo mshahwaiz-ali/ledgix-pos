@@ -41,7 +41,7 @@ The gate itself makes **no Production network call to FBR**, does not validate/p
 
 FBR code/setup can be complete while external certification remains pending because the client has not yet supplied seller identity or tokens. That state does not invalidate the Ledgix application setup.
 
-When FBR Production is required for go-live, the final gate will remain red until the separate Sandbox -> Production workflow has real persisted evidence, a Production token, fresh verified backup, exact release identity, and no unresolved reconciliation state.
+When Federal V1 Production is required, the release remains blocked until the current V1 checklist has real Sandbox evidence, Production credential/approval, device/authority/QR/signature evidence, fresh verified backup, exact release identity, both independent cutover decisions, and no unresolved reconciliation state. Older `ledgix_saas` DI gates are historical and do not prove current V1 acceptance.
 
 ## Manual UAT
 

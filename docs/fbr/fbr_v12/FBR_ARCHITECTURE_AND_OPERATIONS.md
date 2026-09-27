@@ -1,5 +1,7 @@
 # Ledgix FBR Architecture and Operations
 
+> **FROZEN HISTORICAL DIGITAL INVOICING V1.2 RECORD. Not current Federal Tier-1 POS / IMS V1 operating guidance. See [README.md](README.md).**
+
 **Status:** CURRENT — 2026-09-25
 **Software status:** READY FOR CLIENT CERTIFICATION
 **ERPNext monetary tax authority:** LOCAL CUTOVER COMPLETE

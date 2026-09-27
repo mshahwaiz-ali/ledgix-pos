@@ -1,5 +1,7 @@
 # FBR Redesign — Phase 1 ERPNext-Native Tax Contract
 
+> **FROZEN HISTORICAL DIGITAL INVOICING V1.2 RECORD. Not current Federal V1 guidance. See [README.md](README.md).**
+
 **Status:** COMPLETE LOCALLY - ERPNext-native monetary authority cut over and parity-proven
 **Date:** 2026-09-24
 **Repository:** `mshahwaiz-ali/ledgix-pos`

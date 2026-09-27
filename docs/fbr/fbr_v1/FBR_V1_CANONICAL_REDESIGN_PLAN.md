@@ -1,5 +1,7 @@
 # FBR V1 / Tier-1 POS IMS — Canonical Redesign Plan
 
+> **HISTORICAL IMPLEMENTATION RECORD — not current operating/setup authority. See [README.md](README.md). Implementation closed at `e6f9b8f9986841584904a500f356e746ad1b415e`.**
+
 **Plan status:** APPROVED FOR IMPLEMENTATION — no real FBR traffic authorized  
 **Baseline:** `main@17f81554a0eeea85e9a6868719a9b76c0dcf4e36`  
 **Target app:** `apps/fbr_v1`  

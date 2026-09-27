@@ -275,8 +275,8 @@ The FBR application layer is implemented, but the current repository documentati
 Use:
 
 ```text
-docs/fbr/FBR_ARCHITECTURE_AND_OPERATIONS.md
-docs/fbr/FBR_PRODUCTION_CHECKLIST.md
+docs/fbr/fbr_v1/FBR_V1_RUNTIME_ARCHITECTURE.md
+docs/fbr/fbr_v1/FBR_V1_PRODUCTION_CHECKLIST.md
 docs/production/fbr_sandbox_production_activation.md
 ```
 

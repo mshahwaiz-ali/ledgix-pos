@@ -1,5 +1,7 @@
 # FBR V1 Phase 0 — Documentation & Protocol Source Lock
 
+> **HISTORICAL IMPLEMENTATION RECORD — not current operating/setup authority. See [README.md](README.md). Implementation closed at `e6f9b8f9986841584904a500f356e746ad1b415e`.**
+
 **Status:** PASS FOR DEVELOPMENT  
 **Date:** 2026-09-27  
 **Real FBR network authorization:** NO  

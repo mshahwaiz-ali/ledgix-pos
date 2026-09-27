@@ -57,7 +57,7 @@ Do not use the generic legacy-style site creation flow for normal Ledgix product
 5. Syncs the exact Ledgix application revision into the bench.
 6. Generates a dedicated database/user and strong passwords.
 7. Creates the Frappe site.
-8. Installs ERPNext before Ledgix.
+8. Installs ERPNext before `ledgix_saas` and `fbr_v1` when Federal V1 is in scope.
 9. Migrates, builds Ledgix assets and enables the scheduler.
 10. Runs the Ledgix client dependency preflight.
 11. Runs the ERPNext-native offline smoke suite.
@@ -106,7 +106,7 @@ Choose one of the five supported Business Profiles and run readiness checks befo
 
 FBR configuration is per site. A Business Profile may enable the FBR product surface, but it does not authorize FBR Production.
 
-Complete the client's FBR settings and Sandbox validation first. FBR Production activation is a separate explicit compliance/operations gate.
+Complete the client's current Integration Profile, POS Device, mappings, and real Sandbox acceptance using `docs/fbr/fbr_v1/FBR_V1_SETUP_AND_ACTIVATION.md`. Production activation is a separate explicit compliance/operations gate. Do not install frozen `fbr_v12` alongside `fbr_v1` as an active integration.
 
 ## Local development
 

@@ -1,5 +1,7 @@
 # Ledgix FBR & Tax Layer — Historical Reference
 
+> **FROZEN HISTORICAL DIGITAL INVOICING V1.2 RECORD. Not current Federal V1 guidance. See [README.md](README.md).**
+
 **Status:** DEPRECATED / HISTORICAL PRE-MIGRATION DOCUMENTATION  
 **Do not use as current operating guidance.**
 

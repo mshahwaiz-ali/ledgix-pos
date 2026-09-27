@@ -63,6 +63,8 @@ Test only the workflows relevant to the selected client profile.
 
 ## 6. FBR boundary
 
+Current authority: `docs/fbr/fbr_v1/FBR_V1_SETUP_AND_ACTIVATION.md` and `docs/fbr/fbr_v1/FBR_V1_PRODUCTION_CHECKLIST.md`. The active app is `fbr_v1`; Digital Invoicing V1.2 scripts/evidence are not current V1 acceptance.
+
 If FBR is **not** part of this client's go-live:
 
 - [ ] FBR Production remains disabled/unarmed.
@@ -72,12 +74,13 @@ If FBR **is** part of go-live:
 - [ ] Seller legal identity confirmed.
 - [ ] Item/FBR classifications reviewed.
 - [ ] Real Sandbox token configured securely.
-- [ ] Real Sandbox validation/POST proof persisted for required native invoice types.
+- [ ] Real Federal V1 Sandbox fiscalization proof persisted for required native invoice types.
 - [ ] Return/Credit Note proof captured when required.
 - [ ] No invoice remains `Reconciliation Required`.
 - [ ] Production token configured securely.
 - [ ] Fresh verified backup and exact release SHA recorded.
-- [ ] `fbr_production_switch_ready=true` achieved through the supported read-only evaluator.
+- [ ] Current V1 Production configuration readiness is green and reconciliation count is zero.
+- [ ] General and Production site-config gates remain independently controlled.
 - [ ] Explicit Production activation/arming approved by authorized operator.
 
 **Do not restore retry/offline schedulers. Ambiguous Production POSTs are reconciliation-required and fail closed.**

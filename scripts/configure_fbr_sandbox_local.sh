@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# RETIRED/LEGACY: Digital Invoicing V1.2 operator helper for ledgix_saas.
+# Not the current apps/fbr_v1 Federal Tier-1 POS / IMS V1 workflow. Do not use
+# this script for current client setup; see docs/fbr/fbr_v1/README.md.
 set -Eeuo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

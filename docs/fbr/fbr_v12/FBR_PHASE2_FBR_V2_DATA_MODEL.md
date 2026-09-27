@@ -1,5 +1,7 @@
 # FBR Redesign — Phase 2 FBR-Only Data Model
 
+> **FROZEN HISTORICAL DIGITAL INVOICING V1.2 RECORD. Not current Federal V1 guidance. See [README.md](README.md).**
+
 **Status:** ADDITIVE SCHEMA COMPLETE — RUNTIME CUTOVER / MIGRATION NOT YET PERFORMED  
 **Date:** 2026-09-23  
 **Repository:** `mshahwaiz-ali/ledgix-pos`  

@@ -1,5 +1,7 @@
 # FBR Phase 7 — Known Offline and Reconciliation Lifecycle
 
+> **FROZEN HISTORICAL DIGITAL INVOICING V1.2 RECORD. Not current Federal V1 offline guidance. See [README.md](README.md).**
+
 **Status:** COMPLETE LOCALLY
 
 Known Offline and ambiguous Production POST are separate state machines.

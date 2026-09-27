@@ -7,7 +7,7 @@
 ./site_setup.sh
 ./start.sh --background
 ./start.sh --status
-./start.sh --smoke --site ledgix.local
+./start.sh --smoke --site ledgix-erpnext.local
 ./start.sh --stop
 ```
 
@@ -23,10 +23,10 @@
 
 ```bash
 cd frappe-bench
-bench --site ledgix.local list-apps
-bench --site ledgix.local migrate
-bench --site ledgix.local execute ledgix_saas.validation.run_all
-bench --site ledgix.local execute ledgix_saas.api.fbr_health.check
+bench --site ledgix-erpnext.local list-apps
+bench --site ledgix-erpnext.local migrate
+bench --site ledgix-erpnext.local execute ledgix_saas.validation.run_all
+# Use docs/fbr/fbr_v1/README.md for current Federal V1 readiness and health actions.
 ```
 
 ## Production
@@ -36,8 +36,8 @@ bench --site ledgix.local execute ledgix_saas.api.fbr_health.check
 ./deploy/status.sh
 ./deploy/backup.sh
 ./deploy/deploy_update.sh
-./deploy/smoke_test.sh --site ledgix.local --offline
-./deploy/smoke_test.sh --site ledgix.local --online --url https://domain.example
+./deploy/smoke_test.sh --site ledgix-erpnext.local --offline
+./deploy/smoke_test.sh --site ledgix-erpnext.local --online --url https://domain.example
 ```
 
 Production uses Supervisor and Nginx. Do not use `bench start` for public/EC2 production.

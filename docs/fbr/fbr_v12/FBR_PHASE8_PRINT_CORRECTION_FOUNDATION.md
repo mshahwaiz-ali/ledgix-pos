@@ -1,5 +1,7 @@
 # FBR Phase 8 — Print and Correction Foundation
 
+> **FROZEN HISTORICAL DIGITAL INVOICING V1.2 RECORD. Not current Federal V1 print/correction guidance. See [README.md](README.md).**
+
 **Status:** CLIENT-INDEPENDENT FOUNDATION COMPLETE LOCALLY
 
 Implemented:

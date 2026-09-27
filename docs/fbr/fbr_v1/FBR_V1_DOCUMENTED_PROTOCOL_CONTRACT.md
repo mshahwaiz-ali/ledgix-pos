@@ -1,6 +1,6 @@
 # FBR V1 — Documented Federal POS / IMS Protocol Contract
 
-**Status:** LOCKED FOR DEVELOPMENT  
+**Status:** CURRENT MACHINE-CONTRACT AUTHORITY
 **Date:** 2026-09-27  
 **Scope:** Federal FBR Tier-1 POS / IMS V1  
 **Excluded:** Digital Invoicing V1.2
@@ -16,7 +16,7 @@ The technical-documentation link points to the FBR Knowledge Base article:
 
 Because the live Knowledge Base is intermittently unavailable, the wire details are recovered from an archived rendering of that exact FBR article and cross-checked with the official fiscalization material and later PRAL fiscal-component documents.
 
-That source chain is sufficient for implementation and mock testing. Live credentials and activation remain separate.
+That source chain defines the documented wire contract implemented in code. Legal/printing obligations and external onboarding/credential issuance are separate evidence layers; they do not authorize new wire fields.
 
 ## 2. Architecture
 
@@ -176,16 +176,24 @@ fbr_v1/protocol/transport.py  -> local/cloud transport only
 
 No module makes a network request on import.
 
-## 11. Deferred contract areas
+## 11. External onboarding and legal/printing boundary
+
+POSID/token issuance, authority/activation, device onboarding, retention policy, and provider approval are external inputs recorded by the readiness model. Printing obligations are rendered from ERPNext and returned fiscal metadata. Neither layer changes the wire schema above.
+
+The parser accepts the authoritative returned fiscal number without imposing a new regex.
+
+## 12. Deferred contract areas
 
 Still separate:
-- current installer/package/version;
 - current POSID/token issuance workflow;
 - exact item-level Debit behavior;
 - full error-code catalogue;
 - duplicate-USIN server behavior;
 - separate offline upload API, if applicable;
 - external daily/weekly/monthly closing API, if applicable;
-- exact QR encoded string.
+- alternate QR encoding or undocumented signature algorithm;
+- unproven Extra Tax/FED/withheld wire fields;
+- external outage/alert and Board correction APIs;
+- unsupported foreign-currency and inclusive-tax discount semantics.
 
 These are not guessed.

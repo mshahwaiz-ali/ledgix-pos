@@ -1,5 +1,7 @@
 # Ledgix FBR Sandbox and Production Checklist
 
+> **FROZEN HISTORICAL DIGITAL INVOICING V1.2 RECORD. Do not use for current setup or activation. See [README.md](README.md).**
+
 **Status:** CURRENT — 2026-09-25
 **Software status:** READY FOR CLIENT CERTIFICATION
 **Sandbox certification:** PENDING REAL CLIENT EVIDENCE

@@ -1,5 +1,7 @@
 # FBR V1.2 -> Federal Legacy V1 / Tier-1 Component Matrix
 
+> **HISTORICAL IMPLEMENTATION RECORD — not current operating/setup authority. See [README.md](README.md). Implementation closed at `e6f9b8f9986841584904a500f356e746ad1b415e`.**
+
 **Baseline:** `main@17f81554a0eeea85e9a6868719a9b76c0dcf4e36`  
 **Rule:** “DELETE” means remove from active V1 runtime/design; if a site already contains persistent records, migration is non-destructive and preserves them read-only unless a separately approved cleanup is performed.
 

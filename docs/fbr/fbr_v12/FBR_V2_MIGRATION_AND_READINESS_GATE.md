@@ -1,5 +1,7 @@
 # FBR Redesign — V2 Migration and Readiness Gate
 
+> **FROZEN HISTORICAL DIGITAL INVOICING V1.2 RECORD. Not current Federal V1 readiness. See [README.md](README.md).**
+
 **Status:** LEGACY SETTINGS + COMPATIBILITY API FULLY RETIRED LOCALLY  
 **Date:** 2026-09-25  
 **Repository:** `mshahwaiz-ali/ledgix-pos`  

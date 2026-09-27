@@ -159,9 +159,9 @@ The wizard may apply safe site defaults for Company, Selling Price List and Ware
 
 ## 7. FBR onboarding
 
-When the profile enables FBR, configure `Ledgix FBR Settings` separately.
+When Federal V1 is enabled, configure `fbr_v1` through **Ledgix FBR Integration Profile**, **Ledgix FBR POS Device**, and the current mappings.
 
-Complete at minimum the seller identity/environment/token details required by the current FBR integration and verify them in Sandbox before Production use.
+Complete seller identity, authority/retention, device/POSID, topology, mapping, and credential inputs described in `docs/fbr/fbr_v1/FBR_V1_SETUP_AND_ACTIVATION.md`; obtain real Sandbox acceptance before Production use.
 
 Do not treat the profile preset as permission to submit live FBR invoices automatically. Production activation remains an explicit compliance decision.
 

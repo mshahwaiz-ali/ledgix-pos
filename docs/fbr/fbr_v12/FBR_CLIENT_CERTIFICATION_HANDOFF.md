@@ -1,5 +1,7 @@
 # FBR Client Certification Handoff
 
+> **FROZEN HISTORICAL DIGITAL INVOICING V1.2 RECORD. Not current certification or setup guidance. See [README.md](README.md).**
+
 **Target software status:** READY FOR CLIENT CERTIFICATION
 **Sandbox Certified:** NO
 **Production Ready:** NO

@@ -19,12 +19,12 @@ There is no Phase 14. New work should improve the current product/release state 
 
 ## Supported stack
 
-Production release contract:
+Current application stack:
 
 ```text
 Frappe:   15.113.4 / version-15
 ERPNext:  15.121.3 / version-15
-Ledgix:   ledgix_saas
+Ledgix:   ledgix_saas + fbr_v1
 Database: MariaDB
 Queue:    Redis
 ```
@@ -110,7 +110,7 @@ Frappe/ERPNext permissions remain the security authority; Business Profile visib
 Repository:
 
 ```bash
-cd ~/data_drive/pos
+cd ~/data_drive/ledgix-pos
 ```
 
 Canonical local site:
@@ -196,15 +196,16 @@ Historical phase gates remain regression/evidence tools for the completed migrat
 
 ---
 
-## FBR
+## Federal Tier-1 POS / IMS V1
 
-Current FBR sources are submitted ERPNext `Sales Invoice` / `POS Invoice` and their native returns/Credit Notes.
+The active implementation is `apps/fbr_v1`. Submitted ERPNext `Sales Invoice` / `POS Invoice` and native returns/Credit Notes remain the business sources. Digital Invoicing V1.2 is frozen under `apps/fbr_v12` and `docs/fbr/fbr_v12/` for historical reference only.
 
 Key safety rules:
 
 - historical `Ledgix Sale` submission is retired;
 - FBR payloads use immutable invoice/line snapshots;
-- Production POST requires the explicit Production interlock;
+- general and Production network cutovers are separate and default off;
+- Production also requires arming and complete profile/device/authority evidence;
 - consolidated POS accounting Sales Invoices are not a second FBR source;
 - `scheduler_events = {}` is intentional for FBR retransmission safety;
 - an ambiguous Production POST becomes `Reconciliation Required`;
@@ -213,12 +214,13 @@ Key safety rules:
 Documentation:
 
 ```text
-docs/fbr/FBR_ARCHITECTURE_AND_OPERATIONS.md
-docs/fbr/FBR_PRODUCTION_CHECKLIST.md
-docs/production/fbr_sandbox_production_activation.md
+docs/fbr/README.md
+docs/fbr/fbr_v1/README.md
+docs/fbr/fbr_v1/FBR_V1_SETUP_AND_ACTIVATION.md
+docs/fbr/fbr_v1/FBR_V1_PRODUCTION_CHECKLIST.md
 ```
 
-The older `FBR_TAX_LAYER.md` and `FBR_TAX_MODULE.md` filenames are retained only as deprecated historical pointers.
+Software implementation is verified locally at `e6f9b8f9986841584904a500f356e746ad1b415e`. Real client evidence, Sandbox acceptance, and Production activation remain external/pending; this is not a claim of FBR certification or Production acceptance.
 
 ---
 
@@ -253,12 +255,15 @@ Production uses an approved immutable SHA/tag and verified recovery evidence. A 
 ## Repository map
 
 ```text
-pos/
-├── apps/ledgix_saas/          # Ledgix Frappe app
+ledgix-pos/
+├── apps/ledgix_saas/          # product, ERPNext extensions and SaaS tooling
+├── apps/fbr_v1/               # current Federal Tier-1 POS / IMS V1
+├── apps/fbr_v12/              # frozen Digital Invoicing V1.2 reference
 ├── deploy/                    # guarded production/backup/update helpers
 ├── docs/
 │   ├── architecture/          # current authority + legacy boundaries
-│   ├── fbr/                   # current FBR architecture/checklists
+│   ├── fbr/fbr_v1/            # current V1 authority
+│   ├── fbr/fbr_v12/           # frozen V1.2 records
 │   ├── local/                 # local setup
 │   ├── operations/            # operating dataset + ERP workflows
 │   ├── production/            # production/client/release runbooks
@@ -312,8 +317,11 @@ docs/local/LOCAL_INSTALLATION.md
 ### Current FBR
 
 ```text
-docs/fbr/FBR_ARCHITECTURE_AND_OPERATIONS.md
-docs/fbr/FBR_PRODUCTION_CHECKLIST.md
+docs/fbr/README.md
+docs/fbr/fbr_v1/README.md
+docs/fbr/fbr_v1/FBR_V1_RUNTIME_ARCHITECTURE.md
+docs/fbr/fbr_v1/FBR_V1_SETUP_AND_ACTIVATION.md
+docs/fbr/fbr_v1/FBR_V1_PRODUCTION_CHECKLIST.md
 ```
 
 ### Current production

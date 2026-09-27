@@ -1,5 +1,7 @@
 # FBR Redesign — Phase 6 Desk Compliance Center Cutover
 
+> **FROZEN HISTORICAL DIGITAL INVOICING V1.2 RECORD. Not current Federal V1 guidance. See [README.md](README.md).**
+
 **Status:** GITHUB PAGE + MAIN WORKSPACE CUTOVER IMPLEMENTED — LOCAL DESK QA PENDING  
 **Date:** 2026-09-23  
 **Repository:** `mshahwaiz-ali/ledgix-pos`  

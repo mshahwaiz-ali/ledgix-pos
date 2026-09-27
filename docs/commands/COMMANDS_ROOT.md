@@ -8,6 +8,8 @@
 
 # Ledgix POS Commands Handbook
 
+> Current defaults: repository `~/data_drive/ledgix-pos`, local site `ledgix-erpnext.local`, and installed applications `frappe`, `erpnext`, `ledgix_saas`, and `fbr_v1`. `fbr_v12` is frozen historical reference. Use the dedicated Federal V1 runbooks for FBR setup; generic examples below do not authorize transport or Production.
+
 **Bench. Sites. Apps. Database. Redis. Nginx. Supervisor. Logs. Fixes.**
 
 </div>
@@ -210,21 +212,21 @@ bench list-sites
 
 ```bash
 cd frappe-bench
-bench new-site ledgix.local
+bench new-site ledgix-erpnext.local
 ```
 
 ## Drop Site
 
 ```bash
 cd frappe-bench
-bench drop-site ledgix.local --force
+bench drop-site ledgix-erpnext.local --force
 ```
 
 ## Set Default Site
 
 ```bash
 cd frappe-bench
-bench use ledgix.local
+bench use ledgix-erpnext.local
 ```
 
 ## Check Current Default Site
@@ -238,28 +240,28 @@ cat sites/currentsite.txt
 
 ```bash
 cd frappe-bench
-echo "ledgix.local" > sites/currentsite.txt
+echo "ledgix-erpnext.local" > sites/currentsite.txt
 ```
 
 ## Open Site Console
 
 ```bash
 cd frappe-bench
-bench --site ledgix.local console
+bench --site ledgix-erpnext.local console
 ```
 
 ## Open MariaDB Console for Site
 
 ```bash
 cd frappe-bench
-bench --site ledgix.local mariadb
+bench --site ledgix-erpnext.local mariadb
 ```
 
 ## Open Frappe Shell
 
 ```bash
 cd frappe-bench
-bench --site ledgix.local console
+bench --site ledgix-erpnext.local console
 ```
 
 ---
@@ -277,7 +279,7 @@ ls apps
 
 ```bash
 cd frappe-bench
-bench --site ledgix.local list-apps
+bench --site ledgix-erpnext.local list-apps
 ```
 
 Expected:
@@ -291,14 +293,14 @@ ledgix_saas
 
 ```bash
 cd frappe-bench
-bench --site ledgix.local install-app ledgix_saas
+bench --site ledgix-erpnext.local install-app ledgix_saas
 ```
 
 ## Remove App from Site
 
 ```bash
 cd frappe-bench
-bench --site ledgix.local remove-app ledgix_saas
+bench --site ledgix-erpnext.local remove-app ledgix_saas
 ```
 
 ## Install App Package in Editable Mode
@@ -312,7 +314,7 @@ bench pip install -e apps/ledgix_saas
 
 ```bash
 cd frappe-bench
-bench --site ledgix.local console
+bench --site ledgix-erpnext.local console
 ```
 
 Inside console:
@@ -329,29 +331,29 @@ import ledgix_saas
 
 ```bash
 cd frappe-bench
-bench --site ledgix.local migrate
+bench --site ledgix-erpnext.local migrate
 ```
 
 ## Clear Cache
 
 ```bash
 cd frappe-bench
-bench --site ledgix.local clear-cache
+bench --site ledgix-erpnext.local clear-cache
 ```
 
 ## Clear Website Cache
 
 ```bash
 cd frappe-bench
-bench --site ledgix.local clear-website-cache
+bench --site ledgix-erpnext.local clear-website-cache
 ```
 
 ## Clear All and Rebuild
 
 ```bash
 cd frappe-bench
-bench --site ledgix.local clear-cache
-bench --site ledgix.local clear-website-cache
+bench --site ledgix-erpnext.local clear-cache
+bench --site ledgix-erpnext.local clear-website-cache
 bench build
 bench restart
 ```
@@ -360,13 +362,13 @@ bench restart
 
 ```bash
 cd frappe-bench
-bench --site ledgix.local reload-doc module_name doctype doctype_name
+bench --site ledgix-erpnext.local reload-doc module_name doctype doctype_name
 ```
 
 Example:
 
 ```bash
-bench --site ledgix.local reload-doc ledgix doctype customer
+bench --site ledgix-erpnext.local reload-doc ledgix doctype customer
 ```
 
 ---
@@ -377,14 +379,14 @@ bench --site ledgix.local reload-doc ledgix doctype customer
 
 ```bash
 cd frappe-bench
-bench --site ledgix.local set-admin-password "NewStrongPassword"
+bench --site ledgix-erpnext.local set-admin-password "NewStrongPassword"
 ```
 
 ## Reset User Password from Console
 
 ```bash
 cd frappe-bench
-bench --site ledgix.local console
+bench --site ledgix-erpnext.local console
 ```
 
 Inside console:
@@ -475,7 +477,7 @@ FLUSH PRIVILEGES;
 
 ```bash
 cd frappe-bench
-cat sites/ledgix.local/site_config.json
+cat sites/ledgix-erpnext.local/site_config.json
 ```
 
 Look for:
@@ -488,7 +490,7 @@ Look for:
 
 ```bash
 cd frappe-bench
-bench --site ledgix.local mariadb
+bench --site ledgix-erpnext.local mariadb
 ```
 
 ## Show Tables
@@ -789,21 +791,21 @@ tail -n 100 logs/*.log
 
 ```bash
 cd frappe-bench
-bench --site ledgix.local backup --with-files
+bench --site ledgix-erpnext.local backup --with-files
 ```
 
 ## Create Database Backup Only
 
 ```bash
 cd frappe-bench
-bench --site ledgix.local backup
+bench --site ledgix-erpnext.local backup
 ```
 
 ## Find Backups
 
 ```bash
 cd frappe-bench
-ls sites/ledgix.local/private/backups/
+ls sites/ledgix-erpnext.local/private/backups/
 ```
 
 ## Production Backup Helper
@@ -821,16 +823,16 @@ deploy/backup.sh
 
 ```bash
 cd frappe-bench
-bench --site ledgix.local restore path/to/database.sql.gz
+bench --site ledgix-erpnext.local restore path/to/database.sql.gz
 ```
 
 ## Restore Then Migrate
 
 ```bash
 cd frappe-bench
-bench --site ledgix.local restore path/to/database.sql.gz
-bench --site ledgix.local migrate
-bench --site ledgix.local clear-cache
+bench --site ledgix-erpnext.local restore path/to/database.sql.gz
+bench --site ledgix-erpnext.local migrate
+bench --site ledgix-erpnext.local clear-cache
 ```
 
 ## Restart After Restore
@@ -854,21 +856,21 @@ sudo systemctl reload nginx
 
 ```bash
 cd frappe-bench
-bench --site ledgix.local maintenance-mode on
+bench --site ledgix-erpnext.local maintenance-mode on
 ```
 
 ## Disable Maintenance Mode
 
 ```bash
 cd frappe-bench
-bench --site ledgix.local maintenance-mode off
+bench --site ledgix-erpnext.local maintenance-mode off
 ```
 
 ## Check Site Config
 
 ```bash
 cd frappe-bench
-bench --site ledgix.local show-config
+bench --site ledgix-erpnext.local show-config
 ```
 
 ---
@@ -879,28 +881,28 @@ bench --site ledgix.local show-config
 
 ```bash
 cd frappe-bench
-bench --site ledgix.local enable-scheduler
+bench --site ledgix-erpnext.local enable-scheduler
 ```
 
 ## Disable Scheduler
 
 ```bash
 cd frappe-bench
-bench --site ledgix.local disable-scheduler
+bench --site ledgix-erpnext.local disable-scheduler
 ```
 
 ## Check Scheduler Status
 
 ```bash
 cd frappe-bench
-bench --site ledgix.local scheduler status
+bench --site ledgix-erpnext.local scheduler status
 ```
 
 ## Run Scheduler Once
 
 ```bash
 cd frappe-bench
-bench --site ledgix.local execute frappe.utils.scheduler.enqueue_scheduler_events
+bench --site ledgix-erpnext.local execute frappe.utils.scheduler.enqueue_scheduler_events
 ```
 
 ---
@@ -911,20 +913,20 @@ bench --site ledgix.local execute frappe.utils.scheduler.enqueue_scheduler_event
 
 ```bash
 cd frappe-bench
-bench --site ledgix.local console
+bench --site ledgix-erpnext.local console
 ```
 
 ## Execute Python Method
 
 ```bash
 cd frappe-bench
-bench --site ledgix.local execute path.to.method
+bench --site ledgix-erpnext.local execute path.to.method
 ```
 
 Example:
 
 ```bash
-bench --site ledgix.local execute ledgix_saas.setup.install.after_install
+bench --site ledgix-erpnext.local execute ledgix_saas.setup.install.after_install
 ```
 
 ## Run Frappe Doctor
@@ -980,7 +982,7 @@ bench watch
 
 ```bash
 cd frappe-bench
-bench --site ledgix.local clear-website-cache
+bench --site ledgix-erpnext.local clear-website-cache
 bench build
 ```
 
@@ -1019,23 +1021,23 @@ bench --site erp.yourdomain.com maintenance-mode off
 ```bash
 cd frappe-bench
 bench pip install -e apps/ledgix_saas
-bench --site ledgix.local migrate
+bench --site ledgix-erpnext.local migrate
 ```
 
 ## Fix: App Not Installed on Site
 
 ```bash
 cd frappe-bench
-bench --site ledgix.local install-app ledgix_saas
-bench --site ledgix.local migrate
+bench --site ledgix-erpnext.local install-app ledgix_saas
+bench --site ledgix-erpnext.local migrate
 ```
 
 ## Fix: Desk Changes Not Showing
 
 ```bash
 cd frappe-bench
-bench --site ledgix.local clear-cache
-bench --site ledgix.local clear-website-cache
+bench --site ledgix-erpnext.local clear-cache
+bench --site ledgix-erpnext.local clear-website-cache
 bench build
 bench restart
 ```
@@ -1056,7 +1058,7 @@ cat /etc/hosts
 Add if missing:
 
 ```text
-127.0.0.1 ledgix.local
+127.0.0.1 ledgix-erpnext.local
 ```
 
 ## Fix: Port Already in Use
@@ -1108,8 +1110,8 @@ sudo supervisorctl status
 │ 1. cd pos                                              │
 │ 2. git pull                                                 │
 │ 3. cd frappe-bench                                          │
-│ 4. bench --site ledgix.local migrate                        │
-│ 5. bench --site ledgix.local clear-cache                    │
+│ 4. bench --site ledgix-erpnext.local migrate                        │
+│ 5. bench --site ledgix-erpnext.local clear-cache                    │
 │ 6. bench start                                              │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -1120,8 +1122,8 @@ Commands:
 cd pos
 git pull
 cd frappe-bench
-bench --site ledgix.local migrate
-bench --site ledgix.local clear-cache
+bench --site ledgix-erpnext.local migrate
+bench --site ledgix-erpnext.local clear-cache
 bench start
 ```
 
@@ -1169,8 +1171,8 @@ bench --site erp.yourdomain.com maintenance-mode off
 ```bash
 cd frappe-bench
 bench list-sites
-bench --site ledgix.local list-apps
-bench --site ledgix.local migrate
+bench --site ledgix-erpnext.local list-apps
+bench --site ledgix-erpnext.local migrate
 bench doctor
 ```
 

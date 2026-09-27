@@ -2,7 +2,7 @@
 
 **Status:** CURRENT  
 **Canonical local site:** `ledgix-erpnext.local`  
-**Required stack:** Frappe v15 -> ERPNext v15 -> `ledgix_saas`
+**Required stack:** Frappe v15 -> ERPNext v15 -> `ledgix_saas` -> `fbr_v1`
 
 ## Purpose
 
@@ -17,17 +17,19 @@ Older instructions that create arbitrary Ledgix-only sites or install `ledgix_sa
 Typical local checkout:
 
 ```text
-~/data_drive/pos/
+~/data_drive/ledgix-pos/
 ├── install.sh
 ├── site_setup.sh
 ├── start.sh
 ├── apps/ledgix_saas/
+├── apps/fbr_v1/
+├── apps/fbr_v12/              # frozen source reference; not an active local integration
 ├── deploy/
 ├── docs/
 └── frappe-bench/        # generated/reused locally; not committed
 ```
 
-Repository app source remains under `apps/ledgix_saas/`. Local site tooling synchronizes it into the bench application path as required.
+Repository app sources remain under `apps/ledgix_saas/` and `apps/fbr_v1/`. Local site tooling synchronizes them into the bench application path as required.
 
 ---
 
@@ -36,7 +38,7 @@ Repository app source remains under `apps/ledgix_saas/`. Local site tooling sync
 From the repository root:
 
 ```bash
-cd ~/data_drive/pos
+cd ~/data_drive/ledgix-pos
 chmod +x install.sh site_setup.sh start.sh deploy/*.sh
 ./install.sh --local
 ```
@@ -82,7 +84,7 @@ ledgix-erpnext.local
 The site stack is always:
 
 ```text
-Frappe -> ERPNext -> ledgix_saas
+Frappe -> ERPNext -> ledgix_saas -> fbr_v1
 ```
 
 There is no local app-selection menu. ERPNext is a required dependency of Ledgix.
@@ -103,6 +105,7 @@ Check state with:
 - ensure ERPNext exists in the bench and is installed on the site;
 - synchronize the repository Ledgix app into the bench;
 - install `ledgix_saas` if missing;
+- install `fbr_v1` if missing, after ERPNext;
 - enable local developer mode;
 - run `bench migrate`;
 - build Ledgix assets;
@@ -167,7 +170,7 @@ If local hostname resolution is missing, `start.sh` can report/add the required 
 From the bench:
 
 ```bash
-cd ~/data_drive/pos/frappe-bench
+cd ~/data_drive/ledgix-pos/frappe-bench
 bench --site ledgix-erpnext.local list-apps
 bench version --format plain
 ```
@@ -178,6 +181,7 @@ The site must include:
 frappe
 erpnext
 ledgix_saas
+fbr_v1
 ```
 
 ERPNext must not be omitted.
@@ -185,7 +189,7 @@ ERPNext must not be omitted.
 Run the client dependency preflight when appropriate:
 
 ```bash
-cd ~/data_drive/pos
+cd ~/data_drive/ledgix-pos
 bash scripts/run_ledgix_client_preflight.sh ledgix-erpnext.local
 ```
 
@@ -194,7 +198,7 @@ bash scripts/run_ledgix_client_preflight.sh ledgix-erpnext.local
 ## 8. Common development commands
 
 ```bash
-cd ~/data_drive/pos/frappe-bench
+cd ~/data_drive/ledgix-pos/frappe-bench
 
 bench --site ledgix-erpnext.local migrate
 bench --site ledgix-erpnext.local clear-cache
@@ -237,15 +241,15 @@ for the current verifier, exact dataset contract, safe inspection commands and d
 
 ## 10. FBR safety locally
 
-Local operating data deliberately keeps FBR transport disabled.
+Local operating data deliberately keeps both Federal V1 network gates disabled. Do not install `fbr_v12` alongside `fbr_v1` as an active integration.
 
 Do not add real Production credentials to the local acceptance dataset and do not fabricate Sandbox success evidence.
 
 Current FBR documentation:
 
 ```text
-docs/fbr/FBR_ARCHITECTURE_AND_OPERATIONS.md
-docs/fbr/FBR_PRODUCTION_CHECKLIST.md
+docs/fbr/fbr_v1/FBR_V1_RUNTIME_ARCHITECTURE.md
+docs/fbr/fbr_v1/FBR_V1_PRODUCTION_CHECKLIST.md
 ```
 
 ---

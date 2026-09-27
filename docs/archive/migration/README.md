@@ -36,8 +36,9 @@ docs/local/LOCAL_INSTALLATION.md
 ### FBR
 
 ```text
-docs/fbr/FBR_ARCHITECTURE_AND_OPERATIONS.md
-docs/fbr/FBR_PRODUCTION_CHECKLIST.md
+docs/fbr/fbr_v1/README.md
+docs/fbr/fbr_v1/FBR_V1_RUNTIME_ARCHITECTURE.md
+docs/fbr/fbr_v1/FBR_V1_PRODUCTION_CHECKLIST.md
 ```
 
 ### Production
@@ -92,7 +93,7 @@ Earlier superseded design context may also remain in this archive. Where an arch
 
 The completed migration established:
 
-- Frappe v15 + ERPNext v15 + `ledgix_saas`;
+- Frappe v15 + ERPNext v15 + `ledgix_saas`; current Federal V1 is now isolated in `fbr_v1`;
 - ERPNext as the active business/master/transaction/accounting/stock authority;
 - retained Ledgix product pages over ERPNext-native data;
 - frozen historical custom Ledgix business ledgers;

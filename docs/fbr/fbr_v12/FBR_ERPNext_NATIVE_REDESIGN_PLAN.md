@@ -1,5 +1,7 @@
 # Ledgix FBR + ERPNext Native Tax Redesign Plan
 
+> **FROZEN HISTORICAL DIGITAL INVOICING V1.2 RECORD. Not current operating authority. See [README.md](README.md).**
+
 **Status:** SOFTWARE IMPLEMENTATION READY FOR CLIENT CERTIFICATION; REAL SANDBOX / PRODUCTION CERTIFICATION PENDING
 **Date:** 2026-09-25
 **Repository:** mshahwaiz-ali/ledgix-pos

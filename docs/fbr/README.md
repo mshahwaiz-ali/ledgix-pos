@@ -1,8 +1,19 @@
-# FBR Documentation
+# FBR Documentation Router
 
-FBR documentation is separated by integration line so FBR V1 / Tier-1 POS work cannot be confused with the V1.2 reference implementation.
+Ledgix has two distinct documentation lines. Do not mix their endpoints, payloads, credentials, or operating procedures.
 
-- `fbr_v1/` - FBR V1 / Tier-1 POS research, source inventory, design decisions, implementation plan and certification evidence.
-- `fbr_v12/` - frozen documentation for the extracted FBR V1.2 implementation.
+## Current: Federal Tier-1 POS / IMS V1
 
-Do not carry a V1.2 behavior into V1 merely because both applications share an initial code ancestry. Each V1 behavior must be established from the V1 / Tier-1 source documentation.
+[`fbr_v1/README.md`](fbr_v1/README.md) is the current operating authority for `apps/fbr_v1`.
+
+- [Documented protocol contract](fbr_v1/FBR_V1_DOCUMENTED_PROTOCOL_CONTRACT.md)
+- [Runtime architecture](fbr_v1/FBR_V1_RUNTIME_ARCHITECTURE.md)
+- [Setup and activation](fbr_v1/FBR_V1_SETUP_AND_ACTIVATION.md)
+- [Production checklist](fbr_v1/FBR_V1_PRODUCTION_CHECKLIST.md)
+- [Unresolved external contracts](fbr_v1/FBR_V1_UNRESOLVED_EXTERNAL_CONTRACTS.md)
+
+Software implementation is verified locally. Real Sandbox acceptance and Production activation remain external and pending.
+
+## Historical: Digital Invoicing V1.2
+
+[`fbr_v12/README.md`](fbr_v12/README.md) routes frozen Digital Invoicing V1.2 records. They are not current setup instructions and are not authority for copying DI endpoints, payloads, reference sync, or `scenarioId` behavior into Federal Tier-1 POS / IMS V1.

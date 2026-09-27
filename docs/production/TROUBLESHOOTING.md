@@ -14,7 +14,7 @@ Check:
 - the canonical site exists;
 - `/etc/hosts` resolves `ledgix-erpnext.local` to `127.0.0.1` where required;
 - port `8000` belongs to this bench;
-- Frappe, ERPNext and `ledgix_saas` are installed.
+- Frappe, ERPNext, `ledgix_saas`, and `fbr_v1` are installed when Federal V1 is in scope.
 
 For site repair, prefer:
 
@@ -42,6 +42,7 @@ Expected site stack:
 frappe
 erpnext
 ledgix_saas
+fbr_v1
 ```
 
 ERPNext is mandatory. Do not fix a production/client site by manually installing only `ledgix_saas` onto a Frappe-only site.
@@ -178,8 +179,8 @@ Do not repair current stock by writing `Ledgix Stock Movement` or legacy lot/ser
 Use the current FBR docs first:
 
 ```text
-docs/fbr/FBR_ARCHITECTURE_AND_OPERATIONS.md
-docs/fbr/FBR_PRODUCTION_CHECKLIST.md
+docs/fbr/fbr_v1/FBR_V1_RUNTIME_ARCHITECTURE.md
+docs/fbr/fbr_v1/FBR_V1_PRODUCTION_CHECKLIST.md
 ```
 
 Check:
@@ -189,7 +190,7 @@ Check:
 - buyer/item/FBR classifications are correct;
 - immutable FBR snapshot is present;
 - token presence matches the selected environment;
-- mode/trigger/Production interlock are intentional;
+- general/Production cutovers and `production_post_armed` are intentional and independently satisfied;
 - `Ledgix FBR Submission Log` contains the real attempt state.
 
 ### `Reconciliation Required`
@@ -206,7 +207,7 @@ Current FBR scheduler retry is intentionally disabled.
 
 This can be the correct state even when application code/tests are green.
 
-Production FBR remains blocked until real client Sandbox proof, Production credentials, fresh verified backup/release evidence and reconciliation requirements are complete.
+Federal V1 Production remains blocked until real client authority/device/retention/QR/signature evidence, Sandbox proof, Production credential/approval, fresh verified backup/release evidence, both cutover gates, arming, and reconciliation requirements are complete.
 
 Do not fabricate the missing evidence or manually edit readiness flags.
 

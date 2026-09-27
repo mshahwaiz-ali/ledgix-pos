@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# RETIRED/LEGACY: evaluates ledgix_saas Digital Invoicing V1.2 activation.
+# It is not current apps/fbr_v1 readiness or Production authority.
+# See docs/fbr/fbr_v1/FBR_V1_PRODUCTION_CHECKLIST.md.
 set -Eeuo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

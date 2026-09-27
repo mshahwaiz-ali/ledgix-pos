@@ -22,7 +22,7 @@ Current contract:
 
 - Frappe `15.113.4`;
 - ERPNext `15.121.3`;
-- app `ledgix_saas`;
+- applications `ledgix_saas` and, for Federal V1 sites, `fbr_v1`;
 - ERPNext Core Migration closure gate `d813d26d16a11665522da98c7bd542a7cc09c53f`.
 
 Updating Ledgix never silently pulls or rewrites ERPNext core.
@@ -79,7 +79,7 @@ For full host/bench/services setup, also provide domain/HTTPS inputs as required
 
 The canonical site provisioner is `deploy/provision_client_site_safe.sh`. It creates an isolated database, installs ERPNext before Ledgix, migrates/builds, runs dependency preflight and offline smoke checks, and records provisioning evidence.
 
-It does not create client business masters, apply a Business Profile, or activate FBR Production. After provisioning, configure native ERPNext prerequisites and then use `/app/ledgix-setup`.
+It does not create client business masters, apply a Business Profile, or activate Federal V1 Production. After provisioning, configure native ERPNext prerequisites, use `/app/ledgix-setup`, then follow `docs/fbr/fbr_v1/FBR_V1_SETUP_AND_ACTIVATION.md`.
 
 See `docs/production/fresh_client_provisioning.md`.
 

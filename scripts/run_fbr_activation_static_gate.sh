@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# RETIRED/LEGACY: runs ledgix_saas Digital Invoicing V1.2 contracts.
+# Passing this gate does not prove current Federal Tier-1 POS / IMS V1 readiness.
 set -Eeuo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

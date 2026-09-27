@@ -3,6 +3,8 @@
 **Status:** canonical source register  
 **Updated:** 2026-09-27
 
+This register distinguishes documented machine fields from legal/printing obligations and external onboarding. An older portal workflow is not treated as current unless authoritative current evidence proves it.
+
 ## 1. Source priority
 
 1. current Sales Tax Act / Finance Acts / Gazette notifications and SROs;
@@ -133,12 +135,14 @@ The following are now considered documented for development:
 
 Do not guess:
 - item-level Debit code semantics;
-- current IMS installer/version;
 - current credential/POSID issuance UI;
 - complete error-code catalogue;
 - duplicate-USIN behavior;
 - separate offline upload API;
 - external closing API;
-- exact QR encoded payload.
+- external outage/alert APIs or Board correction API;
+- undocumented signature or alternative QR algorithms;
+- unproven Extra Tax/FED/withheld wire fields;
+- unsupported foreign-currency or inclusive-tax discount semantics.
 
-Development continues with these paths fail-closed.
+The documented software contract is complete; these external areas remain intentionally fail-closed.

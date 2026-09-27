@@ -441,14 +441,14 @@ The business transaction must remain valid ERPNext state regardless of FBR trans
 
 ### Current readiness boundary
 
-- FBR architecture/code: CURRENT.
-- Local operating dataset: FBR transport intentionally `Disabled`.
-- Real client Sandbox proof/certification: DEFERRED until real seller credentials/token/scenario evidence are available.
-- FBR Production activation: **NOT YET PRODUCTION-READY** without the required real-client Sandbox/production gates.
+- Federal Tier-1 POS / IMS V1 software: verified locally.
+- Local operating dataset: both V1 network gates intentionally off.
+- Real client Sandbox acceptance: external/pending until credentials and actual fiscalization evidence exist.
+- Production activation: external/pending until the current V1 evidence checklist and independent gates pass.
 
 Ambiguous Production POST outcomes must be reconciled explicitly. Current hooks deliberately do **not** provide a blind scheduled retry loop.
 
-See `docs/fbr/FBR_ARCHITECTURE_AND_OPERATIONS.md` for the compliance workflow.
+See `docs/fbr/fbr_v1/FBR_V1_RUNTIME_ARCHITECTURE.md` for the compliance workflow.
 
 ---
 
@@ -561,7 +561,7 @@ Related architecture/operations documentation:
 docs/architecture/CURRENT_ARCHITECTURE.md
 docs/architecture/LEGACY_AUDIT.md
 docs/operations/LOCAL_DEMO_DATA.md
-docs/fbr/FBR_ARCHITECTURE_AND_OPERATIONS.md
+docs/fbr/fbr_v1/FBR_V1_RUNTIME_ARCHITECTURE.md
 ```
 
 When implementation and documentation disagree, inspect the current `main` source and correct the documentation. Do not preserve an old workflow merely because it appears in an archived migration plan.
