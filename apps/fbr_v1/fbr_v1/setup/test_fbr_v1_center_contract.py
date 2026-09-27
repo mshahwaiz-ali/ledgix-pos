@@ -94,5 +94,5 @@ class TestFbrV1CenterContract(unittest.TestCase):
         self.assertNotIn("fbr_v1_network_cutover_active", js)
         self.assertNotIn("fbr_v1_production_cutover_active", js)
 
-        for marker in (".lx-fbr-status-grid", ".lx-fbr-safety-grid", ".lx-fbr-blocker-group", ".lx-fbr-danger-action"):
+        for marker in (".lx-fbr-status-grid", ".lx-fbr-safety-grid", ".lx-fbr-blocker-group", ".lx-fbr-danger-action", ".lx-fbr-readiness-head", ".lx-fbr-operation-grid", ".lx-fbr-card-identity"):
             self.assertIn(marker, css)

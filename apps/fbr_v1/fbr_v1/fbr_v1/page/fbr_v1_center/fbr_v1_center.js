@@ -4,6 +4,7 @@ frappe.pages['fbr-v1-center'].on_page_load = function (wrapper) {
         title: __('FBR V1 Center'),
         single_column: true,
     });
+    $(page.main).addClass('lx-fbr-page-shell');
     const body = $('<div class="lx-fbr-v1-center"></div>').appendTo(page.main);
     const company = page.add_field({
         fieldname: 'company',
@@ -12,6 +13,7 @@ frappe.pages['fbr-v1-center'].on_page_load = function (wrapper) {
         options: 'Company',
         change: refresh,
     });
+    if (company.$wrapper) company.$wrapper.addClass('lx-fbr-company-selector');
     const iconUrl = '/assets/ledgix_saas/images/brand/fbr_v1.png';
     const canOperate = () => frappe.user.has_role('System Manager') || frappe.user.has_role('Accounts Manager');
     let busy = false;
@@ -22,14 +24,54 @@ frappe.pages['fbr-v1-center'].on_page_load = function (wrapper) {
         return uniq(rows).filter((row) => !omit.has(row));
     };
     const yesNo = (value) => value ? __('ON') : __('OFF');
-    const textOrDash = (value) => value || '—';
+    const textOrDash = (value) => value === 0 ? '0' : (value || '—');
+
+    const ICONS = {
+        seller: '<path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="7" r="4"/>',
+        profile: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8h10M7 12h6M7 16h4"/>',
+        device: '<rect x="5" y="2" width="14" height="20" rx="2"/><path d="M9 6h6M10 18h4"/>',
+        mapping: '<path d="M8 6h13M8 12h13M8 18h13"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/>',
+        sandbox: '<path d="M4 5h16v14H4z"/><path d="M8 9l2 2-2 2M12 15h4"/>',
+        production: '<path d="M12 3l8 4v5c0 5-3.4 8-8 9-4.6-1-8-4-8-9V7l8-4z"/><path d="M9 12l2 2 4-4"/>',
+        shield: '<path d="M12 3l8 4v5c0 5-3.4 8-8 9-4.6-1-8-4-8-9V7l8-4z"/>',
+        alert: '<path d="M12 3L2.8 19h18.4L12 3z"/><path d="M12 9v4M12 16h.01"/>',
+        operations: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
+        setup: '<path d="M14.7 6.3a4 4 0 0 0-5 5L4 17l3 3 5.7-5.7a4 4 0 0 0 5-5l-2.2 2.2-3-3 2.2-2.2z"/>',
+        evidence: '<path d="M6 3h9l3 3v15H6z"/><path d="M14 3v4h4M9 12h6M9 16h6"/>',
+        transaction: '<path d="M4 7h16M6 3h12v18H6z"/><path d="M9 12h6M9 16h4"/>',
+        test: '<path d="M9 3h6M10 3v5l-5 9a3 3 0 0 0 2.6 4.5h8.8A3 3 0 0 0 19 17l-5-9V3"/><path d="M8 16h8"/>',
+        arrow: '<path d="M5 12h14M14 7l5 5-5 5"/>',
+        check: '<path d="M5 12l4 4L19 6"/>',
+        lock: '<rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>',
+    };
+
+    const CARD_META = {
+        'Seller Identity': {icon: 'seller', step: '01'},
+        'Integration Profile': {icon: 'profile', step: '02'},
+        'POS Device / POSID': {icon: 'device', step: '03'},
+        'Item & Tax Mapping': {icon: 'mapping', step: '04'},
+        'Sandbox': {icon: 'sandbox', step: '05'},
+        'Production': {icon: 'production', step: '06'},
+    };
+
+    const SECTION_META = {
+        'Safety & Transport': 'shield',
+        'Readiness Blockers': 'alert',
+        'Operations': 'operations',
+        'POS Devices': 'device',
+    };
+
+    function iconNode(name, extraClass = '') {
+        const paths = ICONS[name] || ICONS.operations;
+        return $(`<span class="lx-fbr-icon ${extraClass}" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${paths}</svg></span>`);
+    }
 
     function routeList(doctype, filters) {
         frappe.set_route('List', doctype, filters || {});
     }
 
     function makeButton(label, onClick, options = {}) {
-        const button = $('<button type="button" class="btn btn-sm"></button>')
+        const button = $('<button type="button" class="btn btn-sm lx-fbr-action-button"></button>')
             .addClass(options.primary ? 'btn-primary' : 'btn-default')
             .text(__(label));
         if (options.danger) button.addClass('lx-fbr-danger-action');
@@ -65,32 +107,45 @@ frappe.pages['fbr-v1-center'].on_page_load = function (wrapper) {
         return [readiness.mode || 'Unknown', 'neutral'];
     }
 
+
     function cardBlockers(card, blockers) {
         const rows = uniq(blockers);
         if (!rows.length) return;
         const wrap = $('<div class="lx-fbr-card-blockers"></div>').appendTo(card);
-        rows.slice(0, 2).forEach((message) => $('<div></div>').text(message).appendTo(wrap));
-        if (rows.length > 2) {
-            $('<div class="lx-fbr-more"></div>').text(__('+ {0} more blocker(s)', [rows.length - 2])).appendTo(wrap);
+        iconNode('alert', 'is-warning').appendTo(wrap);
+        const copy = $('<div class="lx-fbr-card-blocker-copy"></div>').appendTo(wrap);
+        $('<strong></strong>').text(rows[0]).appendTo(copy);
+        if (rows.length > 1) {
+            $('<span></span>').text(__('{0} additional blocker(s)', [rows.length - 1])).appendTo(copy);
         }
     }
 
     function statusCard({title, status, tone, detail, blockers, actionLabel, action}) {
-        const card = $('<section class="lx-fbr-status-card"></section>');
+        const meta = CARD_META[title] || {icon: 'operations', step: ''};
+        const card = $('<section class="lx-fbr-status-card"></section>').addClass(`is-${tone}`);
         const head = $('<div class="lx-fbr-card-head"></div>').appendTo(card);
-        $('<div class="lx-fbr-card-title"></div>').append($('<span class="lx-fbr-dot"></span>').addClass(`is-${tone}`), $('<strong></strong>').text(__(title))).appendTo(head);
+        const identity = $('<div class="lx-fbr-card-identity"></div>').appendTo(head);
+        iconNode(meta.icon, `is-${tone}`).appendTo(identity);
+        const titleWrap = $('<div class="lx-fbr-card-title"></div>').appendTo(identity);
+        if (meta.step) $('<span class="lx-fbr-card-step"></span>').text(meta.step).appendTo(titleWrap);
+        $('<strong></strong>').text(__(title)).appendTo(titleWrap);
         badge(status, tone).appendTo(head);
+
         if (detail && detail.length) {
             const detailWrap = $('<div class="lx-fbr-card-detail"></div>').appendTo(card);
             detail.filter((row) => row && row.value !== undefined).forEach((row) => {
-                const line = $('<div></div>').appendTo(detailWrap);
+                const line = $('<div class="lx-fbr-detail-row"></div>').appendTo(detailWrap);
                 $('<span></span>').text(__(row.label)).appendTo(line);
                 $('<strong></strong>').text(textOrDash(row.value)).appendTo(line);
             });
         }
+
         cardBlockers(card, blockers);
         if (actionLabel && action) {
-            $('<div class="lx-fbr-card-action"></div>').append(makeButton(actionLabel, action)).appendTo(card);
+            const footer = $('<div class="lx-fbr-card-action"></div>').appendTo(card);
+            const button = makeButton(actionLabel, action).addClass('lx-fbr-card-link');
+            iconNode('arrow', 'is-arrow').appendTo(button);
+            button.appendTo(footer);
         }
         return card;
     }
@@ -98,29 +153,40 @@ frappe.pages['fbr-v1-center'].on_page_load = function (wrapper) {
     function section(title, description) {
         const node = $('<section class="lx-fbr-section"></section>');
         const head = $('<div class="lx-fbr-section-head"></div>').appendTo(node);
-        $('<h3></h3>').text(__(title)).appendTo(head);
-        if (description) $('<p></p>').text(__(description)).appendTo(head);
+        const heading = $('<div class="lx-fbr-section-heading"></div>').appendTo(head);
+        iconNode(SECTION_META[title] || 'operations', 'is-section').appendTo(heading);
+        const copy = $('<div></div>').appendTo(heading);
+        $('<h3></h3>').text(__(title)).appendTo(copy);
+        if (description) $('<p></p>').text(__(description)).appendTo(copy);
         return node;
     }
 
     function actionGroup(parent, title, description, actions) {
+        const iconMap = {Setup: 'setup', 'Evidence / Operations': 'evidence', Transactions: 'transaction', Testing: 'test'};
         const group = $('<div class="lx-fbr-action-group"></div>').appendTo(parent);
-        $('<h4></h4>').text(__(title)).appendTo(group);
-        if (description) $('<p></p>').text(__(description)).appendTo(group);
+        const head = $('<div class="lx-fbr-action-group-head"></div>').appendTo(group);
+        iconNode(iconMap[title] || 'operations', 'is-action').appendTo(head);
+        const copy = $('<div></div>').appendTo(head);
+        $('<h4></h4>').text(__(title)).appendTo(copy);
+        if (description) $('<p></p>').text(__(description)).appendTo(copy);
         const buttons = $('<div class="lx-fbr-action-buttons"></div>').appendTo(group);
         actions.forEach((action) => makeButton(action.label, action.onClick, action).appendTo(buttons));
     }
 
     function blockerGroup(parent, title, blockers, open = false) {
         const rows = uniq(blockers);
-        const details = $('<details class="lx-fbr-blocker-group"></details>').prop('open', open && rows.length > 0).appendTo(parent);
+        const details = $('<details class="lx-fbr-blocker-group"></details>')
+            .addClass(rows.length ? 'has-blockers' : 'is-clear')
+            .prop('open', open && rows.length > 0)
+            .appendTo(parent);
         const summary = $('<summary></summary>').appendTo(details);
-        $('<strong></strong>').text(__(title)).appendTo(summary);
-        badge(rows.length ? __('{0} blocker(s)', [rows.length]) : __('Clear'), rows.length ? 'warning' : 'good').appendTo(summary);
-        if (!rows.length) {
-            $('<p class="lx-fbr-empty-note"></p>').text(__('No blockers in this category.')).appendTo(details);
-            return;
-        }
+        const left = $('<div class="lx-fbr-blocker-summary"></div>').appendTo(summary);
+        iconNode(rows.length ? 'alert' : 'check', rows.length ? 'is-warning' : 'is-good').appendTo(left);
+        const copy = $('<div></div>').appendTo(left);
+        $('<strong></strong>').text(__(title)).appendTo(copy);
+        $('<span></span>').text(rows.length ? __('Needs attention') : __('No blockers')).appendTo(copy);
+        badge(rows.length ? __('{0}', [rows.length]) : __('Clear'), rows.length ? 'warning' : 'good').appendTo(summary);
+        if (!rows.length) return;
         const list = $('<ul></ul>').appendTo(details);
         rows.forEach((message) => $('<li></li>').text(message).appendTo(list));
     }
@@ -185,22 +251,61 @@ frappe.pages['fbr-v1-center'].on_page_load = function (wrapper) {
         dialog.show();
     }
 
+
     function renderHero(data, readiness, profile) {
         const hero = $('<section class="lx-fbr-hero"></section>').appendTo(body);
-        const identity = $('<div class="lx-fbr-hero-identity"></div>').appendTo(hero);
-        $('<img class="lx-fbr-hero-icon" alt="">').attr('src', iconUrl).appendTo(identity);
-        const copy = $('<div></div>').appendTo(identity);
+        const main = $('<div class="lx-fbr-hero-main"></div>').appendTo(hero);
+        const brand = $('<div class="lx-fbr-hero-brand"></div>').appendTo(main);
+        $('<div class="lx-fbr-hero-icon-wrap"></div>')
+            .append($('<img class="lx-fbr-hero-icon" alt="">').attr('src', iconUrl))
+            .appendTo(brand);
+
+        const copy = $('<div class="lx-fbr-hero-copy"></div>').appendTo(brand);
         $('<div class="lx-fbr-kicker"></div>').text(__('Federal fiscal integration')).appendTo(copy);
         $('<h2></h2>').text(__('Federal FBR POS / IMS V1')).appendTo(copy);
-        $('<p></p>').text(data.company).appendTo(copy);
+        $('<p></p>').text(__('ERPNext-native configuration, fiscal readiness and guarded operations.')).appendTo(copy);
+
+        const chips = $('<div class="lx-fbr-hero-chips"></div>').appendTo(copy);
+        $('<span class="lx-fbr-meta-chip"></span>').text(data.company).appendTo(chips);
+        $('<span class="lx-fbr-meta-chip"></span>').text(__('Mode: {0}', [readiness.mode || 'Disabled'])).appendTo(chips);
+        $('<span class="lx-fbr-meta-chip"></span>').text(readiness.profile ? __('Profile linked') : __('No profile yet')).appendTo(chips);
+
         const [label, tone] = overallState(readiness, profile);
-        const state = $('<div class="lx-fbr-overall"></div>').appendTo(hero);
-        $('<span></span>').text(__('Overall state')).appendTo(state);
-        badge(label, tone).appendTo(state);
+        const state = $('<aside class="lx-fbr-hero-state"></aside>').addClass(`is-${tone}`).appendTo(hero);
+        const stateTop = $('<div class="lx-fbr-hero-state-top"></div>').appendTo(state);
+        const stateCopy = $('<div></div>').appendTo(stateTop);
+        $('<span></span>').text(__('Overall state')).appendTo(stateCopy);
+        $('<strong></strong>').text(__(label)).appendTo(stateCopy);
+        badge(label, tone).appendTo(stateTop);
+
+        const mini = $('<div class="lx-fbr-hero-state-grid"></div>').appendTo(state);
+        [
+            ['Network gate', yesNo(readiness.network_cutover_active), readiness.network_cutover_active ? 'warning' : 'good'],
+            ['Production gate', yesNo(readiness.production_cutover_active), readiness.production_cutover_active ? 'danger' : 'good'],
+        ].forEach(([name, value, stateTone]) => {
+            const item = $('<div class="lx-fbr-hero-mini"></div>').appendTo(mini);
+            $('<span></span>').text(__(name)).appendTo(item);
+            $('<strong></strong>').addClass(`is-${stateTone}`).text(__(value)).appendTo(item);
+        });
+
+        $('<div class="lx-fbr-hero-safe-note"></div>')
+            .append(iconNode('lock', 'is-small'))
+            .append($('<span></span>').text(__('This Center never switches cutover gates.')))
+            .appendTo(state);
     }
 
+
     function renderStatusCards(data, readiness, profile) {
-        const cards = $('<div class="lx-fbr-status-grid"></div>').appendTo(body);
+        const shell = $('<section class="lx-fbr-readiness-wrap"></section>').appendTo(body);
+        const readinessHead = $('<div class="lx-fbr-readiness-head"></div>').appendTo(shell);
+        const readinessCopy = $('<div></div>').appendTo(readinessHead);
+        $('<div class="lx-fbr-kicker"></div>').text(__('Configuration path')).appendTo(readinessCopy);
+        $('<h3></h3>').text(__('Readiness Overview')).appendTo(readinessCopy);
+        $('<p></p>').text(__('Complete the shared ERPNext setup first, then validate Sandbox before Production.')).appendTo(readinessCopy);
+        const sharedCount = uniq(readiness.setup_blockers || []).length;
+        badge(sharedCount ? __('{0} shared blocker(s)', [sharedCount]) : __('Shared setup clear'), sharedCount ? 'warning' : 'good').appendTo(readinessHead);
+
+        const cards = $('<div class="lx-fbr-status-grid"></div>').appendTo(shell);
         const seller = readiness.seller_identity || {};
         const sourceBlockers = readiness.source_blockers || [];
         const currentState = readiness.configuration?.[String(readiness.mode || '').toLowerCase()] || {};
@@ -228,6 +333,9 @@ frappe.pages['fbr-v1-center'].on_page_load = function (wrapper) {
             action: () => frappe.set_route('Form', 'Company', data.company),
         }).appendTo(cards);
 
+        const profileBlockers = readiness.profile
+            ? uniq((readiness.setup_blockers || []).filter((message) => /profile/i.test(message)))
+            : ['Create a Federal V1 Integration Profile for this company.'];
         statusCard({
             title: 'Integration Profile',
             status: readiness.profile ? (readiness.enabled ? readiness.mode : 'Disabled') : 'Not Configured',
@@ -235,13 +343,10 @@ frappe.pages['fbr-v1-center'].on_page_load = function (wrapper) {
             detail: [
                 {label: 'Provider', value: profile.provider_type},
                 {label: 'Submit trigger', value: profile.submit_trigger},
+                {label: 'Transport', value: readiness.profile ? yesNo(profile.transport_enabled) : 'Not configured'},
             ],
-            blockers: readiness.enabled
-                ? []
-                : uniq((readiness.setup_blockers || []).filter((message) => /profile/i.test(message))).concat(
-                    readiness.profile ? [] : ['Create one Federal V1 Integration Profile for this company.']
-                ),
-            actionLabel: readiness.profile ? 'Open Profile' : 'Integration Profiles',
+            blockers: profileBlockers,
+            actionLabel: readiness.profile ? 'Open Profile' : 'Create / Open Profiles',
             action: () => readiness.profile
                 ? frappe.set_route('Form', 'Ledgix FBR Integration Profile', readiness.profile)
                 : routeList('Ledgix FBR Integration Profile', {company: data.company}),
@@ -257,7 +362,7 @@ frappe.pages['fbr-v1-center'].on_page_load = function (wrapper) {
                 {label: 'Topology', value: device && device.transport_topology},
             ],
             blockers: device ? deviceBlockers : ['Configure an active Federal V1 POS device for this company.'],
-            actionLabel: 'POS Devices',
+            actionLabel: 'Open POS Devices',
             action: () => routeList('Ledgix FBR POS Device', {company: data.company}),
         }).appendTo(cards);
 
@@ -266,93 +371,120 @@ frappe.pages['fbr-v1-center'].on_page_load = function (wrapper) {
             status: mappingReady ? 'Configured' : 'Setup Required',
             tone: mappingReady ? 'good' : 'warning',
             detail: [
-                {label: 'Reviewed item mappings', value: mapping.reviewed_item_mappings || 0},
-                {label: 'Tax component mappings', value: mapping.active_tax_component_mappings || 0},
+                {label: 'Reviewed items', value: mapping.reviewed_item_mappings || 0},
+                {label: 'Tax components', value: mapping.active_tax_component_mappings || 0},
                 {label: 'Payment mappings', value: mapping.payment_mappings || 0},
             ],
             blockers: mappingBlockers,
-            actionLabel: 'Item Mappings',
+            actionLabel: 'Open Item Mappings',
             action: () => routeList('Ledgix FBR Item Mapping', {company: data.company}),
         }).appendTo(cards);
 
         const sandbox = readiness.configuration?.sandbox || {};
+        const sandboxBlockers = without(sandbox.blockers || [], readiness.setup_blockers || []);
+        if (!readiness.setup_ready) sandboxBlockers.unshift('Complete the shared setup prerequisites first.');
         statusCard({
             title: 'Sandbox',
             status: readiness.sandbox_configuration_ready ? 'Configuration Ready' : 'Setup Required',
             tone: readiness.sandbox_configuration_ready ? 'good' : 'warning',
             detail: [
                 {label: 'Configured devices', value: (sandbox.devices || []).length},
-                {label: 'General network cutover', value: yesNo(readiness.network_cutover_active)},
+                {label: 'Network gate', value: yesNo(readiness.network_cutover_active)},
+                {label: 'Mode', value: readiness.mode === 'Sandbox' ? 'Active mode' : 'Available for setup'},
             ],
-            blockers: sandbox.blockers,
-            actionLabel: 'Sandbox Device',
+            blockers: uniq(sandboxBlockers),
+            actionLabel: 'Open Sandbox Devices',
             action: () => routeList('Ledgix FBR POS Device', {company: data.company, environment: 'Sandbox'}),
         }).appendTo(cards);
 
         const production = readiness.configuration?.production || {};
+        const productionBlockers = without(production.blockers || [], readiness.setup_blockers || []);
+        if (!readiness.setup_ready) productionBlockers.unshift('Complete shared setup and Sandbox validation before Production.');
         statusCard({
             title: 'Production',
-            status: readiness.production_configuration_ready ? (readiness.production_ready ? 'Ready' : 'Configuration Ready') : 'Locked / Setup Required',
+            status: readiness.production_ready ? 'Ready' : (readiness.production_configuration_ready ? 'Configuration Ready' : 'Locked'),
             tone: readiness.production_ready ? 'danger' : (readiness.production_configuration_ready ? 'warning' : 'neutral'),
             detail: [
                 {label: 'Configured devices', value: (production.devices || []).length},
-                {label: 'Production cutover', value: yesNo(readiness.production_cutover_active)},
+                {label: 'Production gate', value: yesNo(readiness.production_cutover_active)},
+                {label: 'Posting armed', value: readiness.profile ? yesNo(profile.production_post_armed) : 'Not configured'},
             ],
-            blockers: production.blockers,
-            actionLabel: 'Production Device',
+            blockers: uniq(productionBlockers),
+            actionLabel: 'Open Production Devices',
             action: () => routeList('Ledgix FBR POS Device', {company: data.company, environment: 'Production'}),
         }).appendTo(cards);
     }
 
+
     function renderSafety(readiness, profile) {
-        const node = section('Safety & Transport', 'Status only. This dashboard does not switch network or production gates.').appendTo(body);
+        const node = section('Safety & Transport', 'Live posting controls are visible here, but never editable from this Center.').appendTo(body);
+
+        const banner = $('<div class="lx-fbr-safety-banner"></div>').appendTo(node);
+        iconNode('shield', 'is-safety').appendTo(banner);
+        const bannerCopy = $('<div></div>').appendTo(banner);
+        $('<strong></strong>').text(__('Fail-closed by design')).appendTo(bannerCopy);
+        $('<span></span>').text(__('Network and Production gates remain explicit external controls; dashboard actions cannot silently enable them.')).appendTo(bannerCopy);
+        badge(readiness.production_cutover_active ? 'Production gate ON' : 'Production locked', readiness.production_cutover_active ? 'danger' : 'good').appendTo(banner);
+
         const grid = $('<div class="lx-fbr-safety-grid"></div>').appendTo(node);
+        const hasProfile = Boolean(readiness.profile);
         const rows = [
             ['General Network Cutover', yesNo(readiness.network_cutover_active), readiness.network_cutover_active ? 'warning' : 'good'],
             ['Production Cutover', yesNo(readiness.production_cutover_active), readiness.production_cutover_active ? 'danger' : 'good'],
-            ['Transport Enabled', yesNo(profile.transport_enabled), profile.transport_enabled ? 'warning' : 'neutral'],
-            ['Production Posting Armed', yesNo(profile.production_post_armed), profile.production_post_armed ? 'danger' : 'good'],
+            ['Transport Enabled', hasProfile ? yesNo(profile.transport_enabled) : 'Not configured', !hasProfile ? 'neutral' : (profile.transport_enabled ? 'warning' : 'good')],
+            ['Production Posting Armed', hasProfile ? yesNo(profile.production_post_armed) : 'Not configured', !hasProfile ? 'neutral' : (profile.production_post_armed ? 'danger' : 'good')],
             ['Submit Trigger', profile.submit_trigger || 'Not configured', profile.submit_trigger === 'On Submit' ? 'warning' : 'neutral'],
             ['Offline Policy', profile.offline_policy || 'Not configured', profile.offline_policy === 'Operator Confirmed' ? 'warning' : 'neutral'],
         ];
         rows.forEach(([label, value, tone]) => {
             const item = $('<div class="lx-fbr-safety-item"></div>').addClass(`is-${tone}`).appendTo(grid);
-            $('<span></span>').text(__(label)).appendTo(item);
+            const top = $('<div class="lx-fbr-safety-item-top"></div>').appendTo(item);
+            $('<span></span>').text(__(label)).appendTo(top);
+            $('<i class="lx-fbr-state-dot"></i>').addClass(`is-${tone}`).appendTo(top);
             $('<strong></strong>').text(__(value)).appendTo(item);
         });
-        $('<div class="lx-fbr-safety-note"></div>')
-            .text(__('Production controls are intentionally fail-closed and must be changed outside this status dashboard.'))
-            .appendTo(node);
     }
 
+
     function renderBlockers(readiness) {
-        const node = section('Readiness Blockers', 'Grouped so internal setup issues stay separate from unresolved external authority contracts.').appendTo(body);
+        const node = section('Readiness Blockers', 'Resolve internal prerequisites first; external authority contracts remain isolated and clearly labelled.').appendTo(body);
         const source = uniq(readiness.source_blockers || []);
         const setup = without(readiness.setup_blockers || [], source);
         const transport = without(readiness.blockers || [], [...source, ...setup]);
-        blockerGroup(node, 'Seller identity', source, true);
-        blockerGroup(node, 'Internal setup & mappings', setup, true);
-        blockerGroup(node, 'Current mode / transport', transport, transport.length > 0);
-        blockerGroup(node, 'External / authority contracts', readiness.unresolved_contracts || [], false);
+        const external = uniq(readiness.unresolved_contracts || []);
+        const totalInternal = source.length + setup.length + transport.length;
+
+        const summary = $('<div class="lx-fbr-blocker-overview"></div>').appendTo(node);
+        const summaryCopy = $('<div></div>').appendTo(summary);
+        $('<strong></strong>').text(totalInternal ? __('{0} internal blocker(s)', [totalInternal]) : __('Internal readiness clear')).appendTo(summaryCopy);
+        $('<span></span>').text(totalInternal ? __('Work through the open groups below in order.') : __('No current internal blocker is reported for the selected company and mode.')).appendTo(summaryCopy);
+        badge(totalInternal ? 'Action required' : 'Clear', totalInternal ? 'warning' : 'good').appendTo(summary);
+
+        const grid = $('<div class="lx-fbr-blocker-grid"></div>').appendTo(node);
+        blockerGroup(grid, 'Seller identity', source, true);
+        blockerGroup(grid, 'Internal setup & mappings', setup, true);
+        blockerGroup(grid, 'Current mode / transport', transport, transport.length > 0);
+        blockerGroup(grid, 'External / authority contracts', external, false);
     }
 
     function renderOperations(data, readiness, profile) {
-        const node = section('Operations', 'Open authoritative records and run guarded diagnostics from one place.').appendTo(body);
-        actionGroup(node, 'Setup', null, [
+        const node = section('Operations', 'Open authoritative records, evidence and guarded diagnostics from one place.').appendTo(body);
+        const groups = $('<div class="lx-fbr-operation-grid"></div>').appendTo(node);
+        actionGroup(groups, 'Setup', 'Configure the ERPNext and Federal V1 records used by fiscalization.', [
             {label: 'Integration Profile', onClick: () => readiness.profile ? frappe.set_route('Form', 'Ledgix FBR Integration Profile', readiness.profile) : routeList('Ledgix FBR Integration Profile', {company: data.company})},
             {label: 'POS Devices', onClick: () => routeList('Ledgix FBR POS Device', {company: data.company})},
             {label: 'Item Mappings', onClick: () => routeList('Ledgix FBR Item Mapping', {company: data.company})},
             {label: 'Tax Component Mappings', onClick: () => routeList('Ledgix FBR Tax Component Mapping', {company: data.company})},
             {label: 'Payment Mapping', onClick: () => routeList('Mode of Payment')},
         ]);
-        actionGroup(node, 'Evidence / Operations', null, [
+        actionGroup(groups, 'Evidence / Operations', 'Review immutable evidence, fiscal events and reconciliation work.', [
             {label: 'Submission Logs', onClick: () => routeList('Ledgix FBR Submission Log')},
             {label: 'Fiscal Events', onClick: () => routeList('Ledgix FBR Fiscal Event Log')},
             {label: 'Fiscal Closings', onClick: () => routeList('Ledgix FBR Fiscal Closing')},
             {label: 'Correction Requests', onClick: () => routeList('Ledgix FBR Correction Request')},
             {label: 'Reconciliation', onClick: () => routeList('Ledgix FBR Submission Log', {fbr_status: 'Reconciliation Required'})},
         ]);
-        actionGroup(node, 'Transactions', null, [
+        actionGroup(groups, 'Transactions', 'Open native ERPNext transaction lists without bypassing invoice-level checks.', [
             {label: 'Sales Invoice', onClick: () => routeList('Sales Invoice')},
             {label: 'POS Invoice', onClick: () => routeList('POS Invoice')},
         ]);
@@ -404,7 +536,7 @@ frappe.pages['fbr-v1-center'].on_page_load = function (wrapper) {
                     : 'This may perform a real FBR Sandbox POST. Continue only when Sandbox submission is explicitly authorized.'
             ),
         });
-        actionGroup(node, 'Testing', 'Invoice readiness is read-only. Network actions remain disabled until their gates are explicitly enabled.', testing);
+        actionGroup(groups, 'Testing', 'Invoice readiness is read-only. Network actions remain disabled until their gates are explicitly enabled.', testing);
 
         if (canOperate()) renderAdvancedOperations(node);
     }
@@ -459,19 +591,27 @@ frappe.pages['fbr-v1-center'].on_page_load = function (wrapper) {
         ));
     }
 
+
     function renderDevices(data) {
         if (!(data.devices || []).length) return;
-        const node = section('POS Devices', 'Current company device inventory. Open the authoritative device record to edit configuration.').appendTo(body);
+        const node = section('POS Devices', 'Current company device inventory. Open a card to inspect or edit the authoritative device record.').appendTo(body);
         const grid = $('<div class="lx-fbr-device-grid"></div>').appendTo(node);
         data.devices.forEach((device) => {
             const card = $('<button type="button" class="lx-fbr-device-card"></button>')
                 .on('click', () => frappe.set_route('Form', 'Ledgix FBR POS Device', device.name))
                 .appendTo(grid);
-            const head = $('<div></div>').appendTo(card);
-            $('<strong></strong>').text(device.display_label || device.name).appendTo(head);
-            badge(device.environment || 'Unknown', device.environment === 'Production' ? 'danger' : 'neutral').appendTo(head);
-            $('<span></span>').text(__('POSID {0}', [device.pos_id || '—'])).appendTo(card);
-            $('<small></small>').text(`${device.transport_topology || '—'} · ${device.operational_state || '—'}`).appendTo(card);
+            const top = $('<div class="lx-fbr-device-top"></div>').appendTo(card);
+            const identity = $('<div class="lx-fbr-device-identity"></div>').appendTo(top);
+            iconNode('device', device.active ? 'is-good' : 'is-neutral').appendTo(identity);
+            const copy = $('<div></div>').appendTo(identity);
+            $('<strong></strong>').text(device.display_label || device.name).appendTo(copy);
+            $('<span></span>').text(device.pos_id ? __('POSID {0}', [device.pos_id]) : __('POSID not assigned')).appendTo(copy);
+            badge(device.environment || 'Unknown', device.environment === 'Production' ? 'danger' : 'neutral').appendTo(top);
+
+            const meta = $('<div class="lx-fbr-device-meta"></div>').appendTo(card);
+            $('<span></span>').text(device.transport_topology || '—').appendTo(meta);
+            $('<span></span>').text(device.operational_state || '—').appendTo(meta);
+            $('<span></span>').text(device.active ? __('Active') : __('Inactive')).appendTo(meta);
         });
     }
 
