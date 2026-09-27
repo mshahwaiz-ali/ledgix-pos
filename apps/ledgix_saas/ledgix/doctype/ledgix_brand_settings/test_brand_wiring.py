@@ -21,9 +21,9 @@ class TestBrandWiring(FrappeTestCase):
 		self.assertEqual(brand.DEFAULT_SPLASH_LOGO, brand.DEFAULT_SYMBOL_LOGO)
 		self.assertEqual(settings["primary_brand_color"], brand.DEFAULT_PRIMARY_COLOR)
 		self.assertNotIn("/assets/frappe/", settings["symbol_logo_url"])
-		self.assertTrue(brand.DEFAULT_SYMBOL_LOGO.endswith("ledgix-symbol.svg"))
-		self.assertTrue(brand.DEFAULT_FULL_LOGO.endswith("ledgix-lockup.svg"))
-		self.assertTrue(brand.DEFAULT_FAVICON_LOGO.endswith("ledgix-favicon.svg"))
+		self.assertTrue(brand.DEFAULT_SYMBOL_LOGO.endswith("Ledgix_logo_symbol.png"))
+		self.assertTrue(brand.DEFAULT_FULL_LOGO.endswith("ledgix_logo_2.png"))
+		self.assertTrue(brand.DEFAULT_FAVICON_LOGO.endswith("Ledgix_logo_symbol.png"))
 
 	def test_stale_uploaded_logo_falls_back_to_bundled_identity(self):
 		doc = frappe._dict(
@@ -66,7 +66,7 @@ class TestBrandWiring(FrappeTestCase):
 		self.assertIn("--lx-v2-primary", brand_js)
 		self.assertIn("refresh: refreshBrand", brand_js)
 		self.assertIn("ledgix_saas.api.brand.get_public_brand_settings", brand_js)
-		self.assertIn("ledgix-favicon.svg", brand_js)
+		self.assertIn("Ledgix_logo_symbol.png", brand_js)
 		self.assertIn("home.replaceChildren(img)", brand_js)
 		self.assertIn("if (!window.frappe?.boot) return;", brand_js)
 		self.assertNotIn("if (!isLedgixDeskRoute()) return;", brand_js)
@@ -77,19 +77,21 @@ class TestBrandWiring(FrappeTestCase):
 
 	def test_sidebar_brands_ledgix_and_fbr_workspaces(self):
 		sidebar_js = (APP_ROOT / "public" / "js" / "ledgix_sidebar_brand.js").read_text(encoding="utf-8")
-		self.assertIn('FBR_V1_COLOR = "#0F766E"', sidebar_js)
-		self.assertIn('FBR_V12_COLOR = "#B42318"', sidebar_js)
+		self.assertIn('FBR_V1_SYMBOL = "/assets/ledgix_saas/images/brand/fbr_v1.png"', sidebar_js)
+		self.assertIn('FBR_V12_SYMBOL = "/assets/ledgix_saas/images/brand/fbr_v12.png"', sidebar_js)
+		self.assertIn('LEDGIX_SYMBOL = "/assets/ledgix_saas/images/brand/Ledgix_logo_symbol.png"', sidebar_js)
 		self.assertIn('value === "fbr v1"', sidebar_js)
 		self.assertIn('value === "fbr v1.2"', sidebar_js)
-		self.assertIn("makeFiscalReceiptIcon", sidebar_js)
 
-	def test_bundled_brand_assets_are_vector_only(self):
+	def test_bundled_brand_assets_are_png_defaults(self):
 		brand_dir = APP_ROOT / "public" / "images" / "brand"
-		self.assertTrue((brand_dir / "ledgix-symbol.svg").exists())
-		self.assertTrue((brand_dir / "ledgix-lockup.svg").exists())
-		self.assertTrue((brand_dir / "ledgix-favicon.svg").exists())
-		self.assertFalse((brand_dir / "ledgix-symbol.png").exists())
-		self.assertFalse((brand_dir / "ledgix-lockup.png").exists())
+		self.assertTrue((brand_dir / "Ledgix_logo_symbol.png").exists())
+		self.assertTrue((brand_dir / "ledgix_logo_2.png").exists())
+		self.assertTrue((brand_dir / "fbr_v1.png").exists())
+		self.assertTrue((brand_dir / "fbr_v12.png").exists())
+		self.assertFalse((brand_dir / "ledgix-symbol.svg").exists())
+		self.assertFalse((brand_dir / "ledgix-lockup.svg").exists())
+		self.assertFalse((brand_dir / "ledgix-favicon.svg").exists())
 
 	def test_list_polish_regressions_are_present(self):
 		payment_list = (

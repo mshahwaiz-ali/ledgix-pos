@@ -1,9 +1,9 @@
 (function () {
 	"use strict";
 
-	const DEFAULT_SYMBOL_LOGO = "/assets/ledgix_saas/images/brand/ledgix-symbol.svg";
-	const DEFAULT_FULL_LOGO = "/assets/ledgix_saas/images/brand/ledgix-lockup.svg";
-	const DEFAULT_FAVICON_LOGO = "/assets/ledgix_saas/images/brand/ledgix-favicon.svg";
+	const DEFAULT_SYMBOL_LOGO = "/assets/ledgix_saas/images/brand/Ledgix_logo_symbol.png";
+	const DEFAULT_FULL_LOGO = "/assets/ledgix_saas/images/brand/ledgix_logo_2.png";
+	const DEFAULT_FAVICON_LOGO = "/assets/ledgix_saas/images/brand/Ledgix_logo_symbol.png";
 	const DEFAULT_PRIMARY = "#8C2031";
 	let refreshPromise = null;
 

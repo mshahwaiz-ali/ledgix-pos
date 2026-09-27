@@ -6,10 +6,10 @@ import frappe
 
 SETTINGS_DOCTYPE = "Ledgix Brand Settings"
 DEFAULT_PRIMARY_COLOR = "#8C2031"
-DEFAULT_SYMBOL_LOGO = "/assets/ledgix_saas/images/brand/ledgix-symbol.svg"
-DEFAULT_FULL_LOGO = "/assets/ledgix_saas/images/brand/ledgix-lockup.svg"
+DEFAULT_SYMBOL_LOGO = "/assets/ledgix_saas/images/brand/Ledgix_logo_symbol.png"
+DEFAULT_FULL_LOGO = "/assets/ledgix_saas/images/brand/ledgix_logo_2.png"
 DEFAULT_SPLASH_LOGO = DEFAULT_SYMBOL_LOGO
-DEFAULT_FAVICON_LOGO = "/assets/ledgix_saas/images/brand/ledgix-favicon.svg"
+DEFAULT_FAVICON_LOGO = "/assets/ledgix_saas/images/brand/Ledgix_logo_symbol.png"
 
 
 def _asset_url(path: str | None) -> str:
