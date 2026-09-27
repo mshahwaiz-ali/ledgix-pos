@@ -120,9 +120,13 @@
 	function applyDeskBrand() {
 		const brand = getBrand();
 		// The favicon represents the Ledgix product, not an individual Desk route.
-		// Keep navbar/logo DOM changes scoped so native Frappe screens stay native.
 		setFavicon(brand.faviconUrl || brand.symbolUrl);
-		if (!isLedgixDeskRoute()) return;
+
+		// The product logo is global across Desk. Keeping this route-scoped left
+		// Home/Accounting/Buying/Selling on Frappe's own app-logo node, which can
+		// expose a broken/stale image after cache clears. Website/login rendering
+		// remains server-controlled because those surfaces do not have Desk boot.
+		if (!window.frappe?.boot) return;
 
 		// Prefer Frappe's dedicated home control. Older/newer Desk layouts may
 		// expose only navbar-brand, so retain that as a compatibility fallback.
