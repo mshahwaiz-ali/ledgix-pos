@@ -84,6 +84,12 @@
 	function ensureBrandImage(home, brand) {
 		if (!home) return;
 
+		// The Ledgix product symbol is also the canonical Desk home control.
+		// Do not leave Frappe's default /app destination behind the branded logo.
+		if (home.tagName === "A") {
+			home.setAttribute("href", "/app/ledgix");
+		}
+
 		let img;
 
 		if (home.tagName === "IMG") {

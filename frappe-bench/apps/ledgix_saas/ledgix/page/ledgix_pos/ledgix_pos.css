@@ -1,6 +1,9 @@
 /* Ledgix POS is the one intentionally specialized Desk surface. Keep native
  * Frappe chrome, but allow the checkout workspace to use the available width. */
-#page-ledgix-pos .page-head .container,
+#page-ledgix-pos .page-head {
+	display: none;
+}
+
 #page-ledgix-pos .page-body .container {
 	max-width: 1440px;
 }
@@ -39,7 +42,7 @@
 .lx-pos-topbar {
 	display: flex;
 	align-items: center;
-	justify-content: flex-end;
+	justify-content: space-between;
 	gap: 10px;
 	padding: 0 0 8px;
 	margin-bottom: 0;
@@ -62,7 +65,7 @@
 	align-items: center;
 }
 
-.lx-pos-brand-block { display: none; }
+.lx-pos-brand-block { display: flex; gap: 10px; }
 .lx-pos-brand-mark {
 	width: 38px;
 	height: 38px;
@@ -117,6 +120,16 @@
 	color: var(--lx-pos-muted);
 }
 .lx-channel.active { background: #fff; color: var(--lx-pos-primary); box-shadow: 0 1px 2px rgba(15, 23, 42, .08); }
+
+.lx-sale-mode-badge {
+	align-self: center;
+	white-space: nowrap;
+	padding: 7px 12px;
+	border-radius: 8px;
+	background: var(--lx-pos-primary-soft);
+	color: var(--lx-pos-primary);
+	font-weight: 700;
+}
 .lx-customer-control .form-group { margin-bottom: 0; }
 .lx-customer-control .control-label { font-size: 11px; color: var(--lx-pos-muted); margin-bottom: 4px; }
 .lx-context-fact { align-self: center; min-width: 125px; }

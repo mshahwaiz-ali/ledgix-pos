@@ -58,6 +58,156 @@ class TestFbrV1CenterContract(unittest.TestCase):
         self.assertEqual(result["mapping_summary"]["active_tax_component_mappings"], 1)
         self.assertEqual(result["mapping_summary"]["payment_mappings"], 1)
 
+
+    def test_sandbox_cutover_enable_is_general_gate_only(self):
+        profile = Row(
+            name="FBR-PROFILE-00001",
+            company="Test Company",
+            protocol_version="Federal POS/IMS V1",
+            enabled=1,
+            mode="Sandbox",
+            submit_trigger="Manual",
+            transport_enabled=1,
+            production_post_armed=0,
+        )
+
+        with (
+            patch.object(frappe, "get_roles", return_value=["System Manager"]),
+            patch.object(
+                frappe,
+                "get_doc",
+                return_value=Row(name="Test Company"),
+            ),
+            patch(
+                "fbr_v1.services.pos_identity.get_profile",
+                return_value=profile,
+            ),
+            patch.object(
+                center,
+                "_raw_site_gate_enabled",
+                return_value=False,
+            ),
+            patch.object(frappe, "get_all", return_value=[]),
+            patch.object(center, "_write_site_gate") as write_gate,
+            patch(
+                "fbr_v1.protocol.transport.network_cutover_active",
+                return_value=True,
+            ),
+            patch(
+                "fbr_v1.protocol.transport.production_cutover_active",
+                return_value=False,
+            ),
+        ):
+            result = center.set_sandbox_network_cutover(
+                "Test Company",
+                1,
+            )
+
+        write_gate.assert_called_once_with(
+            "fbr_v1_network_cutover_active",
+            True,
+        )
+        self.assertTrue(result["network_cutover_active"])
+        self.assertFalse(result["production_cutover_active"])
+        self.assertFalse(result["network_call"])
+
+    def test_sandbox_cutover_refuses_raw_production_gate(self):
+        profile = Row(
+            name="FBR-PROFILE-00001",
+            company="Test Company",
+            protocol_version="Federal POS/IMS V1",
+            enabled=1,
+            mode="Sandbox",
+            submit_trigger="Manual",
+            transport_enabled=1,
+            production_post_armed=0,
+        )
+
+        with (
+            patch.object(frappe, "get_roles", return_value=["System Manager"]),
+            patch.object(
+                frappe,
+                "get_doc",
+                return_value=Row(name="Test Company"),
+            ),
+            patch(
+                "fbr_v1.services.pos_identity.get_profile",
+                return_value=profile,
+            ),
+            patch.object(
+                center,
+                "_raw_site_gate_enabled",
+                return_value=True,
+            ),
+            patch.object(center, "_write_site_gate") as write_gate,
+        ):
+            with self.assertRaises(frappe.ValidationError):
+                center.set_sandbox_network_cutover(
+                    "Test Company",
+                    1,
+                )
+
+        write_gate.assert_not_called()
+
+    def test_sandbox_cutover_refuses_automatic_submit(self):
+        profile = Row(
+            name="FBR-PROFILE-00001",
+            company="Test Company",
+            protocol_version="Federal POS/IMS V1",
+            enabled=1,
+            mode="Sandbox",
+            submit_trigger="On Submit",
+            transport_enabled=1,
+            production_post_armed=0,
+        )
+
+        with (
+            patch.object(frappe, "get_roles", return_value=["System Manager"]),
+            patch.object(
+                frappe,
+                "get_doc",
+                return_value=Row(name="Test Company"),
+            ),
+            patch(
+                "fbr_v1.services.pos_identity.get_profile",
+                return_value=profile,
+            ),
+            patch.object(center, "_write_site_gate") as write_gate,
+        ):
+            with self.assertRaises(frappe.ValidationError):
+                center.set_sandbox_network_cutover(
+                    "Test Company",
+                    1,
+                )
+
+        write_gate.assert_not_called()
+
+    def test_sandbox_cutover_disable_is_always_available_to_manager(self):
+        with (
+            patch.object(frappe, "get_roles", return_value=["System Manager"]),
+            patch.object(center, "_write_site_gate") as write_gate,
+            patch(
+                "fbr_v1.protocol.transport.network_cutover_active",
+                return_value=False,
+            ),
+            patch(
+                "fbr_v1.protocol.transport.production_cutover_active",
+                return_value=False,
+            ),
+        ):
+            result = center.set_sandbox_network_cutover(
+                "Test Company",
+                0,
+            )
+
+        write_gate.assert_called_once_with(
+            "fbr_v1_network_cutover_active",
+            False,
+        )
+        self.assertFalse(result["network_cutover_active"])
+        self.assertFalse(result["production_cutover_active"])
+        self.assertFalse(result["network_call"])
+
     def test_profile_projection_never_exposes_password_fields(self):
         self.assertFalse(any("token" in field for field in PROFILE_STATE_FIELDS))
         self.assertIn("transport_enabled", PROFILE_STATE_FIELDS)
@@ -81,12 +231,16 @@ class TestFbrV1CenterContract(unittest.TestCase):
             "Invoice Readiness",
             "Local IMS Health",
             "Fiscalize Invoice",
+            "Enable Sandbox Network",
+            "Disable Sandbox Network",
             "fbr_v1.api.center.get_center_boot",
+            "fbr_v1.api.center.set_sandbox_network_cutover",
             "fbr_v1.api.fiscalization.invoice_readiness",
         ):
             self.assertIn(marker, js)
 
         self.assertIn("canFiscalize", js)
+        self.assertIn("canManageCutover", js)
         self.assertIn("network_cutover_active", js)
         self.assertIn("production_cutover_active", js)
         self.assertNotIn("set-config", js)

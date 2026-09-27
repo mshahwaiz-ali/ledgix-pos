@@ -401,7 +401,7 @@ def search_items(
     warehouse = _profile_warehouse(profile)
     limit = min(max(cint(limit) or 80, 1), 200)
 
-    filters: dict = {"disabled": 0, "is_sales_item": 1}
+    filters: dict = {"disabled": 0, "is_sales_item": 1, "has_variants": 0}
     if category and category != "All":
         filters["item_group"] = category
     query = str(query or "").strip()
@@ -447,7 +447,11 @@ def search_items(
                 ],
                 as_dict=True,
             )
-            if extra and not cint(frappe.db.get_value("Item", barcode_item, "disabled")):
+            if (
+                extra
+                and not cint(frappe.db.get_value("Item", barcode_item, "disabled"))
+                and not cint(frappe.db.get_value("Item", barcode_item, "has_variants"))
+            ):
                 rows.insert(0, extra)
 
     items = []

@@ -16,6 +16,7 @@ frappe.pages['fbr-v1-center'].on_page_load = function (wrapper) {
     if (company.$wrapper) company.$wrapper.addClass('lx-fbr-company-selector');
     const iconUrl = '/assets/ledgix_saas/images/brand/fbr_v1.png';
     const canOperate = () => frappe.user.has_role('System Manager') || frappe.user.has_role('Accounts Manager');
+    const canManageCutover = () => frappe.user.has_role('System Manager');
     let busy = false;
 
     const uniq = (rows) => [...new Set((rows || []).filter(Boolean))];
@@ -416,14 +417,17 @@ frappe.pages['fbr-v1-center'].on_page_load = function (wrapper) {
     }
 
 
-    function renderSafety(readiness, profile) {
-        const node = section('Safety & Transport', 'Live posting controls are visible here, but never editable from this Center.').appendTo(body);
+    function renderSafety(data, readiness, profile) {
+        const node = section(
+            'Safety & Transport',
+            'Sandbox networking can be controlled here by System Manager; Production cutover remains externally controlled.'
+        ).appendTo(body);
 
         const banner = $('<div class="lx-fbr-safety-banner"></div>').appendTo(node);
         iconNode('shield', 'is-safety').appendTo(banner);
         const bannerCopy = $('<div></div>').appendTo(banner);
         $('<strong></strong>').text(__('Fail-closed by design')).appendTo(bannerCopy);
-        $('<span></span>').text(__('Network and Production gates remain explicit external controls; dashboard actions cannot silently enable them.')).appendTo(bannerCopy);
+        $('<span></span>').text(__('Sandbox networking requires an explicit operator action. Production cutover cannot be enabled from this Center.')).appendTo(bannerCopy);
         badge(readiness.production_cutover_active ? 'Production gate ON' : 'Production locked', readiness.production_cutover_active ? 'danger' : 'good').appendTo(banner);
 
         const grid = $('<div class="lx-fbr-safety-grid"></div>').appendTo(node);
@@ -443,6 +447,69 @@ frappe.pages['fbr-v1-center'].on_page_load = function (wrapper) {
             $('<i class="lx-fbr-state-dot"></i>').addClass(`is-${tone}`).appendTo(top);
             $('<strong></strong>').text(__(value)).appendTo(item);
         });
+
+        const gateOn = Boolean(readiness.network_cutover_active);
+        const sandboxMode = readiness.mode === 'Sandbox';
+        const canToggle = canManageCutover() && (sandboxMode || gateOn);
+        const controls = $('<div class="lx-fbr-action-buttons"></div>').appendTo(node);
+
+        const toggleLabel = gateOn
+            ? 'Disable Sandbox Network'
+            : 'Enable Sandbox Network';
+
+        const toggleReason = !canManageCutover()
+            ? __('System Manager permission is required.')
+            : (!sandboxMode && !gateOn
+                ? __('The active FBR profile must be in Sandbox mode.')
+                : '');
+
+        const toggleButton = makeButton(
+            toggleLabel,
+            () => {
+                const enabling = !gateOn;
+                const confirmMessage = enabling
+                    ? __('Enable REAL FBR Sandbox networking for this site? Production cutover cannot be enabled by this action.')
+                    : __('Disable FBR Sandbox networking for this site?');
+
+                frappe.confirm(confirmMessage, async () => {
+                    toggleButton.prop('disabled', true);
+                    try {
+                        const {message: result} = await frappe.call({
+                            method: 'fbr_v1.api.center.set_sandbox_network_cutover',
+                            args: {
+                                company: data.company,
+                                enabled: enabling ? 1 : 0,
+                            },
+                        });
+
+                        if (result.production_cutover_active) {
+                            frappe.throw(
+                                __('Safety interlock violation: Production transport must remain OFF.')
+                            );
+                        }
+
+                        frappe.msgprint({
+                            title: __('Sandbox Network'),
+                            message: result.network_cutover_active
+                                ? __('Sandbox network gate is ON. Production remains OFF.')
+                                : __('Sandbox network gate is OFF.'),
+                            indicator: result.network_cutover_active ? 'orange' : 'green',
+                        });
+
+                        await refresh();
+                    } finally {
+                        toggleButton.prop('disabled', false);
+                    }
+                });
+            },
+            {
+                primary: !gateOn,
+                disabled: !canToggle,
+                reason: toggleReason,
+            }
+        );
+
+        toggleButton.appendTo(controls);
     }
 
 
@@ -621,7 +688,7 @@ frappe.pages['fbr-v1-center'].on_page_load = function (wrapper) {
         body.empty();
         renderHero(data, readiness, profile);
         renderStatusCards(data, readiness, profile);
-        renderSafety(readiness, profile);
+        renderSafety(data, readiness, profile);
         renderBlockers(readiness);
         renderOperations(data, readiness, profile);
         renderDevices(data);

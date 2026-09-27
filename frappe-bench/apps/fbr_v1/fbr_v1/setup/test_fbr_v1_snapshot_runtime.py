@@ -2,6 +2,7 @@ from unittest.mock import patch
 import frappe
 from fbr_v1.setup.v1_test_support import NoNetworkTest, Row, fixture
 from fbr_v1.services import fbr_v1_snapshot_persistence as snapshots
+from fbr_v1.services import erpnext_fbr_snapshot as native_snapshot
 
 class TestV1Snapshot(NoNetworkTest):
     def doc(self):
@@ -20,6 +21,39 @@ class TestV1Snapshot(NoNetworkTest):
             doc["items"][0][snapshots.LINE_JSON_FIELD]='{}'
             with self.assertRaisesRegex(frappe.ValidationError,'hash verification'):
                 snapshots.read_persisted_v1_snapshot(doc.doctype,doc.name)
+
+    def test_authoritative_tax_row_rounding_is_applied_to_line_evidence(self):
+        doc = Row(
+            taxes=[
+                Row(
+                    name="TAX-1",
+                    account_head="GST - TEST",
+                    tax_amount_after_discount_amount=0.15,
+                )
+            ],
+            items=[Row(name="ROW-1")],
+        )
+        collector = Row(
+            line_tax_capture={
+                "ROW-1": {
+                    "TAX-1": {
+                        "account_head": "GST - TEST",
+                        "tax_amount": 0.153,
+                    }
+                }
+            }
+        )
+
+        native_snapshot._apply_authoritative_tax_rounding(
+            doc,
+            collector,
+            {"GST - TEST": "Sales Tax Applicable"},
+        )
+
+        capture = collector.line_tax_capture["ROW-1"]["TAX-1"]
+        self.assertAlmostEqual(capture["raw_tax_amount"], 0.153)
+        self.assertAlmostEqual(capture["rounding_adjustment"], -0.003)
+        self.assertAlmostEqual(capture["tax_amount"], 0.15)
 
     def test_historical_or_v2_evidence_is_never_reconstructed(self):
         doc=self.doc();doc._action='save'

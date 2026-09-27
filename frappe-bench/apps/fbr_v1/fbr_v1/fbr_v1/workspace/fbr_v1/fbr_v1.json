@@ -8,7 +8,7 @@
  "hide_custom": 0,
  "indicator_color": "cyan",
  "is_hidden": 0,
- "label": "FBR V1",
+ "label": "Fbr v1",
  "links": [
   {
    "description": "",
@@ -237,6 +237,6 @@
    "color": "Grey"
   }
  ],
- "title": "FBR V1",
+ "title": "Fbr v1",
  "icon": "file-text"
 }

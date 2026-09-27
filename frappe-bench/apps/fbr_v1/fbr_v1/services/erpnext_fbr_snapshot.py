@@ -10,6 +10,7 @@ Pinned compatibility target: ERPNext 15.121.3.
 """
 
 from collections import defaultdict
+from decimal import Decimal
 
 import frappe
 from frappe.utils import cint, flt, getdate
@@ -318,6 +319,70 @@ def _reconcile_mapped_tax_rows(doc, collector, component_mappings: dict[str, str
     }
 
 
+def _apply_authoritative_tax_rounding(
+    doc,
+    collector,
+    component_mappings: dict[str, str],
+) -> None:
+    """Balance ERPNext row-level rounding into deterministic line evidence.
+
+    ERPNext retains unrounded per-item tax detail when row-wise tax rounding is
+    disabled, then rounds the authoritative tax row to its currency precision.
+    Preserve the raw capture as evidence and apply only that final row residual
+    to the last contributing line. No tax rate or taxable base is recalculated.
+    """
+    tolerance = Decimal(str(MONEY_TOLERANCE))
+
+    for tax in doc.get("taxes") or []:
+        account = str(tax.get("account_head") or "").strip()
+        component = component_mappings.get(account)
+        if not component or component == WITHHELD_COMPONENT:
+            continue
+
+        tax_key = _row_key(tax, "tax")
+        captures = []
+
+        for item in doc.get("items") or []:
+            item_key = _row_key(item, "item")
+            capture = (
+                collector.line_tax_capture
+                .get(item_key, {})
+                .get(tax_key)
+            )
+            if capture and capture.get("account_head") == account:
+                captures.append(capture)
+
+        authoritative = Decimal(
+            str(tax.get("tax_amount_after_discount_amount") or 0)
+        )
+        captured = sum(
+            (Decimal(str(row.get("tax_amount") or 0)) for row in captures),
+            Decimal("0"),
+        )
+        residual = authoritative - captured
+
+        if abs(residual) > tolerance:
+            frappe.throw(
+                f"ERPNext tax-row rounding residual exceeds tolerance for "
+                f"{account}: captured {captured}, authoritative {authoritative}."
+            )
+
+        if not captures:
+            if authoritative != 0:
+                frappe.throw(
+                    f"ERPNext tax row {account} has an authoritative amount "
+                    "but no contributing line capture."
+                )
+            continue
+
+        if residual:
+            target = captures[-1]
+            raw = Decimal(str(target.get("tax_amount") or 0))
+            target["raw_tax_amount"] = float(raw)
+            target["rounding_adjustment"] = float(residual)
+            target["tax_amount"] = float(raw + residual)
+
+
 def collect_native_tax_breakdown(doc) -> dict:
     """Recalculate *doc* with ERPNext's engine and capture its native line taxes.
 
@@ -329,6 +394,11 @@ def collect_native_tax_breakdown(doc) -> dict:
     collector = ERPNextNativeTaxCollector(doc)
     component_mappings = _active_component_mappings(doc.company)
     reconciliation = _reconcile_mapped_tax_rows(
+        doc,
+        collector,
+        component_mappings,
+    )
+    _apply_authoritative_tax_rounding(
         doc,
         collector,
         component_mappings,
