@@ -243,6 +243,12 @@ def get_native_invoice_print_context(reference_doctype, reference_name) -> dict:
     else:
         seller["pos_id"] = ""
         fbr_invoice_number = ""
+    qr_status = "Provisional number-only payload; externally unverified"
+    if snapshot:
+        verification = frappe.db.get_value("Ledgix FBR POS Device", device["name"],
+            ["qr_verification_status", "qr_verification_reference", "qr_verification_evidence"], as_dict=True) or {}
+        if verification.get("qr_verification_status") == "Verified" and verification.get("qr_verification_reference") and verification.get("qr_verification_evidence"):
+            qr_status = "Configured V1 number-only QR encoding externally verified"
     payments = []
     for payment in doc.get("payments") or []:
         payments.append(
@@ -268,7 +274,7 @@ def get_native_invoice_print_context(reference_doctype, reference_name) -> dict:
         "seller": seller,
         "tax_period": str(doc.get("posting_date") or "")[:7],
         "total_discount": sum(_line_context(r, snapshot["lines"].get(r.name))["discount_amount"] for r in doc.get("items") or []) if snapshot else abs(flt(doc.get("discount_amount"))),
-        "qr_verification_status": "Provisional number-only payload; verification contract unresolved",
+        "qr_verification_status": qr_status,
         "buyer": _buyer(doc, identity),
         "items": [_line_context(row, snapshot["lines"].get(row.name) if snapshot else None) for row in doc.get("items") or []],
         "net_total": abs(flt(doc.get("net_total"), 2)),

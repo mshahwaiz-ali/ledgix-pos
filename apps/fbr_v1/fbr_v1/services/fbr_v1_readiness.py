@@ -5,14 +5,16 @@ from fbr_v1.services.pos_identity import get_profile, profile_active, resolve_de
 from fbr_v1.services.fbr_v1_snapshot_persistence import read_persisted_v1_snapshot
 from fbr_v1.services.fbr_v1_payload_builder import build_invoice
 from fbr_v1.protocol import transport
+from fbr_v1.services.v1_configuration import configuration_blockers, get_device_compliance_state
 
 UNRESOLVED = [
     "Item-level Debit behavior", "Complete error-code catalogue", "Server duplicate-USIN behavior",
-    "Current IMS installer/package version", "Current client POSID/token acquisition workflow",
+    "Current client POSID/token acquisition workflow",
     "Separate offline batch-upload endpoint/schema", "External daily/weekly/monthly closing endpoint/schema",
-    "Exact QR verification/encoded payload beyond the returned fiscal number",
-    "Federal digital-signature machine implementation", "External outage-reporting API",
+    "Undocumented alternative QR encoding and digital-signature algorithms",
+    "External outage-reporting API", "External alert-message API",
     "V1 wire fields for Extra Tax, FED Payable and Sales Tax Withheld at Source",
+    "Foreign-currency and inclusive-tax discount wire semantics",
 ]
 
 
@@ -38,23 +40,17 @@ def inspect_invoice(doc):
     if doc.get("custom_ledgix_fbr_status") == "Offline Pending":
         errors.append("Separate offline-upload contract is unresolved.")
     network_errors = []
-    if not transport.V1_NETWORK_CUTOVER_ACTIVE:
-        network_errors.append("V1_NETWORK_CUTOVER_ACTIVE is False.")
-    if not profile or not cint(profile.get("transport_enabled")):
-        network_errors.append("Transport is disabled.")
-    if profile and profile.get("mode") == "Production":
-        if not cint(profile.get("production_post_armed")):
-            network_errors.append("Production posting is not armed.")
-        if not profile.get("activation_reference") or not profile.get("activation_evidence"):
-            network_errors.append("Production activation authority evidence is required.")
-        network_errors.extend(["Production QR verification contract is unresolved.",
-                               "Production digital-signature implementation is unresolved."])
-    if device and frappe.db.get_value("Ledgix FBR POS Device", device["name"], "operational_state") != "Operational":
-        network_errors.append("POS Device is not operational.")
-    if device and device.get("transport_topology") == "Cloud API" and profile:
-        field = "v1_production_token" if profile.get("mode") == "Production" else "v1_sandbox_token"
-        if not profile.get_password(field, raise_exception=False):
-            network_errors.append("Distinct V1 cloud credential is missing.")
+    if not transport.network_cutover_active():
+        network_errors.append("General V1 network cutover is disabled.")
+    mode = profile.get("mode") if profile else "Disabled"
+    current_device = None
+    if device and mode in {"Sandbox", "Production"}:
+        compliance = get_device_compliance_state(device["name"], include_production=mode == "Production")
+        # Merge only for current readiness, never into the persisted identity or its comparison.
+        current_device = {**device, **compliance}
+    network_errors.extend(configuration_blockers(profile, current_device, mode))
+    if mode == "Production" and not transport.production_cutover_active():
+        network_errors.append("Production network cutover is disabled.")
     return {"ready": not errors, "network_ready": not errors and not network_errors,
             "errors": errors, "network_blockers": network_errors, "unresolved_contracts": UNRESOLVED,
             "snapshot": snapshot, "invoice": invoice, "profile": profile, "device": device}

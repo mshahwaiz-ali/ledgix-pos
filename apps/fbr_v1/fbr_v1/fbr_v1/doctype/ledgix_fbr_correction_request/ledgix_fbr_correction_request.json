@@ -24,7 +24,9 @@
   "external_evidence",
   "commissioner_approval_reference",
   "completed_at",
-  "internal_notes"
+  "internal_notes",
+  "generation_time_reference",
+  "generation_time_evidence"
  ],
  "fields": [
   {
@@ -53,7 +55,9 @@
    "fieldname": "sale",
    "fieldtype": "Link",
    "label": "Legacy Sale",
-   "options": "Ledgix Sale"
+   "options": "Ledgix Sale",
+   "hidden": 1,
+   "read_only": 1
   },
   {
    "fieldname": "fbr_invoice_number",
@@ -155,6 +159,16 @@
    "fieldname": "internal_notes",
    "fieldtype": "Long Text",
    "label": "Internal Notes"
+  },
+  {
+   "fieldname": "generation_time_reference",
+   "fieldtype": "Data",
+   "label": "Generation Time Reference"
+  },
+  {
+   "fieldname": "generation_time_evidence",
+   "fieldtype": "Attach",
+   "label": "Generation Time Evidence"
   }
  ],
  "grid_page_length": 50,

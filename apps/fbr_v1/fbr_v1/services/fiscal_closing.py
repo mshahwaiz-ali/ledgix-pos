@@ -64,7 +64,7 @@ def generate_closing(pos_device, period_type, date):
                 "source_manifest_hash": digest(manifest)}
         closing = frappe.get_doc({"doctype": "Ledgix FBR Fiscal Closing", **body, "period_key": key,
             "source_manifest": json.dumps(manifest, sort_keys=True, default=str), "snapshot_hash": digest(body),
-            "status": "Closed Internally", "generated_at": now_datetime(), "generated_by": frappe.session.user}).insert(ignore_permissions=True)
+            "status": "Closed Internally", "external_status": "Unresolved", "generated_at": now_datetime(), "generated_by": frappe.session.user}).insert(ignore_permissions=True)
         device.db_set("last_" + period_type.lower() + "_closing", now_datetime())
         append_event(pos_device, "Closing", {"closing": closing.name, "snapshot_hash": closing.snapshot_hash})
         return {"name": closing.name, "reused": False, "network_call": False, "external_status": "Unresolved"}

@@ -1,9 +1,10 @@
 from unittest.mock import patch, Mock
-from contextlib import nullcontext
+from contextlib import nullcontext, ExitStack
 import json
 from pathlib import Path
 import frappe
-from fbr_v1.setup.v1_test_support import NoNetworkTest, Row, fixture
+from fbr_v1.setup.v1_test_support import NoNetworkTest, Row, fixture, rehash
+from fbr_v1.services import v1_configuration as configuration
 from fbr_v1.services import pos_identity as identity, fbr_v1_readiness as readiness
 from fbr_v1.api import fbr_offline as offline
 from fbr_v1.services import fiscal_closing as closing
@@ -31,28 +32,110 @@ class TestReadiness(NoNetworkTest):
     def test_legacy_profile_is_not_active(self):
         self.assertFalse(identity.profile_active(Row(enabled=1,mode='Production',protocol_version='DI API V1.12')))
 
-    def test_readiness_blocks_missing_v1_credentials_and_live_cutover(self):
-        s=fixture();doc=Row(doctype='Sales Invoice',name='INV-1',company='Test Company',docstatus=1)
-        profile=Row(protocol_version=identity.PROTOCOL,mode='Sandbox',enabled=1,transport_enabled=1)
-        profile.get_password=Mock(return_value=None)
-        with patch.object(readiness,'get_profile',return_value=profile),patch.object(readiness,'is_consolidated',return_value=False),patch.object(readiness,'read_persisted_v1_snapshot',return_value=s),patch.object(readiness,'resolve_device',return_value=s['header']['pos_device']):
-            result=readiness.inspect_invoice(doc)
-        self.assertTrue(result['ready']);self.assertFalse(result['network_ready'])
-        self.assertEqual(profile.get_password.call_args.args[0],'v1_sandbox_token')
-        self.assertTrue(any('credential' in x for x in result['network_blockers']))
+    def _inspect_configuration(self, mode, profile, compliance, general=True, production=False):
+        snapshot = fixture()
+        snapshot['header']['pos_device']['environment'] = mode
+        if mode == 'Production':
+            snapshot['header']['pos_device'].update(
+                software_registration_number='SOFTWARE-1', onboarding_reference='ONBOARD-1')
+        rehash(snapshot)
+        stable_identity = dict(snapshot['header']['pos_device'])
+        original_hash = snapshot['snapshot_hash']
+        doc = Row(doctype='Sales Invoice', name='INV-1', company='Test Company', docstatus=1)
+        with ExitStack() as stack:
+            for name, value in [('get_profile', profile), ('is_consolidated', False),
+                                ('read_persisted_v1_snapshot', snapshot), ('resolve_device', stable_identity)]:
+                stack.enter_context(patch.object(readiness, name, return_value=value))
+            current = stack.enter_context(patch.object(readiness, 'get_device_compliance_state', return_value=compliance))
+            stack.enter_context(patch.object(readiness.transport, 'network_cutover_active', return_value=general))
+            stack.enter_context(patch.object(readiness.transport, 'production_cutover_active', return_value=production))
+            loader = stack.enter_context(patch.object(frappe, 'get_doc', side_effect=AssertionError('No full document reload')))
+            cloud = stack.enter_context(patch.object(readiness.transport, 'post_cloud'))
+            local = stack.enter_context(patch.object(readiness.transport, 'post_local'))
+            result = readiness.inspect_invoice(doc)
+            current.assert_called_once_with('DEVICE-1', include_production=mode == 'Production')
+            loader.assert_not_called()
+            cloud.assert_not_called()
+            local.assert_not_called()
+        self.assertEqual(result['device'], stable_identity)
+        self.assertEqual(snapshot['header']['pos_device'], stable_identity)
+        self.assertEqual(snapshot['snapshot_hash'], original_hash)
+        return result
 
-    def test_production_remains_blocked_when_armed(self):
-        s=fixture();s['header']['pos_device']['environment']='Production'
-        from fbr_v1.setup.v1_test_support import rehash
-        rehash(s)
-        doc=Row(doctype='Sales Invoice',name='INV-1',company='Test Company',docstatus=1)
-        profile=Row(protocol_version=identity.PROTOCOL,mode='Production',enabled=1,transport_enabled=1,
-                    production_post_armed=1,activation_reference='AUTH',activation_evidence='/private/files/evidence')
-        profile.get_password=Mock(return_value='fake')
-        with patch.object(readiness,'get_profile',return_value=profile),patch.object(readiness,'is_consolidated',return_value=False),patch.object(readiness,'read_persisted_v1_snapshot',return_value=s),patch.object(readiness,'resolve_device',return_value=s['header']['pos_device']),patch.object(readiness.transport,'V1_NETWORK_CUTOVER_ACTIVE',True):
-            result=readiness.inspect_invoice(doc)
+    def test_readiness_blocks_missing_v1_credentials_and_live_cutover(self):
+        profile = Row(company='Test Company', provider_type='PRAL', protocol_version=identity.PROTOCOL,
+                      mode='Sandbox', enabled=1, transport_enabled=1)
+        profile.get_password = Mock(return_value=None)
+        compliance = dict(active=1, operational_state='Operational')
+        result = self._inspect_configuration('Sandbox', profile, compliance)
+        self.assertTrue(result['ready'])
         self.assertFalse(result['network_ready'])
-        self.assertTrue(any('QR' in b for b in result['network_blockers']))
+        self.assertEqual(result['network_blockers'], ['Distinct Sandbox V1 cloud credential is missing or unavailable.'])
+        profile.get_password.assert_called_once_with('v1_sandbox_token', raise_exception=False)
+        # With only the credential supplied, Sandbox needs no Production authority/QR/signature evidence.
+        profile.get_password.return_value = 'fake-sandbox-token'
+        self.assertTrue(self._inspect_configuration('Sandbox', profile, compliance)['network_ready'])
+        closed = self._inspect_configuration('Sandbox', profile, compliance, general=False)
+        self.assertFalse(closed['network_ready'])
+        self.assertIn('General V1 network cutover is disabled.', closed['network_blockers'])
+
+    def _production_configuration(self):
+        profile = Row(company='Test Company', provider_type='PRAL', protocol_version=identity.PROTOCOL,
+                      mode='Production', enabled=1, transport_enabled=1, production_post_armed=1,
+                      authority_status='FBR / PRAL Directed', authority_reference='AUTH-1',
+                      authority_evidence='/private/files/authority', authority_verified_at='2026-09-01',
+                      authority_verified_by='test@example.invalid', activation_reference='ACT-1',
+                      activation_evidence='/private/files/activation', retention_policy_reference='RET-1',
+                      retention_policy_evidence='/private/files/retention')
+        profile.get_password = Mock(return_value='fake-production-token')
+        compliance = dict(active=1, operational_state='Operational', onboarding_reference='ONBOARD-1',
+                          onboarding_evidence='/private/files/onboarding')
+        for prefix in ('qr', 'signature'):
+            compliance.update({prefix + '_verification_status': 'Verified',
+                prefix + '_verification_reference': prefix + '-proof',
+                prefix + '_verification_evidence': '/private/files/' + prefix,
+                prefix + '_verified_at': '2026-09-01', prefix + '_verified_by': 'test@example.invalid'})
+        self.db.exists.return_value = True
+        return profile, compliance
+
+    def test_production_requires_current_authority_retention_qr_and_signature_evidence(self):
+        for field, message in [('authority_evidence', 'authority evidence'),
+                               ('retention_policy_evidence', 'retention policy evidence'),
+                               ('qr_verification_status', 'verified qr'),
+                               ('signature_verification_status', 'verified signature')]:
+            with self.subTest(field=field):
+                profile, compliance = self._production_configuration()
+                if field in profile:
+                    profile[field] = None
+                else:
+                    compliance[field] = 'Unverified'
+                result = self._inspect_configuration('Production', profile, compliance, production=True)
+                self.assertTrue(result['ready'])
+                self.assertFalse(result['network_ready'])
+                self.assertTrue(any(message in blocker for blocker in result['network_blockers']))
+
+    def test_fully_evidenced_production_requires_both_cutover_gates(self):
+        for general, production in [(False, False), (True, False), (False, True), (True, True)]:
+            with self.subTest(general=general, production=production):
+                profile, compliance = self._production_configuration()
+                result = self._inspect_configuration('Production', profile, compliance, general, production)
+                self.assertTrue(result['ready'])
+                self.assertEqual(result['network_ready'], general and production)
+                if not general:
+                    self.assertIn('General V1 network cutover is disabled.', result['network_blockers'])
+                if not production:
+                    self.assertIn('Production network cutover is disabled.', result['network_blockers'])
+                profile.get_password.assert_called_once_with('v1_production_token', raise_exception=False)
+
+    def test_compliance_state_reads_only_relevant_fields_without_controller(self):
+        self.db.get_value.return_value = dict(active=1, operational_state='Operational')
+        with patch.object(frappe, 'get_doc', side_effect=AssertionError('No controller load')):
+            configuration.get_device_compliance_state('DEVICE-1')
+            self.assertEqual(self.db.get_value.call_args.args[2], ['active', 'operational_state'])
+            configuration.get_device_compliance_state('DEVICE-1', include_production=True)
+            self.assertIn('qr_verification_evidence', self.db.get_value.call_args.args[2])
+            self.assertIn('signature_verification_evidence', self.db.get_value.call_args.args[2])
+        self.db.set_value.assert_not_called()
 
     def test_restoration_sets_due_only_for_unrestored_pending_invoices(self):
         device=Row(name='DEVICE-1',operational_state='Offline'); device.db_set=Mock()

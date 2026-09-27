@@ -48,13 +48,27 @@
   "reference_sync_status",
   "last_reference_sync_at",
   "reference_version",
+  "v1_transport_section",
   "default_pos_device",
   "transport_enabled",
   "v1_sandbox_token",
   "v1_production_token",
   "block_print_without_fiscal_result",
   "activation_reference",
-  "activation_evidence"
+  "activation_evidence",
+  "authority_section",
+  "authority_status",
+  "authority_reference",
+  "authority_evidence",
+  "authority_column",
+  "authority_verified_at",
+  "authority_verified_by",
+  "retention_section",
+  "retention_policy_reference",
+  "retention_policy_evidence",
+  "offline_authority_section",
+  "offline_authority_reference",
+  "offline_authority_evidence"
  ],
  "fields": [
   {
@@ -197,10 +211,10 @@
    "label": "Software / POS Registration Number"
   },
   {
-   "description": "Upload only the authoritative FBR Digital Invoicing System logo confirmed for this client/provider. Ledgix ships no default artwork.",
+   "description": "Authoritative fiscal invoice artwork supplied by the client/provider; no artwork is generated.",
    "fieldname": "digital_invoicing_logo",
    "fieldtype": "Attach Image",
-   "label": "FBR Digital Invoicing Logo"
+   "label": "Federal FBR Fiscal Invoice Logo"
   },
   {
    "collapsible": 1,
@@ -285,8 +299,8 @@
    "label": "Known Offline Policy",
    "options": "Disabled\nOperator Confirmed",
    "reqd": 0,
-   "hidden": 1,
-   "read_only": 1
+   "hidden": 0,
+   "read_only": 0
   },
   {
    "default": "0",
@@ -379,6 +393,82 @@
    "fieldname": "activation_evidence",
    "fieldtype": "Attach",
    "label": "Activation Evidence"
+  },
+  {
+   "fieldname": "authority_section",
+   "fieldtype": "Section Break",
+   "label": "Federal V1 Authority"
+  },
+  {
+   "fieldname": "authority_status",
+   "fieldtype": "Select",
+   "label": "Authority Status",
+   "options": "Unverified\nExisting Tier-1 Registration\nFBR / PRAL Directed\nLicensed Integrator Authorized",
+   "default": "Unverified"
+  },
+  {
+   "fieldname": "authority_reference",
+   "fieldtype": "Data",
+   "label": "Authority Reference"
+  },
+  {
+   "fieldname": "authority_evidence",
+   "fieldtype": "Attach",
+   "label": "Authority Evidence"
+  },
+  {
+   "fieldname": "authority_column",
+   "fieldtype": "Column Break",
+   "label": "Authority Column"
+  },
+  {
+   "fieldname": "authority_verified_at",
+   "fieldtype": "Datetime",
+   "label": "Authority Verified At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "authority_verified_by",
+   "fieldtype": "Link",
+   "label": "Authority Verified By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "retention_section",
+   "fieldtype": "Section Break",
+   "label": "Retention and Backup Policy"
+  },
+  {
+   "fieldname": "retention_policy_reference",
+   "fieldtype": "Data",
+   "label": "Retention Policy Reference"
+  },
+  {
+   "fieldname": "retention_policy_evidence",
+   "fieldtype": "Attach",
+   "label": "Retention Policy Evidence",
+   "description": "Record the six-year retention policy and external backup arrangements. Application evidence does not guarantee backup retention."
+  },
+  {
+   "fieldname": "offline_authority_section",
+   "fieldtype": "Section Break",
+   "label": "Offline Authority"
+  },
+  {
+   "fieldname": "offline_authority_reference",
+   "fieldtype": "Data",
+   "label": "Offline Authority Reference"
+  },
+  {
+   "fieldname": "offline_authority_evidence",
+   "fieldtype": "Attach",
+   "label": "Offline Authority Evidence"
+  },
+  {
+   "fieldname": "v1_transport_section",
+   "fieldtype": "Section Break",
+   "label": "Federal V1 Transport and Activation"
   }
  ],
  "grid_page_length": 50,

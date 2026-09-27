@@ -44,7 +44,9 @@
   "transport_outcome",
   "original_fbr_invoice_number",
   "reconciliation_required",
-  "operator"
+  "operator",
+  "external_reference",
+  "external_evidence"
  ],
  "fields": [
   {
@@ -284,7 +286,7 @@
    "fieldtype": "Select",
    "label": "Transport Outcome",
    "read_only": 1,
-   "options": "Not Attempted\nAccepted\nRejected\nAmbiguous\nOffline Deferred"
+   "options": "Not Attempted\nAccepted\nRejected\nAmbiguous\nOffline Deferred\nExternally Confirmed"
   },
   {
    "fieldname": "original_fbr_invoice_number",
@@ -304,6 +306,18 @@
    "label": "Operator",
    "read_only": 1,
    "options": "User"
+  },
+  {
+   "fieldname": "external_reference",
+   "fieldtype": "Data",
+   "label": "External Reference",
+   "read_only": 1
+  },
+  {
+   "fieldname": "external_evidence",
+   "fieldtype": "Attach",
+   "label": "External Evidence",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,

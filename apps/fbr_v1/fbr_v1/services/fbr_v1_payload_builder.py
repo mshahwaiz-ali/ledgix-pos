@@ -2,6 +2,7 @@
 import hashlib
 import json
 from decimal import Decimal
+from fbr_v1.protocol.tax_identity import normalize_tax_id
 from fbr_v1.protocol.models import Invoice, InvoiceItem, ProtocolValidationError
 
 PROTOCOL = "Federal POS/IMS V1"
@@ -107,12 +108,12 @@ def build_invoice(snapshot):
     if (credit and number(h["grand_total"]) > 0) or (not credit and number(h["grand_total"]) < 0):
         raise ProtocolValidationError("Header amount sign differs from invoice type.")
     buyer = h.get("identity", {}).get("buyer", {})
-    tax_id = str(buyer.get("ntn_cnic") or "")
+    tax_id, kind = normalize_tax_id(buyer.get("tax_id_raw", buyer.get("ntn_cnic")))
     return Invoice(
         pos_id=int(h["pos_device"]["pos_id"]), usin=h["usin"], ref_usin=ref or None,
         date_time=f"{h['posting_date']} {h['posting_time']}",
-        buyer_name=buyer.get("business_name") or "", buyer_ntn=tax_id if len(tax_id) != 13 else "",
-        buyer_cnic=tax_id if len(tax_id) == 13 else "", buyer_phone_number=buyer.get("phone") or "",
+        buyer_name=buyer.get("business_name") or "", buyer_ntn=tax_id if kind == "NTN" else "",
+        buyer_cnic=tax_id if kind == "CNIC" else "", buyer_phone_number=buyer.get("phone") or "",
         total_bill_amount=float(abs(number(h["grand_total"]))),
         total_quantity=sum(i.quantity for i in items), total_sale_value=sum(i.sale_value for i in items),
         total_tax_charged=float(tax), further_tax=float(further), discount=sum(i.discount for i in items),

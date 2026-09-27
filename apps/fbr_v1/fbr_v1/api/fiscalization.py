@@ -78,7 +78,7 @@ def submit_internal(doctype, name):
             return {"status": "Not Attempted", "network_call": False,
                     "errors": ready["errors"] + ready["network_blockers"]}
         # Defense in depth, including against accidental readiness regressions.
-        if not transport.V1_NETWORK_CUTOVER_ACTIVE:
+        if not transport.network_cutover_active():
             frappe.throw("V1 network cutover is disabled.")
         payload = ready["invoice"].to_payload()
         profile, device = ready["profile"], ready["device"]
@@ -103,7 +103,7 @@ def submit_internal(doctype, name):
                 result = transport.post_cloud(payload, token=token, environment=profile.mode)
             else:
                 attempted = True
-                result = transport.post_local(payload)
+                result = transport.post_local(payload, environment=profile.mode)
             status, outcome, number = classify_result(result)
             response = sanitize(result.get("body"), (token,))
         except transport.TransportUnavailable:
@@ -160,7 +160,9 @@ def on_native_invoice_submit(doc, method=None):
                           "Pending", transport_outcome="Not Attempted",
                           source_snapshot_hash=doc.get("custom_ledgix_fbr_snapshot_hash"),
                           pos_device=doc.get("custom_ledgix_fbr_pos_device"))
-    if transport.V1_NETWORK_CUTOVER_ACTIVE and get_profile(doc.company).get("submit_trigger") == "On Submit":
+    profile = get_profile(doc.company)
+    if (transport.network_cutover_active() and profile.get("submit_trigger") == "On Submit"
+            and (profile.mode != "Production" or transport.production_cutover_active())):
         frappe.db.after_commit.add(lambda: frappe.enqueue(
             "fbr_v1.api.fiscalization.submit_internal", doctype=doc.doctype, name=doc.name))
 

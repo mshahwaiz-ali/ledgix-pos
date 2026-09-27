@@ -23,10 +23,30 @@ class TransportUnavailable(RuntimeError):
     pass
 
 
-def _client(http_client=None):
+def _site_gate(key):
+    try:
+        import frappe
+        value = frappe.conf.get(key, 0)
+        return value is True or type(value) is int and value == 1 or value == "1"
+    except Exception:
+        return False
+
+
+def network_cutover_active():
+    # Retained as an explicit test override; deployed default remains False.
+    return V1_NETWORK_CUTOVER_ACTIVE is True or _site_gate("fbr_v1_network_cutover_active")
+
+
+def production_cutover_active():
+    return network_cutover_active() and _site_gate("fbr_v1_production_cutover_active")
+
+
+def _client(http_client=None, *, production=False):
     real_client = http_client is None or (requests is not None and (http_client is requests or isinstance(http_client, requests.Session)))
-    if real_client and not V1_NETWORK_CUTOVER_ACTIVE:
+    if real_client and not network_cutover_active():
         raise TransportUnavailable("V1 network cutover is disabled.")
+    if real_client and production and not production_cutover_active():
+        raise TransportUnavailable("V1 Production network cutover is disabled.")
     client = http_client or requests
     if client is None:
         raise TransportUnavailable("Python requests is required for FBR V1 transport.")
@@ -52,8 +72,10 @@ def health_local(*, timeout: int = 5, http_client=None) -> dict[str, Any]:
     }
 
 
-def post_local(payload: dict[str, Any], *, timeout: int = 30, http_client=None) -> dict[str, Any]:
-    response = _client(http_client).post(
+def post_local(payload: dict[str, Any], *, environment: str = "Production", timeout: int = 30, http_client=None) -> dict[str, Any]:
+    if environment not in {"Sandbox", "Production"}:
+        raise TransportUnavailable("Explicit Sandbox or Production environment is required.")
+    response = _client(http_client, production=environment == "Production").post(
         LOCAL_POST_URL,
         json=payload,
         headers={"Content-Type": "application/json"},
@@ -91,7 +113,7 @@ def post_cloud(
     else:
         raise ValueError("environment must be 'sandbox' or 'production'.")
 
-    response = _client(http_client).post(
+    response = _client(http_client, production=mode == "production").post(
         url,
         json=payload,
         headers={

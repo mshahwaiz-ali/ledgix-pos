@@ -17,9 +17,10 @@ def restoration_due_at(restored_at):
     return get_datetime(restored_at) + timedelta(hours=24)
 
 
-def append_event(device, event_type, evidence=None, *, occurred_at=None, doctype=None, name=None):
+def append_event(device, event_type, evidence=None, *, occurred_at=None, doctype=None, name=None, external_reference=None, external_evidence=None):
     body = {"pos_device": device, "event_type": event_type, "occurred_at": str(occurred_at or now_datetime()),
             "reference_doctype": doctype, "reference_name": name,
+            "external_reference": external_reference, "external_evidence": external_evidence,
             "evidence": sanitize(evidence or {}), "created_by": frappe.session.user}
     return frappe.get_doc({"doctype": EVENT, **{k: v for k, v in body.items() if k != "evidence"},
         "event_json": json.dumps(body, sort_keys=True, default=str), "event_hash": digest(body),
@@ -28,7 +29,8 @@ def append_event(device, event_type, evidence=None, *, occurred_at=None, doctype
 
 def offline_invoice(doc):
     profile = get_profile(doc.company)
-    if not profile or profile.get("offline_policy") != "Operator Confirmed":
+    if not profile or profile.get("offline_policy") != "Operator Confirmed" or not (
+            profile.get("offline_authority_reference") and profile.get("offline_authority_evidence")):
         frappe.throw(
             "Known-offline issuance is disabled. "
             "The Federal V1 offline policy must be explicitly authorized before use."
@@ -101,3 +103,50 @@ def record_device_event(pos_device, event_type):
 def upload_offline(*args, **kwargs):
     require_operator()
     frappe.throw("Separate Federal V1 offline-upload endpoint/schema is unresolved; upload is unavailable.")
+
+
+@frappe.whitelist(methods=["POST"])
+def record_offline_upload_confirmation(reference_doctype, reference_name, external_reference,
+                                       external_evidence, fbr_invoice_number):
+    from fbr_v1.api.compliance_evidence import require_external_evidence
+    require_operator()
+    require_external_evidence(external_reference, external_evidence)
+    number = str(fbr_invoice_number or "").strip()
+    if not number:
+        frappe.throw("The authoritative FBR invoice number is required.")
+    doc = source(reference_doctype, reference_name, "submit")
+    with submission_lock(f"{doc.doctype}:{doc.name}"):
+        doc = frappe.get_doc(reference_doctype, reference_name, for_update=True)
+        doc.check_permission("submit")
+        if doc.docstatus != 1 or doc.get("custom_ledgix_fbr_status") != "Offline Pending":
+            frappe.throw("Only a submitted Offline Pending invoice can be confirmed.")
+        if history_blocker(doc, history(doc)):
+            frappe.throw("Fiscal history requires reconciliation; offline confirmation is blocked.")
+        restored = doc.get("custom_ledgix_fbr_restored_at")
+        due = doc.get("custom_ledgix_fbr_upload_due_at")
+        if not restored or not due:
+            frappe.throw("Recorded restoration and its fixed upload deadline are required.")
+        snapshot = read_persisted_v1_snapshot(doc.doctype, doc.name)
+        device = frappe.get_doc("Ledgix FBR POS Device", snapshot["header"]["pos_device"]["name"])
+        device.check_permission("write")
+        if device.company != doc.company:
+            frappe.throw("POS device company mismatch.")
+        at = now_datetime()
+        evidence = {"operator_confirmation": True, "external_reference": external_reference,
+            "external_evidence": external_evidence, "fbr_invoice_number": number,
+            "recorded_at": str(at), "restored_at": str(restored), "due_at": str(due),
+            "confirmed_after_deadline": at > get_datetime(due), "operator": frappe.session.user,
+            "network_call": False}
+        log = create_submission_log(doc.doctype, doc.name, "Credit Note" if doc.get("is_return") else "Sale Invoice",
+            "Submitted", fbr_invoice_number=number, transport_outcome="Externally Confirmed",
+            source_snapshot_hash=snapshot["snapshot_hash"], pos_device=device.name,
+            external_reference=external_reference, external_evidence=external_evidence,
+            operator=frappe.session.user, offline_issued_at=doc.get("custom_ledgix_fbr_offline_issued_at"),
+            offline_upload_due_at=due)
+        event = append_event(device.name, "Offline Upload", {**evidence, "submission_log": log},
+            occurred_at=at, doctype=doc.doctype, name=doc.name,
+            external_reference=external_reference, external_evidence=external_evidence)
+        mark(doc, "Submitted", custom_ledgix_fbr_invoice_number=number,
+             custom_ledgix_fbr_submitted_at=at, custom_ledgix_fbr_submission_log=log,
+             custom_ledgix_fbr_reconciliation_required=0)
+        return {"status": "Submitted", "log": log, "event": event.name, **evidence}

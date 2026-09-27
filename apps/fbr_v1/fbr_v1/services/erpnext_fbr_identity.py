@@ -8,6 +8,8 @@ from ERPNext Customer + billing/primary Address, with only the genuinely
 FBR-specific registration-type extension retained.
 """
 
+from fbr_v1.protocol.tax_identity import normalize_tax_id
+
 import frappe
 from frappe.utils import cint
 
@@ -98,6 +100,7 @@ def resolve_company_seller_identity(company_name: str) -> dict:
     address = _address_values(address_name)
     seller = {
         "ntn_cnic": _text(company.get("tax_id")),
+        "tax_id_raw": company.get("tax_id") or "",
         "business_name": _text(company.get("company_name") or company.name),
         "province": address["province"],
         "address": address["address"],
@@ -120,6 +123,7 @@ def resolve_company_seller_identity(company_name: str) -> dict:
     if not seller["address"]:
         errors.append("ERPNext Company Address is required for FBR.")
 
+    _normalize_identity(seller, errors)
     return {
         "authority": "ERPNext",
         "company": company_name,
@@ -153,6 +157,7 @@ def resolve_invoice_identity(doc) -> dict:
     seller_address = _address_values(_address_name_for_company(doc))
     seller = {
         "ntn_cnic": _text(company.get("tax_id")),
+        "tax_id_raw": company.get("tax_id") or "",
         "business_name": _text(company.get("company_name") or company.name),
         "province": seller_address["province"],
         "address": seller_address["address"],
@@ -184,7 +189,7 @@ def resolve_invoice_identity(doc) -> dict:
     legacy_tax_id = _text(customer.get("custom_ledgix_buyer_ntn_cnic"))
     registration_type = _buyer_registration_type(customer)
 
-    if native_tax_id and legacy_tax_id and native_tax_id != legacy_tax_id:
+    if native_tax_id and legacy_tax_id and _comparable_tax_id(native_tax_id) != _comparable_tax_id(legacy_tax_id):
         errors.append(
             "ERPNext Customer Tax ID conflicts with legacy Ledgix Buyer NTN/CNIC. "
             "Resolve the master-data conflict before FBR V1 cutover."
@@ -205,6 +210,7 @@ def resolve_invoice_identity(doc) -> dict:
 
     buyer = {
         "ntn_cnic": native_tax_id,
+        "tax_id_raw": customer.get("tax_id") or "",
         "phone": _text(doc.get("contact_mobile") or customer.get("mobile_no")),
         "business_name": _text(customer.get("customer_name") or customer.name),
         "province": buyer_address["province"],
@@ -225,6 +231,8 @@ def resolve_invoice_identity(doc) -> dict:
             "Move it to ERPNext Customer Tax ID before final V1 cutover."
         )
 
+    _normalize_identity(seller, errors)
+    _normalize_identity(buyer, errors)
     return {
         "authority": "ERPNext",
         "source_doctype": doc.doctype,
@@ -251,3 +259,20 @@ def build_identity_candidate(reference_doctype: str, reference_name: str) -> dic
     result = resolve_invoice_identity(doc)
     result["source_docstatus"] = cint(doc.docstatus)
     return result
+
+
+def _normalize_identity(identity, errors):
+    identity.setdefault("tax_id_raw", identity.get("ntn_cnic") or "")
+    try:
+        value, kind = normalize_tax_id(identity["tax_id_raw"])
+        identity.update(tax_id_normalized=value, tax_id_kind=kind)
+    except ValueError as exc:
+        errors.append(str(exc))
+        identity.update(tax_id_normalized="", tax_id_kind="Invalid")
+
+
+def _comparable_tax_id(value):
+    try:
+        return normalize_tax_id(value)[0]
+    except ValueError:
+        return value

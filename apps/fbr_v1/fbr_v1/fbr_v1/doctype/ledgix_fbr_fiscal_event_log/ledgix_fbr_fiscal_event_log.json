@@ -14,7 +14,8 @@
   "event_json",
   "event_hash",
   "severity",
-  "created_by"
+  "created_by",
+  "external_evidence"
  ],
  "fields": [
   {
@@ -28,7 +29,7 @@
    "fieldname": "event_type",
    "fieldtype": "Select",
    "label": "Event Type",
-   "options": "Startup\nShutdown\nConnectivity Failure\nSoftware Failure\nPower Failure\nRestoration\nOffline Invoice Issued\nOffline Upload\nAdjustment\nModification\nCancellation Attempt\nDebit Note\nCredit Note\nClosing\nReconciliation\nAlert",
+   "options": "Startup\nShutdown\nConnectivity Failure\nSoftware Failure\nPower Failure\nRestoration\nOffline Invoice Issued\nOffline Upload\nAdjustment\nModification\nCancellation Attempt\nDebit Note\nCredit Note\nClosing\nReconciliation\nAlert\nOutage Report Filed\nAlert Report Filed\nOffline Upload Confirmed\nCorrection Filed\nCommissioner Approval Recorded",
    "reqd": 1
   },
   {
@@ -77,6 +78,11 @@
    "fieldtype": "Link",
    "label": "Created By",
    "options": "User"
+  },
+  {
+   "fieldname": "external_evidence",
+   "fieldtype": "Attach",
+   "label": "External Evidence"
   }
  ],
  "permissions": [
