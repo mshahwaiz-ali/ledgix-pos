@@ -11,7 +11,7 @@ UNRESOLVED = [
     "Item-level Debit behavior", "Complete error-code catalogue", "Server duplicate-USIN behavior",
     "Current client POSID/token acquisition workflow",
     "Separate offline batch-upload endpoint/schema", "External daily/weekly/monthly closing endpoint/schema",
-    "Undocumented alternative QR encoding and digital-signature algorithms",
+    "Undocumented digital-signature algorithm",
     "External outage-reporting API", "External alert-message API",
     "V1 wire fields for Extra Tax, FED Payable and Sales Tax Withheld at Source",
     "Foreign-currency and inclusive-tax discount wire semantics",

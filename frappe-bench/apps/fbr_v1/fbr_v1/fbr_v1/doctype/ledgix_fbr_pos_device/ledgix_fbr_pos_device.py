@@ -1,6 +1,5 @@
 import frappe
 from frappe.model.document import Document
-from fbr_v1.services.authority_evidence import stamp_verification
 
 
 class LedgixFBRPOSDevice(Document):
@@ -19,12 +18,3 @@ class LedgixFBRPOSDevice(Document):
                 frappe.throw("An active device requires Sandbox or Production environment.")
             if self.transport_topology not in {"Cloud API", "Local IMS - Server Reachable"}:
                 frappe.throw("An active device requires a supported transport topology.")
-        if self.environment == "Production" and not (self.onboarding_reference and self.onboarding_evidence):
-            frappe.throw("Production device requires onboarding reference and evidence.")
-        for prefix in ("qr", "signature"):
-            stamp_verification(self, prefix + "_verification_status", prefix + "_verification_reference",
-                               prefix + "_verification_evidence", prefix + "_verified_at",
-                               prefix + "_verified_by", {"Verified"}, context_fields=(
-                                   "company", "pos_profile", "pos_id", "environment", "transport_topology",
-                                   "software_registration_number", "ims_package_name", "ims_package_version",
-                                   "ims_installation_reference", "ims_installation_evidence"))

@@ -47,6 +47,10 @@ frappe.pages['fbr-v1-center'].on_page_load = function (wrapper) {
     let invoiceName = '';
     let sandboxActionResult = null;
 
+    let productionInvoiceType = 'POS Invoice';
+    let productionInvoiceName = '';
+    let productionActionResult = null;
+
     const uniq = (rows) => [...new Set((rows || []).filter(Boolean))];
     const textOrDash = (value) => value === 0 ? '0' : (value || '—');
     const yesNo = (value) => value ? __('ON') : __('OFF');
@@ -551,6 +555,188 @@ frappe.pages['fbr-v1-center'].on_page_load = function (wrapper) {
         );
     }
 
+    function mountProductionInvoiceControls(parent, data) {
+        const fields = $('<div class="lx-fbr-invoice-fields"></div>').appendTo(parent);
+
+        const typeHost = $('<div></div>').appendTo(fields);
+        const typeControl = frappe.ui.form.make_control({
+            parent: typeHost,
+            df: {
+                fieldname: 'production_invoice_type',
+                label: __('Invoice Type'),
+                fieldtype: 'Select',
+                options: 'Sales Invoice\nPOS Invoice',
+                default: productionInvoiceType,
+            },
+            render_input: true,
+        });
+        typeControl.refresh();
+        typeControl.set_value(productionInvoiceType);
+
+        const invoiceHost = $('<div></div>').appendTo(fields);
+        const invoiceControl = frappe.ui.form.make_control({
+            parent: invoiceHost,
+            df: {
+                fieldname: 'production_invoice',
+                label: __('Invoice'),
+                fieldtype: 'Link',
+                options: productionInvoiceType,
+                default: productionInvoiceName,
+            },
+            render_input: true,
+        });
+        invoiceControl.refresh();
+        if (productionInvoiceName) {
+            invoiceControl.set_value(productionInvoiceName);
+        }
+
+        typeControl.df.change = () => {
+            const value = typeControl.get_value() || 'POS Invoice';
+            if (value !== productionInvoiceType) {
+                productionInvoiceType = value;
+                productionInvoiceName = '';
+                productionActionResult = null;
+                render(data);
+            }
+        };
+
+        invoiceControl.df.change = () => {
+            const value = invoiceControl.get_value() || '';
+            if (value !== productionInvoiceName) {
+                productionInvoiceName = value;
+                productionActionResult = null;
+                render(data);
+            }
+        };
+    }
+
+    function renderProductionActionResult(parent) {
+        if (!productionActionResult) return;
+
+        const result = $('<div class="lx-fbr-inline-result"></div>')
+            .addClass('is-' + productionActionResult.tone)
+            .appendTo(parent);
+
+        $('<strong></strong>')
+            .text(__(productionActionResult.title))
+            .appendTo(result);
+
+        (productionActionResult.lines || []).forEach((line) => {
+            $('<span></span>').text(line).appendTo(result);
+        });
+    }
+
+    async function checkProductionInvoiceReadiness(data, button) {
+        if (!productionInvoiceName) return;
+
+        button.prop('disabled', true);
+        try {
+            const {message: result} = await frappe.call({
+                method: 'fbr_v1.api.fiscalization.invoice_readiness',
+                args: {
+                    reference_doctype: productionInvoiceType,
+                    reference_name: productionInvoiceName,
+                },
+            });
+
+            const errors = uniq([
+                ...(result.errors || []),
+                ...(result.network_blockers || []),
+            ]);
+
+            productionActionResult = errors.length
+                ? {
+                    tone: 'warning',
+                    title: 'Production invoice not ready',
+                    lines: errors,
+                    ready_for_fiscalize: false,
+                }
+                : {
+                    tone: 'good',
+                    title: 'Production invoice ready',
+                    lines: [
+                        'Invoice and all Production safety gates passed readiness.',
+                        'Fiscalize Production Invoice is now available for one explicit POST.',
+                    ],
+                    ready_for_fiscalize: true,
+                };
+
+            render(data);
+        } finally {
+            button.prop('disabled', false);
+        }
+    }
+
+    function fiscalizeProductionInvoice(data, state, button) {
+        if (!productionInvoiceName) return;
+
+        const reference = productionInvoiceType + ' ' + productionInvoiceName;
+
+        frappe.confirm(
+            __(
+                'This performs one REAL FBR Production POST for {0}. '
+                + 'Do not continue unless this exact invoice is authorized. Continue?',
+                [reference]
+            ),
+            async () => {
+                button.prop('disabled', true);
+
+                try {
+                    const {message: result} = await frappe.call({
+                        method: 'fbr_v1.api.fiscalization.submit_invoice',
+                        args: {
+                            reference_doctype: productionInvoiceType,
+                            reference_name: productionInvoiceName,
+                        },
+                    });
+
+                    const status = result.status || 'Completed';
+                    const normalized = String(status).toLowerCase();
+
+                    const tone =
+                        normalized.includes('fail')
+                        || normalized.includes('reject')
+                            ? 'danger'
+                            : (
+                                normalized.includes('reconciliation')
+                                || normalized.includes('ambiguous')
+                                    ? 'warning'
+                                    : 'good'
+                            );
+
+                    const lines = [];
+
+                    if (result.invoice_number) {
+                        lines.push(
+                            __('FBR Invoice Number: {0}', [result.invoice_number])
+                        );
+                    }
+
+                    if (result.network_call === true) {
+                        lines.push(__('FBR network call attempted.'));
+                    } else if (result.network_call === false) {
+                        lines.push(__('No FBR network call was made.'));
+                    }
+
+                    (result.errors || []).forEach((message) => {
+                        lines.push(message);
+                    });
+
+                    productionActionResult = {
+                        tone,
+                        title: status,
+                        lines,
+                        ready_for_fiscalize: false,
+                    };
+
+                    await refresh();
+                } finally {
+                    button.prop('disabled', false);
+                }
+            }
+        );
+    }
+
     function renderLatestSubmission(parent, data) {
         const latest = data.latest_submission;
         const evidence = panel(parent, 'Latest Submission / Evidence', 'evidence', {
@@ -914,52 +1100,228 @@ frappe.pages['fbr-v1-center'].on_page_load = function (wrapper) {
         const production = readiness.configuration && readiness.configuration.production
             ? readiness.configuration.production
             : {};
-        const locked = !readiness.production_cutover_active && !profile.production_post_armed;
+
+        const productionLive = Boolean(
+            readiness.network_cutover_active
+            && readiness.production_cutover_active
+            && profile.production_post_armed
+        );
+
+        const locked = !productionLive;
 
         const productionPanel = panel(workspace, 'Production', 'production', {
             className: 'lx-fbr-production-panel',
-            badge: {label: locked ? 'LOCKED' : 'ATTENTION', tone: locked ? 'good' : 'danger'},
+            badge: {
+                label: locked ? 'LOCKED' : 'LIVE',
+                tone: locked ? 'good' : 'danger',
+            },
         });
 
         notice(
             productionPanel,
             locked ? 'good' : 'danger',
-            locked ? 'Production is locked' : 'Production safety state requires attention',
-            'Production cutover cannot be enabled from FBR V1 Center.'
+            locked ? 'Production transport is locked' : 'REAL FBR Production transport is LIVE',
+            locked
+                ? 'Production cutover cannot be enabled from FBR V1 Center.'
+                : 'Only the explicitly selected and authorized invoice should be fiscalized.'
         );
 
         factGrid(productionPanel, [
-            {label: 'Production Gate', value: yesNo(readiness.production_cutover_active), tone: readiness.production_cutover_active ? 'danger' : 'good'},
-            {label: 'Posting Armed', value: yesNo(profile.production_post_armed), tone: profile.production_post_armed ? 'danger' : 'good'},
-            {label: 'Current Profile', value: readiness.mode || 'Disabled'},
-            {label: 'Configuration', value: readiness.production_configuration_ready ? 'Ready' : 'Not Ready'},
+            {
+                label: 'General Network',
+                value: yesNo(readiness.network_cutover_active),
+                tone: readiness.network_cutover_active ? 'danger' : 'good',
+            },
+            {
+                label: 'Production Gate',
+                value: yesNo(readiness.production_cutover_active),
+                tone: readiness.production_cutover_active ? 'danger' : 'good',
+            },
+            {
+                label: 'Posting Armed',
+                value: yesNo(profile.production_post_armed),
+                tone: profile.production_post_armed ? 'danger' : 'good',
+            },
+            {
+                label: 'Current Profile',
+                value: readiness.mode || 'Disabled',
+            },
+            {
+                label: 'Configuration',
+                value: readiness.production_configuration_ready ? 'Ready' : 'Not Ready',
+            },
         ]);
 
-        const productionBlockers = uniq([
-            ...(production.blockers || []),
-            ...(state.externalBlockers || []),
-        ]);
+        // Only actual Production configuration blockers belong here.
+        // Unresolved optional/unsupported contracts are not presented as
+        // client setup requirements.
+        const productionBlockers = uniq(production.blockers || []);
+
         if (productionBlockers.length) {
-            const requirements = $('<details class="lx-fbr-requirements"></details>').appendTo(productionPanel);
+            const requirements = $('<details class="lx-fbr-requirements"></details>')
+                .appendTo(productionPanel);
+
             const summary = $('<summary></summary>').appendTo(requirements);
-            $('<strong></strong>').text(__('Production readiness requirements')).appendTo(summary);
-            badge(__('{0} open', [productionBlockers.length]), 'warning').appendTo(summary);
+
+            $('<strong></strong>')
+                .text(__('Production readiness requirements'))
+                .appendTo(summary);
+
+            badge(
+                __('{0} open', [productionBlockers.length]),
+                'warning'
+            ).appendTo(summary);
+
             const list = $('<ul></ul>').appendTo(requirements);
-            productionBlockers.forEach((message) => $('<li></li>').text(message).appendTo(list));
+            productionBlockers.forEach((message) => {
+                $('<li></li>').text(message).appendTo(list);
+            });
         }
 
         buttonRow(productionPanel, [
             {
                 label: 'Integration Profile',
                 onClick: () => readiness.profile
-                    ? frappe.set_route('Form', 'Ledgix FBR Integration Profile', readiness.profile)
-                    : routeList('Ledgix FBR Integration Profile', {company: data.company}),
+                    ? frappe.set_route(
+                        'Form',
+                        'Ledgix FBR Integration Profile',
+                        readiness.profile
+                    )
+                    : routeList(
+                        'Ledgix FBR Integration Profile',
+                        {company: data.company}
+                    ),
             },
             {
                 label: 'Devices',
-                onClick: () => routeList('Ledgix FBR POS Device', {company: data.company, environment: 'Production'}),
+                onClick: () => routeList(
+                    'Ledgix FBR POS Device',
+                    {
+                        company: data.company,
+                        environment: 'Production',
+                    }
+                ),
             },
         ]);
+
+        const invoice = panel(
+            workspace,
+            'Production Invoice',
+            'invoice',
+            {className: 'lx-fbr-invoice-test-panel'}
+        );
+
+        if (productionLive) {
+            notice(
+                invoice,
+                'danger',
+                'Production network is live',
+                'Selecting an invoice does not send it. '
+                + 'Only Fiscalize Production Invoice performs the explicit POST.'
+            );
+        } else {
+            notice(
+                invoice,
+                'warning',
+                'Production POST remains blocked',
+                'The general network gate, Production gate, and posting arm '
+                + 'must all be active before fiscalization.'
+            );
+        }
+
+        mountProductionInvoiceControls(invoice, data);
+
+        const readinessPassed = Boolean(
+            productionActionResult
+            && productionActionResult.ready_for_fiscalize
+        );
+
+        const canCheck = Boolean(productionInvoiceName)
+            && readiness.mode === 'Production';
+
+        const canFiscalize = Boolean(
+            canOperate()
+            && readiness.enabled
+            && readiness.mode === 'Production'
+            && readiness.production_configuration_ready
+            && profile.transport_enabled
+            && readiness.network_cutover_active
+            && readiness.production_cutover_active
+            && profile.production_post_armed
+            && readinessPassed
+            && productionInvoiceName
+        );
+
+        const actions = $('<div class="lx-fbr-button-row"></div>').appendTo(invoice);
+
+        const readinessButton = makeButton(
+            'Check Readiness',
+            null,
+            {
+                primary: true,
+                disabled: !canCheck,
+                reason: canCheck
+                    ? ''
+                    : __('Select a Production invoice first.'),
+            }
+        ).appendTo(actions);
+
+        if (canCheck) {
+            readinessButton.on(
+                'click',
+                () => checkProductionInvoiceReadiness(
+                    data,
+                    readinessButton
+                )
+            );
+        }
+
+        let fiscalizeReason = '';
+
+        if (!productionInvoiceName) {
+            fiscalizeReason = __('Select an invoice first.');
+        } else if (!canOperate()) {
+            fiscalizeReason = __('Accounts Manager permission is required.');
+        } else if (!readiness.enabled || readiness.mode !== 'Production') {
+            fiscalizeReason = __('The active FBR profile must be Production.');
+        } else if (
+            !readiness.production_configuration_ready
+            || !profile.transport_enabled
+        ) {
+            fiscalizeReason = __('Production configuration is not ready.');
+        } else if (!readiness.network_cutover_active) {
+            fiscalizeReason = __('General FBR network gate is OFF.');
+        } else if (!readiness.production_cutover_active) {
+            fiscalizeReason = __('Production network gate is OFF.');
+        } else if (!profile.production_post_armed) {
+            fiscalizeReason = __('Production posting is not armed.');
+        } else if (!readinessPassed) {
+            fiscalizeReason = __('Run Check Readiness first.');
+        }
+
+        const fiscalizeButton = makeButton(
+            'Fiscalize Production Invoice',
+            null,
+            {
+                danger: true,
+                disabled: !canFiscalize,
+                reason: fiscalizeReason,
+            }
+        ).appendTo(actions);
+
+        if (canFiscalize) {
+            fiscalizeButton.on(
+                'click',
+                () => fiscalizeProductionInvoice(
+                    data,
+                    state,
+                    fiscalizeButton
+                )
+            );
+        }
+
+        renderProductionActionResult(invoice);
+        renderLatestSubmission(workspace, data);
     }
 
     function renderWorkspace(data, state) {

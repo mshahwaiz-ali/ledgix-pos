@@ -250,7 +250,7 @@ def _print_brand(company: str) -> dict:
 
 
 def provisional_qr_payload(fbr_invoice_number):
-    """Returned number only; production verification encoding remains unresolved."""
+    """Federal POS QR payload: the authoritative returned FBR invoice number."""
     return str(fbr_invoice_number or "").strip()
 
 
@@ -308,7 +308,7 @@ def _v1_profile_public(company: str) -> dict:
         ) or "",
         "digital_invoicing_logo": (
             row.digital_invoicing_logo if row else ""
-        ) or "",
+        ) or "/assets/fbr_v1/images/fbr-pos-logo.png",
     }
 
 
@@ -369,7 +369,7 @@ def _line_context(row, evidence=None):
     components = line.get("components") or {}
     rates = [r.get("tax_rate") for r in line.get("component_rows", []) if r.get("component") == "Sales Tax Applicable"]
     result = {k: line.get(k, row.get(k)) or "" for k in ("item_code", "item_name", "description", "uom")}
-    for k in ("qty", "rate", "amount", "net_amount"):
+    for k in ("qty", "rate", "net_rate", "amount", "net_amount"):
         result[k] = abs(flt(line.get(k, row.get(k))))
     result.update({
         "hs_code": mapping.get("hs_code") or "", "fbr_uom": mapping.get("fbr_uom") or "",
@@ -427,12 +427,7 @@ def get_native_invoice_print_context(reference_doctype, reference_name) -> dict:
     else:
         seller["pos_id"] = ""
         fbr_invoice_number = ""
-    qr_status = "Provisional number-only payload; externally unverified"
-    if snapshot:
-        verification = frappe.db.get_value("Ledgix FBR POS Device", device["name"],
-            ["qr_verification_status", "qr_verification_reference", "qr_verification_evidence"], as_dict=True) or {}
-        if verification.get("qr_verification_status") == "Verified" and verification.get("qr_verification_reference") and verification.get("qr_verification_evidence"):
-            qr_status = "Configured V1 number-only QR encoding externally verified"
+    qr_status = "QR encodes the authoritative FBR invoice number"
     payments = []
     for payment in doc.get("payments") or []:
         payments.append(
@@ -463,6 +458,8 @@ def get_native_invoice_print_context(reference_doctype, reference_name) -> dict:
         "items": [_line_context(row, snapshot["lines"].get(row.name) if snapshot else None) for row in doc.get("items") or []],
         "net_total": abs(flt(doc.get("net_total"), 2)),
         "tax_total": abs(flt(doc.get("total_taxes_and_charges"), 2)),
+        "pos_service_fee": abs(flt((snapshot or {}).get("header", {}).get("pos_service_fee") or 0, 2)),
+        "sales_tax_total": max(0, abs(flt(doc.get("total_taxes_and_charges"), 2)) - abs(flt((snapshot or {}).get("header", {}).get("pos_service_fee") or 0, 2))),
         "grand_total": abs(flt(doc.get("grand_total"), 2)),
         "rounded_total": abs(flt(doc.get("rounded_total") or doc.get("grand_total"), 2)),
         "paid_amount": abs(flt(doc.get("paid_amount"), 2)),

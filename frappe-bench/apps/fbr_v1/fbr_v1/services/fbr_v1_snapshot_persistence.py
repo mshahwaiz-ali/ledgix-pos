@@ -150,6 +150,7 @@ def _build_snapshot_payloads(doc) -> tuple[dict, dict[str, dict]]:
         "net_total": candidate.get("net_total"),
         "total_taxes_and_charges": candidate.get("total_taxes_and_charges"),
         "grand_total": candidate.get("grand_total"),
+        "pos_service_fee": candidate.get("pos_service_fee") or 0,
         "identity": identity,
         "pos_device": device,
         "payment": payment,
@@ -171,6 +172,11 @@ def _build_snapshot_payloads(doc) -> tuple[dict, dict[str, dict]]:
         "line_count": candidate.get("line_count") or 0,
         "line_hashes": line_hashes,
     }
+
+    if profile.get("mode") == "Production" and not cint(doc.get("is_return")):
+        from decimal import Decimal
+        if Decimal(str(header.get("pos_service_fee") or 0)) != Decimal("1.00"):
+            frappe.throw("Production Federal V1 sale requires the statutory Re.1 POS Service Fee.")
 
     from fbr_v1.services.fbr_v1_payload_builder import build_invoice
     build_invoice({"header": header, "lines": line_payloads, "snapshot_hash": _digest_json(header)})

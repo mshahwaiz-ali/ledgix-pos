@@ -191,9 +191,13 @@ Still separate:
 - duplicate-USIN server behavior;
 - separate offline upload API, if applicable;
 - external daily/weekly/monthly closing API, if applicable;
-- alternate QR encoding or undocumented signature algorithm;
+- undocumented digital-signature algorithm;
 - unproven Extra Tax/FED/withheld wire fields;
 - external outage/alert and Board correction APIs;
 - unsupported foreign-currency and inclusive-tax discount semantics.
 
 These are not guessed.
+
+## 13. Statutory POS Service Fee boundary
+
+The Re.1 FBR POS Service Fee is recorded as an ERPNext native Liability charge and is included in the invoice TotalBillAmount. The documented V1 request schema has no separate ServiceFee field, so Ledgix does not invent one.

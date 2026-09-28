@@ -329,8 +329,11 @@ class TestFbrV1CenterContract(unittest.TestCase):
             "Fiscalize Invoice",
             "Enable Sandbox Network",
             "Disable Sandbox Network",
-            "Production is locked",
+            "Production transport is locked",
             "Production cutover cannot be enabled from FBR V1 Center.",
+            "Production Invoice",
+            "Fiscalize Production Invoice",
+            "This performs one REAL FBR Production POST",
             "Advanced diagnostics",
             "Advanced evidence actions",
             "fbr_v1.api.center.get_center_boot",
@@ -352,6 +355,11 @@ class TestFbrV1CenterContract(unittest.TestCase):
         self.assertIn("Run Check Readiness first.", js)
         self.assertIn("typeControl.df.change = () =>", js)
         self.assertIn("invoiceControl.df.change = () =>", js)
+        self.assertIn("productionInvoiceName", js)
+        self.assertIn("productionActionResult", js)
+        self.assertIn("checkProductionInvoiceReadiness", js)
+        self.assertIn("fiscalizeProductionInvoice", js)
+        self.assertNotIn("...(state.externalBlockers || [])", js)
         self.assertIn(".lx-fbr-invoice-test-panel", css)
         self.assertIn(".lx-fbr-latest-evidence", css)
         self.assertNotIn("Authority / external requirements", js)

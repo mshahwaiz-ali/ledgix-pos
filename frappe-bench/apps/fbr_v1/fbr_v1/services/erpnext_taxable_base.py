@@ -154,6 +154,11 @@ def stamp_fbr_taxable_base_inputs(doc, method=None) -> None:
 
         _stamp_notified_value(item, notified_value)
 
+    # The statutory Re.1 fee is a native ERPNext Actual charge. Applying it in
+    # before_validate lets ERPNext own the resulting receivable, GL and totals.
+    from fbr_v1.services.pos_service_fee import ensure_pos_service_fee
+    ensure_pos_service_fee(doc)
+
 
 def resolve_notified_retail_price(calc, item, tax):
     """Return the legal base; ERPNext applies the tax rate and owns the amount."""

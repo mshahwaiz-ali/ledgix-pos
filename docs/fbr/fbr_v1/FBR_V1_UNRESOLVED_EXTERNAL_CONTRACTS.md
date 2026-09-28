@@ -7,7 +7,7 @@ These are contracts Ledgix intentionally does not guess, not omissions from the 
 - automatic external offline/batch upload;
 - external closing, outage-reporting, and alert-message APIs;
 - a Board/PRAL correction API;
-- an undocumented digital-signature algorithm or alternative QR encoding;
+- an undocumented digital-signature algorithm;
 - a complete authoritative error catalogue and duplicate-USIN semantics;
 - unsupported foreign-currency and ambiguous inclusive-tax discount semantics;
 - client POSID/token issuance processes that depend on FBR/PRAL/provider evidence.

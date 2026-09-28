@@ -1,19 +1,16 @@
 """Configuration evidence checks shared by invoice and operator readiness."""
 import frappe
 from frappe.utils import cint
-from fbr_v1.services.authority_evidence import AUTHORITY_STATES
 from fbr_v1.services.pos_identity import profile_active
+from fbr_v1.services.pos_service_fee import service_fee_configuration_blockers
 
 
 def get_device_compliance_state(device_name, *, include_production=False):
     """Read current evidence without loading a controller or changing fiscal identity."""
     fields = ["active", "operational_state"]
     if include_production:
-        fields += ["onboarding_reference", "onboarding_evidence", "ims_package_name",
-                   "ims_package_version", "ims_installation_reference", "ims_installation_evidence"]
-        for prefix in ("qr", "signature"):
-            fields += [prefix + suffix for suffix in ("_verification_status", "_verification_reference",
-                       "_verification_evidence", "_verified_at", "_verified_by")]
+        fields += ["ims_package_name", "ims_package_version",
+                   "ims_installation_reference", "ims_installation_evidence"]
     return frappe.db.get_value("Ledgix FBR POS Device", device_name, fields, as_dict=True) or {}
 
 
@@ -38,12 +35,7 @@ def configuration_blockers(profile, device, mode):
             errors.append("Production profile must block printing until a fiscal result exists.")
         if not cint(profile.get("production_post_armed")):
             errors.append("Production posting is not armed.")
-        if profile.get("authority_status") not in AUTHORITY_STATES:
-            errors.append("Federal V1 authority must be verified.")
-        for key in ("authority_reference", "authority_evidence", "authority_verified_at", "authority_verified_by",
-                    "activation_reference", "activation_evidence", "retention_policy_reference", "retention_policy_evidence"):
-            if not profile.get(key):
-                errors.append("Production profile requires " + key.replace("_", " ") + ".")
+        errors.extend(service_fee_configuration_blockers(profile))
     if not device:
         return errors + ["Select an active POS device for " + mode + "."]
     if device.get("company") != profile.get("company") or not cint(device.get("active")):
@@ -70,24 +62,8 @@ def configuration_blockers(profile, device, mode):
             configured = False
         if not configured:
             errors.append("Distinct " + mode + " V1 cloud credential is missing or unavailable.")
-    if mode == "Production":
-        for key in ("onboarding_reference", "onboarding_evidence"):
+    if mode == "Production" and topology == "Local IMS - Server Reachable":
+        for key in ("ims_package_name", "ims_package_version", "ims_installation_reference", "ims_installation_evidence"):
             if not device.get(key):
-                errors.append("Production device requires " + key.replace("_", " ") + ".")
-        for prefix in ("qr", "signature"):
-            if device.get(prefix + "_verification_status") != "Verified" or not all(
-                    device.get(prefix + suffix) for suffix in ("_verification_reference", "_verification_evidence", "_verified_at", "_verified_by")):
-                errors.append("Production device requires externally verified " + prefix + " evidence.")
-        if topology == "Local IMS - Server Reachable":
-            for key in ("ims_package_name", "ims_package_version", "ims_installation_reference", "ims_installation_evidence"):
-                if not device.get(key):
-                    errors.append("Production local IMS requires " + key.replace("_", " ") + ".")
-    if mode == "Production":
-        evidence_fields = [(profile, key) for key in ("authority_evidence", "activation_evidence", "retention_policy_evidence")]
-        evidence_fields += [(device, key) for key in ("onboarding_evidence", "qr_verification_evidence", "signature_verification_evidence")]
-        if topology == "Local IMS - Server Reachable":
-            evidence_fields.append((device, "ims_installation_evidence"))
-        for owner, key in evidence_fields:
-            if owner.get(key) and not frappe.db.exists("File", {"file_url": owner.get(key)}):
-                errors.append("Evidence attachment is missing for " + key.replace("_", " ") + ".")
+                errors.append("Production local IMS requires " + key.replace("_", " ") + ".")
     return errors

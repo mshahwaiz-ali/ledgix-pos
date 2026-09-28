@@ -54,6 +54,7 @@
   "v1_sandbox_token",
   "v1_production_token",
   "block_print_without_fiscal_result",
+  "pos_service_fee_account",
   "activation_reference",
   "activation_evidence",
   "authority_section",
@@ -136,7 +137,8 @@
    "collapsible": 1,
    "fieldname": "onboarding_section",
    "fieldtype": "Section Break",
-   "label": "FBR Onboarding"
+   "label": "FBR Onboarding",
+   "hidden": 1
   },
   {
    "fieldname": "business_natures",
@@ -157,7 +159,8 @@
   },
   {
    "fieldname": "onboarding_column",
-   "fieldtype": "Column Break"
+   "fieldtype": "Column Break",
+   "hidden": 1
   },
   {
    "default": "Not Started",
@@ -175,12 +178,14 @@
    "fieldname": "ip_whitelist_status",
    "fieldtype": "Select",
    "label": "Server / IP Whitelist Status",
-   "options": "Not Required\nPending\nConfigured\nVerified"
+   "options": "Not Required\nPending\nConfigured\nVerified",
+   "hidden": 1
   },
   {
    "fieldname": "hosting_notes",
    "fieldtype": "Small Text",
-   "label": "Hosting / Whitelist Notes"
+   "label": "Hosting / Whitelist Notes",
+   "hidden": 1
   },
   {
    "collapsible": 1,
@@ -208,40 +213,46 @@
   {
    "fieldname": "software_registration_number",
    "fieldtype": "Data",
-   "label": "Software / POS Registration Number"
+   "label": "Software / POS Registration Number",
+   "hidden": 1
   },
   {
-   "description": "Authoritative fiscal invoice artwork supplied by the client/provider; no artwork is generated.",
+   "description": "Optional override. Ledgix FBR V1 ships the configured FBR POS logo asset by default.",
    "fieldname": "digital_invoicing_logo",
    "fieldtype": "Attach Image",
-   "label": "Federal FBR Fiscal Invoice Logo"
+   "label": "FBR POS Invoice Logo Override"
   },
   {
    "collapsible": 1,
    "fieldname": "technical_contact_section",
    "fieldtype": "Section Break",
-   "label": "Technical Contact"
+   "label": "Technical Contact",
+   "hidden": 1
   },
   {
    "fieldname": "technical_contact_name",
    "fieldtype": "Data",
-   "label": "Technical Contact Name"
+   "label": "Technical Contact Name",
+   "hidden": 1
   },
   {
    "fieldname": "technical_contact_email",
    "fieldtype": "Data",
    "label": "Technical Contact Email",
-   "options": "Email"
+   "options": "Email",
+   "hidden": 1
   },
   {
    "fieldname": "technical_contact_column",
-   "fieldtype": "Column Break"
+   "fieldtype": "Column Break",
+   "hidden": 1
   },
   {
    "fieldname": "technical_contact_phone",
    "fieldtype": "Data",
    "label": "Technical Contact Phone",
-   "options": "Phone"
+   "options": "Phone",
+   "hidden": 1
   },
   {
    "collapsible": 1,
@@ -299,7 +310,7 @@
    "label": "Known Offline Policy",
    "options": "Disabled\nOperator Confirmed",
    "reqd": 0,
-   "hidden": 0,
+   "hidden": 1,
    "read_only": 0
   },
   {
@@ -387,88 +398,110 @@
   {
    "fieldname": "activation_reference",
    "fieldtype": "Data",
-   "label": "Activation Reference"
+   "label": "Activation Reference",
+   "hidden": 1
   },
   {
    "fieldname": "activation_evidence",
    "fieldtype": "Attach",
-   "label": "Activation Evidence"
+   "label": "Activation Evidence",
+   "hidden": 1
   },
   {
    "fieldname": "authority_section",
    "fieldtype": "Section Break",
-   "label": "Federal V1 Authority"
+   "label": "Federal V1 Authority",
+   "hidden": 1
   },
   {
    "fieldname": "authority_status",
    "fieldtype": "Select",
    "label": "Authority Status",
    "options": "Unverified\nExisting Tier-1 Registration\nFBR / PRAL Directed\nLicensed Integrator Authorized",
-   "default": "Unverified"
+   "default": "Unverified",
+   "hidden": 1
   },
   {
    "fieldname": "authority_reference",
    "fieldtype": "Data",
-   "label": "Authority Reference"
+   "label": "Authority Reference",
+   "hidden": 1
   },
   {
    "fieldname": "authority_evidence",
    "fieldtype": "Attach",
-   "label": "Authority Evidence"
+   "label": "Authority Evidence",
+   "hidden": 1
   },
   {
    "fieldname": "authority_column",
    "fieldtype": "Column Break",
-   "label": "Authority Column"
+   "label": "Authority Column",
+   "hidden": 1
   },
   {
    "fieldname": "authority_verified_at",
    "fieldtype": "Datetime",
    "label": "Authority Verified At",
-   "read_only": 1
+   "read_only": 1,
+   "hidden": 1
   },
   {
    "fieldname": "authority_verified_by",
    "fieldtype": "Link",
    "label": "Authority Verified By",
    "options": "User",
-   "read_only": 1
+   "read_only": 1,
+   "hidden": 1
   },
   {
    "fieldname": "retention_section",
    "fieldtype": "Section Break",
-   "label": "Retention and Backup Policy"
+   "label": "Retention and Backup Policy",
+   "hidden": 1
   },
   {
    "fieldname": "retention_policy_reference",
    "fieldtype": "Data",
-   "label": "Retention Policy Reference"
+   "label": "Retention Policy Reference",
+   "hidden": 1
   },
   {
    "fieldname": "retention_policy_evidence",
    "fieldtype": "Attach",
    "label": "Retention Policy Evidence",
-   "description": "Record the six-year retention policy and external backup arrangements. Application evidence does not guarantee backup retention."
+   "description": "Record the six-year retention policy and external backup arrangements. Application evidence does not guarantee backup retention.",
+   "hidden": 1
   },
   {
    "fieldname": "offline_authority_section",
    "fieldtype": "Section Break",
-   "label": "Offline Authority"
+   "label": "Offline Authority",
+   "hidden": 1
   },
   {
    "fieldname": "offline_authority_reference",
    "fieldtype": "Data",
-   "label": "Offline Authority Reference"
+   "label": "Offline Authority Reference",
+   "hidden": 1
   },
   {
    "fieldname": "offline_authority_evidence",
    "fieldtype": "Attach",
-   "label": "Offline Authority Evidence"
+   "label": "Offline Authority Evidence",
+   "hidden": 1
   },
   {
    "fieldname": "v1_transport_section",
    "fieldtype": "Section Break",
    "label": "Federal V1 Transport and Activation"
+  },
+  {
+   "fieldname": "pos_service_fee_account",
+   "fieldtype": "Link",
+   "label": "FBR POS Service Fee Payable Account",
+   "options": "Account",
+   "description": "Liability account used for the statutory Re.1 FBR POS Service Fee. The fee remains an ERPNext charge and is not added as an undocumented V1 wire field."
   }
  ],
  "grid_page_length": 50,

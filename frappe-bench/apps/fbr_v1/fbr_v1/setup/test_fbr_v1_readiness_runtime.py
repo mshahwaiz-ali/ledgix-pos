@@ -84,6 +84,7 @@ class TestReadiness(NoNetworkTest):
         profile = Row(company='Test Company', provider_type='PRAL', protocol_version=identity.PROTOCOL,
                       mode='Production', enabled=1, transport_enabled=1, production_post_armed=1,
                       submit_trigger='On Submit', block_print_without_fiscal_result=1,
+                      pos_service_fee_account='FBR POS Service Fee Payable - TEST',
                       authority_status='FBR / PRAL Directed', authority_reference='AUTH-1',
                       authority_evidence='/private/files/authority', authority_verified_at='2026-09-01',
                       authority_verified_by='test@example.invalid', activation_reference='ACT-1',
@@ -98,14 +99,21 @@ class TestReadiness(NoNetworkTest):
                 prefix + '_verification_evidence': '/private/files/' + prefix,
                 prefix + '_verified_at': '2026-09-01', prefix + '_verified_by': 'test@example.invalid'})
         self.db.exists.return_value = True
+        self.db.get_value.return_value = Row(
+            name='FBR POS Service Fee Payable - TEST',
+            company='Test Company',
+            root_type='Liability',
+            is_group=0,
+        )
         return profile, compliance
 
     def test_production_profile_requires_submit_and_print_invariants(self):
         base = dict(protocol_version=identity.PROTOCOL, mode='Production', enabled=1,
                     transport_enabled=1, production_post_armed=1, provider_type='PRAL',
                     offline_policy='Disabled', default_pos_device=None,
+                    pos_service_fee_account='FBR POS Service Fee Payable - TEST',
                     submit_trigger='On Submit', block_print_without_fiscal_result=1)
-        with patch.object(profile_controller, 'stamp_verification'):
+        with nullcontext():
             manual = Row(**base); manual.submit_trigger = 'Manual'
             with self.assertRaisesRegex(frappe.ValidationError, 'On Submit'):
                 profile_controller.LedgixFBRIntegrationProfile.validate(manual)
@@ -126,21 +134,43 @@ class TestReadiness(NoNetworkTest):
         blockers = configuration.configuration_blockers(profile, None, 'Production')
         self.assertFalse(any('On Submit trigger' in row or 'block printing' in row for row in blockers))
 
-    def test_production_requires_current_authority_retention_qr_and_signature_evidence(self):
-        for field, message in [('authority_evidence', 'authority evidence'),
-                               ('retention_policy_evidence', 'retention policy evidence'),
-                               ('qr_verification_status', 'verified qr'),
-                               ('signature_verification_status', 'verified signature')]:
-            with self.subTest(field=field):
-                profile, compliance = self._production_configuration()
-                if field in profile:
-                    profile[field] = None
-                else:
-                    compliance[field] = 'Unverified'
-                result = self._inspect_configuration('Production', profile, compliance, production=True)
-                self.assertTrue(result['ready'])
-                self.assertFalse(result['network_ready'])
-                self.assertTrue(any(message in blocker for blocker in result['network_blockers']))
+    def test_production_optional_audit_evidence_does_not_block_transport(self):
+        profile, compliance = self._production_configuration()
+
+        profile.authority_status = 'Unverified'
+        for field in (
+            'authority_reference',
+            'authority_evidence',
+            'authority_verified_at',
+            'authority_verified_by',
+            'activation_reference',
+            'activation_evidence',
+            'retention_policy_reference',
+            'retention_policy_evidence',
+        ):
+            profile[field] = None
+
+        compliance['onboarding_reference'] = None
+        compliance['onboarding_evidence'] = None
+
+        for prefix in ('qr', 'signature'):
+            compliance[prefix + '_verification_status'] = 'Unverified'
+            for suffix in (
+                '_verification_reference',
+                '_verification_evidence',
+                '_verified_at',
+                '_verified_by',
+            ):
+                compliance[prefix + suffix] = None
+
+        result = self._inspect_configuration(
+            'Production',
+            profile,
+            compliance,
+            production=True,
+        )
+        self.assertTrue(result['ready'])
+        self.assertTrue(result['network_ready'])
 
     def test_fully_evidenced_production_requires_both_cutover_gates(self):
         for general, production in [(False, False), (True, False), (False, True), (True, True)]:
@@ -161,8 +191,10 @@ class TestReadiness(NoNetworkTest):
             configuration.get_device_compliance_state('DEVICE-1')
             self.assertEqual(self.db.get_value.call_args.args[2], ['active', 'operational_state'])
             configuration.get_device_compliance_state('DEVICE-1', include_production=True)
-            self.assertIn('qr_verification_evidence', self.db.get_value.call_args.args[2])
-            self.assertIn('signature_verification_evidence', self.db.get_value.call_args.args[2])
+            fields = self.db.get_value.call_args.args[2]
+            self.assertIn('ims_package_name', fields)
+            self.assertNotIn('qr_verification_evidence', fields)
+            self.assertNotIn('signature_verification_evidence', fields)
         self.db.set_value.assert_not_called()
 
     def test_restoration_sets_due_only_for_unrestored_pending_invoices(self):

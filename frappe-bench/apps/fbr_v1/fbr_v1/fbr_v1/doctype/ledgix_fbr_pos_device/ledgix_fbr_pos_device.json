@@ -77,7 +77,7 @@
   {
    "fieldname": "software_registration_number",
    "fieldtype": "Data",
-   "label": "Software Registration Number"
+   "label": "FBR POS / Software Registration No."
   },
   {
    "fieldname": "environment",
@@ -98,12 +98,14 @@
   {
    "fieldname": "onboarding_reference",
    "fieldtype": "Data",
-   "label": "Onboarding Reference"
+   "label": "Onboarding Reference",
+   "hidden": 1
   },
   {
    "fieldname": "onboarding_evidence",
    "fieldtype": "Attach",
-   "label": "Onboarding Evidence"
+   "label": "Onboarding Evidence",
+   "hidden": 1
   },
   {
    "fieldname": "active",
@@ -146,107 +148,127 @@
   {
    "fieldname": "ims_package_section",
    "fieldtype": "Section Break",
-   "label": "IMS Package and Installation"
+   "label": "IMS Package and Installation",
+   "depends_on": "eval:doc.transport_topology=='Local IMS - Server Reachable'",
+   "collapsible": 1
   },
   {
    "fieldname": "ims_package_name",
    "fieldtype": "Data",
-   "label": "IMS Package Name"
+   "label": "IMS Package Name",
+   "depends_on": "eval:doc.transport_topology=='Local IMS - Server Reachable'"
   },
   {
    "fieldname": "ims_package_version",
    "fieldtype": "Data",
-   "label": "IMS Package Version"
+   "label": "IMS Package Version",
+   "depends_on": "eval:doc.transport_topology=='Local IMS - Server Reachable'"
   },
   {
    "fieldname": "ims_installation_reference",
    "fieldtype": "Data",
-   "label": "IMS Installation Reference"
+   "label": "IMS Installation Reference",
+   "depends_on": "eval:doc.transport_topology=='Local IMS - Server Reachable'"
   },
   {
    "fieldname": "ims_installation_evidence",
    "fieldtype": "Attach",
-   "label": "IMS Installation Evidence"
+   "label": "IMS Installation Evidence",
+   "depends_on": "eval:doc.transport_topology=='Local IMS - Server Reachable'"
   },
   {
    "fieldname": "qr_section",
    "fieldtype": "Section Break",
-   "label": "QR Verification"
+   "label": "QR Verification",
+   "hidden": 1
   },
   {
    "fieldname": "qr_verification_status",
    "fieldtype": "Select",
    "label": "QR Verification Status",
    "options": "Unverified\nVerified",
-   "default": "Unverified"
+   "default": "Unverified",
+   "hidden": 1
   },
   {
    "fieldname": "qr_verification_reference",
    "fieldtype": "Data",
-   "label": "QR Verification Reference"
+   "label": "QR Verification Reference",
+   "hidden": 1
   },
   {
    "fieldname": "qr_verification_evidence",
    "fieldtype": "Attach",
-   "label": "QR Verification Evidence"
+   "label": "QR Verification Evidence",
+   "hidden": 1
   },
   {
    "fieldname": "qr_column",
    "fieldtype": "Column Break",
-   "label": "QR Column"
+   "label": "QR Column",
+   "hidden": 1
   },
   {
    "fieldname": "qr_verified_at",
    "fieldtype": "Datetime",
    "label": "QR Verified At",
-   "read_only": 1
+   "read_only": 1,
+   "hidden": 1
   },
   {
    "fieldname": "qr_verified_by",
    "fieldtype": "Link",
    "label": "QR Verified By",
    "options": "User",
-   "read_only": 1
+   "read_only": 1,
+   "hidden": 1
   },
   {
    "fieldname": "signature_section",
    "fieldtype": "Section Break",
-   "label": "Fiscal Signature Verification"
+   "label": "Fiscal Signature Verification",
+   "hidden": 1
   },
   {
    "fieldname": "signature_verification_status",
    "fieldtype": "Select",
    "label": "Signature Verification Status",
    "options": "Unverified\nVerified",
-   "default": "Unverified"
+   "default": "Unverified",
+   "hidden": 1
   },
   {
    "fieldname": "signature_verification_reference",
    "fieldtype": "Data",
-   "label": "Signature Verification Reference"
+   "label": "Signature Verification Reference",
+   "hidden": 1
   },
   {
    "fieldname": "signature_verification_evidence",
    "fieldtype": "Attach",
-   "label": "Signature Verification Evidence"
+   "label": "Signature Verification Evidence",
+   "hidden": 1
   },
   {
    "fieldname": "signature_column",
    "fieldtype": "Column Break",
-   "label": "Signature Column"
+   "label": "Signature Column",
+   "hidden": 1
   },
   {
    "fieldname": "signature_verified_at",
    "fieldtype": "Datetime",
    "label": "Signature Verified At",
-   "read_only": 1
+   "read_only": 1,
+   "hidden": 1
   },
   {
    "fieldname": "signature_verified_by",
    "fieldtype": "Link",
    "label": "Signature Verified By",
    "options": "User",
-   "read_only": 1
+   "read_only": 1,
+   "hidden": 1
   }
  ],
  "permissions": [

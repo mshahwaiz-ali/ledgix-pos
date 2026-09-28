@@ -52,6 +52,21 @@ class TestV1Payload(NoNetworkTest):
         self.assertEqual((inv.total_sale_value, inv.discount, inv.total_bill_amount), (100,10,109.8))
         self.assertEqual(inv.further_tax,3.6)
 
+    def test_statutory_pos_service_fee_reconciles_without_new_wire_field(self):
+        s = fixture()
+        s['header'].update(pos_service_fee=1, total_taxes_and_charges=19, grand_total=119)
+        invoice = build_invoice(rehash(s))
+        payload = invoice.to_payload()
+        self.assertEqual(invoice.total_bill_amount, 119)
+        self.assertEqual(invoice.total_tax_charged, 18)
+        self.assertNotIn('ServiceFee', payload)
+        self.assertNotIn('POSServiceFee', payload)
+
+        bad = fixture()
+        bad['header'].update(pos_service_fee=0.5, total_taxes_and_charges=18.5, grand_total=118.5)
+        with self.assertRaisesRegex(ValueError, 'Service Fee'):
+            build_invoice(rehash(bad))
+
     def test_payment_single_mixed_zero_and_missing(self):
         lookup=lambda mode: {'Cash':'1 - Cash','Card':'2 - Card','Other Cash':'1 - Cash'}.get(mode)
         doc=Row(doctype='POS Invoice',payments=[Row(mode_of_payment='Cash', amount=100),Row(mode_of_payment='Card',amount=0)])

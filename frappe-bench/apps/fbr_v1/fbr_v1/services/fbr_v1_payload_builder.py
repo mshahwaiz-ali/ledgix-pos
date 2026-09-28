@@ -102,9 +102,14 @@ def build_invoice(snapshot):
     net = sum(number(i.sale_value) - number(i.discount) for i in items)
     tax = sum(number(i.tax_charged) for i in items)
     further = sum(number(i.further_tax) for i in items)
+    service_fee = abs(number(h.get("pos_service_fee") or 0))
+    if credit and service_fee:
+        raise ProtocolValidationError("Credit notes must not add a new POS Service Fee.")
+    if service_fee not in {Decimal("0"), Decimal("1.00")}:
+        raise ProtocolValidationError("POS Service Fee must be zero (legacy/credit) or Re.1.")
     equal(net, abs(number(h["net_total"])), "net total")
-    equal(tax + further, abs(number(h["total_taxes_and_charges"])), "tax total")
-    equal(sum(number(i.total_amount) for i in items), abs(number(h["grand_total"])), "grand total")
+    equal(tax + further + service_fee, abs(number(h["total_taxes_and_charges"])), "tax/charge total")
+    equal(sum(number(i.total_amount) for i in items) + service_fee, abs(number(h["grand_total"])), "grand total")
     if (credit and number(h["grand_total"]) > 0) or (not credit and number(h["grand_total"]) < 0):
         raise ProtocolValidationError("Header amount sign differs from invoice type.")
     buyer = h.get("identity", {}).get("buyer", {})

@@ -15,6 +15,8 @@ from decimal import Decimal
 import frappe
 from frappe.utils import cint, flt, getdate
 
+from fbr_v1.services.pos_service_fee import extract_pos_service_fee
+
 from erpnext.controllers.taxes_and_totals import (
     calculate_taxes_and_totals as ERPNextTaxesAndTotals,
 )
@@ -487,6 +489,7 @@ def collect_native_tax_breakdown(doc) -> dict:
         "net_total": flt(doc.get("net_total")),
         "total_taxes_and_charges": flt(doc.get("total_taxes_and_charges")),
         "grand_total": flt(doc.get("grand_total")),
+        "pos_service_fee": extract_pos_service_fee(doc),
         "component_mappings": component_mappings,
         "line_count": len(lines),
         "lines": lines,
