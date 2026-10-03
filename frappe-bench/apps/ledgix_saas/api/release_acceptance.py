@@ -278,7 +278,7 @@ def evaluate_release_acceptance(
     if features.get("enable_fbr"):
         fbr = fbr_v1_bridge.get_company_readiness((operational.get("identity") or {}).get("company"))
     fbr_external_certification_complete = bool(not features.get("enable_fbr") or (fbr or {}).get("sandbox_certification_complete", False))
-    fbr_production_ready = bool(not features.get("enable_fbr") or (fbr or {}).get("production_ready"))
+    fbr_production_ready = bool(not features.get("enable_fbr") or (fbr_external_certification_complete and (fbr or {}).get("production_ready")))
     manual_uat_ready = bool(manual.get("valid") and not manual_missing)
     strict_client_evidence_ready = bool(strict_operational.get("ready"))
 

@@ -102,8 +102,7 @@ class TestFederalV1Bridge(NoNetworkTest):
                     if isinstance(body[0], ast.Expr) and isinstance(body[0].value, ast.Constant):
                         body = body[1:]
                     first = body[0]
-                    self.assertIsInstance(first, ast.Expr)
-                    self.assertEqual(ast.unparse(first.value.func), 'frappe.throw')
-                    self.assertIn('retired', first.value.args[0].value)
+                    self.assertIsInstance(first, ast.Return)
+                    self.assertEqual(ast.unparse(first.value.func), 'reject_legacy_v2_action')
         source = (ROOT / 'api/legacy_tax_guard.py').read_text()
         self.assertNotIn('FBR V2', source)

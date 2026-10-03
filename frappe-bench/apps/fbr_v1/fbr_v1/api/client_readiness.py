@@ -7,6 +7,7 @@ from fbr_v1.services.erpnext_fbr_identity import resolve_company_seller_identity
 from fbr_v1.protocol import transport
 from fbr_v1.services import erpnext_tax_readiness
 from fbr_v1.services.payment_readiness import get_payment_readiness
+from fbr_v1.services.sandbox_acceptance import get_sandbox_acceptance
 
 
 PROFILE_STATE_FIELDS = (
@@ -34,6 +35,7 @@ def get_client_readiness(company):
     source = resolve_company_seller_identity(company)
     devices = [frappe.get_doc("Ledgix FBR POS Device", name) for name in frappe.get_list(
         "Ledgix FBR POS Device", filters={"company": company, "active": 1}, pluck="name", limit_page_length=0)]
+    sandbox_acceptance = get_sandbox_acceptance(company, profile, devices)
     states = {}
     for mode in ("Sandbox", "Production"):
         candidates = [d for d in devices if d.environment == mode]
@@ -72,6 +74,10 @@ def get_client_readiness(company):
     return {"protocol": PROTOCOL, "profile": profile.name if profile else None,
             "profile_state": profile_state, "seller_identity": seller_identity,
             "enabled": profile_active(profile), "mode": mode,
+            # Compatibility field means the explicit V1 acceptance scope below,
+            # not legacy DI scenarios, regulatory certification, or Production authorization.
+            "sandbox_certification_complete": sandbox_acceptance["complete"],
+            "sandbox_acceptance": sandbox_acceptance,
             "source_accounting_ready": source["ready"], "source_blockers": source["errors"],
             "tax_configuration": tax_configuration,
             "tax_configuration_ready": tax_configuration["ready"],

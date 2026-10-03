@@ -134,6 +134,22 @@ def create_b2b_invoice(
     return erpnext_selling.invoice_summary(invoice, include_items=True)
 
 
+def validate_b2b_checkout_tenders(tenders):
+    from ledgix_saas.services import erpnext_pos
+
+    profile = erpnext_pos.profile_for_user()
+    allowed = {row["name"] for row in erpnext_pos.payment_methods(profile)}
+    normalized = []
+    for tender in _parse(tenders) or []:
+        selected = tender.get("payment_method") or tender.get("mode_of_payment")
+        mode = erpnext_selling._resolve_mode_of_payment(selected) if selected else ""
+        if not mode or mode not in allowed:
+            frappe.throw(f"Mode of Payment {mode or '(missing)'} is not configured on checkout POS Profile {profile.name}.")
+        normalized.append({"mode_of_payment": mode, "amount": tender.get("amount"),
+            "reference_no": tender.get("reference_number") or tender.get("reference_no")})
+    return profile, normalized
+
+
 @frappe.whitelist()
 def complete_b2b_sale(
     customer,
@@ -148,19 +164,10 @@ def complete_b2b_sale(
     """Current Ledgix B2B checkout contract backed only by ERPNext finance docs."""
 
     _require_manager()
-    fiscal_tenders = []
-    for tender in _parse(tenders) or []:
-        mode = tender.get("payment_method") or tender.get("mode_of_payment")
-        fiscal_tenders.append({
-            "mode_of_payment": (
-                erpnext_selling._resolve_mode_of_payment(mode) if mode else ""
-            ),
-            "amount": tender.get("amount"),
-            "reference_no": tender.get("reference_number")
-            or tender.get("reference_no"),
-        })
+    profile, fiscal_tenders = validate_b2b_checkout_tenders(tenders)
     invoice = erpnext_selling.create_sales_invoice(
         customer=customer,
+        company=profile.company,
         items=_invoice_items_from_cart(cart_items),
         selling_price_list=price_list,
         sale_channel="B2B",
@@ -182,9 +189,9 @@ def complete_b2b_sale(
 
     payments = []
     if not duplicate:
-        for index, tender in enumerate(_parse(tenders) or [], start=1):
+        for index, tender in enumerate(fiscal_tenders, start=1):
             amount = flt(tender.get("amount"))
-            method = tender.get("payment_method") or tender.get("mode_of_payment")
+            method = tender["mode_of_payment"]
             if amount <= 0 or not method:
                 continue
             invoice.reload()

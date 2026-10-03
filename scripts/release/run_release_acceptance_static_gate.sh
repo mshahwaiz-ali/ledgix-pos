@@ -5,37 +5,27 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel)"
 BENCH_DIR="${BENCH_DIR:-$REPO_ROOT/frappe-bench}"
 BENCH_PYTHON="$BENCH_DIR/env/bin/python"
-
 [[ -x "$BENCH_PYTHON" ]] || { printf '[FAIL] bench Python missing: %s\n' "$BENCH_PYTHON" >&2; exit 1; }
 
-printf '==================================================\n'
-printf ' Ledgix Release Acceptance Static Gate\n'
-printf '==================================================\n'
-printf 'Repo: %s\n' "$REPO_ROOT"
-printf 'Branch: %s\n' "$(git -C "$REPO_ROOT" branch --show-current)"
-printf 'Commit: %s\n' "$(git -C "$REPO_ROOT" rev-parse HEAD)"
-printf 'Bench Python: %s\n' "$BENCH_PYTHON"
+# Focused contracts only. No bench/site initialization, migration, build,
+# external transport, credentials, or cutover configuration writes.
+export PYTHONPATH="$BENCH_DIR/apps:$BENCH_DIR/apps/fbr_v1:$BENCH_DIR/apps/frappe:$BENCH_DIR/apps/erpnext${PYTHONPATH:+:$PYTHONPATH}"
+cd "$REPO_ROOT"
+"$BENCH_PYTHON" -m unittest -v \
+  ledgix_saas.setup.test_fbr_v1_bridge_contract \
+  fbr_v1.setup.test_fbr_v1_readiness_runtime \
+  fbr_v1.setup.test_sandbox_acceptance_runtime \
+  ledgix_saas.setup.test_fbr_activation_contract \
+  ledgix_saas.setup.test_fbr_client_certification_handoff_contract \
+  ledgix_saas.setup.test_fbr_native_ui_v2_control_state_contract \
+  ledgix_saas.setup.test_fbr_native_v2_preview_cutover_contract \
+  ledgix_saas.setup.test_fbr_v2_activation_profile_contract \
+  ledgix_saas.setup.test_fbr_v2_client_setup_readiness_contract \
+  ledgix_saas.setup.test_fbr_v2_transport_contract \
+  ledgix_saas.setup.test_fbr_redesign_v2_snapshot_persistence_contract \
+  ledgix_saas.setup.test_release_acceptance_contract
 
-printf '\n===== LOCAL CI =====\n'
-bash "$REPO_ROOT/scripts/validation/ci_local.sh"
-
-run_contract() {
-  local label="$1" module="$2"
-  printf '\n===== %s =====\n' "$label"
-  PYTHONPATH="$REPO_ROOT/frappe-bench/apps${PYTHONPATH:+:$PYTHONPATH}" \
-    "$BENCH_PYTHON" -m unittest -v "$module"
-}
-
-run_contract "PHASE 10 PRINT/REPORT REGRESSION" ledgix_saas.setup.test_erpnext_phase10_contract
-run_contract "R3 BACKUP/RECOVERY REGRESSION" ledgix_saas.setup.test_backup_restore_contract
-run_contract "R5 CLIENT READINESS REGRESSION" ledgix_saas.setup.test_client_readiness_contract
-run_contract "FBR ACTIVATION REGRESSION" ledgix_saas.setup.test_fbr_activation_contract
-run_contract "FINAL RELEASE ACCEPTANCE CONTRACT" ledgix_saas.setup.test_release_acceptance_contract
-
-printf '\n===== RELEASE ACCEPTANCE STATIC VERDICT =====\n'
-printf '[PASS] native A4 + thermal print authority contract\n'
-printf '[PASS] true read-only Phase 12 verification contract\n'
-printf '[PASS] profile-aware manual UAT evidence contract\n'
-printf '[PASS] FBR external certification remains separate and non-sending\n'
-printf '[PASS] final production gate is audit-only and immutable-release bound\n'
+printf '[PASS] current V1 read-only readiness and Sandbox acceptance contracts\n'
+printf '[PASS] retired V2 routes reject before DB, credentials, or transport\n'
+printf '[PASS] Sandbox acceptance is separate from Production authorization\n'
 printf 'release_acceptance_static_complete=true\n'

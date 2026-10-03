@@ -8,7 +8,7 @@ import frappe
 from frappe.utils import cint, flt
 
 from ledgix_saas.api.brand import get_brand_settings, get_print_logo_url
-from ledgix_saas.services import erpnext_fbr_identity, fbr_v2_snapshot_persistence
+from ledgix_saas.services import erpnext_fbr_identity, historical_fbr_evidence
 
 
 SUPPORTED_PRINT_DOCTYPES = {"Sales Invoice", "POS Invoice"}
@@ -74,8 +74,8 @@ def _v2_profile_public(company: str) -> dict:
 
 def _identity_for_print(doc) -> tuple[dict, str, str]:
     version = cint(doc.get("custom_ledgix_fbr_v2_snapshot_version"))
-    if version == fbr_v2_snapshot_persistence.SNAPSHOT_VERSION:
-        persisted = fbr_v2_snapshot_persistence.read_persisted_v2_snapshot(
+    if version == historical_fbr_evidence.SNAPSHOT_VERSION:
+        persisted = historical_fbr_evidence.read_persisted_v2_snapshot(
             doc.doctype,
             doc.name,
         )

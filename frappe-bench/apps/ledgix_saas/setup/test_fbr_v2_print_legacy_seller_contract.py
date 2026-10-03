@@ -26,8 +26,8 @@ class TestFBRV2PrintLegacySellerContract(unittest.TestCase):
 
     def test_native_print_prefers_hash_verified_persisted_v2_identity(self):
         for required in (
-            "fbr_v2_snapshot_persistence.SNAPSHOT_VERSION",
-            "fbr_v2_snapshot_persistence.read_persisted_v2_snapshot(",
+            "historical_fbr_evidence.SNAPSHOT_VERSION",
+            "historical_fbr_evidence.read_persisted_v2_snapshot(",
             '"persisted_v2"',
             '"identity_source": identity_source',
             '"identity_snapshot_hash": identity_snapshot_hash',

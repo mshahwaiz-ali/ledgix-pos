@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 import unittest
+from unittest.mock import patch
+from contextlib import ExitStack
+import frappe
+from fbr_v1.setup.v1_test_support import NoNetworkTest, Row
 from pathlib import Path
 
 
 APP_ROOT = Path(__file__).resolve().parents[1]
-REPO_ROOT = APP_ROOT.parents[1]
-SCRIPTS = REPO_ROOT / "scripts"
+REPO_ROOT = APP_ROOT.parents[2]
+SCRIPTS = REPO_ROOT / "scripts" / "release"
 DOCS = REPO_ROOT / "docs" / "production"
 
 
@@ -42,7 +46,7 @@ class TestReleaseAcceptanceContract(unittest.TestCase):
         source = (APP_ROOT / "api" / "release_acceptance.py").read_text(encoding="utf-8")
         for token in (
             "client_readiness.evaluate_client_readiness",
-            "fbr_activation.evaluate_fbr_activation_readiness",
+            "fbr_v1_bridge.get_company_readiness",
             "verify_frozen_snapshot_read_only",
             'A4_PRINT_FORMAT = "Ledgix ERPNext Tax Invoice"',
             'POS_PRINT_FORMAT = "Ledgix ERPNext POS Receipt"',
@@ -93,9 +97,9 @@ class TestReleaseAcceptanceContract(unittest.TestCase):
 
         static_source = static_gate.read_text(encoding="utf-8")
         for token in (
-            "test_erpnext_phase10_contract",
-            "test_backup_restore_contract",
-            "test_client_readiness_contract",
+            "test_fbr_v1_bridge_contract",
+            "test_fbr_v1_readiness_runtime",
+            "test_sandbox_acceptance_runtime",
             "test_fbr_activation_contract",
             "test_release_acceptance_contract",
             "release_acceptance_static_complete=true",
@@ -156,6 +160,43 @@ class TestReleaseAcceptanceContract(unittest.TestCase):
             "no production network call",
         ):
             self.assertIn(token, final_text)
+
+
+class TestReleaseAcceptanceBehavior(NoNetworkTest):
+    def inspect(self, sandbox_complete, production_ready=False):
+        from ledgix_saas.api import release_acceptance as api
+        operational = {'ready': True, 'features': {'enable_fbr': True},
+                       'identity': {'company': 'Shop'}, 'blockers': []}
+        state = {'sandbox_certification_complete': sandbox_complete,
+                 'production_ready': production_ready, 'database_write': False, 'fbr_network_call': False}
+        with ExitStack() as stack:
+            stack.enter_context(patch.object(frappe, 'get_roles', return_value=['Ledgix Admin']))
+            stack.enter_context(patch.object(api.client_readiness, 'evaluate_client_readiness', return_value=operational))
+            stack.enter_context(patch.object(api, 'verify_frozen_snapshot_read_only', return_value={'frozen': True, 'matches': True, 'read_only': True}))
+            stack.enter_context(patch.object(api, '_print_checks', return_value=([], {})))
+            stack.enter_context(patch.object(api, '_load_manual_uat', return_value={'valid': True, 'results': {}}))
+            stack.enter_context(patch.object(api, '_required_uat_keys', return_value=[]))
+            bridge = stack.enter_context(patch.object(api.fbr_v1_bridge, 'get_company_readiness', return_value=state))
+            result = api.evaluate_release_acceptance(require_fbr_certification=1)
+            bridge.assert_called_once_with('Shop')
+        self.db.set_value.assert_not_called()
+        self.db.commit.assert_not_called()
+        self.assertFalse(result['network_call_made'])
+        self.assertFalse(result['production_armed_by_gate'])
+        return result
+
+    def test_v1_sandbox_completion_is_consumed_but_not_production_authority(self):
+        result = self.inspect(True)
+        self.assertTrue(result['fbr_external_certification_complete'])
+        self.assertFalse(result['production_release_ready'])
+
+    def test_missing_v1_sandbox_evidence_blocks_required_fbr_release(self):
+        result = self.inspect(False, production_ready=True)
+        self.assertFalse(result['fbr_external_certification_complete'])
+        self.assertFalse(result['production_release_ready'])
+
+    def test_separate_sandbox_and_production_requirements_must_both_pass(self):
+        self.assertTrue(self.inspect(True, production_ready=True)['production_release_ready'])
 
 
 if __name__ == "__main__":

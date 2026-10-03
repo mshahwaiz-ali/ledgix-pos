@@ -34,20 +34,11 @@ def _effective(mapping, date):
 
 
 def _required_items(company, warnings):
-    items = _rows("Item", {"disabled": 0, "is_sales_item": 1, "has_variants": 0}, ["name"])
-    if frappe.db.count("Company") == 1:
-        return [row["name"] for row in items]
-    owned = {row["parent"] for row in _rows("Item Default", {"company": company}, ["name", "parent"])}
-    # Standard company-specific invoice usage provides evidence for shared Items.
-    for parent, child in (("Sales Invoice", "Sales Invoice Item"), ("POS Invoice", "POS Invoice Item")):
-        invoices = [row["name"] for row in _rows(parent, {"company": company, "docstatus": ["!=", 2]}, ["name"])]
-        if invoices:
-            owned.update(row["item_code"] for row in _rows(child,
-                {"parent": ["in", invoices], "parenttype": parent}, ["name", "item_code"]))
-    unscoped = sorted(row["name"] for row in items if row["name"] not in owned)
-    if unscoped:
-        warnings.append("Shared sellable Items with undetermined Company scope: " + ", ".join(unscoped))
-    return [row["name"] for row in items if row["name"] in owned]
+    from ledgix_saas.services.erpnext_item_scope import sellable_item_filters
+
+    # Current POS/B2B catalogs can offer shared Items without Item Defaults or
+    # invoice history. Cover that entire transaction surface in every Company.
+    return [row["name"] for row in _rows("Item", sellable_item_filters(), ["name"])]
 
 
 def get_company_tax_readiness(company):

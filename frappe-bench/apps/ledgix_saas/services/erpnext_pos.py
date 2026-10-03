@@ -17,6 +17,7 @@ from frappe.utils import cint, flt, now_datetime, nowdate
 
 from ledgix_saas.services import erpnext_buying_inventory, erpnext_selling, erpnext_tax_authority
 from ledgix_saas.setup import erpnext_phase8_extensions
+from ledgix_saas.services.erpnext_item_scope import sellable_item_filters
 
 MONEY_TOLERANCE = 0.005
 
@@ -401,7 +402,7 @@ def search_items(
     warehouse = _profile_warehouse(profile)
     limit = min(max(cint(limit) or 80, 1), 200)
 
-    filters: dict = {"disabled": 0, "is_sales_item": 1, "has_variants": 0}
+    filters: dict = sellable_item_filters()
     if category and category != "All":
         filters["item_group"] = category
     query = str(query or "").strip()
@@ -447,11 +448,7 @@ def search_items(
                 ],
                 as_dict=True,
             )
-            if (
-                extra
-                and not cint(frappe.db.get_value("Item", barcode_item, "disabled"))
-                and not cint(frappe.db.get_value("Item", barcode_item, "has_variants"))
-            ):
+            if extra and frappe.db.exists("Item", {"name": barcode_item, **sellable_item_filters()}):
                 rows.insert(0, extra)
 
     items = []

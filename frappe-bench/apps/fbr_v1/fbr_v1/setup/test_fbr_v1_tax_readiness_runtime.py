@@ -99,7 +99,7 @@ class TestTaxReadiness(NoNetworkTest):
     def query(self, doctype, **kwargs):
         if doctype == 'Item':
             self.assertEqual(kwargs['filters']['has_variants'], 0)
-            return [row for row in self.items if not row.get('has_variants')]
+            return [row for row in self.items if not row.get('has_variants') and not row.get('disabled') and row.get('is_sales_item', 1)]
         return {'Ledgix FBR Item Mapping': self.mappings,
             'Ledgix FBR Tax Component Mapping': self.components,
             'Sales Taxes and Charges Template': self.sales, 'Item Tax Template': self.item_templates,
@@ -222,14 +222,33 @@ class TestTaxReadiness(NoNetworkTest):
         self.mappings.append(Row(**{**self.mappings[0], 'name': 'MAP2'}))
         self.assert_blocked('found 2')
 
-    def test_multi_company_shared_items_warn_without_false_blockers(self):
+    def test_multi_company_new_shared_catalog_item_cannot_disappear(self):
+        from ledgix_saas.services import erpnext_pos
         self.db.count.return_value = 2
-        self.items.append(Row(name='SHARED'))
-        self.scope = [Row(parent='SKU')]
+        self.scope = []  # No Item Default and no historical invoice.
+        self.items = [Row(name='SHARED', item_code='SHARED', item_name='New shared item',
+            item_group='Group', stock_uom='Nos', is_stock_item=0)]
+        with ExitStack() as stack:
+            stack.enter_context(patch.object(erpnext_pos, '_company', return_value='Shop'))
+            stack.enter_context(patch.object(erpnext_pos, 'profile_for_user', return_value=Row(name='COUNTER')))
+            stack.enter_context(patch.object(erpnext_pos, '_profile_customer', return_value='CUSTOMER'))
+            stack.enter_context(patch.object(erpnext_pos, '_price_list', return_value='RETAIL'))
+            stack.enter_context(patch.object(erpnext_pos, '_profile_warehouse', return_value='WAREHOUSE'))
+            stack.enter_context(patch.object(erpnext_pos, '_barcode', return_value=''))
+            stack.enter_context(patch.object(erpnext_pos.erpnext_selling, '_native_item_rate', return_value=Row(rate=100, price_list_rate=100)))
+            catalog = erpnext_pos.search_items(company='Shop')
+        self.assertEqual([item['item_code'] for item in catalog['items']], ['SHARED'])
         result = self.inspect()
-        self.assertTrue(result['ready'], result['blockers'])
-        self.assertEqual(result['item_coverage']['required_items'], ['SKU'])
-        self.assertIn('SHARED', ' '.join(result['warnings']))
+        self.assertFalse(result['ready'])
+        self.assertEqual(result['item_coverage']['required_items'], ['SHARED'])
+        self.assertIn('SHARED', ' '.join(result['blockers']))
+        for call in frappe.get_all.call_args_list:
+            self.assertNotIn(call.args[0], ('Item Default', 'Sales Invoice', 'POS Invoice'))
+        self.db.set_value.assert_not_called()
+
+    def test_disabled_and_non_sales_items_are_excluded(self):
+        self.items.extend([Row(name='DISABLED', disabled=1), Row(name='NON-SALES', is_sales_item=0)])
+        self.assertEqual(self.inspect()['item_coverage']['required_items'], ['SKU'])
 
     def test_zero_rate_visibility_does_not_invent_exemption(self):
         self.item_templates = [Row(name='ZERO')]
