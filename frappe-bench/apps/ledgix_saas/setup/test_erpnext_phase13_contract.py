@@ -16,7 +16,7 @@ def _find_repo_root() -> Path:
     for candidate in APP_ROOT.parents:
         if (
             (candidate / "scripts").is_dir()
-            and (candidate / "apps" / "ledgix_saas").is_dir()
+            and (candidate / "frappe-bench" / "apps" / "ledgix_saas").is_dir()
         ):
             return candidate
     raise RuntimeError(f"Could not locate Ledgix repository root from {APP_ROOT}")
@@ -65,6 +65,14 @@ class TestERPNextPhase13Contract(unittest.TestCase):
             '"doctype": "Stock Entry"',
         ):
             self.assertNotIn(forbidden, source)
+
+    def test_fbr_setup_uses_optional_v1_bridge(self):
+        source = (APP_ROOT / "api/client_setup.py").read_text()
+        self.assertIn("fbr_v1_bridge.is_fbr_v1_installed()", source)
+        self.assertIn("fbr_v1_bridge.get_company_readiness(company)", source)
+        self.assertNotIn("fbr_v2_readiness", source)
+        self.assertNotIn("from fbr_v1", source)
+        self.assertIn('"tax_configuration_ready"', source)
 
     def test_explicit_setup_selections_fail_closed(self):
         source = (APP_ROOT / "api" / "client_setup.py").read_text(encoding="utf-8")
@@ -127,7 +135,7 @@ class TestERPNextPhase13Contract(unittest.TestCase):
         self.assertNotIn("Setup Wizard", cashier["visible_workspace_links"])
 
     def test_client_site_preflight_enforces_erpnext_v15(self):
-        path = REPO_ROOT / "scripts" / "run_ledgix_client_preflight.sh"
+        path = REPO_ROOT / "scripts/local/run_ledgix_client_preflight.sh"
         self.assertTrue(path.exists())
         text = path.read_text(encoding="utf-8")
         for token in (
@@ -154,7 +162,7 @@ class TestERPNextPhase13Contract(unittest.TestCase):
         self.assertIn("migration_complete", gate)
 
     def test_phase13_runner_is_fail_closed(self):
-        runner = REPO_ROOT / "scripts" / "run_erpnext_phase13_final_gate.sh"
+        runner = REPO_ROOT / "scripts/archive/erpnext_migration/run_erpnext_phase13_final_gate.sh"
         if not runner.exists():
             self.fail("Phase 13 final gate runner is missing")
         text = runner.read_text(encoding="utf-8")

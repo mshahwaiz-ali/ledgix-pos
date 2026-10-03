@@ -178,6 +178,7 @@ def _v2_mapping_summary() -> dict:
 
 @frappe.whitelist()
 def get_v2_center_boot() -> dict:
+    frappe.throw("Historical Digital Invoicing routes are retired. Use the Federal POS/IMS V1 Center.")
     _require_view()
 
     profiles = _profiles()
@@ -217,6 +218,7 @@ def get_v2_center_boot() -> dict:
 
 @frappe.whitelist()
 def get_v2_item_mappings(page=1, page_size=20, search=None, needs_review=None) -> dict:
+    frappe.throw("Historical Digital Invoicing routes are retired. Use the Federal POS/IMS V1 Center.")
     _require_view()
 
     page = max(cint(page), 1)
@@ -273,6 +275,7 @@ def get_v2_item_mappings(page=1, page_size=20, search=None, needs_review=None) -
 
 @frappe.whitelist()
 def evaluate_v2_invoice_readiness(reference_doctype: str, reference_name: str) -> dict:
+    frappe.throw("Historical Digital Invoicing routes are retired. Use the Federal POS/IMS V1 Center.")
     _require_view()
     return evaluate_invoice_readiness(reference_doctype, reference_name)
 
@@ -284,6 +287,7 @@ def get_fbr_readiness() -> dict:
     Old callers receive V2 architecture status rather than legacy tax-engine
     readiness. This method performs no FBR network request.
     """
+    frappe.throw("Historical Digital Invoicing routes are retired. Use the Federal POS/IMS V1 Center.")
 
     boot = get_v2_center_boot()
     mapping = boot["mapping"]

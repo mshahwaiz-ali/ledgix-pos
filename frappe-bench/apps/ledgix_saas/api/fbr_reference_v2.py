@@ -471,6 +471,7 @@ def _sync_parameterized(
 
 @frappe.whitelist()
 def sync_reference_family(profile_name, reference_type):
+    frappe.throw("Historical Digital Invoicing routes are retired. Use the Federal POS/IMS V1 Center.")
     _assert_admin_permission()
     return sync_reference_family_internal(profile_name, reference_type)
 
@@ -478,6 +479,7 @@ def sync_reference_family(profile_name, reference_type):
 @frappe.whitelist()
 def sync_core_reference_data(profile_name):
     """Synchronize only parameter-free official DI reference families."""
+    frappe.throw("Historical Digital Invoicing routes are retired. Use the Federal POS/IMS V1 Center.")
 
     _assert_admin_permission()
     profile = _profile(profile_name)
@@ -528,6 +530,7 @@ def sync_core_reference_data(profile_name):
 
 @frappe.whitelist()
 def sync_rates(profile_name, posting_date, transaction_type_id, origination_supplier):
+    frappe.throw("Historical Digital Invoicing routes are retired. Use the Federal POS/IMS V1 Center.")
     _assert_admin_permission()
     posting_date = _required_text(posting_date, "posting_date")
     transaction_type_id = _required_text(transaction_type_id, "transaction_type_id")
@@ -547,6 +550,7 @@ def sync_rates(profile_name, posting_date, transaction_type_id, origination_supp
 
 @frappe.whitelist()
 def sync_hs_uoms(profile_name, hs_code, annexure_id=3):
+    frappe.throw("Historical Digital Invoicing routes are retired. Use the Federal POS/IMS V1 Center.")
     _assert_admin_permission()
     hs_code = _required_text(hs_code, "hs_code")
     annexure_id = _required_text(annexure_id, "annexure_id")
@@ -564,6 +568,7 @@ def sync_hs_uoms(profile_name, hs_code, annexure_id=3):
 
 @frappe.whitelist()
 def sync_sro_schedules(profile_name, rate_id, posting_date, origination_supplier_csv):
+    frappe.throw("Historical Digital Invoicing routes are retired. Use the Federal POS/IMS V1 Center.")
     _assert_admin_permission()
     rate_id = _required_text(rate_id, "rate_id")
     posting_date = _required_text(posting_date, "posting_date")
@@ -586,6 +591,7 @@ def sync_sro_schedules(profile_name, rate_id, posting_date, origination_supplier
 
 @frappe.whitelist()
 def sync_sro_items(profile_name, posting_date, sro_id):
+    frappe.throw("Historical Digital Invoicing routes are retired. Use the Federal POS/IMS V1 Center.")
     _assert_admin_permission()
     posting_date = _required_text(posting_date, "posting_date")
     sro_id = _required_text(sro_id, "sro_id")
@@ -633,6 +639,7 @@ def _cached_rows(
 @frappe.whitelist()
 def lookup_sales_tax_registration_status(profile_name, registration_no, posting_date):
     """Live FBR STATL lookup. Taxpayer-specific status is not cached as reference master data."""
+    frappe.throw("Historical Digital Invoicing routes are retired. Use the Federal POS/IMS V1 Center.")
 
     _assert_view_permission()
     profile = _profile(profile_name)
@@ -660,6 +667,7 @@ def lookup_sales_tax_registration_status(profile_name, registration_no, posting_
 @frappe.whitelist()
 def lookup_registration_type(profile_name, registration_no):
     """Live FBR registration-type lookup. Result is deliberately not master-data cached."""
+    frappe.throw("Historical Digital Invoicing routes are retired. Use the Federal POS/IMS V1 Center.")
 
     _assert_view_permission()
     profile = _profile(profile_name)
@@ -687,6 +695,7 @@ def get_cached_reference_data(
     limit_start=0,
     limit_page_length=100,
 ):
+    frappe.throw("Historical Digital Invoicing routes are retired. Use the Federal POS/IMS V1 Center.")
     _assert_view_permission()
     reference_type = str(reference_type or "").strip()
     if reference_type not in STATIC_REFERENCE_FAMILIES:
@@ -736,6 +745,7 @@ def get_cached_contextual_reference_data(
     limit_start=0,
     limit_page_length=100,
 ):
+    frappe.throw("Historical Digital Invoicing routes are retired. Use the Federal POS/IMS V1 Center.")
     _assert_view_permission()
     reference_type = str(reference_type or "").strip()
     context_key = _required_text(context_key, "context_key")

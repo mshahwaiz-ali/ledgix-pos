@@ -16,7 +16,7 @@ import frappe
 from frappe import _
 from frappe.utils import cint, flt
 
-from ledgix_saas.services import erpnext_taxable_base
+from ledgix_saas.services import fbr_v1_bridge
 
 LEGACY_MANAGED_TAX_PREFIX = "[LEDGIX-TAX]"
 NOT_APPLICABLE_TAX = "N/A"
@@ -317,7 +317,7 @@ def apply_sales_tax_authority(
     if recalculate:
         # Ledgix supplies only approved legal taxable-base inputs. ERPNext
         # still resolves tax rows/rates, calculates amounts/totals and posts GL.
-        erpnext_taxable_base.stamp_fbr_taxable_base_inputs(doc)
+        fbr_v1_bridge.stamp_taxable_base_inputs(doc)
         prepare_native_tax_state(doc)
         doc.run_method("calculate_taxes_and_totals")
 

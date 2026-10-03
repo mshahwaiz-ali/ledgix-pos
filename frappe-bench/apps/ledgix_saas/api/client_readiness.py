@@ -17,7 +17,7 @@ from frappe import _
 from frappe.utils import cint, now_datetime
 
 from ledgix_saas.api import client_setup
-from ledgix_saas.services import erpnext_fbr_identity, fbr_v2_readiness
+from ledgix_saas.services import fbr_v1_bridge
 
 READINESS_SCHEMA_VERSION = 1
 ADMIN_ROLES = {"System Manager", "Ledgix Admin"}
@@ -215,64 +215,28 @@ def _fbr_checks(features: dict) -> list[dict]:
         or ""
     ).strip()
 
-    bundle = fbr_v2_readiness.get_company_profile_state(company)
-    state = dict(bundle.get("profile") or {})
-
-    if not state.get("exists"):
-        return [
-            _check(
-                "fbr_integration_profile",
-                False,
-                "Create a company-scoped Ledgix FBR Integration Profile.",
-                category=category,
-                target="Ledgix FBR Integration Profile",
-                details={"company": company},
-            )
-        ]
-
-    identity = erpnext_fbr_identity.resolve_company_seller_identity(company)
+    installed = fbr_v1_bridge.is_fbr_v1_installed()
+    checks = [_check("fbr_v1_installed", installed,
+        "Federal FBR V1 app is required for Federal POS/IMS V1.", category=category)]
+    if not installed:
+        return checks
+    bundle = fbr_v1_bridge.get_company_readiness(company)
+    state = dict(bundle.get("profile_state") or {})
+    identity = fbr_v1_bridge.get_company_seller_identity(company)
     armed = bool(state.get("production_post_armed"))
-    mode = state.get("mode") or "Disabled"
-
-    return [
-        _check(
-            "fbr_integration_profile",
-            True,
-            "Company-scoped Ledgix FBR Integration Profile is available.",
-            category=category,
-            target="Ledgix FBR Integration Profile",
-            details={
-                "company": company,
-                "profile": state.get("name") or "",
-                "mode": mode,
-            },
-        ),
-        _check(
-            "fbr_pre_activation_interlock",
-            not armed,
-            "FBR Production posting must remain unarmed until the dedicated Sandbox-to-Production activation gate.",
-            category=category,
-            target="Ledgix FBR Integration Profile",
-            details={
-                "mode": mode,
-                "production_post_armed": armed,
-                "profile": state.get("name") or "",
-            },
-        ),
-        _check(
-            "fbr_seller_identity",
-            bool(identity.get("ready")),
-            "Complete ERPNext Company Tax ID and default Company Address before the next FBR Sandbox/Production workstream.",
-            category=category,
-            blocking=False,
-            target="Company / Address",
-            details={
-                "authority": identity.get("authority") or "ERPNext",
-                "errors": list(identity.get("errors") or []),
-                "mode": mode,
-            },
-        ),
-    ]
+    for key, passed, message in (
+        ("fbr_integration_profile", bool(bundle.get("profile")), "Create a company-scoped Ledgix FBR Integration Profile."),
+        ("fbr_protocol", state.get("protocol_version") == "Federal POS/IMS V1", "The profile must use Federal POS/IMS V1."),
+        ("fbr_pre_activation_interlock", not armed, "FBR Production posting must remain unarmed until the dedicated Sandbox-to-Production activation gate."),
+        ("fbr_seller_identity", identity.get("ready"), "Complete ERPNext Company Tax ID and default Company Address."),
+        ("fbr_setup_ready", bundle.get("setup_ready"), "Complete Federal POS/IMS V1 setup configuration."),
+        ("fbr_tax_configuration", bundle.get("tax_configuration_ready"), "Complete ERPNext native tax configuration and Federal V1 item coverage."),
+    ):
+        checks.append(_check(key, bool(passed), message, category=category,
+            target="FBR V1 Center", details={"company": company,
+                "profile": bundle.get("profile"), "mode": state.get("mode"),
+                "blockers": list(bundle.get("setup_blockers") or [])}))
+    return checks
 
 
 

@@ -14,7 +14,7 @@ import frappe
 from frappe import _
 from frappe.utils import cint, now_datetime
 
-from ledgix_saas.services import fbr_v2_readiness
+from ledgix_saas.services import fbr_v1_bridge
 from ledgix_saas.setup.erpnext_extensions import (
     DEFAULT_BUSINESS_PROFILE,
     PROFILE_DEFAULTS,
@@ -218,35 +218,20 @@ def evaluate_client_setup(payload=None) -> dict:
         checks.extend(_pos_profile_checks(pos_profile, company))
 
     if features.get("enable_fbr"):
-        state = fbr_v2_readiness.get_company_profile_state(company).get(
-            "profile"
-        ) or {}
-        checks.append(
-            _check(
-                "fbr_integration_profile",
-                bool(state.get("exists")),
-                (
-                    "Company-scoped Ledgix FBR Integration Profile is available."
-                    if state.get("exists")
-                    else "Create a Ledgix FBR Integration Profile for the selected Company."
-                ),
-                blocking=True,
-                target="Ledgix FBR Integration Profile",
-            )
-        )
-        checks.append(
-            _check(
-                "fbr_activation",
-                False,
-                (
-                    "Complete ERPNext seller identity, V2 mappings, official reference "
-                    "evidence, Sandbox token/certification and the dedicated activation "
-                    "gate before enabling FBR network submission."
-                ),
-                blocking=False,
-                target="Tax & FBR Center",
-            )
-        )
+        installed = fbr_v1_bridge.is_fbr_v1_installed()
+        checks.append(_check("fbr_v1_installed", installed,
+            "Federal FBR V1 app is required for Federal POS/IMS V1.", blocking=True))
+        if installed:
+            state = fbr_v1_bridge.get_company_readiness(company)
+            for key, passed, message in (
+                ("fbr_integration_profile", bool(state.get("profile")), "Configure a company-scoped Federal POS/IMS V1 profile."),
+                ("fbr_seller_identity", state.get("source_accounting_ready"), "Complete ERPNext seller identity."),
+                ("fbr_setup_ready", state.get("setup_ready"), "Complete Federal POS/IMS V1 pre-activation configuration."),
+                ("fbr_tax_configuration", state.get("tax_configuration_ready"), "Complete ERPNext native tax configuration and Federal V1 item coverage."),
+                ("fbr_pre_activation_interlock", not (state.get("profile_state") or {}).get("production_post_armed"), "Production posting must remain unarmed during setup."),
+            ):
+                checks.append(_check(key, bool(passed), message, blocking=True,
+                    target="FBR V1 Center"))
 
     blockers = [row for row in checks if row["blocking"] and not row["passed"]]
     warnings = [row for row in checks if not row["blocking"] and not row["passed"]]

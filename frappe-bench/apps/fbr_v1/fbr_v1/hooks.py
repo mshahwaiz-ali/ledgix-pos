@@ -7,6 +7,8 @@ app_license = "mit"
 
 required_apps = ["erpnext"]
 
+app_include_js = ["/assets/fbr_v1/js/fbr_v1_taxable_base.js"]
+
 after_install = "fbr_v1.setup.install.after_install"
 after_migrate = ["fbr_v1.setup.install.after_migrate"]
 

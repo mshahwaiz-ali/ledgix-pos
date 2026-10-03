@@ -3,7 +3,7 @@ from __future__ import annotations
 import frappe
 from frappe.utils import cint, getdate
 
-from ledgix_saas.api import fbr_v2_center, legacy_tax_guard
+from ledgix_saas.api import legacy_tax_guard
 
 
 VIEW_ROLES = ("System Manager", "Ledgix Admin", "Ledgix Manager")
@@ -469,7 +469,7 @@ def get_return_tax_snapshots(
 @frappe.whitelist()
 def get_fbr_readiness():
     _require_tax_view()
-    return fbr_v2_center.get_fbr_readiness()
+    return legacy_tax_guard.reject_legacy_tax_action(action="tax_center.get_fbr_readiness")
 
 
 @frappe.whitelist()

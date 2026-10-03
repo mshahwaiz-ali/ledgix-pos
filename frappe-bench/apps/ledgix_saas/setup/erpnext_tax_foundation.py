@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+"""Historical migration compatibility; not current Federal tax authority.
+
+Current fiscal Account classification belongs to FBR Tax Component Mapping.
+Ordinary Ledgix migrations no longer provision these legacy Company fields.
+"""
+
 import frappe
 from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 from frappe.utils import cint

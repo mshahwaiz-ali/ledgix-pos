@@ -1,4 +1,4 @@
-// ERPNext-native taxable-base mirror for Ledgix FBR special tax treatment.
+// ERPNext-native taxable-base mirror for Federal FBR V1 special tax treatment.
 // Server calculation is authoritative; this mirrors an already-stamped line base.
 
 frappe.provide("erpnext.taxable_base_resolvers");

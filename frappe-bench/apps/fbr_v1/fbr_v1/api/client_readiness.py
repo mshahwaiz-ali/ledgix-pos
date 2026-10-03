@@ -5,9 +5,11 @@ from fbr_v1.services.fbr_v1_readiness import UNRESOLVED
 from fbr_v1.services.v1_configuration import configuration_blockers
 from fbr_v1.services.erpnext_fbr_identity import resolve_company_seller_identity
 from fbr_v1.protocol import transport
+from fbr_v1.services import erpnext_tax_readiness
 
 
 PROFILE_STATE_FIELDS = (
+    "protocol_version",
     "enabled",
     "mode",
     "provider_type",
@@ -40,7 +42,8 @@ def get_client_readiness(company):
             "blockers": source["errors"] + ([] if ready else sorted(set(
                 e for c in checks for e in c["blockers"]))) + (
                 configuration_blockers(profile, None, mode) if not candidates else [])}
-    setup_blockers = list(source["errors"])
+    tax_configuration = erpnext_tax_readiness.get_company_tax_readiness(company)
+    setup_blockers = list(source["errors"]) + tax_configuration["blockers"]
     if not profile_active(profile) or profile.get("mode") == "Paused":
         setup_blockers.append("An active, unpaused Federal V1 profile is required.")
     if not devices:
@@ -71,6 +74,9 @@ def get_client_readiness(company):
             "profile_state": profile_state, "seller_identity": seller_identity,
             "enabled": profile_active(profile), "mode": mode,
             "source_accounting_ready": source["ready"], "source_blockers": source["errors"],
+            "tax_configuration": tax_configuration,
+            "tax_configuration_ready": tax_configuration["ready"],
+            "database_write": False, "fbr_network_call": False,
             "setup_ready": not setup_blockers, "setup_blockers": setup_blockers,
             "sandbox_configuration_ready": states["sandbox"]["ready"],
             "production_configuration_ready": states["production"]["ready"],

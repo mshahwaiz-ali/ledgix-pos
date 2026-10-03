@@ -5,8 +5,8 @@ from pathlib import Path
 
 
 APP_ROOT = Path(__file__).resolve().parents[1]
-REPO_ROOT = APP_ROOT.parents[1]
-SCRIPTS = REPO_ROOT / "scripts"
+REPO_ROOT = next(p for p in APP_ROOT.parents if (p / "scripts/archive/release_migration/run_r5_static_gate.sh").exists())
+SCRIPTS = REPO_ROOT / "scripts/archive/release_migration"
 DOCS = REPO_ROOT / "docs" / "production"
 
 
@@ -28,8 +28,8 @@ class TestClientReadinessContract(unittest.TestCase):
             '"named_operational_user"',
             '"fbr_integration_profile"',
             '"fbr_pre_activation_interlock"',
-            "fbr_v2_readiness.get_company_profile_state",
-            "erpnext_fbr_identity.resolve_company_seller_identity",
+            "fbr_v1_bridge.get_company_readiness",
+            "fbr_v1_bridge.get_company_seller_identity",
             '"release_identity_evidence"',
             '"verified_backup_evidence"',
             '"ERPNext business configuration + Ledgix onboarding evidence"',

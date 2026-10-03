@@ -35,7 +35,7 @@
   {
    "fieldname": "mapping_section",
    "fieldtype": "Section Break",
-   "label": "ERPNext Item / FBR Classification"
+   "label": "ERPNext Item / Federal V1 Classification"
   },
   {
    "fieldname": "company",
@@ -88,45 +88,54 @@
   {
    "fieldname": "classification_section",
    "fieldtype": "Section Break",
-   "label": "Official FBR Classification"
+   "label": "Federal V1 Item Identity"
   },
   {
    "fieldname": "hs_code",
    "fieldtype": "Data",
    "in_list_view": 1,
    "in_standard_filter": 1,
-   "label": "HS Code"
+   "label": "HS / PCT Code (Federal V1)"
   },
   {
    "fieldname": "fbr_uom",
    "fieldtype": "Data",
-   "label": "FBR UOM"
+   "label": "FBR UOM",
+   "hidden": 1,
+   "read_only": 1,
+   "in_list_view": 0,
+   "in_standard_filter": 0,
+   "description": "Retained historical data; not consumed by Federal POS/IMS V1."
   },
   {
    "fieldname": "sales_type",
    "fieldtype": "Data",
-   "in_list_view": 1,
+   "in_list_view": 0,
    "label": "FBR Sale / Transaction Type",
    "hidden": 1,
-   "read_only": 1
+   "read_only": 1,
+   "in_standard_filter": 0,
+   "description": "Retained historical data; not consumed by Federal POS/IMS V1."
   },
   {
    "fieldname": "classification_column",
    "fieldtype": "Column Break"
   },
   {
-   "description": "Reference/classification only. This field never calculates ERPNext monetary tax.",
+   "description": "Retained historical data; not consumed by Federal POS/IMS V1.",
    "fieldname": "fbr_rate_description",
    "fieldtype": "Data",
    "label": "FBR Rate / Reference Description",
    "hidden": 1,
-   "read_only": 1
+   "read_only": 1,
+   "in_list_view": 0,
+   "in_standard_filter": 0
   },
   {
-   "collapsible": 1,
+   "collapsible": 0,
    "fieldname": "regulatory_section",
    "fieldtype": "Section Break",
-   "label": "Regulatory References"
+   "label": "Federal V1 Legal Taxable Base"
   },
   {
    "default": "Transaction Value",
@@ -150,12 +159,22 @@
   {
    "fieldname": "sro_schedule_number",
    "fieldtype": "Data",
-   "label": "SRO Schedule Number"
+   "label": "SRO Schedule Number",
+   "hidden": 1,
+   "read_only": 1,
+   "in_list_view": 0,
+   "in_standard_filter": 0,
+   "description": "Retained historical data; not consumed by Federal POS/IMS V1."
   },
   {
    "fieldname": "sro_item_serial_number",
    "fieldtype": "Data",
-   "label": "SRO Item Serial Number"
+   "label": "SRO Item Serial Number",
+   "hidden": 1,
+   "read_only": 1,
+   "in_list_view": 0,
+   "in_standard_filter": 0,
+   "description": "Retained historical data; not consumed by Federal POS/IMS V1."
   },
   {
    "collapsible": 1,
@@ -168,7 +187,10 @@
    "fieldtype": "Data",
    "label": "FBR Reference Version",
    "read_only": 1,
-   "hidden": 1
+   "hidden": 1,
+   "in_list_view": 0,
+   "in_standard_filter": 0,
+   "description": "Retained historical data; not consumed by Federal POS/IMS V1."
   },
   {
    "fieldname": "last_reviewed_at",
@@ -251,7 +273,7 @@
  ],
  "row_format": "Dynamic",
  "rows_threshold_for_grid_search": 20,
- "search_fields": "erpnext_item,hs_code,sales_type,sro_schedule_number",
+ "search_fields": "erpnext_item,hs_code",
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": [],

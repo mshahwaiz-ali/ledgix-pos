@@ -10,7 +10,7 @@ APP_ROOT = Path(__file__).resolve().parents[1]
 class TestFBRRedesignV2SnapshotPersistenceContract(unittest.TestCase):
     def setUp(self):
         self.extensions = (
-            APP_ROOT / "setup" / "erpnext_extensions.py"
+            APP_ROOT.parent / "fbr_v1/fbr_v1/setup/erpnext_fbr_schema.py"
         ).read_text(encoding="utf-8")
         self.service = (
             APP_ROOT / "services" / "fbr_v2_snapshot_persistence.py"

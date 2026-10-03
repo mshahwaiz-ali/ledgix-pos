@@ -17,7 +17,6 @@ app_include_js = [
 	"/assets/ledgix_saas/js/ledgix_sidebar_brand.js",
 	"/assets/ledgix_saas/js/ledgix_phase10_native_surfaces.js",
 	"/assets/ledgix_saas/js/ledgix_phase11_product_shell.js",
-	"/assets/ledgix_saas/js/ledgix_taxable_base.js",
 ]
 web_include_css = ["/assets/ledgix_saas/css/ledgix_brand.css"]
 web_include_js = ["/assets/ledgix_saas/js/ledgix_brand.js"]
@@ -34,7 +33,6 @@ jinja = {
 
 after_migrate = [
 	"ledgix_saas.setup.erpnext_extensions.after_migrate",
-	"ledgix_saas.setup.erpnext_tax_foundation.after_migrate",
 	"ledgix_saas.setup.erpnext_phase5_extensions.after_migrate",
 	"ledgix_saas.setup.erpnext_phase6_extensions.after_migrate",
 	"ledgix_saas.setup.erpnext_phase7_extensions.after_migrate",
