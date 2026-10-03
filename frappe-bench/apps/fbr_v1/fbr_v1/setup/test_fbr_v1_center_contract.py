@@ -6,10 +6,23 @@ import frappe
 
 from fbr_v1.api import center
 from fbr_v1.api.client_readiness import PROFILE_STATE_FIELDS
-from fbr_v1.setup.v1_test_support import Row
+from fbr_v1.setup.v1_test_support import Row, NoNetworkTest
 
 
-class TestFbrV1CenterContract(unittest.TestCase):
+class TestFbrV1CenterContract(NoNetworkTest):
+    def test_center_consumes_backend_tax_and_payment_readiness(self):
+        root = Path(__file__).resolve().parents[1]
+        js = (root / 'fbr_v1/page/fbr_v1_center/fbr_v1_center.js').read_text()
+        for key in ('tax_configuration_ready', 'payment_configuration_ready', 'tax_configuration',
+                    'payment_configuration', 'setup_blockers', 'ready_item_count'):
+            self.assertIn(key, js)
+        self.assertNotIn('activeItems > 0', js)
+        self.assertNotIn('reviewedItems === activeItems', js)
+        self.assertNotIn('Number(mapping.payment_mappings || 0) > 0', js)
+        for doctype in ('Item Tax Template', 'Sales Taxes and Charges Template', 'Tax Category', 'Tax Rule'):
+            self.assertIn(doctype, js)
+        self.assertIn("has_role('Ledgix Admin')", js)
+
     def test_center_boot_is_read_only_status_projection(self):
         readiness = {
             "mode": "Disabled",

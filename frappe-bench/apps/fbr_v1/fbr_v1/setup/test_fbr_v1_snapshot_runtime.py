@@ -75,3 +75,45 @@ class TestV1Snapshot(NoNetworkTest):
             candidate['grand_total']=119
             with self.assertRaisesRegex(frappe.ValidationError,'differs'):
                 snapshots._build_snapshot_payloads(doc)
+
+
+class TestV1SchemaOwnership(NoNetworkTest):
+    def test_fresh_schema_has_no_legacy_provisioning_or_ledgix_id(self):
+        from fbr_v1.setup.erpnext_fbr_schema import CUSTOM_FIELDS, LEGACY_FISCAL_FIELDS
+        for dt in ('Sales Invoice', 'POS Invoice', 'Sales Invoice Item', 'POS Invoice Item'):
+            fields = {row['fieldname']: row for row in CUSTOM_FIELDS[dt]}
+            self.assertFalse(set(fields) & set(LEGACY_FISCAL_FIELDS))
+            self.assertNotIn('custom_ledgix_client_sale_id', fields)
+            self.assertIn('custom_ledgix_fbr_snapshot_json', fields)
+            for row in fields.values():
+                after = row.get('insert_after')
+                if after and after.startswith('custom_ledgix_'):
+                    self.assertIn(after, fields)
+            if dt.endswith(' Item'):
+                self.assertIn('custom_ledgix_fbr_notified_retail_price', fields)
+
+    def test_existing_legacy_hardening_updates_metadata_only(self):
+        from fbr_v1.setup import erpnext_fbr_schema as schema
+        self.db.get_value.side_effect = lambda dt, filters, field: (
+            'existing-field' if filters['dt'] == 'Sales Invoice' and filters['fieldname'] == 'custom_ledgix_fbr_v2_snapshot_json' else None)
+        with patch.object(frappe, 'clear_cache'), patch.object(schema, 'create_custom_fields') as create:
+            self.assertEqual(schema.harden_existing_legacy_fields(), 1)
+        create.assert_not_called()
+        self.db.set_value.assert_called_once_with('Custom Field', 'existing-field',
+            {'hidden': 1, 'read_only': 1, 'no_copy': 1, 'allow_on_submit': 0}, update_modified=False)
+        for method in ('delete', 'sql', 'commit'):
+            getattr(self.db, method).assert_not_called()
+
+    def test_missing_legacy_fields_are_not_created(self):
+        from fbr_v1.setup import erpnext_fbr_schema as schema
+        self.db.get_value.return_value = None
+        with patch.object(frappe, 'clear_cache'), patch.object(schema, 'create_custom_fields') as create:
+            self.assertEqual(schema.harden_existing_legacy_fields(), 0)
+        create.assert_not_called()
+        self.db.set_value.assert_not_called()
+
+    def test_dependency_direction_is_explicit_without_cycle(self):
+        from fbr_v1 import hooks
+        from ledgix_saas import hooks as ledgix_hooks
+        self.assertEqual(hooks.required_apps, ['erpnext', 'ledgix_saas'])
+        self.assertNotIn('fbr_v1', getattr(ledgix_hooks, 'required_apps', []))

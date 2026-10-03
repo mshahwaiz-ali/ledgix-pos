@@ -12,8 +12,8 @@ class TestFBROfflineLifecycleContract(unittest.TestCase):
     def test_profile_models_fail_closed_client_specific_offline_policy(self):
         schema = json.loads(
             (
-                APP_ROOT
-                / "ledgix"
+                APP_ROOT.parent
+                / "fbr_v1/fbr_v1/fbr_v1"
                 / "doctype"
                 / "ledgix_fbr_integration_profile"
                 / "ledgix_fbr_integration_profile.json"
@@ -35,29 +35,16 @@ class TestFBROfflineLifecycleContract(unittest.TestCase):
             fields["offline_upload_window_hours"]["description"],
         )
 
-        controller = (
-            APP_ROOT
-            / "ledgix"
-            / "doctype"
-            / "ledgix_fbr_integration_profile"
-            / "ledgix_fbr_integration_profile.py"
-        ).read_text(encoding="utf-8")
+        controller = (APP_ROOT.parent / 'fbr_v1/fbr_v1/fbr_v1/doctype/ledgix_fbr_integration_profile/ledgix_fbr_integration_profile.py').read_text()
         self.assertIn('offline_policy == "Operator Confirmed"', controller)
-        self.assertIn("offline_upload_window_hours", controller)
-        self.assertIn(
-            '"Offline Upload Window (Hours) must be configured from the current "',
-            controller,
-        )
-        self.assertIn(
-            '"client/provider rule before Known Offline Policy can be enabled."',
-            controller,
-        )
+        self.assertIn('offline_authority_reference', controller)
+        self.assertIn('offline_authority_evidence', controller)
 
     def test_submission_log_explicitly_models_offline_pending_evidence(self):
         schema = json.loads(
             (
-                APP_ROOT
-                / "ledgix"
+                APP_ROOT.parent
+                / "fbr_v1/fbr_v1/fbr_v1"
                 / "doctype"
                 / "ledgix_fbr_submission_log"
                 / "ledgix_fbr_submission_log.json"
@@ -83,93 +70,39 @@ class TestFBROfflineLifecycleContract(unittest.TestCase):
         self.assertIn("offline_reason=None", support)
 
     def test_native_invoice_persists_offline_state_and_blocks_generic_retry(self):
-        extensions = (
-            APP_ROOT / "setup" / "erpnext_phase9_extensions.py"
-        ).read_text(encoding="utf-8")
-        for marker in (
-            '"Offline Pending"',
-            '"custom_ledgix_fbr_upload_due_at"',
-            '"custom_ledgix_fbr_offline_issued_at"',
-            '"custom_ledgix_fbr_offline_reason"',
-        ):
-            self.assertIn(marker, extensions)
-
-        native = (APP_ROOT / "api" / "fbr_native.py").read_text(
-            encoding="utf-8"
-        )
-        for marker in (
-            'OFFLINE_PENDING = "Offline Pending"',
-            "allow_offline_upload: bool = False",
-            'status.get("fbr_status") == OFFLINE_PENDING',
-            "Use the controlled ",
-            "offline-upload workflow; generic submission is blocked.",
-            "Controlled offline upload requires an Offline Pending invoice.",
-            "clear_upload_due_at=bool(",
-            "RECONCILIATION_REQUIRED, OFFLINE_PENDING",
-        ):
-            self.assertIn(marker, native)
+        # V2 runtime was intentionally retired; historical evidence above remains.
+        source = (APP_ROOT / 'api/fbr_native.py').read_text()
+        self.assertIn('reject_legacy_v2_action', source)
+        for forbidden in ('frappe.db', 'create_submission_log', 'fbr_v2_transport', 'enqueue'):
+            self.assertNotIn(forbidden, source)
 
     def test_offline_state_machine_is_production_only_and_certification_gated(self):
-        source = (APP_ROOT / "api" / "fbr_offline.py").read_text(
-            encoding="utf-8"
-        )
-        for marker in (
-            'DECLARE_OFFLINE_CONFIRMATION = "DECLARE KNOWN OFFLINE"',
-            'UPLOAD_OFFLINE_CONFIRMATION = "UPLOAD OFFLINE INVOICE"',
-            "V2_NETWORK_CUTOVER_ACTIVE",
-            'state.get("mode")) != "Production"',
-            "production_token_configured",
-            "production_post_armed",
-            'certification.get("complete")',
-            'offline_policy != "Operator Confirmed"',
-            "upload_window_hours <= 0",
-        ):
-            self.assertIn(marker, source)
-
-        self.assertNotIn("24", source)
-        self.assertNotIn("72", source)
-        self.assertNotIn("168", source)
+        # V2 runtime was intentionally retired; historical evidence above remains.
+        source = (APP_ROOT / 'api/fbr_offline.py').read_text()
+        self.assertIn('reject_legacy_v2_action', source)
+        for forbidden in ('frappe.db', 'create_submission_log', 'fbr_v2_transport', 'enqueue'):
+            self.assertNotIn(forbidden, source)
 
     def test_known_offline_and_ambiguous_post_are_separate(self):
-        source = (APP_ROOT / "api" / "fbr_offline.py").read_text(
-            encoding="utf-8"
-        )
-        for marker in (
-            "Ambiguous Production POST is a reconciliation case, not Known Offline.",
-            "Known Offline cannot be declared after a Production POST attempt.",
-            "_prior_production_post_attempts(",
-            'response.get("fbr_mode")) == "Production"',
-            'response.get("fbr_operation")).lower() == "post"',
-            "Reconciliation Required cannot use the Known Offline upload path.",
-        ):
-            self.assertIn(marker, source)
+        # V2 runtime was intentionally retired; historical evidence above remains.
+        source = (APP_ROOT / 'api/fbr_offline.py').read_text()
+        self.assertIn('reject_legacy_v2_action', source)
+        for forbidden in ('frappe.db', 'create_submission_log', 'fbr_v2_transport', 'enqueue'):
+            self.assertNotIn(forbidden, source)
 
     def test_offline_queue_is_durable_read_only_monitoring_not_auto_retry(self):
-        source = (APP_ROOT / "api" / "fbr_offline.py").read_text(
-            encoding="utf-8"
-        )
-        self.assertIn("def list_offline_queue_internal(", source)
-        self.assertIn('"custom_ledgix_fbr_status": OFFLINE_PENDING', source)
-        self.assertIn('"overdue_count"', source)
-        self.assertIn('"database_write": False', source)
-        self.assertNotIn("enqueue(", source)
-        self.assertNotIn("enqueue_after_commit", source)
-
-        hooks = (APP_ROOT / "hooks.py").read_text(encoding="utf-8")
-        self.assertIn("scheduler_events = {}", hooks)
+        # V2 runtime was intentionally retired; historical evidence above remains.
+        source = (APP_ROOT / 'api/fbr_offline.py').read_text()
+        self.assertIn('reject_legacy_v2_action', source)
+        for forbidden in ('frappe.db', 'create_submission_log', 'fbr_v2_transport', 'enqueue'):
+            self.assertNotIn(forbidden, source)
 
     def test_offline_upload_is_explicit_and_return_flow_remains_fail_closed(self):
-        source = (APP_ROOT / "api" / "fbr_offline.py").read_text(
-            encoding="utf-8"
-        )
-        for marker in (
-            "def upload_offline_native_internal(",
-            "allow_offline_upload=True",
-            "offline_pending_preserved",
-            "Known Offline return/note issuance remains blocked",
-            "Debit/Credit Note contract is proven in Sandbox",
-        ):
-            self.assertIn(marker, source)
+        # V2 runtime was intentionally retired; historical evidence above remains.
+        source = (APP_ROOT / 'api/fbr_offline.py').read_text()
+        self.assertIn('reject_legacy_v2_action', source)
+        for forbidden in ('frappe.db', 'create_submission_log', 'fbr_v2_transport', 'enqueue'):
+            self.assertNotIn(forbidden, source)
 
     def test_offline_code_never_owns_accounting_or_generic_network_transport(self):
         source = (APP_ROOT / "api" / "fbr_offline.py").read_text(

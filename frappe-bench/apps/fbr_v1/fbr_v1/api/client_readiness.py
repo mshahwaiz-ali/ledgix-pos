@@ -6,6 +6,7 @@ from fbr_v1.services.v1_configuration import configuration_blockers
 from fbr_v1.services.erpnext_fbr_identity import resolve_company_seller_identity
 from fbr_v1.protocol import transport
 from fbr_v1.services import erpnext_tax_readiness
+from fbr_v1.services.payment_readiness import get_payment_readiness
 
 
 PROFILE_STATE_FIELDS = (
@@ -43,19 +44,17 @@ def get_client_readiness(company):
                 e for c in checks for e in c["blockers"]))) + (
                 configuration_blockers(profile, None, mode) if not candidates else [])}
     tax_configuration = erpnext_tax_readiness.get_company_tax_readiness(company)
-    setup_blockers = list(source["errors"]) + tax_configuration["blockers"]
+    payment_configuration = get_payment_readiness(company, devices)
+    setup_blockers = list(source["errors"]) + tax_configuration["blockers"] + payment_configuration["blockers"]
     if not profile_active(profile) or profile.get("mode") == "Paused":
         setup_blockers.append("An active, unpaused Federal V1 profile is required.")
     if not devices:
         setup_blockers.append("An active POS device is required.")
-    for dt, label in (("Ledgix FBR Item Mapping", "Item Mapping"), ("Ledgix FBR Tax Component Mapping", "Tax Component Mapping")):
-        filters = {"company": company, "active": 1}
-        if dt == "Ledgix FBR Item Mapping":
-            filters["needs_review"] = 0
-        if not frappe.db.exists(dt, filters):
-            setup_blockers.append(label + " configuration is missing.")
-    if not frappe.db.exists("Mode of Payment", {"custom_ledgix_fbr_v1_payment_mode": ["in", ["1 - Cash", "2 - Card", "3 - Gift Voucher", "4 - Loyalty Card", "6 - Cheque"]]}):
-        setup_blockers.append("A V1 payment mapping is required.")
+    # Setup identity excludes transport/cutover controls, which are runtime gates.
+    if devices and profile:
+        from fbr_v1.services.v1_configuration import setup_configuration_blockers
+        setup_blockers.extend(setup_configuration_blockers(profile, devices))
+    setup_blockers = list(dict.fromkeys(setup_blockers))
     for state in states.values():
         state["ready"] = state["ready"] and not setup_blockers
         state["blockers"] = list(dict.fromkeys(state["blockers"] + setup_blockers))
@@ -76,6 +75,8 @@ def get_client_readiness(company):
             "source_accounting_ready": source["ready"], "source_blockers": source["errors"],
             "tax_configuration": tax_configuration,
             "tax_configuration_ready": tax_configuration["ready"],
+            "payment_configuration": payment_configuration,
+            "payment_configuration_ready": payment_configuration["ready"],
             "database_write": False, "fbr_network_call": False,
             "setup_ready": not setup_blockers, "setup_blockers": setup_blockers,
             "sandbox_configuration_ready": states["sandbox"]["ready"],

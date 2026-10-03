@@ -21,3 +21,14 @@ def reject_legacy_sale_submission(sale_name=None, **kwargs):
     """Backward-compatible alias for the retired legacy Sale submit RPC."""
 
     return reject_legacy_fbr_action(sale_name=sale_name, **kwargs)
+
+
+LEGACY_V2_RETIRED_MESSAGE = (
+    "Historical Digital Invoicing / Ledgix FBR V2 execution is retired. "
+    "Use the Federal POS/IMS V1 Center."
+)
+
+
+def reject_legacy_v2_action(*args, **kwargs):
+    """Compatibility only: never transport, log, or mutate fiscal state."""
+    frappe.throw(LEGACY_V2_RETIRED_MESSAGE)

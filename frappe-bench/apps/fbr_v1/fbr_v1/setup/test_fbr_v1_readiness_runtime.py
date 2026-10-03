@@ -230,7 +230,7 @@ class TestReadiness(NoNetworkTest):
         for dt in ('Sales Invoice','POS Invoice'):
             fields={f['fieldname']:f for f in CUSTOM_FIELDS[dt]}
             self.assertIn('custom_ledgix_fbr_snapshot_protocol',fields)
-            self.assertIn('custom_ledgix_fbr_v2_snapshot_json',fields)
+            self.assertNotIn('custom_ledgix_fbr_v2_snapshot_json',fields)
             self.assertFalse(fields['custom_ledgix_fbr_snapshot_json']['allow_on_submit'])
 
 

@@ -5,7 +5,7 @@ app_description = "Bootstrap ERPNext integration for FBR V1 / Tier-1 POS redesig
 app_email = "alishahwaiz96@gmail.com"
 app_license = "mit"
 
-required_apps = ["erpnext"]
+required_apps = ["erpnext", "ledgix_saas"]
 
 app_include_js = ["/assets/fbr_v1/js/fbr_v1_taxable_base.js"]
 

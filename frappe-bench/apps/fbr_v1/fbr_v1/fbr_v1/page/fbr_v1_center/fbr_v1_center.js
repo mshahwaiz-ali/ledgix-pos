@@ -10,7 +10,7 @@ frappe.pages['fbr-v1-center'].on_page_load = function (wrapper) {
     const body = $('<div class="lx-fbr-v1-center"></div>').appendTo(page.main);
 
     const iconUrl = '/assets/ledgix_saas/images/brand/fbr_v1.png';
-    const canOperate = () => frappe.user.has_role('System Manager') || frappe.user.has_role('Accounts Manager');
+    const canOperate = () => frappe.user.has_role('System Manager') || frappe.user.has_role('Ledgix Admin') || frappe.user.has_role('Accounts Manager');
     const canManageCutover = () => frappe.user.has_role('System Manager');
 
     const TABS = [
@@ -157,12 +157,8 @@ frappe.pages['fbr-v1-center'].on_page_load = function (wrapper) {
         const profile = readiness.profile_state || {};
         const mapping = data.mapping_summary || {};
         const currentDevice = pickDevice(data, readiness.mode);
-        const activeItems = Number(mapping.active_item_mappings || 0);
-        const reviewedItems = Number(mapping.reviewed_item_mappings || 0);
-        const mappingReady = activeItems > 0
-            && reviewedItems === activeItems
-            && Number(mapping.active_tax_component_mappings || 0) > 0
-            && Number(mapping.payment_mappings || 0) > 0;
+        const mappingReady = readiness.tax_configuration_ready === true
+            && readiness.payment_configuration_ready === true;
 
         // Overview is configuration-focused. An intentionally closed network
         // gate is a safe runtime state, not a setup blocker.
@@ -289,6 +285,7 @@ frappe.pages['fbr-v1-center'].on_page_load = function (wrapper) {
     }
 
     function renderOverview(data, state, workspace) {
+        renderNativeReadiness(state, workspace);
         const readiness = state.readiness;
         const profile = state.profile;
         const seller = readiness.seller_identity || {};
@@ -794,7 +791,7 @@ frappe.pages['fbr-v1-center'].on_page_load = function (wrapper) {
             {
                 label: 'Local IMS Health',
                 disabled: !canHealth,
-                reason: !state.readiness.network_cutover_active ? __('Sandbox network is OFF.') : __('Accounts Manager permission is required.'),
+                reason: !state.readiness.network_cutover_active ? __('Sandbox network is OFF.') : __('FBR configuration operator permission is required.'),
                 onClick: () => actionDialog(
                     'Local IMS Health',
                     [{
@@ -873,7 +870,7 @@ frappe.pages['fbr-v1-center'].on_page_load = function (wrapper) {
         if (!invoiceName) {
             fiscalizeReason = __('Select an invoice first.');
         } else if (!canOperate()) {
-            fiscalizeReason = __('Accounts Manager permission is required.');
+            fiscalizeReason = __('FBR configuration operator permission is required.');
         } else if (!readiness.enabled || readiness.mode !== 'Sandbox') {
             fiscalizeReason = __('The active FBR profile must be Sandbox.');
         } else if (!readiness.sandbox_configuration_ready || !profile.transport_enabled) {
@@ -901,7 +898,32 @@ frappe.pages['fbr-v1-center'].on_page_load = function (wrapper) {
         renderSandboxAdvanced(data, state, workspace);
     }
 
+    function renderNativeReadiness(state, parent) {
+        const tax = state.readiness.tax_configuration || {};
+        const coverage = tax.item_coverage || {};
+        const third = tax.third_schedule || {};
+        const payment = state.readiness.payment_configuration || {};
+        const native = panel(parent, 'ERPNext Native Tax', 'mapping', {
+            badge: {label: state.readiness.tax_configuration_ready ? 'Ready' : 'Needs Setup',
+                tone: state.readiness.tax_configuration_ready ? 'good' : 'warning'},
+        });
+        factGrid(native, [
+            {label: 'Item coverage', value: __('{0} / {1}', [coverage.covered_count || 0, coverage.required_count || 0])},
+            {label: 'Native paths ready', value: __('{0} / {1}', [tax.ready_item_count || 0, tax.required_item_count || 0])},
+            {label: 'Standard native tax', value: tax.standard_taxable_path_configured ? __('Configured') : __('Unresolved / not used')},
+            {label: 'Zero-rate', value: tax.zero_rate_configuration_used ? __('Configured / used') : __('Not currently configured / used')},
+            {label: 'N/A / Non-applicable', value: tax.na_configuration_used ? __('Configured / used') : __('Not currently configured / used')},
+            {label: 'Third Schedule', value: third.not_required ? __('Not Used') : (third.ready ? __('Ready') : __('Needs Setup'))},
+            {label: 'Payment coverage', value: __('{0} / {1}', [payment.mapped_count || 0, payment.required_count || 0])},
+            {label: 'Payments', value: state.readiness.payment_configuration_ready ? __('Ready') : __('Needs Setup')},
+        ]);
+        const blockers = uniq([...(tax.blockers || []), ...(payment.blockers || [])]);
+        blockers.forEach((text) => notice(native, 'warning', 'Needs Setup', text));
+        (tax.warnings || []).forEach((text) => notice(native, 'neutral', 'Configuration scope', text));
+    }
+
     function renderSetup(data, state, workspace) {
+        renderNativeReadiness(state, workspace);
         const setup = panel(workspace, 'Setup', 'setup');
         const grid = $('<div class="lx-fbr-action-grid"></div>').appendTo(setup);
 
@@ -942,8 +964,11 @@ frappe.pages['fbr-v1-center'].on_page_load = function (wrapper) {
         actionTile(grid, {
             icon: 'mapping',
             title: 'Payment Mapping',
-            meta: __('{0} mapped', [state.mapping.payment_mappings || 0]),
+            meta: __('{0}/{1} required modes mapped', [(state.readiness.payment_configuration || {}).mapped_count || 0, (state.readiness.payment_configuration || {}).required_count || 0]),
             onClick: () => routeList('Mode of Payment'),
+        });
+        ['Item Tax Template', 'Sales Taxes and Charges Template', 'Tax Category', 'Tax Rule'].forEach((doctype) => {
+            actionTile(grid, {icon: 'mapping', title: doctype, onClick: () => routeList(doctype)});
         });
     }
 
@@ -1281,7 +1306,7 @@ frappe.pages['fbr-v1-center'].on_page_load = function (wrapper) {
         if (!productionInvoiceName) {
             fiscalizeReason = __('Select an invoice first.');
         } else if (!canOperate()) {
-            fiscalizeReason = __('Accounts Manager permission is required.');
+            fiscalizeReason = __('FBR configuration operator permission is required.');
         } else if (!readiness.enabled || readiness.mode !== 'Production') {
             fiscalizeReason = __('The active FBR profile must be Production.');
         } else if (

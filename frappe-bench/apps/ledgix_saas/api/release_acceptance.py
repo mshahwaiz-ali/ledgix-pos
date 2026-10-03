@@ -16,7 +16,8 @@ import frappe
 from frappe import _
 from frappe.utils import cint, now_datetime
 
-from ledgix_saas.api import client_readiness, fbr_activation
+from ledgix_saas.api import client_readiness
+from ledgix_saas.services import fbr_v1_bridge
 from ledgix_saas.setup.phase12_read_only import verify_frozen_snapshot_read_only
 
 ACCEPTANCE_SCHEMA_VERSION = 1
@@ -275,9 +276,9 @@ def evaluate_release_acceptance(
 
     fbr = None
     if features.get("enable_fbr"):
-        fbr = fbr_activation.evaluate_fbr_activation_readiness(release_sha=release_sha)
-    fbr_external_certification_complete = bool(not features.get("enable_fbr") or (fbr or {}).get("sandbox_proven"))
-    fbr_production_ready = bool(not features.get("enable_fbr") or (fbr or {}).get("production_switch_ready"))
+        fbr = fbr_v1_bridge.get_company_readiness((operational.get("identity") or {}).get("company"))
+    fbr_external_certification_complete = bool(not features.get("enable_fbr") or (fbr or {}).get("sandbox_certification_complete", False))
+    fbr_production_ready = bool(not features.get("enable_fbr") or (fbr or {}).get("production_ready"))
     manual_uat_ready = bool(manual.get("valid") and not manual_missing)
     strict_client_evidence_ready = bool(strict_operational.get("ready"))
 

@@ -23,6 +23,8 @@ def _cf(fieldname: str, fieldtype: str, label: str = "", **values) -> dict:
 
 CUSTOM_FIELDS = {
     "Sales Invoice": [
+        _cf("custom_ledgix_client_sale_id", "Data", "Ledgix Client Sale ID",
+            insert_after="remarks", read_only=1, no_copy=1, in_standard_filter=1),
         _cf(
             "custom_ledgix_selling_context_section",
             "Section Break",

@@ -67,3 +67,15 @@ def configuration_blockers(profile, device, mode):
             if not device.get(key):
                 errors.append("Production local IMS requires " + key.replace("_", " ") + ".")
     return errors
+
+
+def setup_configuration_blockers(profile, devices):
+    """Reuse device/profile checks while excluding deliberately disarmed gates."""
+    mode = profile.get("mode")
+    candidates = [d for d in devices if d.get("environment") == mode]
+    if not candidates:
+        return [f"Select an active POS device for {mode}."]
+    runtime_only = {"Transport is disabled.", "Production posting is not armed."}
+    checks = [[e for e in configuration_blockers(profile, d, mode) if e not in runtime_only]
+              for d in candidates]
+    return [] if any(not errors for errors in checks) else list(dict.fromkeys(e for errors in checks for e in errors))

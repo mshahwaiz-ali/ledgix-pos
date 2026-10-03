@@ -177,19 +177,10 @@ def _invoice_fbr_fields() -> list[dict]:
             no_copy=1,
         ),
         _cf(
-            "custom_ledgix_client_sale_id",
-            "Data",
-            "Ledgix Client Sale ID",
-            insert_after="custom_ledgix_fbr_submit_trigger",
-            read_only=1,
-            no_copy=1,
-            in_standard_filter=1,
-        ),
-        _cf(
             "custom_ledgix_fbr_snapshot_section",
             "Section Break",
             "Immutable FBR Snapshot",
-            insert_after="custom_ledgix_client_sale_id",
+            insert_after="custom_ledgix_fbr_submit_trigger",
             collapsible=1,
         ),
         _cf(
@@ -223,72 +214,10 @@ def _invoice_item_fbr_fields() -> list[dict]:
             collapsible=1,
         ),
         _cf(
-            "custom_ledgix_legacy_fbr_item_profile_snapshot",
-            "Data",
-            "Legacy FBR Item Profile Snapshot",
-            insert_after="custom_ledgix_fbr_snapshot_section",
-            read_only=1,
-            no_copy=1,
-            hidden=1,
-        ),
-        _cf(
             "custom_ledgix_fbr_hs_code",
             "Data",
             "HS Code",
-            insert_after="custom_ledgix_legacy_fbr_item_profile_snapshot",
-            read_only=1,
-            no_copy=1,
-        ),
-        _cf(
-            "custom_ledgix_fbr_uom",
-            "Data",
-            "FBR UOM",
-            insert_after="custom_ledgix_fbr_hs_code",
-            read_only=1,
-            no_copy=1,
-        ),
-        _cf(
-            "custom_ledgix_fbr_sales_type",
-            "Data",
-            "FBR Sales Type",
-            insert_after="custom_ledgix_fbr_uom",
-            read_only=1,
-            no_copy=1,
-        ),
-        _cf(
-            "custom_ledgix_fbr_rate_description",
-            "Data",
-            "FBR Rate Description",
-            insert_after="custom_ledgix_fbr_sales_type",
-            read_only=1,
-            no_copy=1,
-        ),
-        _cf(
-            "custom_ledgix_fbr_snapshot_column",
-            "Column Break",
-            insert_after="custom_ledgix_fbr_rate_description",
-        ),
-        _cf(
-            "custom_ledgix_fbr_scenario_id",
-            "Data",
-            "FBR Scenario ID",
-            insert_after="custom_ledgix_fbr_snapshot_column",
-            read_only=1,
-            no_copy=1,
-        ),
-        _cf(
-            "custom_ledgix_fbr_sro_schedule_number",
-            "Data",
-            "SRO Schedule Number",
-            insert_after="custom_ledgix_fbr_scenario_id",
-            read_only=1,
-            no_copy=1,
-        ),
-        _cf(
-            "custom_ledgix_fbr_sro_item_serial_number",
-            "Data",
-            "SRO Item Serial Number",
-            insert_after="custom_ledgix_fbr_sro_schedule_number",
+            insert_after="custom_ledgix_fbr_snapshot_section",
             read_only=1,
             no_copy=1,
         ),
@@ -296,7 +225,7 @@ def _invoice_item_fbr_fields() -> list[dict]:
             "custom_ledgix_fbr_tax_basis",
             "Select",
             "FBR Tax Basis",
-            insert_after="custom_ledgix_fbr_sro_item_serial_number",
+            insert_after="custom_ledgix_fbr_hs_code",
             options="Transaction Value\nNotified Retail Price",
             read_only=1,
             no_copy=1,
@@ -311,53 +240,10 @@ def _invoice_item_fbr_fields() -> list[dict]:
             precision="2",
         ),
         _cf(
-            "custom_ledgix_fbr_tax_component_section",
-            "Section Break",
-            "FBR Additional Tax Snapshot",
-            insert_after="custom_ledgix_fbr_notified_retail_price",
-            collapsible=1,
-        ),
-        _cf(
-            "custom_ledgix_fbr_sales_tax_withheld",
-            "Currency",
-            "Sales Tax Withheld at Source",
-            insert_after="custom_ledgix_fbr_tax_component_section",
-            read_only=1,
-            no_copy=1,
-            precision="2",
-        ),
-        _cf(
-            "custom_ledgix_fbr_extra_tax",
-            "Currency",
-            "Extra Tax",
-            insert_after="custom_ledgix_fbr_sales_tax_withheld",
-            read_only=1,
-            no_copy=1,
-            precision="2",
-        ),
-        _cf(
-            "custom_ledgix_fbr_further_tax",
-            "Currency",
-            "Further Tax",
-            insert_after="custom_ledgix_fbr_extra_tax",
-            read_only=1,
-            no_copy=1,
-            precision="2",
-        ),
-        _cf(
-            "custom_ledgix_fbr_fed_payable",
-            "Currency",
-            "FED Payable",
-            insert_after="custom_ledgix_fbr_further_tax",
-            read_only=1,
-            no_copy=1,
-            precision="2",
-        ),
-        _cf(
             "custom_ledgix_fbr_snapshot_version",
             "Int",
             "FBR Line Snapshot Version",
-            insert_after="custom_ledgix_fbr_fed_payable",
+            insert_after="custom_ledgix_fbr_notified_retail_price",
             read_only=1,
             no_copy=1,
             default="0",
@@ -374,101 +260,13 @@ def _invoice_item_fbr_fields() -> list[dict]:
     ]
 
 
-def _invoice_fbr_v2_snapshot_fields() -> list[dict]:
-    return [
-        _cf(
-            "custom_ledgix_fbr_v2_snapshot_section",
-            "Section Break",
-            "FBR V2 Immutable ERPNext Snapshot",
-            insert_after="custom_ledgix_fbr_snapshot_json",
-            collapsible=1,
-        ),
-        _cf(
-            "custom_ledgix_fbr_v2_snapshot_version",
-            "Int",
-            "FBR V2 Snapshot Version",
-            insert_after="custom_ledgix_fbr_v2_snapshot_section",
-            read_only=1,
-            no_copy=1,
-            default="0",
-        ),
-        _cf(
-            "custom_ledgix_fbr_v2_snapshot_hash",
-            "Data",
-            "FBR V2 Snapshot SHA256",
-            insert_after="custom_ledgix_fbr_v2_snapshot_version",
-            read_only=1,
-            no_copy=1,
-            print_hide=1,
-        ),
-        _cf(
-            "custom_ledgix_fbr_v2_snapshot_captured_at",
-            "Datetime",
-            "FBR V2 Snapshot Captured At",
-            insert_after="custom_ledgix_fbr_v2_snapshot_hash",
-            read_only=1,
-            no_copy=1,
-            print_hide=1,
-        ),
-        _cf(
-            "custom_ledgix_fbr_v2_snapshot_json",
-            "Long Text",
-            "FBR V2 Header Snapshot JSON",
-            insert_after="custom_ledgix_fbr_v2_snapshot_captured_at",
-            read_only=1,
-            no_copy=1,
-            print_hide=1,
-        ),
-    ]
-
-
-def _invoice_item_fbr_v2_snapshot_fields() -> list[dict]:
-    return [
-        _cf(
-            "custom_ledgix_fbr_v2_snapshot_section",
-            "Section Break",
-            "FBR V2 Immutable ERPNext Line Snapshot",
-            insert_after="custom_ledgix_fbr_snapshot_json",
-            collapsible=1,
-        ),
-        _cf(
-            "custom_ledgix_fbr_v2_snapshot_version",
-            "Int",
-            "FBR V2 Line Snapshot Version",
-            insert_after="custom_ledgix_fbr_v2_snapshot_section",
-            read_only=1,
-            no_copy=1,
-            default="0",
-        ),
-        _cf(
-            "custom_ledgix_fbr_v2_snapshot_hash",
-            "Data",
-            "FBR V2 Line Snapshot SHA256",
-            insert_after="custom_ledgix_fbr_v2_snapshot_version",
-            read_only=1,
-            no_copy=1,
-            print_hide=1,
-        ),
-        _cf(
-            "custom_ledgix_fbr_v2_snapshot_json",
-            "Long Text",
-            "FBR V2 Line Snapshot JSON",
-            insert_after="custom_ledgix_fbr_v2_snapshot_hash",
-            read_only=1,
-            no_copy=1,
-            print_hide=1,
-        ),
-    ]
-
-
 CUSTOM_FIELDS = {
     "Customer": CUSTOMER_FBR_FIELDS,
-    "Sales Invoice": _invoice_fbr_fields() + _invoice_fbr_v2_snapshot_fields(),
-    "POS Invoice": _invoice_fbr_fields() + _invoice_fbr_v2_snapshot_fields(),
-    "Sales Invoice Item": _invoice_item_fbr_fields() + _invoice_item_fbr_v2_snapshot_fields(),
-    "POS Invoice Item": _invoice_item_fbr_fields() + _invoice_item_fbr_v2_snapshot_fields(),
+    "Sales Invoice": _invoice_fbr_fields(),
+    "POS Invoice": _invoice_fbr_fields(),
+    "Sales Invoice Item": _invoice_item_fbr_fields(),
+    "POS Invoice Item": _invoice_item_fbr_fields(),
 }
-
 
 
 # Federal V1 evidence is separate from the retained V2 fields.
@@ -580,6 +378,43 @@ def sync_sales_tax_charge_type_extension() -> dict:
     }
 
 
+LEGACY_FISCAL_FIELDS = (
+    "custom_ledgix_fbr_extra_tax",
+    "custom_ledgix_fbr_fed_payable",
+    "custom_ledgix_fbr_further_tax",
+    "custom_ledgix_fbr_rate_description",
+    "custom_ledgix_fbr_sales_tax_withheld",
+    "custom_ledgix_fbr_sales_type",
+    "custom_ledgix_fbr_scenario_id",
+    "custom_ledgix_fbr_sro_item_serial_number",
+    "custom_ledgix_fbr_sro_schedule_number",
+    "custom_ledgix_fbr_tax_component_section",
+    "custom_ledgix_fbr_uom",
+    "custom_ledgix_legacy_fbr_item_profile_snapshot",
+    "custom_ledgix_fbr_v2_snapshot_section",
+    "custom_ledgix_fbr_v2_snapshot_version",
+    "custom_ledgix_fbr_v2_snapshot_hash",
+    "custom_ledgix_fbr_v2_snapshot_captured_at",
+    "custom_ledgix_fbr_v2_snapshot_json",
+    "custom_ledgix_fbr_snapshot_column",
+)
+
+
+def harden_existing_legacy_fields():
+    """Update metadata only when present; never create, delete, or clear evidence."""
+    changed = 0
+    for doctype in ("Sales Invoice", "POS Invoice", "Sales Invoice Item", "POS Invoice Item"):
+        for fieldname in LEGACY_FISCAL_FIELDS:
+            name = frappe.db.get_value("Custom Field", {"dt": doctype, "fieldname": fieldname}, "name")
+            if name:
+                frappe.db.set_value("Custom Field", name,
+                    {"hidden": 1, "read_only": 1, "no_copy": 1, "allow_on_submit": 0},
+                    update_modified=False)
+                changed += 1
+        frappe.clear_cache(doctype=doctype)
+    return changed
+
+
 def sync_custom_fields() -> int:
     missing = [doctype for doctype in CUSTOM_FIELDS if not frappe.db.exists("DocType", doctype)]
     if missing:
@@ -588,6 +423,7 @@ def sync_custom_fields() -> int:
             + ", ".join(missing)
         )
     create_custom_fields(CUSTOM_FIELDS, update=True)
+    harden_existing_legacy_fields()
     for doctype in CUSTOM_FIELDS:
         frappe.clear_cache(doctype=doctype)
     return sum(len(fields) for fields in CUSTOM_FIELDS.values())

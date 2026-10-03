@@ -20,17 +20,13 @@ class TestFBRRedesignV2SnapshotPersistenceContract(unittest.TestCase):
             APP_ROOT / "migration" / "fbr_redesign_v2_snapshot_persistence_gate.py"
         ).read_text(encoding="utf-8")
 
-    def test_v2_snapshot_fields_are_separate_from_legacy_snapshot_fields(self):
-        for fieldname in (
-            "custom_ledgix_fbr_v2_snapshot_version",
-            "custom_ledgix_fbr_v2_snapshot_hash",
-            "custom_ledgix_fbr_v2_snapshot_json",
-        ):
-            self.assertIn(fieldname, self.extensions)
-
-        self.assertIn("custom_ledgix_fbr_v2_snapshot_captured_at", self.extensions)
-        self.assertIn("_invoice_fbr_v2_snapshot_fields()", self.extensions)
-        self.assertIn("_invoice_item_fbr_v2_snapshot_fields()", self.extensions)
+    def test_fresh_v1_schema_does_not_provision_historical_v2_snapshots(self):
+        from fbr_v1.setup.erpnext_fbr_schema import CUSTOM_FIELDS, LEGACY_FISCAL_FIELDS
+        for dt in ('Sales Invoice', 'POS Invoice', 'Sales Invoice Item', 'POS Invoice Item'):
+            fields = {row['fieldname'] for row in CUSTOM_FIELDS[dt]}
+            self.assertFalse(any('fbr_v2_snapshot' in name for name in fields))
+        self.assertIn('custom_ledgix_fbr_v2_snapshot_json', LEGACY_FISCAL_FIELDS)
+        self.assertIn('harden_existing_legacy_fields', self.extensions)
 
     def test_snapshot_service_uses_native_collector_only(self):
         self.assertIn("collect_native_tax_breakdown", self.service)
@@ -53,7 +49,9 @@ class TestFBRRedesignV2SnapshotPersistenceContract(unittest.TestCase):
             '"before_submit": '
             '"ledgix_saas.services.fbr_v2_snapshot_persistence.before_submit_capture"'
         )
-        self.assertEqual(self.hooks.count(hook), 2)
+        self.assertNotIn(hook, self.hooks)
+        current_hooks = (APP_ROOT.parent / 'fbr_v1/fbr_v1/hooks.py').read_text()
+        self.assertEqual(current_hooks.count('fbr_v1.services.fbr_v1_snapshot_persistence.before_submit_capture'), 2)
 
     def test_disabled_v2_profile_keeps_hook_dormant(self):
         self.assertIn("def _profile_active(company: str) -> bool:", self.service)

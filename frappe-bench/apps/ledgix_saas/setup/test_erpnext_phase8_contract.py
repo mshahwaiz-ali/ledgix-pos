@@ -9,10 +9,19 @@ from ledgix_saas.setup import erpnext_phase8_extensions
 
 
 APP_ROOT = Path(__file__).resolve().parents[1]
-REPO_ROOT = APP_ROOT.parents[1]
+REPO_ROOT = APP_ROOT.parents[2]
 
 
 class TestERPNextPhase8Contract(unittest.TestCase):
+    def test_client_sale_id_is_first_ledgix_owned_transaction_field(self):
+        rows = erpnext_phase8_extensions.CUSTOM_FIELDS['POS Invoice']
+        self.assertEqual(len(rows), 10)
+        self.assertEqual(rows[0]['fieldname'], 'custom_ledgix_client_sale_id')
+        self.assertEqual(rows[0]['module'], 'Ledgix')
+        self.assertEqual(rows[0]['fieldtype'], 'Data')
+        for key in ('read_only', 'no_copy', 'in_standard_filter'):
+            self.assertEqual(rows[0][key], 1)
+
     def test_phase8_extensions_only_target_native_pos_documents(self):
         self.assertEqual(
             set(erpnext_phase8_extensions.CUSTOM_FIELDS),
@@ -142,7 +151,7 @@ class TestERPNextPhase8Contract(unittest.TestCase):
             self.assertNotIn("post_to_fbr", source)
 
     def test_phase8_runner_is_fail_closed(self):
-        runner = (REPO_ROOT / "scripts" / "run_erpnext_phase8_final_gate.sh").read_text(encoding="utf-8")
+        runner = (REPO_ROOT / "scripts/archive/erpnext_migration" / "run_erpnext_phase8_final_gate.sh").read_text(encoding="utf-8")
         self.assertIn("test_erpnext_phase8_contract", runner)
         self.assertIn("erpnext_phase8_pos_gate.run", runner)
         self.assertIn("phase8_complete", runner)

@@ -13,8 +13,8 @@ LOG = "Ledgix FBR Submission Log"
 
 
 def require_operator():
-    if not set(frappe.get_roles()).intersection({"System Manager", "Accounts Manager"}):
-        frappe.throw("Accounts Manager permission is required.", frappe.PermissionError)
+    if not set(frappe.get_roles()).intersection({"System Manager", "Ledgix Admin", "Accounts Manager"}):
+        frappe.throw("FBR configuration operator permission is required.", frappe.PermissionError)
 
 
 def source(doctype, name, permission="read"):

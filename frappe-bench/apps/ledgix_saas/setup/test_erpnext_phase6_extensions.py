@@ -5,10 +5,19 @@ from ledgix_saas.setup import erpnext_phase6_extensions
 
 
 APP_ROOT = Path(__file__).resolve().parents[1]
-REPO_ROOT = APP_ROOT.parents[1]
+REPO_ROOT = APP_ROOT.parents[2]
 
 
 class TestERPNextPhase6ExtensionContract(unittest.TestCase):
+    def test_client_sale_id_is_first_ledgix_owned_transaction_field(self):
+        rows = erpnext_phase6_extensions.CUSTOM_FIELDS['Sales Invoice']
+        self.assertEqual(len(rows), 7)
+        self.assertEqual(rows[0]['fieldname'], 'custom_ledgix_client_sale_id')
+        self.assertEqual(rows[0]['module'], 'Ledgix')
+        self.assertEqual(rows[0]['fieldtype'], 'Data')
+        for key in ('read_only', 'no_copy', 'in_standard_filter'):
+            self.assertEqual(rows[0][key], 1)
+
     def test_phase6_extensions_only_target_native_financial_documents(self):
         self.assertEqual(
             set(erpnext_phase6_extensions.CUSTOM_FIELDS),
@@ -169,7 +178,7 @@ class TestERPNextPhase6ExtensionContract(unittest.TestCase):
         self.assertIn("if not _is_ledgix_payment(doc):", source)
 
     def test_consolidated_runner_includes_runtime_policy_gate(self):
-        runner = (REPO_ROOT / "scripts" / "run_erpnext_phase6_final_gate.sh").read_text(
+        runner = (REPO_ROOT / "scripts/archive/erpnext_migration" / "run_erpnext_phase6_final_gate.sh").read_text(
             encoding="utf-8"
         )
         self.assertIn("erpnext_phase6_policy_gate.run", runner)

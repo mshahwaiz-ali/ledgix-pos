@@ -32,13 +32,13 @@ def _function_source(source: str, name: str) -> str:
 class TestFBRV2HealthClientStatusContract(unittest.TestCase):
     def test_client_status_is_v2_owned(self):
         source = _function_source(CLIENT, "get_client_status")
-        self.assertIn("assert_fbr_v2_view_permission()", source)
-        self.assertIn("return get_fbr_v2_status_internal()", source)
+        self.assertIn("reject_legacy_v2_action", source)
+        self.assertNotIn("get_fbr_v2_status_internal", CLIENT)
 
     def test_legacy_client_transport_is_retired(self):
         for name in ("validate_invoice", "post_invoice"):
             source = _function_source(CLIENT, name)
-            self.assertIn("_retired_result(", source)
+            self.assertIn("reject_legacy_v2_action", source)
 
         for forbidden in (
             "get_fbr_settings_internal",
@@ -53,7 +53,7 @@ class TestFBRV2HealthClientStatusContract(unittest.TestCase):
             self.assertNotIn(forbidden, CLIENT)
 
     def test_health_uses_v2_status_only(self):
-        self.assertIn("get_fbr_v2_status_internal", HEALTH)
+        self.assertIn("reject_legacy_v2_action", HEALTH)
         for forbidden in (
             "ledgix_saas.api.fbr_settings",
             "get_fbr_settings_internal",
