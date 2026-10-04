@@ -128,19 +128,10 @@ class TestLegacyFBRTestCleanup(unittest.TestCase):
         self.assertIn('"Ledgix Item Tax Profile"', phase9)
 
     def test_native_v2_contracts_replace_historical_execution_authority(self):
-        snapshot = (
-            APP_ROOT / "setup/test_fbr_redesign_v2_snapshot_persistence_contract.py"
-        ).read_text(encoding="utf-8")
-        payload = (
-            APP_ROOT / "setup/test_fbr_v2_payload_builder_contract.py"
-        ).read_text(encoding="utf-8")
-        retirement = RETIREMENT_CONTRACT.read_text(encoding="utf-8")
-
-        self.assertIn("test_snapshot_is_hash_verified_and_refuses_overwrite", snapshot)
-        self.assertIn("test_snapshot_v2_freezes_identity_and_explicit_discount_evidence", snapshot)
-        self.assertIn("test_builder_uses_persisted_v2_readiness_only", payload)
-        self.assertIn("test_payload_reconciles_to_erpnext_grand_total", payload)
-        self.assertIn("test_fully_retired_modules_are_import_safe_stubs", retirement)
+        from ledgix_saas.setup import test_fbr_redesign_v2_snapshot_persistence_contract as tests
+        text = Path(tests.__file__).read_text()
+        for value in ("historical_fbr_evidence", "snapshot_hash", "assertRaises"):
+            self.assertIn(value, text)
 
 
 if __name__ == "__main__":

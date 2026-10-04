@@ -46,15 +46,9 @@ class TestFBRLegacyReferenceRetirementContract(unittest.TestCase):
         self.assertIn("Ledgix FBR Integration Profile", LEGACY)
 
     def test_canonical_v2_reference_service_remains_profile_scoped_get_only(self):
-        self.assertIn(
-            'PROFILE_DOCTYPE = "Ledgix FBR Integration Profile"',
-            V2,
-        )
-        self.assertIn("def _reference_get(", V2)
-        self.assertIn("fbr_transport.get_json(", V2)
-        self.assertNotIn("requests.post(", V2)
-        self.assertNotIn("post_invoice(", V2)
-        self.assertNotIn("validate_invoice(", V2)
+        self.assertIn("reject_legacy_v2_action", V2)
+        for forbidden in ("fbr_transport.get_json(", "requests.get(", "get_password("):
+            self.assertNotIn(forbidden, V2)
 
     def test_gate_calls_all_legacy_public_reference_functions(self):
         for name in (

@@ -23,6 +23,14 @@ def native_contexts(company):
     contexts.extend({"source": "POS Profile " + p.name, "doctype": "POS Invoice",
         "tax_category": p.get("tax_category") or "", "taxes_and_charges": p.get("taxes_and_charges")}
         for p in profiles)
+    condition_fields = ("customer", "customer_group", "item", "item_group", "tax_category",
+        "billing_city", "billing_county", "billing_state", "billing_zipcode", "billing_country",
+        "shipping_city", "shipping_county", "shipping_state", "shipping_zipcode", "shipping_country")
+    for rule in frappe.get_all("Tax Rule", filters={"company": company, "tax_type": "Sales"},
+            fields=["name", *condition_fields, "from_date", "to_date"], limit_page_length=0):
+        # Future configured contexts are also part of Production setup coverage.
+        if any(rule.get(f) for f in condition_fields) or rule.get("from_date") or rule.get("to_date"):
+            errors.append(f"Tax Rule {rule['name']}: configured contextual transaction path requires verified coverage; default-only inspection is insufficient.")
     return contexts, errors
 
 
@@ -76,7 +84,7 @@ def _rate(value):
 
 def inspect_item_path(company, item, context, date, mapping, meanings, account_errors):
     template, source, tax_map, warnings = resolve_item_template(company, item, context, date)
-    errors = []
+    errors = list(warnings)
     report = {"context": context["source"], "native_tax_state": "Unresolved",
               "native_source": source or context["source"], "native_template": template,
               "native_accounts": [], "ready": False, "blockers": errors, "warnings": warnings}

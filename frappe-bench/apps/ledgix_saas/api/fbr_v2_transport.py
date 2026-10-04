@@ -7,10 +7,6 @@ from ledgix_saas.api.fbr_legacy_guard import reject_legacy_v2_action
 
 PROFILE_DOCTYPE = "Ledgix FBR Integration Profile"
 CERTIFICATION_DOCTYPE = "Ledgix FBR Sandbox Certification"
-SANDBOX_VALIDATE_URL = "https://gw.fbr.gov.pk/di_data/v1/di/validateinvoicedata_sb"
-PRODUCTION_VALIDATE_URL = "https://gw.fbr.gov.pk/di_data/v1/di/validateinvoicedata"
-SANDBOX_POST_URL = "https://gw.fbr.gov.pk/di_data/v1/di/postinvoicedata_sb"
-PRODUCTION_POST_URL = "https://gw.fbr.gov.pk/di_data/v1/di/postinvoicedata"
 
 
 def _text(*args, **kwargs):

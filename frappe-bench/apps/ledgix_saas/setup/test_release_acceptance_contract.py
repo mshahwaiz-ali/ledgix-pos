@@ -54,7 +54,7 @@ class TestReleaseAcceptanceContract(unittest.TestCase):
             '"POS Invoice"',
             '"release_setup_ready"',
             '"manual_uat_ready"',
-            '"fbr_external_certification_complete"',
+            '"fbr_external_production_approval_complete"',
             '"production_release_ready"',
             '"business_data_authority": "ERPNext"',
         ):
@@ -111,7 +111,7 @@ class TestReleaseAcceptanceContract(unittest.TestCase):
             "generate_release_acceptance_evidence",
             "release_setup_ready=",
             "manual_uat_ready=",
-            "fbr_external_certification_complete=",
+            "fbr_external_production_approval_complete=",
             "production_release_ready=",
             "release_acceptance_readiness_complete=true",
         ):
@@ -163,12 +163,20 @@ class TestReleaseAcceptanceContract(unittest.TestCase):
 
 
 class TestReleaseAcceptanceBehavior(NoNetworkTest):
-    def inspect(self, sandbox_complete, production_ready=False):
+    def inspect(self, sandbox_complete, production_ready=False, approval=False, missing_gate=None, enable_fbr=True):
         from ledgix_saas.api import release_acceptance as api
-        operational = {'ready': True, 'features': {'enable_fbr': True},
+        operational = {'ready': True, 'features': {'enable_fbr': enable_fbr},
                        'identity': {'company': 'Shop'}, 'blockers': []}
-        state = {'sandbox_certification_complete': sandbox_complete,
-                 'production_ready': production_ready, 'database_write': False, 'fbr_network_call': False}
+        state = {'sandbox_transport_acceptance_complete': sandbox_complete,
+                 'external_production_approval_complete': approval,
+                 'production_configuration_ready': production_ready,
+                 'network_cutover_active': True, 'production_cutover_active': True,
+                 'profile_state': {'production_post_armed': 1, 'transport_enabled': 1},
+                 'database_write': False, 'fbr_network_call': False}
+        if missing_gate in ('production_post_armed', 'transport_enabled'):
+            state['profile_state'][missing_gate] = 0
+        elif missing_gate:
+            state[missing_gate] = False
         with ExitStack() as stack:
             stack.enter_context(patch.object(frappe, 'get_roles', return_value=['Ledgix Admin']))
             stack.enter_context(patch.object(api.client_readiness, 'evaluate_client_readiness', return_value=operational))
@@ -177,8 +185,11 @@ class TestReleaseAcceptanceBehavior(NoNetworkTest):
             stack.enter_context(patch.object(api, '_load_manual_uat', return_value={'valid': True, 'results': {}}))
             stack.enter_context(patch.object(api, '_required_uat_keys', return_value=[]))
             bridge = stack.enter_context(patch.object(api.fbr_v1_bridge, 'get_company_readiness', return_value=state))
-            result = api.evaluate_release_acceptance(require_fbr_certification=1)
-            bridge.assert_called_once_with('Shop')
+            result = api.evaluate_release_acceptance(require_fbr_production=1)
+            if enable_fbr:
+                bridge.assert_called_once_with('Shop')
+            else:
+                bridge.assert_not_called()
         self.db.set_value.assert_not_called()
         self.db.commit.assert_not_called()
         self.assertFalse(result['network_call_made'])
@@ -187,16 +198,31 @@ class TestReleaseAcceptanceBehavior(NoNetworkTest):
 
     def test_v1_sandbox_completion_is_consumed_but_not_production_authority(self):
         result = self.inspect(True)
-        self.assertTrue(result['fbr_external_certification_complete'])
+        self.assertFalse(result['fbr_external_production_approval_complete'])
+        self.assertTrue(result['fbr_sandbox_transport_acceptance_complete'])
         self.assertFalse(result['production_release_ready'])
 
     def test_missing_v1_sandbox_evidence_blocks_required_fbr_release(self):
         result = self.inspect(False, production_ready=True)
-        self.assertFalse(result['fbr_external_certification_complete'])
+        self.assertFalse(result['fbr_external_production_approval_complete'])
         self.assertFalse(result['production_release_ready'])
 
     def test_separate_sandbox_and_production_requirements_must_both_pass(self):
-        self.assertTrue(self.inspect(True, production_ready=True)['production_release_ready'])
+        self.assertTrue(self.inspect(True, production_ready=True, approval=True)['production_release_ready'])
+
+    def test_every_production_prerequisite_is_independent(self):
+        for gate in ('sandbox_transport_acceptance_complete', 'external_production_approval_complete',
+                     'production_configuration_ready', 'network_cutover_active', 'production_cutover_active',
+                     'production_post_armed', 'transport_enabled'):
+            with self.subTest(gate=gate):
+                self.assertFalse(self.inspect(True, True, True, missing_gate=gate)['production_release_ready'])
+
+    def test_non_fbr_client_unaffected(self):
+        self.assertTrue(self.inspect(False, enable_fbr=False)['production_release_ready'])
+
+    def test_configuration_alone_and_approval_alone_block(self):
+        self.assertFalse(self.inspect(True, True)['production_release_ready'])
+        self.assertFalse(self.inspect(True, False, True)['production_release_ready'])
 
 
 if __name__ == "__main__":

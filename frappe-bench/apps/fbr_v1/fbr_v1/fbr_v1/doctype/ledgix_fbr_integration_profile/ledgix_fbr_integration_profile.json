@@ -16,10 +16,7 @@
   "licensed_integrator_name",
   "protocol_version",
   "onboarding_section",
-  "business_natures",
-  "sector",
   "onboarding_column",
-  "onboarding_status",
   "ip_whitelist_status",
   "hosting_notes",
   "software_section",
@@ -33,21 +30,11 @@
   "technical_contact_email",
   "technical_contact_column",
   "technical_contact_phone",
-  "credentials_section",
-  "sandbox_token",
-  "credentials_column",
-  "production_token",
   "safety_section",
   "production_post_armed",
-  "block_sale_if_fbr_fails",
   "offline_policy",
-  "offline_upload_window_hours",
   "safety_column",
   "pause_reason",
-  "reference_section",
-  "reference_sync_status",
-  "last_reference_sync_at",
-  "reference_version",
   "v1_transport_section",
   "default_pos_device",
   "transport_enabled",
@@ -55,8 +42,6 @@
   "v1_production_token",
   "block_print_without_fiscal_result",
   "pos_service_fee_account",
-  "activation_reference",
-  "activation_evidence",
   "authority_section",
   "authority_status",
   "authority_reference",
@@ -69,7 +54,13 @@
   "retention_policy_evidence",
   "offline_authority_section",
   "offline_authority_reference",
-  "offline_authority_evidence"
+  "offline_authority_evidence",
+  "production_approval_section",
+  "production_approval_status",
+  "production_approval_reference",
+  "production_approval_evidence",
+  "production_approval_verified_at",
+  "production_approval_verified_by"
  ],
  "fields": [
   {
@@ -141,37 +132,9 @@
    "hidden": 1
   },
   {
-   "fieldname": "business_natures",
-   "fieldtype": "Table",
-   "label": "Business Nature(s)",
-   "options": "Ledgix FBR Business Nature",
-   "hidden": 1,
-   "read_only": 1,
-   "reqd": 0
-  },
-  {
-   "fieldname": "sector",
-   "fieldtype": "Data",
-   "label": "Sector",
-   "hidden": 1,
-   "read_only": 1,
-   "reqd": 0
-  },
-  {
    "fieldname": "onboarding_column",
    "fieldtype": "Column Break",
    "hidden": 1
-  },
-  {
-   "default": "Not Started",
-   "fieldname": "onboarding_status",
-   "fieldtype": "Select",
-   "in_list_view": 1,
-   "label": "Onboarding Status",
-   "options": "Not Started\nIn Progress\nSandbox Ready\nCertified\nProduction Ready",
-   "hidden": 1,
-   "read_only": 1,
-   "reqd": 0
   },
   {
    "default": "Pending",
@@ -256,32 +219,6 @@
   },
   {
    "collapsible": 1,
-   "fieldname": "credentials_section",
-   "fieldtype": "Section Break",
-   "label": "Credentials"
-  },
-  {
-   "fieldname": "sandbox_token",
-   "fieldtype": "Password",
-   "label": "Sandbox Token",
-   "hidden": 1,
-   "read_only": 1,
-   "reqd": 0
-  },
-  {
-   "fieldname": "credentials_column",
-   "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "production_token",
-   "fieldtype": "Password",
-   "label": "Production Token",
-   "hidden": 1,
-   "read_only": 1,
-   "reqd": 0
-  },
-  {
-   "collapsible": 1,
    "fieldname": "safety_section",
    "fieldtype": "Section Break",
    "label": "Safety Controls"
@@ -292,15 +229,6 @@
    "fieldname": "production_post_armed",
    "fieldtype": "Check",
    "label": "Arm Production Posting"
-  },
-  {
-   "default": "0",
-   "fieldname": "block_sale_if_fbr_fails",
-   "fieldtype": "Check",
-   "label": "Block Submit On FBR Preflight Failure",
-   "hidden": 1,
-   "read_only": 1,
-   "reqd": 0
   },
   {
    "default": "Disabled",
@@ -314,16 +242,6 @@
    "read_only": 0
   },
   {
-   "default": "0",
-   "description": "Client/provider-specific upload window. No legal deadline is hardcoded by Ledgix.",
-   "fieldname": "offline_upload_window_hours",
-   "fieldtype": "Int",
-   "label": "Offline Upload Window (Hours)",
-   "hidden": 1,
-   "read_only": 1,
-   "reqd": 0
-  },
-  {
    "fieldname": "safety_column",
    "fieldtype": "Column Break"
   },
@@ -331,41 +249,6 @@
    "fieldname": "pause_reason",
    "fieldtype": "Small Text",
    "label": "Pause Reason"
-  },
-  {
-   "collapsible": 1,
-   "fieldname": "reference_section",
-   "fieldtype": "Section Break",
-   "label": "Reference Data",
-   "hidden": 1,
-   "read_only": 1,
-   "reqd": 0
-  },
-  {
-   "default": "Never Synced",
-   "fieldname": "reference_sync_status",
-   "fieldtype": "Select",
-   "label": "Reference Sync Status",
-   "options": "Never Synced\nCurrent\nStale\nFailed",
-   "read_only": 1,
-   "hidden": 1,
-   "reqd": 0
-  },
-  {
-   "fieldname": "last_reference_sync_at",
-   "fieldtype": "Datetime",
-   "label": "Last Reference Sync At",
-   "read_only": 1,
-   "hidden": 1,
-   "reqd": 0
-  },
-  {
-   "fieldname": "reference_version",
-   "fieldtype": "Data",
-   "label": "Reference Version",
-   "read_only": 1,
-   "hidden": 1,
-   "reqd": 0
   },
   {
    "fieldname": "default_pos_device",
@@ -394,18 +277,6 @@
    "fieldtype": "Check",
    "label": "Block Print Without Fiscal Result",
    "default": "1"
-  },
-  {
-   "fieldname": "activation_reference",
-   "fieldtype": "Data",
-   "label": "Activation Reference",
-   "hidden": 1
-  },
-  {
-   "fieldname": "activation_evidence",
-   "fieldtype": "Attach",
-   "label": "Activation Evidence",
-   "hidden": 1
   },
   {
    "fieldname": "authority_section",
@@ -502,6 +373,41 @@
    "label": "FBR POS Service Fee Payable Account",
    "options": "Account",
    "description": "Liability account used for the statutory Re.1 FBR POS Service Fee. The fee remains an ERPNext charge and is not added as an undocumented V1 wire field."
+  },
+  {
+   "fieldname": "production_approval_status",
+   "label": "Production Approval Status",
+   "fieldtype": "Select",
+   "options": "Not Verified\nVerified",
+   "default": "Not Verified"
+  },
+  {
+   "fieldname": "production_approval_reference",
+   "label": "Production Approval Reference",
+   "fieldtype": "Data"
+  },
+  {
+   "fieldname": "production_approval_evidence",
+   "label": "Production Approval Evidence",
+   "fieldtype": "Attach"
+  },
+  {
+   "fieldname": "production_approval_verified_at",
+   "label": "Production Approval Verified At",
+   "fieldtype": "Datetime",
+   "read_only": 1
+  },
+  {
+   "fieldname": "production_approval_verified_by",
+   "label": "Production Approval Verified By",
+   "fieldtype": "Link",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "production_approval_section",
+   "label": "External Production Approval Evidence",
+   "fieldtype": "Section Break"
   }
  ],
  "grid_page_length": 50,

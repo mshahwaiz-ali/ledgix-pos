@@ -11,6 +11,7 @@ BENCH_PYTHON="$BENCH_DIR/env/bin/python"
 # external transport, credentials, or cutover configuration writes.
 export PYTHONPATH="$BENCH_DIR/apps:$BENCH_DIR/apps/fbr_v1:$BENCH_DIR/apps/frappe:$BENCH_DIR/apps/erpnext${PYTHONPATH:+:$PYTHONPATH}"
 cd "$REPO_ROOT"
+"$BENCH_PYTHON" scripts/validation/check_fiscal_architecture.py
 "$BENCH_PYTHON" -m unittest -v \
   ledgix_saas.setup.test_fbr_v1_bridge_contract \
   fbr_v1.setup.test_fbr_v1_readiness_runtime \
@@ -23,6 +24,10 @@ cd "$REPO_ROOT"
   ledgix_saas.setup.test_fbr_v2_client_setup_readiness_contract \
   ledgix_saas.setup.test_fbr_v2_transport_contract \
   ledgix_saas.setup.test_fbr_redesign_v2_snapshot_persistence_contract \
+  fbr_v1.setup.test_runtime_retirement_contract \
+  fbr_v1.setup.test_fbr_v1_tax_readiness_runtime \
+  ledgix_saas.setup.test_fbr_v2_legacy_transport_retirement_contract \
+  ledgix_saas.setup.test_fbr_v2_print_legacy_seller_contract \
   ledgix_saas.setup.test_release_acceptance_contract
 
 printf '[PASS] current V1 read-only readiness and Sandbox acceptance contracts\n'

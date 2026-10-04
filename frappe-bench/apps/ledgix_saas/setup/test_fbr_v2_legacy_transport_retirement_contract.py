@@ -51,7 +51,7 @@ class TestFBRV2LegacyTransportRetirementContract(unittest.TestCase):
 
         for name in ("validate_invoice", "post_invoice"):
             source = _function_source(CLIENT, name)
-            self.assertIn("_retired_result(", source)
+            self.assertIn("reject_legacy_v2_action(", source)
 
     def test_submission_engine_is_compatibility_shell(self):
         for forbidden in (
@@ -90,10 +90,10 @@ class TestFBRV2LegacyTransportRetirementContract(unittest.TestCase):
             self.assertNotIn(forbidden, PAYLOAD)
 
         self.assertIn(
-            'LEGACY_PAYLOAD_AUTHORITY = "Historical Ledgix Snapshot Serializer"',
+            'LEGACY_PAYLOAD_AUTHORITY = "Historical Persisted Evidence Only"',
             PAYLOAD,
         )
-        self.assertIn(
+        self.assertNotIn(
             "legacy_sales.get_seller_identity()",
             PAYLOAD,
         )

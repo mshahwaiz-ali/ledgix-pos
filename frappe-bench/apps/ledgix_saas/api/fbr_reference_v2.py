@@ -5,21 +5,8 @@ Only compatibility rejection is executable; never reads credentials or fiscal st
 import frappe
 from ledgix_saas.api.fbr_legacy_guard import reject_legacy_v2_action
 
-PROVINCES_URL = "https://gw.fbr.gov.pk/pdi/v1/provinces"
-DOCUMENT_TYPES_URL = "https://gw.fbr.gov.pk/pdi/v1/doctypecode"
-TRANSACTION_TYPES_URL = "https://gw.fbr.gov.pk/pdi/v1/transtypecode"
-UOM_URL = "https://gw.fbr.gov.pk/pdi/v1/uom"
-ITEM_CODE_URL = "https://gw.fbr.gov.pk/pdi/v1/itemdesccode"
-SRO_ITEM_CODE_URL = "https://gw.fbr.gov.pk/pdi/v1/sroitemcode"
-SRO_SCHEDULE_URL = "https://gw.fbr.gov.pk/pdi/v1/SroSchedule"
-RATE_URL = "https://gw.fbr.gov.pk/pdi/v2/SaleTypeToRate"
-HS_UOM_URL = "https://gw.fbr.gov.pk/pdi/v2/HS_UOM"
-SRO_ITEM_URL = "https://gw.fbr.gov.pk/pdi/v2/SROItem"
-STATL_URL = "https://gw.fbr.gov.pk/dist/v1/statl"
-REGISTRATION_TYPE_URL = "https://gw.fbr.gov.pk/dist/v1/Get_Reg_Type"
 PROFILE_DOCTYPE = "Ledgix FBR Integration Profile"
 REFERENCE_DOCTYPE = "Ledgix FBR Reference Data"
-DEFAULT_PROTOCOL_VERSION = "DI API V1.12"
 GLOBAL_CONTEXT_KEY = "GLOBAL"
 FBR_VIEW_ROLES = {"System Manager", "Ledgix Admin", "Ledgix Manager"}
 FBR_ADMIN_ROLES = {"System Manager", "Ledgix Admin"}

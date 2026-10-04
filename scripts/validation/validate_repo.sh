@@ -234,7 +234,7 @@ key_imports = {
 if not apps_root.is_dir():
     raise SystemExit("[ERROR] canonical frappe-bench/apps directory is missing")
 
-custom_app_names = ("ledgix_saas", "fbr_v1", "fbr_v12")
+custom_app_names = ("ledgix_saas", "fbr_v1")
 app_dirs = [
     apps_root / name
     for name in custom_app_names
@@ -353,7 +353,7 @@ except ModuleNotFoundError:
 
 root = pathlib.Path(sys.argv[1])
 apps_root = root / "frappe-bench" / "apps"
-app_names = ("ledgix_saas", "fbr_v1", "fbr_v12")
+app_names = ("ledgix_saas", "fbr_v1")
 
 python_count = 0
 json_count = 0
@@ -423,3 +423,5 @@ main() {
 }
 
 main "$@"
+
+"$PYTHON_BIN" "$REPO_ROOT/scripts/validation/check_fiscal_architecture.py"

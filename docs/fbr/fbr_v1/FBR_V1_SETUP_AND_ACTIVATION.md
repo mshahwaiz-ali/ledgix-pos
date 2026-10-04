@@ -4,17 +4,17 @@ This guide separates software configuration from inputs only the client, FBR, PR
 
 ## Software setup
 
-Install Frappe, ERPNext, `ledgix_saas`, and `fbr_v1`; do not install frozen `fbr_v12` as a second active integration. Verify ERPNext Company legal name, tax ID, registered Address/province, accounts, warehouses, POS Profile, customers, items, taxes, and Modes of Payment.
+Install Frappe, ERPNext, `ledgix_saas`, and `fbr_v1`; new installation of retired `fbr_v12` is prohibited. Verify ERPNext Company legal name, tax ID, registered Address/province, accounts, warehouses, POS Profile, customers, items, taxes, and Modes of Payment.
 
 In **Ledgix FBR Integration Profile**, select the Company, keep protocol `Federal POS/IMS V1`, use Sandbox during testing, select provider type, record real authority and six-year retention-policy references/evidence, select a default device where appropriate, and enter credentials only through supported Desk/Frappe Password controls. Keep `production_post_armed` off. `Operator Confirmed` offline policy requires its own authority reference/evidence.
 
-In **Ledgix FBR POS Device**, select the same Company/POS Profile, enter authoritative POSID and software registration number, select the explicit environment and `Cloud API` or `Local IMS - Server Reachable`, and record Production onboarding evidence. Local IMS Production also requires package/version/installation evidence. Mark QR/signature verified only after external testing of the actual authorized component.
+In **Ledgix FBR POS Device**, select the same Company/POS Profile, enter authoritative POSID and software registration number, select the explicit environment and `Cloud API` or `Local IMS - Server Reachable`, and record Production onboarding evidence. Local IMS Production also requires package/version/installation evidence. Record documented QR acceptance only after external testing of the actual authorized component; unsupported signature algorithms remain unresolved.
 
 Configure Mode of Payment codes, Tax Component mappings to native ERPNext tax accounts, and reviewed Item/PCT mappings. Unsupported components and unreviewed mappings remain blockers.
 
 ## External inputs
 
-The client/provider supplies registration/authority evidence, POSID/software/onboarding proof, applicable IMS package proof, Sandbox token and acceptance, QR/signature verification, Production token and activation approval/evidence, and any offline authority. Tokens belong in supported Password controls, never Git, commands, screenshots, or documents.
+The client/provider supplies registration/authority evidence, POSID/software/onboarding proof, applicable IMS package proof, Sandbox token and acceptance, documented QR acceptance, Production token and activation approval/evidence, and any offline authority. Tokens belong in supported Password controls, never Git, commands, screenshots, or documents.
 
 Operators must not invent endpoint URLs. Endpoints are software-owned constants. Digital Invoicing V1.2 endpoints, `scenarioId`, reference sync, and validation/post workflows are not current V1 setup.
 
@@ -37,9 +37,15 @@ The general gate is required for real traffic. Production additionally requires 
 2. Confirm invoice readiness from a submitted native invoice and immutable snapshot.
 3. Securely enter the real Sandbox token and approve general cutover for controlled Sandbox traffic.
 4. Retain real outcomes and reconcile every ambiguity.
-5. Obtain Production credential, authority, activation, device, QR/signature, retention, backup, and release evidence.
+5. Obtain Production credential, authority, activation, device, documented QR acceptance, retention, backup, and release evidence.
 6. Complete the [Production checklist](FBR_V1_PRODUCTION_CHECKLIST.md).
 7. In the approved window, enable Production cutover and arm Production deliberately.
 8. Manually observe the first Production fiscalization and retain its evidence.
 
 Software implementation is verified locally; real Sandbox acceptance and Production activation remain external/pending.
+
+Fresh Federal V1 schema excludes retired Business Nature, Reference Data, Sandbox Certification and Sandbox Scenario DocTypes and DI-only Integration Profile fields. Existing historical metadata remains resolvable through read-only controllers. A pre-model-sync patch captures exact old profile values and child rows into immutable Ledgix FBR Legacy Evidence; old encrypted credential storage is preserved without decryption and is never promoted to V1. Payload storage has no ordinary API/Desk read permission; audit roles can read only metadata/hash. No historical tables or records are dropped.
+
+Sandbox transport acceptance is distinct from external Production approval. Readiness exposes `sandbox_transport_acceptance_complete`, `external_production_approval_complete`, and `production_configuration_ready`. A System Manager must verify an explicit approval reference and readable uploaded File; verification user/time are stamped by the server. Only System Manager can arm posting from 0 to 1; authorized profile writers can disarm. Site cutovers remain independent.
+
+Legacy Sale formats are non-fiscal archival views. Missing or reconstructed historical identity is not verified fiscal evidence. Pending historical identity backfills are no-ops; current native V1 prints still require strict immutable snapshots and authoritative fiscal results.

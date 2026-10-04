@@ -43,15 +43,16 @@ def _resolve_customer(customer: str) -> str:
     frappe.throw(_("ERPNext Customer not found for {0}.").format(customer))
 
 
-def _resolve_item(item: str) -> str:
+def _resolve_item(item: str, *, new_sale: bool = True) -> str:
     item = str(item or "").strip()
     if not item:
         frappe.throw(_("Item is required."))
+    from ledgix_saas.services.erpnext_item_scope import assert_sellable_item
     if frappe.db.exists("Item", item):
-        return item
+        return assert_sellable_item(item) if new_sale else item
     mapped = frappe.db.get_value("Item", {"custom_ledgix_legacy_item": item}, "name")
     if mapped:
-        return mapped
+        return assert_sellable_item(mapped) if new_sale else mapped
     frappe.throw(_("ERPNext Item not found for {0}.").format(item))
 
 
@@ -606,7 +607,7 @@ def _return_request_map(source, return_items) -> dict:
         item_code = str(raw.get("item_code") or raw.get("item") or "").strip()
         source_row = source_by_name.get(source_row_name) if source_row_name else None
         if source_row is None and item_code:
-            resolved = _resolve_item(item_code)
+            resolved = _resolve_item(item_code, new_sale=False)
             candidates = source_by_code.get(resolved) or []
             if len(candidates) != 1:
                 frappe.throw(

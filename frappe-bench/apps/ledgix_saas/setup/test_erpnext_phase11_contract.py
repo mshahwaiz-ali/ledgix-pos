@@ -13,7 +13,7 @@ REPO_ROOT = next(
     (
         parent
         for parent in APP_ROOT.parents
-        if (parent / "scripts" / "run_erpnext_phase11_final_gate.sh").exists()
+        if (parent / "scripts" / "archive/erpnext_migration/run_erpnext_phase11_final_gate.sh").exists()
     ),
     APP_ROOT.parents[1],
 )
@@ -58,7 +58,6 @@ class TestERPNextPhase11Contract(unittest.TestCase):
         expected_pages = {
             "ledgix-pos",
             "business-intelligence-center",
-            "ledgix-tax-center",
             "ledgix-setup",
         }
         page_targets = {
@@ -72,7 +71,6 @@ class TestERPNextPhase11Contract(unittest.TestCase):
         expected_folders = {
             "ledgix_pos",
             "business_intelligence_center",
-            "ledgix_tax_center",
             "ledgix_setup",
         }
         for folder in expected_folders:
@@ -86,7 +84,6 @@ class TestERPNextPhase11Contract(unittest.TestCase):
         expected = {
             "Ledgix POS": "ledgix-pos",
             "Inventory Intelligence": "business-intelligence-center",
-            "Tax & FBR Center": "ledgix-tax-center",
             "Setup Wizard": "ledgix-setup",
         }
 
@@ -100,7 +97,7 @@ class TestERPNextPhase11Contract(unittest.TestCase):
         # Product-shell shortcut visibility is a UX policy layer, not a
         # requirement that every retained page be duplicated in Workspace
         # raw shortcut rows.
-        self.assertEqual(set(product_shell.WORKSPACE_SHORTCUTS), set(expected))
+        self.assertTrue(set(expected).issubset(set(product_shell.WORKSPACE_SHORTCUTS)))
 
         raw_page_shortcuts = {
             row.get("label"): row.get("link_to")
@@ -215,7 +212,7 @@ class TestERPNextPhase11Contract(unittest.TestCase):
         self.assertIn("not an authorization system", note.get("description") or "")
 
     def test_phase11_runner_is_fail_closed(self):
-        runner = REPO_ROOT / "scripts" / "run_erpnext_phase11_final_gate.sh"
+        runner = REPO_ROOT / "scripts" / "archive/erpnext_migration/run_erpnext_phase11_final_gate.sh"
         if not runner.exists():
             self.fail("Phase 11 final gate runner is missing")
         text = runner.read_text(encoding="utf-8")

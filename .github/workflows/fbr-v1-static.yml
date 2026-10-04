@@ -4,6 +4,9 @@ on:
   pull_request:
     paths:
       - "frappe-bench/apps/fbr_v1/**"
+      - "frappe-bench/apps/ledgix_saas/**"
+      - "frappe-bench/apps/fbr_v12/**"
+      - "scripts/validation/check_fiscal_architecture.py"
       - "docs/fbr/fbr_v1/**"
       - ".github/workflows/fbr-v1-static.yml"
   workflow_dispatch:
@@ -16,6 +19,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      - name: Enforce V1-only architecture and historical safety
+        run: python scripts/validation/check_fiscal_architecture.py
       - name: Compile Python
         run: python -m compileall -q frappe-bench/apps/fbr_v1
       - name: Validate JSON and pyproject

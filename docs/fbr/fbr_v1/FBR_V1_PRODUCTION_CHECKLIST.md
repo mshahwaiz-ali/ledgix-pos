@@ -11,13 +11,14 @@ This checklist is not a claim of FBR certification. Every item requires client-s
 - [ ] Receipt QR encodes the authoritative FBR invoice number at 7x7 mm; undocumented digital-signature behavior remains fail-closed.
 - [ ] Production credential is stored through a supported Password control; no legacy DI fallback exists.
 - [ ] Statutory Re.1 FBR POS Service Fee uses a dedicated ERPNext Liability account and native Actual charge; no undocumented V1 wire field is added.
-- [ ] Real Sandbox acceptance exists for required flows; unresolved ambiguity is zero.
+- [ ] Real V1 Sandbox transport acceptance exists for required flows; unresolved ambiguity is zero.
+- [ ] Separate external Production approval reference and readable File evidence are verified by System Manager with server-stamped user and time.
 - [ ] Unsupported Debit/tax/currency/discount cases are absent or blocked.
 - [ ] Verified backup, rollback evidence, and release identity are current.
 - [ ] No `Offline Pending`, unresolved correction, or `Reconciliation Required` state exists.
 - [ ] General cutover, Production cutover, and `production_post_armed` remain off until the approved window.
 - [ ] Operators, support/rollback owners, and FBR/PRAL escalation contact are assigned.
-- [ ] The three controls are enabled deliberately in the approved order.
+- [ ] The cutovers are enabled deliberately in the approved order; only System Manager arms posting.
 - [ ] First Production fiscalization is observed; request/response hashes, FBR number, receipt/QR, and log evidence are retained.
 - [ ] Any uncertain outcome stops further sending and enters reconciliation.
 

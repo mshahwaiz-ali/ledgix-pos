@@ -58,6 +58,7 @@ class TestTaxReadiness(NoNetworkTest):
         self.docs = {'SALES': Row(name='SALES', company='Shop', disabled=0, is_default=1,
             taxes=[Row(account_head='GST', rate=12.5, charge_type='On Net Total')])}
         self.scope = []
+        self.rules = []
         self.item = Row(name='SKU', item_group='Group', taxes=[])
         self.group = Row(name='Group', taxes=[])
         self.auto_item_rows = False
@@ -100,7 +101,7 @@ class TestTaxReadiness(NoNetworkTest):
         if doctype == 'Item':
             self.assertEqual(kwargs['filters']['has_variants'], 0)
             return [row for row in self.items if not row.get('has_variants') and not row.get('disabled') and row.get('is_sales_item', 1)]
-        return {'Ledgix FBR Item Mapping': self.mappings,
+        return {'Tax Rule': self.rules, 'Ledgix FBR Item Mapping': self.mappings,
             'Ledgix FBR Tax Component Mapping': self.components,
             'Sales Taxes and Charges Template': self.sales, 'Item Tax Template': self.item_templates,
             'Item Default': self.scope, 'Sales Invoice': [], 'POS Invoice': [],
@@ -225,7 +226,8 @@ class TestTaxReadiness(NoNetworkTest):
     def test_multi_company_new_shared_catalog_item_cannot_disappear(self):
         from ledgix_saas.services import erpnext_pos
         self.db.count.return_value = 2
-        self.scope = []  # No Item Default and no historical invoice.
+        self.scope = []
+        self.rules = []  # No Item Default and no historical invoice.
         self.items = [Row(name='SHARED', item_code='SHARED', item_name='New shared item',
             item_group='Group', stock_uom='Nos', is_stock_item=0)]
         with ExitStack() as stack:
@@ -347,6 +349,27 @@ class TestTaxReadiness(NoNetworkTest):
         self.item.taxes[0].tax_category = 'Retail'
         with patch.object(native_tax_paths, 'native_contexts', return_value=([context], [])):
             self.assertTrue(self.inspect()['na_configuration_used'])
+
+    def test_customer_specific_and_dated_rules_cannot_false_green(self):
+        for field, value in (("customer", "Buyer"), ("customer_group", "Group"), ("tax_category", "Alternate"), ("from_date", "2026-01-01")):
+            self.rules = [Row(name="CONTEXT", **{field: value})]
+            result = self.assert_blocked("contextual transaction path")
+            self.assertFalse(result["complete_transaction_surface_ready"])
+
+    def test_net_rate_condition_blocks_even_with_valid_default_path(self):
+        self.native_map()
+        self.item.taxes[0].maximum_net_rate = 100
+        self.assert_blocked("net-rate-dependent")
+
+    def test_alternate_category_blocks_even_with_valid_default_path(self):
+        self.native_map()
+        self.item.taxes[0].tax_category = "Other"
+        self.assert_blocked("another Tax Category")
+
+    def test_default_only_configuration_has_complete_surface(self):
+        result = self.inspect()
+        self.assertTrue(result["ready"])
+        self.assertTrue(result["complete_transaction_surface_ready"])
 
 
 class TestClientTaxIntegration(NoNetworkTest):

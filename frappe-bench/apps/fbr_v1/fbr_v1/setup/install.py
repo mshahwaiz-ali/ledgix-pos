@@ -22,7 +22,7 @@ def sync_standard_doctypes() -> None:
     # Standard schema first: Link custom fields validate their targets immediately.
     # reload_doc synchronizes metadata/schema without replacing business records.
     for name in (
-        "ledgix_fbr_business_nature", "ledgix_fbr_pos_device",
+        "ledgix_fbr_legacy_evidence", "ledgix_fbr_pos_device",
         "ledgix_fbr_integration_profile", "ledgix_fbr_item_mapping",
         "ledgix_fbr_tax_component_mapping", "ledgix_fbr_submission_log",
         "ledgix_fbr_fiscal_event_log", "ledgix_fbr_fiscal_closing",

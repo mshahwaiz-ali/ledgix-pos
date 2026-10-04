@@ -8,8 +8,14 @@ Supported transports are the software-owned Local IMS and Cloud Sandbox/Producti
 
 Real transport has two independent site-config gates: `fbr_v1_network_cutover_active` and `fbr_v1_production_cutover_active`, both default `0`. Production also requires its distinct credential, `production_post_armed`, and complete profile/device/authority evidence. General cutover alone cannot authorize Production. Ambiguous sends enter reconciliation; blind retry and fiscal retransmission scheduling are absent.
 
-Software implementation was verified locally at `e6f9b8f9986841584904a500f356e746ad1b415e`: 46/46 V1 tests, existing-site migration, database acceptance, first-attempt reinstall, and post-reinstall migration/idempotency passed while both gates remained off. Real client evidence, credentials, Sandbox acceptance, and Production approval/activation remain external and pending.
+Local corrective validation is recorded in `docs/production/final_corrective_verification.md` at the repository root. Real client evidence, credentials, Sandbox acceptance, and Production approval/activation remain external and pending.
 
 Unsupported contracts remain fail-closed. See the [current documentation router](../../docs/fbr/README.md), [V1 authority](../../docs/fbr/fbr_v1/README.md), [setup guide](../../docs/fbr/fbr_v1/FBR_V1_SETUP_AND_ACTIVATION.md), and [Production checklist](../../docs/fbr/fbr_v1/FBR_V1_PRODUCTION_CHECKLIST.md).
 
-Fresh installation and normal migration are supported. Install ERPNext before `fbr_v1`; do not install frozen `fbr_v12` alongside it as a second active integration. Historical V1.2 ancestry only supplied safe Frappe structure; dormant V2/DI entry points are retired stubs, not active runtime authority.
+Fresh installation and normal migration are supported. Install ERPNext before `fbr_v1`; new installation of retired `fbr_v12` is prohibited. Historical V1.2 ancestry only supplied safe Frappe structure; dormant V2/DI entry points are retired stubs, not active runtime authority.
+
+Fresh Federal V1 schema excludes retired Business Nature, Reference Data, Sandbox Certification and Sandbox Scenario DocTypes and DI-only Integration Profile fields. Existing historical metadata remains resolvable through read-only controllers. A pre-model-sync patch captures exact old profile values and child rows into immutable Ledgix FBR Legacy Evidence; old encrypted credential storage is preserved without decryption and is never promoted to V1. Payload storage has no ordinary API/Desk read permission; audit roles can read only metadata/hash. No historical tables or records are dropped.
+
+Sandbox transport acceptance is distinct from external Production approval. Readiness exposes `sandbox_transport_acceptance_complete`, `external_production_approval_complete`, and `production_configuration_ready`. A System Manager must verify an explicit approval reference and readable uploaded File; verification user/time are stamped by the server. Only System Manager can arm posting from 0 to 1; authorized profile writers can disarm. Site cutovers remain independent.
+
+Legacy Sale formats are non-fiscal archival views. Missing or reconstructed historical identity is not verified fiscal evidence. Pending historical identity backfills are no-ops; current native V1 prints still require strict immutable snapshots and authoritative fiscal results.

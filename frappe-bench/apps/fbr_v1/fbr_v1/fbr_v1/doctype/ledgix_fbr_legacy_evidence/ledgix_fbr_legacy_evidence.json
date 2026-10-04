@@ -1,0 +1,75 @@
+{
+ "doctype": "DocType",
+ "name": "Ledgix FBR Legacy Evidence",
+ "module": "FBR V1",
+ "autoname": "field:source_name",
+ "engine": "InnoDB",
+ "field_order": [
+  "company",
+  "source_kind",
+  "source_name",
+  "payload_json",
+  "payload_hash",
+  "captured_at",
+  "migration_version"
+ ],
+ "fields": [
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "read_only": 1,
+   "options": "Company"
+  },
+  {
+   "fieldname": "source_kind",
+   "fieldtype": "Data",
+   "label": "Source Kind",
+   "read_only": 1
+  },
+  {
+   "fieldname": "source_name",
+   "fieldtype": "Data",
+   "label": "Source Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "payload_json",
+   "fieldtype": "Code",
+   "label": "Payload Json",
+   "read_only": 1,
+   "options": "JSON",
+   "permlevel": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "payload_hash",
+   "fieldtype": "Data",
+   "label": "Payload Hash",
+   "read_only": 1
+  },
+  {
+   "fieldname": "captured_at",
+   "fieldtype": "Datetime",
+   "label": "Captured At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "migration_version",
+   "fieldtype": "Data",
+   "label": "Migration Version",
+   "read_only": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1
+  },
+  {
+   "role": "Accounts Manager",
+   "read": 1
+  }
+ ],
+ "track_changes": 0
+}

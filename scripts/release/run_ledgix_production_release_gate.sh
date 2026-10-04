@@ -85,7 +85,7 @@ printf '\n===== OFFLINE + ONLINE SMOKE =====\n'
 bash "$REPO_ROOT/deploy/smoke_test.sh" --site "$SITE" --bench-dir "$BENCH_DIR" --all --url "$URL"
 
 printf '\n===== STRICT RELEASE ACCEPTANCE =====\n'
-KWARGS="$($BENCH_DIR/env/bin/python -c 'import json,sys; print(json.dumps({"release_sha":sys.argv[1],"operator":"production-release-gate","require_fbr_certification":int(sys.argv[2])}))' "$TARGET_SHA" "$REQUIRE_FBR")"
+KWARGS="$($BENCH_DIR/env/bin/python -c 'import json,sys; print(json.dumps({"release_sha":sys.argv[1],"operator":"production-release-gate","require_fbr_production":int(sys.argv[2])}))' "$TARGET_SHA" "$REQUIRE_FBR")"
 OUTPUT="$(bench_run --site "$SITE" execute ledgix_saas.api.release_acceptance.generate_release_acceptance_evidence --kwargs "$KWARGS")"
 printf '%s\n' "$OUTPUT"
 READY="$(printf '%s\n' "$OUTPUT" | parse_ready)"

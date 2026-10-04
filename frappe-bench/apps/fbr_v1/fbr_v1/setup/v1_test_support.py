@@ -59,7 +59,7 @@ class NoNetworkTest(unittest.TestCase):
         self.stack.enter_context(patch.object(frappe, "throw", side_effect=throw))
         self.stack.enter_context(patch("socket.socket.connect", side_effect=AssertionError("Network forbidden in tests")))
         self.stack.enter_context(patch("requests.sessions.Session.request", side_effect=AssertionError("HTTP forbidden in tests")))
-        self.stack.enter_context(patch.object(frappe, "get_system_settings", return_value="Asia/Karachi"))
+        self.stack.enter_context(patch.object(frappe, "get_system_settings", side_effect=lambda key: {"time_zone": "Asia/Karachi", "rounding_method": "Banker's Rounding", "float_precision": 3, "currency_precision": 2}.get(key)))
         frappe.local.flags = Row(in_test=False)
         self.db = self.stack.enter_context(patch.object(frappe, "db", Mock(), create=True))
         self.stack.enter_context(patch.object(frappe, "session", Row(user="test@example.invalid"), create=True))

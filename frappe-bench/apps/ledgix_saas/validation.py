@@ -15,11 +15,11 @@ REQUIRED_DOCTYPE_FIELDS = {
         "enabled",
         "mode",
         "submit_trigger",
-        "sandbox_token",
-        "production_token",
+        "v1_sandbox_token",
+        "v1_production_token",
         "production_post_armed",
-        "onboarding_status",
-        "reference_sync_status",
+        "protocol_version",
+        "default_pos_device",
     ),
     "Ledgix FBR Submission Log": (
         "reference_doctype",
@@ -59,15 +59,12 @@ REQUIRED_DOCTYPE_FIELDS = {
 }
 
 REQUIRED_MODULES = (
-    "ledgix_saas.api.fbr_health",
-    "ledgix_saas.api.fbr_native",
-    "ledgix_saas.api.fbr_v2_center",
-    "ledgix_saas.api.fbr_reference_v2",
-    "ledgix_saas.api.fbr_v2_transport",
-    "ledgix_saas.services.fbr_v2_status",
-    "ledgix_saas.services.fbr_v2_readiness",
+    "ledgix_saas.services.fbr_v1_bridge",
     "ledgix_saas.services.erpnext_tax_authority",
+    "ledgix_saas.services.erpnext_selling",
+    "ledgix_saas.services.erpnext_pos",
 )
+
 
 # Legacy blind retry/offline recovery workers are intentionally retired.
 REQUIRED_SCHEDULER_METHODS = ()

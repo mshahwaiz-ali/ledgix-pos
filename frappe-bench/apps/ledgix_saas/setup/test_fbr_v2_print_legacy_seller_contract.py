@@ -29,28 +29,16 @@ class TestFBRV2PrintLegacySellerContract(unittest.TestCase):
             "historical_fbr_evidence.SNAPSHOT_VERSION",
             "historical_fbr_evidence.read_persisted_v2_snapshot(",
             '"persisted_v2"',
-            '"identity_source": identity_source',
-            '"identity_snapshot_hash": identity_snapshot_hash',
+            'identity_source=identity_source',
+            'identity_snapshot_hash=identity_snapshot_hash',
         ):
             self.assertIn(required, PRINTING)
 
-    def test_native_print_fallback_is_erpnext_identity(self):
-        self.assertIn(
-            "erpnext_fbr_identity.resolve_invoice_identity(doc)",
-            PRINTING,
-        )
-        self.assertIn('"erpnext_live"', PRINTING)
-
-    def test_print_uses_only_non_secret_v2_profile_metadata(self):
-        self.assertIn("Ledgix FBR Integration Profile", PRINTING)
-        self.assertIn("software_registration_number", PRINTING)
-        self.assertIn('"digital_invoicing_logo": ""', PRINTING)
-        for forbidden in (
-            "sandbox_token",
-            "production_token",
-            "get_decrypted_password",
-        ):
+    def test_historical_fiscal_identity_never_falls_back(self):
+        for forbidden in ('erpnext_live', 'resolve_invoice_identity', 'get_brand_settings', '_v2_profile_public', 'get_print_logo_url'):
             self.assertNotIn(forbidden, PRINTING)
+        self.assertIn('Historical fiscal evidence unavailable', PRINTING)
+        self.assertIn('from fbr_v1.api.printing import get_native_invoice_print_context', PRINTING)
 
     def test_legacy_sale_seller_snapshot_no_longer_reads_fbr_settings(self):
         for forbidden in (

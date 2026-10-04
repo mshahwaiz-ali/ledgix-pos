@@ -39,9 +39,9 @@ The gate itself makes **no Production network call to FBR**, does not validate/p
 
 ## External FBR state
 
-FBR code/setup can be complete while external certification remains pending because the client has not yet supplied seller identity or tokens. That state does not invalidate the Ledgix application setup.
+FBR code/setup can be complete while external Production approval remains pending because the client has not yet supplied seller identity or tokens. That state does not invalidate the Ledgix application setup.
 
-When Federal V1 Production is required, the release remains blocked until the current V1 checklist has real Sandbox evidence, Production credential/approval, device/authority/QR/signature evidence, fresh verified backup, exact release identity, both independent cutover decisions, and no unresolved reconciliation state. Older `ledgix_saas` DI gates are historical and do not prove current V1 acceptance.
+When Federal V1 Production is required, the release remains blocked until the current V1 checklist has real Sandbox evidence, Production credential/approval, device/authority evidence and documented QR acceptance, fresh verified backup, exact release identity, both independent cutover decisions, and no unresolved reconciliation state. Older `ledgix_saas` DI gates are historical and do not prove current V1 acceptance.
 
 ## Manual UAT
 
@@ -63,8 +63,14 @@ Only a fully green production run emits:
 ledgix_production_release_gate_complete=true
 ```
 
-If external FBR certification or physical/manual UAT is not yet available, use the local acceptance readiness gate to prove that application setup is ready without claiming production acceptance:
+If external FBR Production approval or physical/manual UAT is not yet available, use the local acceptance readiness gate to prove that application setup is ready without claiming production acceptance:
 
 ```bash
 bash scripts/release/run_release_acceptance_readiness_gate.sh ledgix-erpnext.local
 ```
+
+## Evidence schema 2
+
+The canonical API input is `require_fbr_production`; `require_fbr_certification` is a deprecated input alias only. There is no output named external certification. The release reports independent `fbr_sandbox_transport_acceptance_complete`, `fbr_external_production_approval_complete`, `fbr_production_configuration_ready`, and `fbr_production_release_ready` states. Strict FBR release requires all of these plus general network cutover, Production cutover, transport enablement, posting arm, manual UAT, immutable-release/provisioning evidence and verified backup. Evaluation is read-only and never changes any of these gates.
+
+Sandbox success never proves external Production/go-live approval. Explicit approval uses V1-owned profile fields: status, reference, uploaded File evidence, verified timestamp and verified user. Only System Manager may verify; the server checks File read permission and stamps verification. This is internal evidence tracking, not an undocumented FBR endpoint. Old acceptance schema 1 must not be interpreted with schema 2 semantics.

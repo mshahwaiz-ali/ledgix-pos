@@ -127,12 +127,14 @@ class TestSandboxAcceptance(NoNetworkTest):
         with patch.object(frappe, 'get_doc', side_effect=lambda dt, name:
                 self.device if dt == 'Ledgix FBR POS Device' else Row(name=name)):
             ready = client.get_client_readiness('Test Company')
-            self.assertTrue(ready['sandbox_certification_complete'])
+            self.assertTrue(ready['sandbox_transport_acceptance_complete'])
+            self.assertEqual(ready['sandbox_certification_complete'], ready['sandbox_transport_acceptance_complete'])
+            self.assertFalse(ready['external_production_approval_complete'])
             self.assertEqual(ready['sandbox_acceptance']['status'], 'Accepted')
             self.assertFalse(ready['sandbox_acceptance']['production_authorized'])
             self.assertFalse(ready['production_ready'])
             self.rows = []
-            self.assertFalse(client.get_client_readiness('Test Company')['sandbox_certification_complete'])
+            self.assertFalse(client.get_client_readiness('Test Company')['sandbox_transport_acceptance_complete'])
         self.decrypt.assert_not_called()
         self.db.set_value.assert_not_called()
 

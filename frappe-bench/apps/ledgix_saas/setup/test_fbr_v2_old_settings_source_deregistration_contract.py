@@ -11,7 +11,7 @@ def _repo_root() -> Path:
     for candidate in APP_ROOT.parents:
         if (
             (candidate / "scripts").is_dir()
-            and (candidate / "apps" / "ledgix_saas").is_dir()
+            and (candidate / "frappe-bench/apps/ledgix_saas").is_dir()
         ):
             return candidate
     raise RuntimeError(f"Could not locate repository root from {APP_ROOT}")
@@ -30,32 +30,10 @@ class TestOldFBRSettingsSourceDeregistration(unittest.TestCase):
         )
 
     def test_product_shell_uses_v2_profile_navigation_label(self):
-        text = (APP_ROOT / "api/product_shell.py").read_text(encoding="utf-8")
-        self.assertNotIn('"FBR Settings":', text)
-        self.assertNotIn('"FBR Settings",', text)
-        self.assertIn('"FBR Integration Profiles":', text)
-        self.assertIn('"FBR Integration Profiles",', text)
-
-        workspace = json.loads(
-            (
-                APP_ROOT
-                / "ledgix"
-                / "workspace"
-                / "ledgix"
-                / "ledgix.json"
-            ).read_text(encoding="utf-8")
-        )
-        matches = [
-            row
-            for row in workspace.get("links") or []
-            if row.get("label") == "FBR Integration Profiles"
-        ]
-        self.assertEqual(len(matches), 1)
-        self.assertEqual(
-            matches[0].get("link_to"),
-            "Ledgix FBR Integration Profile",
-        )
-        self.assertEqual(matches[0].get("link_type"), "DocType")
+        text = (APP_ROOT / "api/product_shell.py").read_text()
+        self.assertIn("FBR Integration Profiles", text)
+        self.assertNotIn("Ledgix FBR Settings", text)
+        self.assertNotIn("fbr-v12-center", text)
 
     def test_permission_source_no_longer_registers_old_settings(self):
         text = (APP_ROOT / "setup/permissions.py").read_text(encoding="utf-8")
@@ -63,7 +41,7 @@ class TestOldFBRSettingsSourceDeregistration(unittest.TestCase):
 
     def test_repo_validator_no_longer_requires_old_api_import(self):
         text = (
-            REPO_ROOT / "scripts" / "validate_repo.sh"
+            REPO_ROOT / "scripts" / "validation/validate_repo.sh"
         ).read_text(encoding="utf-8")
         self.assertNotIn('"ledgix_saas.api.fbr_settings",', text)
 

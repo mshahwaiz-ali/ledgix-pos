@@ -108,7 +108,7 @@ class TestReadiness(NoNetworkTest):
         return profile, compliance
 
     def test_production_profile_requires_submit_and_print_invariants(self):
-        base = dict(protocol_version=identity.PROTOCOL, mode='Production', enabled=1,
+        base = dict(get_doc_before_save=lambda: Row(production_post_armed=1), protocol_version=identity.PROTOCOL, mode='Production', enabled=1,
                     transport_enabled=1, production_post_armed=1, provider_type='PRAL',
                     offline_policy='Disabled', default_pos_device=None,
                     pos_service_fee_account='FBR POS Service Fee Payable - TEST',

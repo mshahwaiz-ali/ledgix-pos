@@ -244,105 +244,17 @@ def _build_sale(customer, sale_channel, price_list, cart_items, discount_type, d
 
 
 @frappe.whitelist()
-def preview_pos_v2_checkout(cart_items=None, customer=None, sale_channel="Retail", price_list=None, discount_type="Amount", discount_value=0):
-	require_ledgix_cashier_or_above()
-	sale_channel = sale_channel if sale_channel in {"Retail", "B2B"} else "Retail"
-	if sale_channel == "B2B":
-		_require_manager(_("B2B checkout requires Manager or Admin access."))
-	customer = _customer_name(customer, sale_channel)
-	price_list = resolve_price_list(customer, price_list, sale_channel)
-	sale = _build_sale(customer, sale_channel, price_list, cart_items, discount_type, discount_value, pos_shift=_open_shift())
-	credit = get_customer_receivables(customer) if sale_channel == "B2B" else None
-	return {
-		"subtotal": flt(sale.subtotal_before_discount),
-		"discount_amount": flt(sale.discount_amount),
-		"total_amount": flt(sale.total_amount),
-		"tax_amount": flt(sale.tax_amount),
-		"grand_total": flt(sale.grand_total),
-		"price_list": price_list,
-		"sale_channel": sale_channel,
-		"credit": credit,
-		"items": [{
-			"item": row.item,
-			"quantity": flt(row.quantity),
-			"list_rate": flt(row.list_rate),
-			"rate": flt(row.rate),
-			"amount": flt(row.amount),
-			"tax_basis": row.tax_basis_snapshot,
-			"tax_rate": flt(row.tax_rate_snapshot),
-			"notified_retail_price": flt(row.notified_retail_price_snapshot),
-		} for row in sale.items],
-	}
+def preview_pos_v2_checkout(*args, **kwargs):
+    """Direct compatibility calls share the current ERPNext authority."""
+    from ledgix_saas.api import pos_compat
+    return pos_compat.preview_pos_v2_checkout(*args, **kwargs)
 
 
 @frappe.whitelist()
-def complete_pos_v2_sale(
-	cart_items=None,
-	tenders=None,
-	customer=None,
-	sale_channel="Retail",
-	price_list=None,
-	discount_type="Amount",
-	discount_value=0,
-	client_sale_id=None,
-):
-	require_ledgix_cashier_or_above()
-	sale_channel = sale_channel if sale_channel in {"Retail", "B2B"} else "Retail"
-	if sale_channel == "B2B":
-		_require_manager(_("B2B checkout requires Manager or Admin access."))
-	customer = _customer_name(customer, sale_channel)
-	price_list = resolve_price_list(customer, price_list, sale_channel)
-	shift = _open_shift()
-	if sale_channel == "Retail" and not shift:
-		frappe.throw(_("Open a POS shift before retail checkout."))
-
-	client_sale_id = (client_sale_id or "").strip()
-	if client_sale_id:
-		existing = frappe.db.get_value("Ledgix Sale", {"client_sale_id": client_sale_id, "docstatus": 1}, "name")
-		if existing:
-			return {"success": True, "sale": existing, "duplicate": True}
-
-	sale = _build_sale(customer, sale_channel, price_list, cart_items, discount_type, discount_value, pos_shift=shift, client_sale_id=client_sale_id)
-	tenders = _parse(tenders) or []
-	for tender in tenders:
-		amount = flt(tender.get("amount"))
-		method = tender.get("payment_method")
-		if amount <= 0 or not method:
-			continue
-		method_meta = frappe.db.get_value(
-			"Ledgix Payment Method",
-			method,
-			["method_type", "enabled"],
-			as_dict=True,
-		)
-		if not method_meta:
-			frappe.throw(_("Payment Method {0} is not configured.").format(method))
-		if not method_meta.enabled:
-			frappe.throw(_("Payment Method {0} is disabled.").format(method))
-		sale.append("payments", {
-			"payment_method": method,
-			"amount": amount,
-			"is_cash_payment": 1 if method_meta.method_type == "Cash" else 0,
-			"reference_no": tender.get("reference_number") or tender.get("reference_no") or "",
-			"notes": tender.get("notes") or "",
-		})
-
-	sale.insert(ignore_permissions=True)
-	sale.submit()
-	return {
-		"success": True,
-		"sale": sale.name,
-		"invoice_number": sale.invoice_number,
-		"sale_channel": sale.sale_channel,
-		"price_list": sale.price_list,
-		"grand_total": flt(sale.grand_total),
-		"paid_amount": flt(sale.paid_amount),
-		"remaining_amount": flt(sale.remaining_amount),
-		"change_amount": flt(sale.change_amount),
-		"payment_status": sale.payment_status,
-		"fbr_status": sale.fbr_status,
-		"print_mode": "A4" if sale.sale_channel == "B2B" else "Thermal",
-	}
+def complete_pos_v2_sale(*args, **kwargs):
+    """Direct compatibility calls share the current ERPNext authority."""
+    from ledgix_saas.api import pos_compat
+    return pos_compat.complete_pos_v2_sale(*args, **kwargs)
 
 
 @frappe.whitelist()

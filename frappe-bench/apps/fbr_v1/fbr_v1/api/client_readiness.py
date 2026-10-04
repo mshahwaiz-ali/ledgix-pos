@@ -8,6 +8,7 @@ from fbr_v1.protocol import transport
 from fbr_v1.services import erpnext_tax_readiness
 from fbr_v1.services.payment_readiness import get_payment_readiness
 from fbr_v1.services.sandbox_acceptance import get_sandbox_acceptance
+from fbr_v1.services.production_approval import approval_complete
 
 
 PROFILE_STATE_FIELDS = (
@@ -39,7 +40,8 @@ def get_client_readiness(company):
     states = {}
     for mode in ("Sandbox", "Production"):
         candidates = [d for d in devices if d.environment == mode]
-        checks = [{"device": d.name, "blockers": configuration_blockers(profile, d, mode)} for d in candidates]
+        checks = [{"device": d.name, "blockers": [e for e in configuration_blockers(profile, d, mode)
+            if e not in {"Transport is disabled.", "Production posting is not armed."}]} for d in candidates]
         ready = source["ready"] and any(not c["blockers"] for c in checks)
         states[mode.lower()] = {"ready": bool(ready), "devices": checks,
             "blockers": source["errors"] + ([] if ready else sorted(set(
@@ -76,7 +78,9 @@ def get_client_readiness(company):
             "enabled": profile_active(profile), "mode": mode,
             # Compatibility field means the explicit V1 acceptance scope below,
             # not legacy DI scenarios, regulatory certification, or Production authorization.
-            "sandbox_certification_complete": sandbox_acceptance["complete"],
+            "sandbox_certification_complete": sandbox_acceptance["complete"],  # deprecated alias only
+            "sandbox_transport_acceptance_complete": sandbox_acceptance["complete"],
+            "external_production_approval_complete": approval_complete(profile),
             "sandbox_acceptance": sandbox_acceptance,
             "source_accounting_ready": source["ready"], "source_blockers": source["errors"],
             "tax_configuration": tax_configuration,
@@ -90,6 +94,9 @@ def get_client_readiness(company):
             "configuration": states,
             "network_cutover_active": transport.network_cutover_active(),
             "production_cutover_active": transport.production_cutover_active(),
-            "production_ready": not setup_blockers and states["production"]["ready"] and transport.production_cutover_active(),
+            "production_ready": bool(not setup_blockers and states["production"]["ready"]
+                and sandbox_acceptance["complete"] and approval_complete(profile)
+                and transport.network_cutover_active() and transport.production_cutover_active()
+                and profile and profile.get("transport_enabled") and profile.get("production_post_armed")),
             "invoice_readiness_required": True, "blockers": blockers,
             "unresolved_contracts": UNRESOLVED, "external_closing_status": "Unresolved", "network_call": False}

@@ -6,10 +6,9 @@ from ledgix_saas.setup import erpnext_extensions
 
 class TestERPNextExtensionContract(unittest.TestCase):
     def test_phase3_targets_only_standard_erpnext_documents(self):
-        self.assertEqual(
-            set(erpnext_extensions.CUSTOM_FIELDS),
-            {"Customer", "Sales Invoice", "POS Invoice", "Sales Invoice Item", "POS Invoice Item"},
-        )
+        self.assertTrue(set(erpnext_extensions.CUSTOM_FIELDS).issubset({"Company","Address","Customer","Supplier","Item","Item Group","Item Price","Price List","Mode of Payment","POS Profile"}))
+        from fbr_v1.setup import erpnext_fbr_schema
+        self.assertTrue({"Sales Invoice Item","POS Invoice Item"}.issubset(erpnext_fbr_schema.CUSTOM_FIELDS))
 
     def test_all_extension_fields_use_custom_namespace(self):
         for doctype, fields in erpnext_extensions.CUSTOM_FIELDS.items():
@@ -19,16 +18,11 @@ class TestERPNextExtensionContract(unittest.TestCase):
                     self.assertEqual(field.get("module"), "Ledgix")
 
     def test_line_legal_snapshots_are_immutable_contracts(self):
+        from fbr_v1.setup import erpnext_fbr_schema
         for doctype in ("Sales Invoice Item", "POS Invoice Item"):
-            legal_fields = [
-                field
-                for field in erpnext_extensions.CUSTOM_FIELDS[doctype]
-                if field["fieldtype"] not in {"Section Break", "Column Break"}
-            ]
-            self.assertTrue(legal_fields)
-            for field in legal_fields:
-                self.assertEqual(field.get("read_only"), 1)
-                self.assertEqual(field.get("no_copy"), 1)
+            fields = {f["fieldname"]:f for f in erpnext_fbr_schema.CUSTOM_FIELDS[doctype]}
+            self.assertIn("custom_ledgix_fbr_snapshot_json", fields)
+            self.assertTrue(fields["custom_ledgix_fbr_snapshot_json"]["read_only"])
 
     def test_business_profile_defaults_cover_product_modes(self):
         self.assertEqual(

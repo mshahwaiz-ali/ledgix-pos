@@ -1,13 +1,10 @@
 [project]
 name = "fbr_v12"
 authors = [{ name = "Ali", email = "alishahwaiz96@gmail.com" }]
-description = "ERPNext integration for FBR Digital Invoicing V1.2"
+description = "Non-executable historical Digital Invoicing V1.2 app identity"
 requires-python = ">=3.10"
 dynamic = ["version"]
-dependencies = [
-    "requests>=2.31,<3",
-    "PyQRCode>=1.2.1,<2",
-]
+dependencies = []
 
 [tool.setuptools.dynamic]
 version = { attr = "fbr_v12.__version__" }

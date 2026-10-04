@@ -12,6 +12,6 @@ The canonical Ledgix-owned application source is edited directly under:
 
 - `frappe-bench/apps/ledgix_saas`
 - `frappe-bench/apps/fbr_v1`
-- `frappe-bench/apps/fbr_v12`
+- `frappe-bench/apps/fbr_v12` is a historical tombstone excluded from active application validation.
 
 There is no separate root `apps/` development source and no local source-to-bench synchronization step.

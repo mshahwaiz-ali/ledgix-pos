@@ -134,7 +134,6 @@ def configure_sandbox_from_private_file(config_path: str) -> dict:
     profile.mode = "Sandbox"
     profile.submit_trigger = "Manual"
     profile.production_post_armed = 0
-    profile.block_sale_if_fbr_fails = 0
 
     if "software_registration_number" in payload:
         profile.software_registration_number = str(

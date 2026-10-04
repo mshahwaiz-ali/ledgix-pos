@@ -84,16 +84,11 @@ class TestFBRPhase9LegacyTaxRetirementContract(unittest.TestCase):
             self.assertNotIn(value, source)
 
     def test_validation_requires_current_authorities(self):
-        source = (APP_ROOT / "validation.py").read_text(encoding="utf-8")
-        for value in ('"ledgix_saas.api.taxation"','"ledgix_saas.api.fbr_submission"','"ledgix_saas.api.fbr_client"'):
-            self.assertNotIn(value, source)
-        for value in (
-            '"ledgix_saas.services.erpnext_tax_authority"',
-            '"ledgix_saas.api.fbr_v2_center"',
-            '"ledgix_saas.api.fbr_reference_v2"',
-            '"ledgix_saas.services.fbr_v2_readiness"',
-        ):
-            self.assertIn(value, source)
+        source = (APP_ROOT / "validation.py").read_text()
+        for required in ("ledgix_saas.services.fbr_v1_bridge", "ledgix_saas.services.erpnext_tax_authority", '"v1_sandbox_token"', '"v1_production_token"'):
+            self.assertIn(required, source)
+        for forbidden in ('"sandbox_token"', '"production_token"', '"onboarding_status"', '"reference_sync_status"', '"ledgix_saas.api.fbr_v2_center"'):
+            self.assertNotIn(forbidden, source)
 
     def test_frozen_archive_backfill_is_physically_retired(self):
         source = (
@@ -103,64 +98,11 @@ class TestFBRPhase9LegacyTaxRetirementContract(unittest.TestCase):
         self.assertNotIn('"Ledgix Item Tax Profile"', source)
 
     def test_external_legacy_tax_links_are_replaced_by_data_snapshots(self):
-        extensions = (
-            APP_ROOT / "setup" / "erpnext_extensions.py"
-        ).read_text(encoding="utf-8")
-        phase5 = (
-            APP_ROOT / "setup" / "erpnext_phase5_extensions.py"
-        ).read_text(encoding="utf-8")
-
-        self.assertNotIn(
-            '_cf(\n            "custom_ledgix_fbr_item_profile",',
-            extensions,
-        )
-        self.assertIn(
-            '"custom_ledgix_legacy_fbr_item_profile_snapshot"',
-            extensions,
-        )
-
-        self.assertNotIn(
-            '_cf(\n            "custom_ledgix_default_tax_category",',
-            phase5,
-        )
-        self.assertIn(
-            '"custom_ledgix_legacy_default_tax_category_snapshot"',
-            phase5,
-        )
-
-        category = json.loads(
-            (
-                APP_ROOT / "ledgix" / "doctype" / "ledgix_category"
-                / "ledgix_category.json"
-            ).read_text(encoding="utf-8")
-        )
-        row = next(
-            x for x in category["fields"]
-            if x.get("fieldname") == "default_tax_category"
-        )
-        self.assertEqual(row.get("fieldtype"), "Data")
-        self.assertNotIn("options", row)
-
-        sale_item = json.loads(
-            (
-                APP_ROOT / "ledgix" / "doctype" / "ledgix_sale_item"
-                / "ledgix_sale_item.json"
-            ).read_text(encoding="utf-8")
-        )
-        row = next(
-            x for x in sale_item["fields"]
-            if x.get("fieldname") == "item_tax_profile_snapshot"
-        )
-        self.assertEqual(row.get("fieldtype"), "Data")
-        self.assertNotIn("options", row)
-
-        migration = (
-            APP_ROOT / "migration" / "fbr_phase9_snapshot_link_detachment.py"
-        ).read_text(encoding="utf-8")
-        self.assertIn("copied_values_preserved", migration)
-        self.assertIn("external_legacy_links", migration)
-        self.assertNotIn("requests.", migration)
-        self.assertNotIn("fbr.gov.pk", migration)
+        from fbr_v1.setup import erpnext_fbr_schema
+        fields = erpnext_fbr_schema.CUSTOM_FIELDS
+        self.assertTrue({"Sales Invoice Item","POS Invoice Item"}.issubset(fields))
+        for name in ("Sales Invoice Item","POS Invoice Item"):
+            self.assertFalse(any(f.get("options")=="Ledgix Item Tax Profile" for f in fields[name]))
 
     def test_operational_paths_do_not_call_legacy_tax_engine(self):
         for relative in (
@@ -359,7 +301,8 @@ class TestFBRPhase9LegacyTaxRetirementContract(unittest.TestCase):
             "ledgix_saas.patches.v1_0."
             "cleanup_retired_legacy_tax_config_masters"
         )
-        self.assertEqual(patches[-1], expected)
+        self.assertEqual(patches[-2], expected)
+        self.assertEqual(patches[-1], "ledgix_saas.patches.v1_0.sync_archival_transaction_prints")
 
         source = (
             APP_ROOT

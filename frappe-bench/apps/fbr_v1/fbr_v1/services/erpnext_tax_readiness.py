@@ -173,5 +173,7 @@ def get_company_tax_readiness(company):
     warnings.append("Template rates are reported configuration, not verified legal classifications; invoice-time native resolution remains required.")
     result["blockers"] = list(dict.fromkeys(blockers))
     result["warnings"] = list(dict.fromkeys(warnings))
-    result["ready"] = not result["blockers"]
+    result["default_static_path_coverage_ready"] = all(row["ready"] for row in native_items)
+    result["complete_transaction_surface_ready"] = not result["blockers"]
+    result["ready"] = result["complete_transaction_surface_ready"]
     return result

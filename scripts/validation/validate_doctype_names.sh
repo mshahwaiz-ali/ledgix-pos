@@ -17,7 +17,7 @@ import sys
 
 root = pathlib.Path(sys.argv[1])
 apps_root = root / "frappe-bench" / "apps"
-app_names = ("ledgix_saas", "fbr_v1", "fbr_v12")
+app_names = ("ledgix_saas", "fbr_v1")
 
 errors = []
 checked = 0

@@ -172,6 +172,12 @@ def _backfill_legacy_payments():
 
 
 def execute():
+	# Current ERPNext sites must not reopen or bootstrap parallel legacy ledgers.
+	if "erpnext" in frappe.get_installed_apps():
+		return
+	from ledgix_saas.api.legacy_retirement import is_frozen
+	if is_frozen():
+		return
 	if not frappe.db.exists("DocType", "Ledgix Price List"):
 		return
 

@@ -12,7 +12,7 @@ def _repo_root() -> Path:
     for candidate in APP_ROOT.parents:
         if (
             (candidate / "scripts").is_dir()
-            and (candidate / "apps" / "ledgix_saas").is_dir()
+            and (candidate / "frappe-bench/apps/ledgix_saas").is_dir()
         ):
             return candidate
     raise RuntimeError(f"Could not locate repository root from {APP_ROOT}")

@@ -89,18 +89,18 @@ bash "$REPO_ROOT/deploy/smoke_test.sh" --site "$SITE" --bench-dir "$BENCH_DIR" -
 
 printf '\n===== RELEASE ACCEPTANCE EVIDENCE =====\n'
 RELEASE_SHA="$(git -C "$REPO_ROOT" rev-parse HEAD)"
-KWARGS="$($BENCH_PYTHON -c 'import json,sys; print(json.dumps({"release_sha":sys.argv[1],"operator":"local-release-acceptance-gate","require_fbr_certification":0}))' "$RELEASE_SHA")"
+KWARGS="$($BENCH_PYTHON -c 'import json,sys; print(json.dumps({"release_sha":sys.argv[1],"operator":"local-release-acceptance-gate","require_fbr_production":0}))' "$RELEASE_SHA")"
 OUTPUT="$(bench_run --site "$SITE" execute ledgix_saas.api.release_acceptance.generate_release_acceptance_evidence --kwargs "$KWARGS")"
 printf '%s\n' "$OUTPUT"
 
 SETUP_READY="$(printf '%s\n' "$OUTPUT" | parse_bool release_setup_ready)"
 MANUAL_READY="$(printf '%s\n' "$OUTPUT" | parse_bool manual_uat_ready)"
-FBR_READY="$(printf '%s\n' "$OUTPUT" | parse_bool fbr_external_certification_complete)"
+FBR_READY="$(printf '%s\n' "$OUTPUT" | parse_bool fbr_external_production_approval_complete)"
 PROD_READY="$(printf '%s\n' "$OUTPUT" | parse_bool production_release_ready)"
 
 printf 'release_setup_ready=%s\n' "$([[ "$SETUP_READY" == 1 ]] && printf true || printf false)"
 printf 'manual_uat_ready=%s\n' "$([[ "$MANUAL_READY" == 1 ]] && printf true || printf false)"
-printf 'fbr_external_certification_complete=%s\n' "$([[ "$FBR_READY" == 1 ]] && printf true || printf false)"
+printf 'fbr_external_production_approval_complete=%s\n' "$([[ "$FBR_READY" == 1 ]] && printf true || printf false)"
 printf 'production_release_ready=%s\n' "$([[ "$PROD_READY" == 1 ]] && printf true || printf false)"
 
 [[ "$SETUP_READY" == "1" ]] || fail 'machine-verifiable Ledgix release setup is not ready'
@@ -110,5 +110,5 @@ printf '[PASS] machine-verifiable release setup is green\n'
 printf '[PASS] repository code was synced, migrated and built before evidence capture\n'
 printf '[PASS] Phase 12 snapshot verification was read-only\n'
 printf '[PASS] no FBR network call or Production arming occurred\n'
-printf '[INFO] manual device/UAT and external FBR certification may remain pending without blocking code/setup readiness\n'
+printf '[INFO] manual device/UAT and external Production approval may remain pending without blocking code/setup readiness\n'
 printf 'release_acceptance_readiness_complete=true\n'

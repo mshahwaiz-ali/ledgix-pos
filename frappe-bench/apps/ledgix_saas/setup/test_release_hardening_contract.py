@@ -5,7 +5,7 @@ from pathlib import Path
 
 
 APP_ROOT = Path(__file__).resolve().parents[1]
-REPO_ROOT = APP_ROOT.parents[1]
+REPO_ROOT = APP_ROOT.parents[2]
 DEPLOY = REPO_ROOT / "deploy"
 SCRIPTS = REPO_ROOT / "scripts"
 
@@ -84,7 +84,7 @@ class TestReleaseHardeningContract(unittest.TestCase):
         )
 
     def test_release_hardening_gate_is_consolidated(self):
-        path = SCRIPTS / "run_release_hardening_static_gate.sh"
+        path = SCRIPTS / "release/run_release_hardening_static_gate.sh"
         self.assertTrue(path.exists())
         source = path.read_text(encoding="utf-8")
         self.assertIn("ci_local.sh", source)

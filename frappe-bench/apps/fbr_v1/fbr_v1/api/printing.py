@@ -325,6 +325,8 @@ def _identity_for_print(doc) -> tuple[dict, str, str]:
             persisted.get("snapshot_hash") or "",
         )
 
+    if doc.get("custom_ledgix_fbr_v2_snapshot_version") or doc.get("custom_ledgix_fbr_invoice_number") or doc.get("custom_ledgix_fbr_required"):
+        frappe.throw("Historical fiscal evidence unavailable through the current V1 identity path.")
     return (
         erpnext_fbr_identity.resolve_invoice_identity(doc),
         "erpnext_live",
@@ -404,6 +406,11 @@ def get_native_invoice_print_context(reference_doctype, reference_name) -> dict:
         frappe.throw("Ledgix native print source must be Sales Invoice or POS Invoice.")
     doc = frappe.get_doc(doctype, name)
     doc.check_permission("read")
+    if doc.get("custom_ledgix_fbr_snapshot_protocol") != PROTOCOL and (
+            doc.get("custom_ledgix_fbr_v2_snapshot_version") or doc.get("custom_ledgix_fbr_invoice_number")
+            or doc.get("custom_ledgix_fbr_required")):
+        from ledgix_saas.api.printing import get_native_invoice_print_context as historical_print
+        return historical_print(doctype, name)
     fiscal_state = get_invoice_fiscal_print_state(doc)
     if fiscal_state["print_blocked"]:
         frappe.throw(fiscal_state["message"])

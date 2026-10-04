@@ -1,5 +1,5 @@
-from frappe.model.document import Document
+from fbr_v1.services.historical_document import HistoricalDocument
 
 
-class LedgixFBRSandboxScenario(Document):
+class LedgixFBRSandboxScenario(HistoricalDocument):
     pass

@@ -6,7 +6,7 @@ from pathlib import Path
 
 
 APP_ROOT = Path(__file__).resolve().parents[1]
-DOCTYPE_ROOT = APP_ROOT / "ledgix" / "doctype"
+DOCTYPE_ROOT = APP_ROOT.parent / "fbr_v1/fbr_v1/fbr_v1/doctype"
 
 
 def _schema(folder: str, filename: str) -> dict:
@@ -23,14 +23,10 @@ class TestFBRRedesignPhase2SchemaContract(unittest.TestCase):
 
         self.assertEqual(fields["company"]["options"], "Company")
         self.assertEqual(fields["company"].get("unique"), 1)
-        self.assertEqual(fields["sandbox_token"]["fieldtype"], "Password")
-        self.assertEqual(fields["production_token"]["fieldtype"], "Password")
-        self.assertIn("business_natures", fields)
-        self.assertEqual(
-            fields["business_natures"]["options"],
-            "Ledgix FBR Business Nature",
-        )
-        self.assertIn("sector", fields)
+        self.assertEqual(fields["v1_sandbox_token"]["fieldtype"], "Password")
+        self.assertEqual(fields["v1_production_token"]["fieldtype"], "Password")
+        self.assertNotIn("business_natures", fields)
+        self.assertNotIn("sector", fields)
         self.assertIn("provider_type", fields)
         self.assertIn("production_post_armed", fields)
 
@@ -98,50 +94,16 @@ class TestFBRRedesignPhase2SchemaContract(unittest.TestCase):
             self.assertNotIn(forbidden, fields)
 
     def test_reference_data_models_official_reference_families(self):
-        schema = _schema(
-            "ledgix_fbr_reference_data",
-            "ledgix_fbr_reference_data.json",
-        )
-        fields = {row["fieldname"]: row for row in schema["fields"]}
-        options = set(fields["reference_type"]["options"].splitlines())
-
-        self.assertTrue(
-            {
-                "Province",
-                "Document Type",
-                "Transaction Type",
-                "UOM",
-                "Rate",
-                "HS-UOM",
-                "SRO Schedule",
-                "SRO Item",
-                "Registration Type",
-            }.issubset(options)
-        )
-        self.assertIn("source_endpoint", fields)
-        self.assertIn("fetched_at", fields)
-        self.assertIn("payload_json", fields)
+        for name in ("reference_data", "sandbox_certification", "sandbox_scenario", "business_nature"):
+            folder = DOCTYPE_ROOT / ("ledgix_fbr_" + name)
+            self.assertFalse((folder / (folder.name + ".json")).exists())
+            self.assertTrue((folder / (folder.name + ".py")).exists())
 
     def test_sandbox_scenarios_live_in_certification_not_item_mapping(self):
-        certification = _schema(
-            "ledgix_fbr_sandbox_certification",
-            "ledgix_fbr_sandbox_certification.json",
-        )
-        cert_fields = {row["fieldname"]: row for row in certification["fields"]}
-        self.assertEqual(
-            cert_fields["scenarios"]["options"],
-            "Ledgix FBR Sandbox Scenario",
-        )
-
-        scenario = _schema(
-            "ledgix_fbr_sandbox_scenario",
-            "ledgix_fbr_sandbox_scenario.json",
-        )
-        scenario_fields = {row["fieldname"]: row for row in scenario["fields"]}
-        self.assertIn("scenario_id", scenario_fields)
-        self.assertIn("validation_log", scenario_fields)
-        self.assertIn("post_log", scenario_fields)
-        self.assertIn("fbr_invoice_number", scenario_fields)
+        for name in ("reference_data", "sandbox_certification", "sandbox_scenario", "business_nature"):
+            folder = DOCTYPE_ROOT / ("ledgix_fbr_" + name)
+            self.assertFalse((folder / (folder.name + ".json")).exists())
+            self.assertTrue((folder / (folder.name + ".py")).exists())
 
     def test_phase2_schema_is_v2_scoped_and_retired_settings_api_is_absent(self):
         hooks = (APP_ROOT / "hooks.py").read_text(encoding="utf-8")

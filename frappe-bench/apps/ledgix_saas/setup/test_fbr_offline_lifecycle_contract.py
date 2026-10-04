@@ -26,14 +26,7 @@ class TestFBROfflineLifecycleContract(unittest.TestCase):
             fields["offline_policy"]["options"],
             "Disabled\nOperator Confirmed",
         )
-        self.assertEqual(
-            fields["offline_upload_window_hours"]["default"],
-            "0",
-        )
-        self.assertIn(
-            "No legal deadline is hardcoded",
-            fields["offline_upload_window_hours"]["description"],
-        )
+        self.assertNotIn("offline_upload_window_hours", fields)
 
         controller = (APP_ROOT.parent / 'fbr_v1/fbr_v1/fbr_v1/doctype/ledgix_fbr_integration_profile/ledgix_fbr_integration_profile.py').read_text()
         self.assertIn('offline_policy == "Operator Confirmed"', controller)

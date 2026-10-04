@@ -5,6 +5,13 @@ from frappe.utils import cint
 
 class LedgixFBRIntegrationProfile(Document):
     def validate(self):
+        old = self.get_doc_before_save()
+        if cint(self.get("production_post_armed")) and not cint(old.get("production_post_armed") if old else 0):
+            if "System Manager" not in frappe.get_roles():
+                frappe.throw("Only System Manager may arm Production posting.", frappe.PermissionError)
+        from fbr_v1.services.production_approval import validate_approval
+        validate_approval(self, old)
+
         # Legacy credentials and authority are never promoted to Federal V1.
         if self.protocol_version != "Federal POS/IMS V1":
             self.enabled = self.transport_enabled = self.production_post_armed = 0

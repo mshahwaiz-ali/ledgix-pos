@@ -20,7 +20,7 @@ from ledgix_saas.api import client_readiness
 from ledgix_saas.services import fbr_v1_bridge
 from ledgix_saas.setup.phase12_read_only import verify_frozen_snapshot_read_only
 
-ACCEPTANCE_SCHEMA_VERSION = 1
+ACCEPTANCE_SCHEMA_VERSION = 2
 ADMIN_ROLES = {"System Manager", "Ledgix Admin"}
 MANUAL_UAT_CONFIRMATION = "RECORD LEDGIX MANUAL UAT"
 A4_PRINT_FORMAT = "Ledgix ERPNext Tax Invoice"
@@ -228,7 +228,8 @@ def record_manual_uat_evidence(
 
 def evaluate_release_acceptance(
     release_sha: str = "",
-    require_fbr_certification: int | str = 0,
+    require_fbr_certification: int | str = 0,  # deprecated input alias
+    require_fbr_production: int | str = 0,
 ) -> dict:
     """Read-only acceptance evaluation; no FBR calls, transaction writes or arming."""
 
@@ -236,7 +237,7 @@ def evaluate_release_acceptance(
     release_sha = str(release_sha or "").strip()
     if release_sha and not re.fullmatch(r"[0-9a-fA-F]{40}", release_sha):
         frappe.throw(_("release_sha must be a full 40-character Git commit SHA."))
-    require_fbr = bool(cint(require_fbr_certification))
+    require_fbr = bool(cint(require_fbr_production) or cint(require_fbr_certification))
 
     operational = client_readiness.evaluate_client_readiness(strict_evidence=0)
     strict_operational = client_readiness.evaluate_client_readiness(strict_evidence=1)
@@ -277,8 +278,16 @@ def evaluate_release_acceptance(
     fbr = None
     if features.get("enable_fbr"):
         fbr = fbr_v1_bridge.get_company_readiness((operational.get("identity") or {}).get("company"))
-    fbr_external_certification_complete = bool(not features.get("enable_fbr") or (fbr or {}).get("sandbox_certification_complete", False))
-    fbr_production_ready = bool(not features.get("enable_fbr") or (fbr_external_certification_complete and (fbr or {}).get("production_ready")))
+    no_fbr = not features.get("enable_fbr")
+    state = fbr or {}
+    fbr_sandbox_transport_acceptance_complete = bool(no_fbr or state.get("sandbox_transport_acceptance_complete"))
+    fbr_external_production_approval_complete = bool(no_fbr or state.get("external_production_approval_complete"))
+    fbr_production_configuration_ready = bool(no_fbr or state.get("production_configuration_ready"))
+    fbr_production_release_ready = bool(no_fbr or (
+        fbr_sandbox_transport_acceptance_complete and fbr_external_production_approval_complete
+        and fbr_production_configuration_ready and state.get("network_cutover_active")
+        and state.get("production_cutover_active") and (state.get("profile_state") or {}).get("production_post_armed")
+        and (state.get("profile_state") or {}).get("transport_enabled")))
     manual_uat_ready = bool(manual.get("valid") and not manual_missing)
     strict_client_evidence_ready = bool(strict_operational.get("ready"))
 
@@ -286,12 +295,14 @@ def evaluate_release_acceptance(
         release_setup_ready
         and manual_uat_ready
         and strict_client_evidence_ready
-        and (not require_fbr or fbr_production_ready)
+        and (not require_fbr or fbr_production_release_ready)
     )
 
     external_pending = []
-    if features.get("enable_fbr") and not fbr_external_certification_complete:
-        external_pending.append("FBR Sandbox certification pending real client seller identity/token and real Sandbox proof.")
+    if features.get("enable_fbr") and not fbr_sandbox_transport_acceptance_complete:
+        external_pending.append("Federal V1 Sandbox transport acceptance evidence is incomplete.")
+    if features.get("enable_fbr") and not fbr_external_production_approval_complete:
+        external_pending.append("Explicit external Production approval reference and verified File evidence are incomplete.")
     if not manual_uat_ready:
         external_pending.append("Physical/browser/device manual UAT evidence is incomplete.")
     if not strict_client_evidence_ready:
@@ -312,10 +323,13 @@ def evaluate_release_acceptance(
         "fbr": fbr,
         "release_setup_ready": release_setup_ready,
         "manual_uat_ready": manual_uat_ready,
-        "fbr_external_certification_complete": fbr_external_certification_complete,
+        "fbr_sandbox_transport_acceptance_complete": fbr_sandbox_transport_acceptance_complete,
+        "fbr_external_production_approval_complete": fbr_external_production_approval_complete,
+        "fbr_production_configuration_ready": fbr_production_configuration_ready,
+        "fbr_production_release_ready": fbr_production_release_ready,
         "strict_client_evidence_ready": strict_client_evidence_ready,
         "production_release_ready": production_release_ready,
-        "require_fbr_certification": require_fbr,
+        "require_fbr_production": require_fbr,
         "external_pending": external_pending,
         "network_call_made": False,
         "production_armed_by_gate": False,
@@ -324,10 +338,11 @@ def evaluate_release_acceptance(
 
 
 @frappe.whitelist()
-def get_release_acceptance(release_sha: str = "", require_fbr_certification: int | str = 0) -> dict:
+def get_release_acceptance(release_sha: str = "", require_fbr_certification: int | str = 0, require_fbr_production: int | str = 0) -> dict:
     return evaluate_release_acceptance(
         release_sha=release_sha,
         require_fbr_certification=require_fbr_certification,
+        require_fbr_production=require_fbr_production,
     )
 
 
@@ -335,7 +350,8 @@ def get_release_acceptance(release_sha: str = "", require_fbr_certification: int
 def generate_release_acceptance_evidence(
     release_sha: str = "",
     operator: str = "",
-    require_fbr_certification: int | str = 0,
+    require_fbr_certification: int | str = 0,  # deprecated input alias
+    require_fbr_production: int | str = 0,
 ) -> dict:
     """Persist a non-secret acceptance snapshot without changing business state."""
 
@@ -343,6 +359,7 @@ def generate_release_acceptance_evidence(
     result = evaluate_release_acceptance(
         release_sha=release_sha,
         require_fbr_certification=require_fbr_certification,
+        require_fbr_production=require_fbr_production,
     )
     generated_at = now_datetime()
     payload = {

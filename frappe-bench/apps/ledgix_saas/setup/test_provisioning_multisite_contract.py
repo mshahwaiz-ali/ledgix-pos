@@ -5,7 +5,7 @@ from pathlib import Path
 
 
 APP_ROOT = Path(__file__).resolve().parents[1]
-REPO_ROOT = APP_ROOT.parents[1]
+REPO_ROOT = APP_ROOT.parents[2]
 DEPLOY = REPO_ROOT / "deploy"
 DOCS = REPO_ROOT / "docs" / "production"
 
@@ -104,7 +104,7 @@ class TestProvisioningAndMultisiteContract(unittest.TestCase):
             "VERIFIED BACKUP FOR EVERY TENANT",
             "MAINTENANCE MODE FOR FULL COHORT",
             "all approved tenants are in maintenance before shared code movement",
-            "EXACT SHARED APP SYNC + BUILD ONCE",
+            "SHARED LEDGIX RELEASE MATERIALIZATION + BUILD",
             "MIGRATE + VERIFY EVERY TENANT",
             "ONLINE SMOKE EVERY TENANT",
             "putting the full cohort back into maintenance",
@@ -122,7 +122,7 @@ class TestProvisioningAndMultisiteContract(unittest.TestCase):
             source.index("CHECKOUT APPROVED RELEASE"),
         )
         self.assertLess(
-            source.index("EXACT SHARED APP SYNC + BUILD ONCE"),
+            source.index("SHARED LEDGIX RELEASE MATERIALIZATION + BUILD"),
             source.index("MIGRATE + VERIFY EVERY TENANT"),
         )
 

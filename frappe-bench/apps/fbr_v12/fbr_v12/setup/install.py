@@ -1,30 +1,11 @@
-from __future__ import annotations
+"""Retired Digital Invoicing compatibility shell."""
+from fbr_v12.retired import reject
 
-"""Install/migrate synchronization for the standalone FBR V1.2 app.
+def sync_all(*args, **kwargs):
+    return reject()
 
-No FBR network request is made here. These synchronizers only establish
-ERPNext custom fields, the Third Schedule charge type, runtime metadata and
-native print formats.
-"""
+def after_install(*args, **kwargs):
+    return reject()
 
-from fbr_v12.setup import erpnext_fbr_schema, erpnext_phase9_extensions, print_formats
-
-
-def sync_all() -> dict:
-    schema = erpnext_fbr_schema.sync_all()
-    runtime = erpnext_phase9_extensions.sync_all()
-    print_formats.sync_native_print_formats()
-    return {
-        "schema": schema,
-        "runtime": runtime,
-        "print_formats": True,
-        "network_call_made": False,
-    }
-
-
-def after_install() -> None:
-    sync_all()
-
-
-def after_migrate() -> None:
-    sync_all()
+def after_migrate(*args, **kwargs):
+    return reject()

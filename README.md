@@ -10,7 +10,7 @@
 - Frozen legacy Ledgix business ledgers: **READ-ONLY HISTORICAL EVIDENCE**
 - Local operating/acceptance dataset: **COMPLETE / VERIFIED**
 - FBR application-side integration: **IMPLEMENTED**
-- Real FBR Sandbox certification: **EXTERNAL / PENDING**
+- Federal V1 Sandbox transport acceptance: **EXTERNAL / PENDING**
 - FBR Production activation: **NOT YET PRODUCTION-READY**
 
 There is no Phase 14. New work should improve the current product/release state rather than restart the migration.
@@ -198,7 +198,7 @@ Historical phase gates remain regression/evidence tools for the completed migrat
 
 ## Federal Tier-1 POS / IMS V1
 
-The active implementation is `frappe-bench/apps/fbr_v1`. Submitted ERPNext `Sales Invoice` / `POS Invoice` and native returns/Credit Notes remain the business sources. Digital Invoicing V1.2 is frozen under `frappe-bench/apps/fbr_v12` and `docs/fbr/fbr_v12/` for historical reference only.
+The active implementation is `frappe-bench/apps/fbr_v1`. Submitted ERPNext `Sales Invoice` / `POS Invoice` and native returns/Credit Notes remain the business sources. Digital Invoicing V1.2 has a non-executable compatibility tombstone under `frappe-bench/apps/fbr_v12`; its implementation survives in Git history and historical documentation under `docs/fbr/fbr_v12/`. New installation is prohibited.
 
 Key safety rules:
 
@@ -220,7 +220,7 @@ docs/fbr/fbr_v1/FBR_V1_SETUP_AND_ACTIVATION.md
 docs/fbr/fbr_v1/FBR_V1_PRODUCTION_CHECKLIST.md
 ```
 
-Software implementation is verified locally at `e6f9b8f9986841584904a500f356e746ad1b415e`. Real client evidence, Sandbox acceptance, and Production activation remain external/pending; this is not a claim of FBR certification or Production acceptance.
+Validation evidence must be tied to the exact corrective commit and local site results. Real client evidence, Sandbox acceptance, and Production activation remain external/pending; this is not a claim of FBR certification or Production acceptance.
 
 ---
 
@@ -260,7 +260,7 @@ ledgix-pos/
 │   └── apps/
 │       ├── ledgix_saas/      # product, ERPNext extensions and SaaS tooling
 │       ├── fbr_v1/           # current Federal Tier-1 POS / IMS V1
-│       └── fbr_v12/          # frozen Digital Invoicing V1.2 reference
+│       └── fbr_v12/          # retired DI metadata tombstone
 ├── deploy/                    # guarded production/backup/update helpers
 ├── docs/
 │   ├── architecture/          # current authority + legacy boundaries

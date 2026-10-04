@@ -59,18 +59,17 @@ class TestOldFBRSettingsRuntimeCleanup(unittest.TestCase):
         self.assertIn("profile.production_post_armed = 0", NATIVE_DEMO)
 
     def test_legacy_prints_do_not_read_mutable_old_or_v2_config(self):
-        for html in PRINTS:
-            self.assertNotIn("Ledgix FBR Settings", html)
-            self.assertNotIn("fbr_settings.", html)
-            self.assertNotIn("Ledgix FBR Integration Profile", html)
-            self.assertIn("doc.fbr_invoice_number", html)
+        for name in ("ledgix_b2b_invoice", "ledgix_thermal_receipt"):
+            html = json.loads((APP_ROOT / "ledgix/print_format" / name / (name+".json")).read_text())["html"]
+            self.assertIn("Non-fiscal historical view", html)
+            for forbidden in ("Brand Settings", "get_doc", "fbr_invoice_number", "get_fbr_qr_data_uri", "immutable"):
+                self.assertNotIn(forbidden, html)
 
     def test_validation_is_v2_owned(self):
-        self.assertNotIn('"Ledgix FBR Settings": (', VALIDATION)
-        self.assertNotIn('"ledgix_saas.api.fbr_settings",', VALIDATION)
-        self.assertIn('"Ledgix FBR Integration Profile": (', VALIDATION)
-        self.assertIn('"ledgix_saas.services.fbr_v2_status",', VALIDATION)
-        self.assertIn("REQUIRED_SCHEDULER_METHODS = ()", VALIDATION)
+        self.assertIn('"ledgix_saas.services.fbr_v1_bridge",', VALIDATION)
+        self.assertNotIn('"ledgix_saas.services.fbr_v2_status",', VALIDATION)
+        self.assertNotIn('"sandbox_token"', VALIDATION)
+        self.assertNotIn('"production_token"', VALIDATION)
 
     def test_permission_sync_no_longer_registers_old_settings(self):
         self.assertNotIn('"Ledgix FBR Settings":', PERMISSIONS)

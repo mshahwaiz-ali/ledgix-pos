@@ -10,13 +10,13 @@ REPO_ROOT = next(
     (
         parent
         for parent in APP_ROOT.parents
-        if (parent / "scripts" / "run_erpnext_phase10_final_gate.sh").exists()
+        if (parent / "scripts" / "archive/erpnext_migration/run_erpnext_phase10_final_gate.sh").exists()
     ),
     APP_ROOT.parents[1],
 )
 REPORT_ROOT = APP_ROOT / "ledgix" / "report"
 LEDGIX_PRINT_ROOT = APP_ROOT / "ledgix" / "print_format"
-FBR_APP_ROOT = REPO_ROOT / "apps" / "fbr_v1" / "fbr_v1"
+FBR_APP_ROOT = REPO_ROOT / "frappe-bench/apps" / "fbr_v1" / "fbr_v1"
 FBR_PRINT_ROOT = FBR_APP_ROOT / "fbr_v1" / "print_format"
 
 
@@ -258,7 +258,7 @@ class TestERPNextPhase10Contract(unittest.TestCase):
         self.assertIn("Federal Tier-1 POS / IMS V1", page)
 
     def test_phase10_runner_is_fail_closed(self):
-        runner = REPO_ROOT / "scripts" / "run_erpnext_phase10_final_gate.sh"
+        runner = REPO_ROOT / "scripts" / "archive/erpnext_migration/run_erpnext_phase10_final_gate.sh"
         if not runner.exists():
             self.fail("Phase 10 final gate runner is missing")
         text = runner.read_text(encoding="utf-8")

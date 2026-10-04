@@ -6,7 +6,7 @@ from pathlib import Path
 
 
 APP_ROOT = Path(__file__).resolve().parents[1]
-REPO_ROOT = APP_ROOT.parents[1]
+REPO_ROOT = APP_ROOT.parents[2]
 DEPLOY = REPO_ROOT / "deploy"
 SCRIPTS = REPO_ROOT / "scripts"
 
@@ -113,7 +113,7 @@ class TestBackupRestoreContract(unittest.TestCase):
         self.assertNotIn("frappe.db.commit", source)
 
     def test_site_setup_is_standard_single_site_ledgix_stack(self):
-        source = (REPO_ROOT / "site_setup.sh").read_text(encoding="utf-8")
+        source = (REPO_ROOT / "scripts/core/site_setup.sh").read_text(encoding="utf-8")
         for token in (
             "ledgix-erpnext.local",
             "Frappe -> ERPNext -> ledgix_saas",
@@ -124,7 +124,7 @@ class TestBackupRestoreContract(unittest.TestCase):
             'RESET $SITE',
             "single-site local standard enforced",
             "multiple active local sites found",
-            "bench Ledgix app now mirrors repository source exactly",
+            "Ledgix bench source missing",
             "LEDGIX_LOCAL_ADMIN_PASSWORD:-admin",
             "LEDGIX_LOCAL_USER_PASSWORD:-admin@123",
             "LEDGIX_LOCAL_DB_PASSWORD:-admin@123",
@@ -180,7 +180,7 @@ class TestBackupRestoreContract(unittest.TestCase):
             self.assertIn(token, source)
 
     def test_runtime_gate_is_single_site_destructive_restore_proof(self):
-        path = SCRIPTS / "run_backup_restore_runtime_gate.sh"
+        path = SCRIPTS / "release/run_backup_restore_runtime_gate.sh"
         self.assertTrue(path.exists())
         source = path.read_text(encoding="utf-8")
         for token in (
@@ -209,7 +209,7 @@ class TestBackupRestoreContract(unittest.TestCase):
         self.assertNotIn("SOURCE_SITE TARGET_SITE", source)
 
     def test_runtime_online_smoke_is_explicitly_opt_in(self):
-        source = (SCRIPTS / "run_backup_restore_runtime_gate.sh").read_text(encoding="utf-8")
+        source = (SCRIPTS / "release/run_backup_restore_runtime_gate.sh").read_text(encoding="utf-8")
         for token in (
             'ONLINE_URL=""',
             '--url) [[ $# -ge 2 ]] || fail',
@@ -232,7 +232,7 @@ class TestBackupRestoreContract(unittest.TestCase):
             self.assertNotIn("admin@123", source)
 
     def test_r3_static_gate_is_consolidated(self):
-        static_path = SCRIPTS / "run_backup_restore_static_gate.sh"
+        static_path = SCRIPTS / "release/run_backup_restore_static_gate.sh"
         self.assertTrue(static_path.exists())
         source = static_path.read_text(encoding="utf-8")
         self.assertIn("ci_local.sh", source)

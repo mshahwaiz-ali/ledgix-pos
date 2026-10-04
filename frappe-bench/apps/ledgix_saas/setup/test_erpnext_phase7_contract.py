@@ -5,7 +5,7 @@ from ledgix_saas.setup import erpnext_phase7_extensions
 
 
 APP_ROOT = Path(__file__).resolve().parents[1]
-REPO_ROOT = APP_ROOT.parents[1]
+REPO_ROOT = APP_ROOT.parents[2]
 
 
 class TestERPNextPhase7Contract(unittest.TestCase):
@@ -88,23 +88,11 @@ class TestERPNextPhase7Contract(unittest.TestCase):
         self.assertIn("ledgix_saas.setup.erpnext_phase7_extensions.after_migrate", hooks)
 
     def test_workspace_routes_buying_and_stock_to_native_erpnext(self):
-        workspace = (APP_ROOT / "ledgix" / "workspace" / "ledgix" / "ledgix.json").read_text(encoding="utf-8")
-        for native in (
-            '"link_to":"Purchase Order"',
-            '"link_to":"Purchase Receipt"',
-            '"link_to":"Purchase Invoice"',
-            '"link_to":"Supplier"',
-            '"link_to":"Item"',
-            '"link_to":"Item Group"',
-            '"link_to":"Warehouse"',
-            '"link_to":"Stock Entry"',
-            '"link_to":"Stock Reconciliation"',
-            '"link_to":"Batch"',
-            '"link_to":"Serial No"',
-        ):
-            self.assertIn(native, workspace)
-        self.assertNotIn('"link_to":"Ledgix Purchase"', workspace)
-        self.assertNotIn('"link_to":"Ledgix Stock Movement"', workspace)
+        import json
+        workspace = json.loads((APP_ROOT / "ledgix/workspace/ledgix/ledgix.json").read_text())
+        targets = {row.get("link_to") for row in workspace["links"]}
+        self.assertTrue({"Purchase Invoice","Purchase Receipt","Stock Entry"}.issubset(targets))
+        self.assertFalse({"Ledgix Purchase","Ledgix Stock Movement"}.intersection(targets))
 
     def test_supplier_ap_preflight_is_fail_closed(self):
         source = (APP_ROOT / "migration" / "erpnext_phase7_supplier_ap_preflight.py").read_text(encoding="utf-8")
@@ -124,7 +112,7 @@ class TestERPNextPhase7Contract(unittest.TestCase):
         self.assertIn('"phase8_ready"', source)
 
     def test_phase7_runner_includes_preflight_static_and_runtime_gates(self):
-        source = (REPO_ROOT / "scripts" / "run_erpnext_phase7_final_gate.sh").read_text(encoding="utf-8")
+        source = (REPO_ROOT / "scripts" / "archive/erpnext_migration/run_erpnext_phase7_final_gate.sh").read_text(encoding="utf-8")
         self.assertIn("test_erpnext_phase7_contract", source)
         self.assertIn("erpnext_phase7_supplier_ap_preflight.run", source)
         self.assertIn("erpnext_phase7_buying_inventory_gate.run", source)

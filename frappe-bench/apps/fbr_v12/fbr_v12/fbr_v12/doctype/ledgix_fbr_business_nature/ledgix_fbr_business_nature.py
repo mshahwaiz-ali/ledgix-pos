@@ -1,5 +1,5 @@
-from frappe.model.document import Document
+"""Historical metadata controller. No writes or integration runtime."""
+from fbr_v12.retired import HistoricalDocument
 
-
-class LedgixFBRBusinessNature(Document):
+class LedgixFBRBusinessNature(HistoricalDocument):
     pass

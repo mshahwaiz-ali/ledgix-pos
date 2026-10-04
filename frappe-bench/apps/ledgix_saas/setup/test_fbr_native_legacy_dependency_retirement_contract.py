@@ -101,7 +101,7 @@ class TestRetiredV2Endpoints(NoNetworkTest):
         source = (APP / 'api/release_acceptance.py').read_text()
         self.assertNotIn('fbr_activation', source)
         self.assertIn('fbr_v1_bridge.get_company_readiness', source)
-        self.assertIn('sandbox_certification_complete', source)
+        self.assertIn('sandbox_transport_acceptance_complete', source)
 
     def test_current_desk_bindings_do_not_load_retired_apis(self):
         hooks = (APP / 'hooks.py').read_text()
