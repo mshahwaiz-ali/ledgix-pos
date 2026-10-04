@@ -168,3 +168,13 @@ def sync_all() -> dict:
 
 def after_migrate() -> None:
     sync_all()
+
+
+def schema_ready() -> bool:
+    return all(frappe.get_meta(doctype).has_field(field["fieldname"])
+        for doctype, fields in CUSTOM_FIELDS.items() for field in fields)
+
+
+def require_schema_ready() -> None:
+    if not schema_ready():
+        frappe.throw("Ledgix ERPNext extension schema is incomplete. Run bench migrate before processing transactions.")

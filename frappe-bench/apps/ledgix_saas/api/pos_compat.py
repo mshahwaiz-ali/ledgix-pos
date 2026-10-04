@@ -11,8 +11,9 @@ from ledgix_saas.api.security import (
     LEDGIX_MANAGER_OR_ABOVE,
     has_any_role,
     require_ledgix_cashier_or_above,
+    require_pos_channel,
 )
-from ledgix_saas.services import erpnext_pos
+from ledgix_saas.services import erpnext_pos, erpnext_selling
 
 
 def _parse(value):
@@ -79,13 +80,13 @@ def _native_print_target(result: dict, *, native_document: str, doctype: str) ->
 
 @frappe.whitelist()
 def get_pos_v2_boot(sale_channel="Retail", customer=None):
-    require_ledgix_cashier_or_above()
+    sale_channel = require_pos_channel(sale_channel)
     return erpnext_pos.boot(sale_channel=sale_channel, customer=customer)
 
 
 @frappe.whitelist()
 def search_pos_v2_items(query=None, category=None, customer=None, sale_channel="Retail", price_list=None, limit=80):
-    require_ledgix_cashier_or_above()
+    sale_channel = require_pos_channel(sale_channel)
     return erpnext_pos.search_items(
         query=query,
         category=category,
@@ -98,7 +99,7 @@ def search_pos_v2_items(query=None, category=None, customer=None, sale_channel="
 
 @frappe.whitelist()
 def get_pos_v2_customer_context(customer=None, sale_channel="Retail"):
-    require_ledgix_cashier_or_above()
+    sale_channel = require_pos_channel(sale_channel)
     return erpnext_pos.customer_context(customer, sale_channel)
 
 
@@ -111,7 +112,8 @@ def preview_pos_v2_checkout(
     discount_type="Amount",
     discount_value=0,
 ):
-    require_ledgix_cashier_or_above()
+    sale_channel = require_pos_channel(sale_channel)
+    erpnext_selling.validate_checkout_discount_authority(discount_type, discount_value)
     if sale_channel == "B2B":
         return selling_compat.preview_b2b_invoice(
             customer=customer,
@@ -142,7 +144,8 @@ def complete_pos_v2_sale(
     discount_value=0,
     client_sale_id=None,
 ):
-    require_ledgix_cashier_or_above()
+    sale_channel = require_pos_channel(sale_channel)
+    erpnext_selling.validate_checkout_discount_authority(discount_type, discount_value)
     if sale_channel == "B2B":
         result = selling_compat.complete_b2b_sale(
             customer=customer,
@@ -229,7 +232,8 @@ def hold_pos_v2_sale(
     discount_value=0,
     notes=None,
 ):
-    require_ledgix_cashier_or_above()
+    sale_channel = require_pos_channel(sale_channel)
+    erpnext_selling.validate_checkout_discount_authority(discount_type, discount_value)
     doc = erpnext_pos.create_hold(
         cart_items=cart_items,
         sale_channel=sale_channel,

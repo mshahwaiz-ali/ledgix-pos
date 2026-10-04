@@ -149,3 +149,8 @@ def after_migrate() -> None:
     # Migrate is the authoritative place for schema installation/update. Force
     # update here so changed labels/options/read-only flags are applied too.
     sync_custom_fields()
+
+
+def require_schema_ready() -> None:
+    if not schema_ready():
+        frappe.throw("Ledgix ERPNext extension schema is incomplete. Run bench migrate before processing transactions.")

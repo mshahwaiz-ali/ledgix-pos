@@ -23,12 +23,16 @@ def sync_native_print_formats() -> None:
         row = frappe.db.get_value(
             "Print Format",
             format_name,
-            ["doc_type", "html", "disabled"],
+            ["doc_type", "html", "disabled", "module"],
             as_dict=True,
         )
         if not row:
             frappe.throw(f"Required FBR V1 Print Format {format_name!r} was not imported.")
+        if row.module != "FBR V1":
+            frappe.throw(f"Required current V1 Print Format {format_name!r} has unexpected module ownership.")
         html = str(row.html or "")
+        if "get_native_invoice_print_context" not in html:
+            frappe.throw(f"Required current V1 Print Format {format_name!r} lacks the current context reader.")
         if row.doc_type != expected_doctype:
             frappe.throw(
                 f"FBR V1 Print Format {format_name!r} targets {row.doc_type!r}; "

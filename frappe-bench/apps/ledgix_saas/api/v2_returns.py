@@ -293,46 +293,13 @@ def _resolve_submitted_sale(sale_id):
 
 @frappe.whitelist()
 def get_pos_v2_return_context(sale_id=None):
-    """Return authoritative submitted-sale rows still available for correction."""
-    require_ledgix_cashier_or_above()
-    sale = _resolve_submitted_sale(sale_id)
-    returned_by_row = _returned_qty_by_sale_row(sale)
-    items = []
-
-    for row in sorted(sale.items, key=lambda sale_row: (sale_row.idx or 0, sale_row.name or "")):
-        already_returned_qty = flt(returned_by_row.get(row.name))
-        returnable_qty = flt(row.quantity) - already_returned_qty
-        if returnable_qty <= 0:
-            continue
-        items.append({
-            "item": row.item,
-            "original_sale_item_row": row.name,
-            "item_name": frappe.db.get_value("Ledgix Item", row.item, "item_name") or row.item,
-            "tracking_type": frappe.db.get_value("Ledgix Item", row.item, "tracking_type") or "Normal",
-            "serial_numbers": _returnable_serial_numbers(sale, row),
-            "sold_qty": flt(row.quantity),
-            "already_returned_qty": already_returned_qty,
-            "returnable_qty": returnable_qty,
-            "return_qty": 0,
-            "rate": flt(row.rate),
-            "amount": 0,
-            "cost_price": flt(row.cost_price),
-            "profit_per_unit": flt(row.profit_per_unit),
-            "item_total_profit": 0,
-        })
-
-    return {
-        "success": True,
-        "sale_id": sale.name,
-        "invoice_number": sale.invoice_number,
-        "customer": sale.customer,
-        "sale_date": sale.sale_date,
-        "items": items,
-    }
+    """Delegate direct Python calls to the current native POS authority."""
+    from ledgix_saas.api import pos_compat
+    return pos_compat.get_pos_v2_return_context(sale_id=sale_id)
 
 
 @frappe.whitelist()
 def create_pos_v2_return(*args, **kwargs):
-    """Direct compatibility calls share the current ERPNext authority."""
+    """Delegate direct Python calls to the current native POS authority."""
     from ledgix_saas.api import pos_compat
     return pos_compat.create_pos_v2_return(*args, **kwargs)

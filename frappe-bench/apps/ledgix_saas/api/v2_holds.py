@@ -214,149 +214,27 @@ def hold_pos_v2_sale(
     discount_value=0,
     notes=None,
 ):
-    require_ledgix_cashier_or_above()
-
-    channel = _normalize_channel(sale_channel)
-    _validate_hold_context(channel, customer=customer, price_list=price_list)
-    shift = _retail_shift(channel)
-    rows, subtotal = _prepare_hold_rows(cart_items)
-    discount_type, discount_value, discount_amount = _discount_amount(
-        subtotal,
-        discount_type,
-        discount_value,
-    )
-
-    hold = frappe.new_doc("Ledgix POS Hold")
-    hold.status = "Hold"
-    hold.shift = shift
-    hold.cashier = frappe.session.user
-    hold.sale_channel = channel
-    hold.customer = customer or ""
-    hold.price_list = price_list or ""
-    hold.subtotal = subtotal
-    hold.discount_type = discount_type
-    hold.discount_value = discount_value
-    hold.discount_amount = discount_amount
-    hold.total = flt(subtotal - discount_amount, 2)
-    hold.notes = notes or ""
-    for row in rows:
-        hold.append("items", row)
-    hold.insert(ignore_permissions=True)
-
-    return {
-        "success": True,
-        "hold_id": hold.name,
-        "sale_channel": channel,
-        "customer": hold.customer or "",
-        "price_list": hold.price_list or "",
-        "total": flt(hold.total, 2),
-    }
+    """Delegate direct Python calls to the current native POS authority."""
+    from ledgix_saas.api import pos_compat
+    return pos_compat.hold_pos_v2_sale(cart_items=cart_items, sale_channel=sale_channel, customer=customer, price_list=price_list, discount_type=discount_type, discount_value=discount_value, notes=notes)
 
 
 @frappe.whitelist()
 def get_pos_v2_holds():
-    require_ledgix_cashier_or_above()
-
-    filters = {"status": "Hold"}
-    if not has_any_role(PRIVILEGED_HOLD_ROLES):
-        filters["cashier"] = frappe.session.user
-
-    rows = frappe.get_all(
-        "Ledgix POS Hold",
-        filters=filters,
-        fields=[
-            "name",
-            "creation",
-            "cashier",
-            "shift",
-            "sale_channel",
-            "customer",
-            "price_list",
-            "subtotal",
-            "discount_amount",
-            "total",
-        ],
-        order_by="creation desc",
-        limit_page_length=100,
-    )
-
-    active_shift = _get_open_shift_for_user()
-    visible = []
-    for row in rows:
-        channel = row.sale_channel or "Retail"
-        if channel == "Retail" and row.shift and row.shift != active_shift:
-            continue
-
-        items = frappe.get_all(
-            "Ledgix POS Hold Item",
-            filters={
-                "parent": row.name,
-                "parenttype": "Ledgix POS Hold",
-                "parentfield": "items",
-            },
-            fields=["item_name", "quantity"],
-            order_by="idx asc",
-            limit_page_length=4,
-        )
-        row["item_count"] = frappe.db.count(
-            "Ledgix POS Hold Item",
-            filters={
-                "parent": row.name,
-                "parenttype": "Ledgix POS Hold",
-                "parentfield": "items",
-            },
-        )
-        row["items_preview"] = ", ".join(
-            f"{item.item_name} x {flt(item.quantity):g}" for item in items
-        )
-        visible.append(row)
-
-    return {"success": True, "holds": visible}
+    """Delegate direct Python calls to the current native POS authority."""
+    from ledgix_saas.api import pos_compat
+    return pos_compat.get_pos_v2_holds()
 
 
 @frappe.whitelist()
 def resume_pos_v2_hold(hold_id=None):
-    require_ledgix_cashier_or_above()
-    if not hold_id:
-        frappe.throw("Hold ID is required.")
-
-    hold = frappe.get_doc("Ledgix POS Hold", hold_id)
-    if hold.status != "Hold":
-        frappe.throw("Only active held sales can be resumed.")
-    _assert_resume_context(hold)
-
-    # Revalidate serialized identity before consuming the hold. A serial may have
-    # been sold or adjusted while the cart was parked.
-    cart_items = _resume_cart_rows(hold)
-
-    # A resumed hold is consumed. If the cashier needs to defer it again, the
-    # current cart can be held as a fresh snapshot with current pricing context.
-    hold.status = "Resumed"
-    hold.save(ignore_permissions=True)
-
-    return {
-        "success": True,
-        "hold_id": hold.name,
-        "sale_channel": hold.sale_channel or "Retail",
-        "customer": hold.customer or "",
-        "price_list": hold.price_list or "",
-        "cart_items": cart_items,
-        "discount_type": hold.discount_type or "Amount",
-        "discount_value": flt(hold.discount_value),
-        "total": flt(hold.total),
-    }
+    """Delegate direct Python calls to the current native POS authority."""
+    from ledgix_saas.api import pos_compat
+    return pos_compat.resume_pos_v2_hold(hold_id=hold_id)
 
 
 @frappe.whitelist()
 def cancel_pos_v2_hold(hold_id=None):
-    require_ledgix_cashier_or_above()
-    if not hold_id:
-        frappe.throw("Hold ID is required.")
-
-    hold = frappe.get_doc("Ledgix POS Hold", hold_id)
-    if hold.status != "Hold":
-        frappe.throw("Only active held sales can be cancelled.")
-    _assert_resume_context(hold)
-    hold.status = "Cancelled"
-    hold.save(ignore_permissions=True)
-    return {"success": True, "hold_id": hold.name}
+    """Delegate direct Python calls to the current native POS authority."""
+    from ledgix_saas.api import pos_compat
+    return pos_compat.cancel_pos_v2_hold(hold_id=hold_id)

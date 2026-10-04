@@ -37,29 +37,40 @@ class TestLedgixUserProfile(FrappeTestCase):
 
     def test_v2_pricing_and_payment_permissions_share_main_role_contract(self):
         # Phase 12 is authoritative for frozen legacy business DocTypes:
-        # Cashier has no legacy audit access; Manager/Admin are audit-only.
+        # The canonical local site need not be Frozen. Preserve its existing
+        # pre-freeze metadata policy; current POS channel authority is independent.
+        from ledgix_saas.api.legacy_retirement import is_frozen
+        from ledgix_saas.api.security import require_pos_channel
+        frozen = is_frozen()
         cashier = make_user_with_roles("Ledgix Cashier")
         frappe.set_user(cashier.name)
-        self.assertFalse(frappe.has_permission("Ledgix Price List", ptype="read"))
-        self.assertFalse(frappe.has_permission("Ledgix Payment Method", ptype="read"))
+        self.assertEqual(frappe.has_permission("Ledgix Price List", ptype="read"), not frozen)
+        self.assertEqual(frappe.has_permission("Ledgix Payment Method", ptype="read"), not frozen)
         self.assertFalse(frappe.has_permission("Ledgix Payment", ptype="create"))
+
+        with self.assertRaises(frappe.PermissionError):
+            require_pos_channel("B2B")
 
         manager = make_user_with_roles("Ledgix Manager")
         frappe.set_user(manager.name)
         self.assertTrue(frappe.has_permission("Ledgix Price List", ptype="read"))
-        self.assertFalse(frappe.has_permission("Ledgix Price List", ptype="write"))
+        self.assertEqual(frappe.has_permission("Ledgix Price List", ptype="write"), not frozen)
         self.assertTrue(frappe.has_permission("Ledgix Payment Method", ptype="read"))
         self.assertFalse(frappe.has_permission("Ledgix Payment Method", ptype="write"))
         self.assertTrue(frappe.has_permission("Ledgix Payment", ptype="read"))
         self.assertFalse(frappe.has_permission("Ledgix Payment", ptype="create"))
 
+        self.assertEqual(require_pos_channel("B2B"), "B2B")
+
         admin = make_user_with_roles("Ledgix Admin")
         frappe.set_user(admin.name)
         self.assertTrue(frappe.has_permission("Ledgix Payment", ptype="read"))
         self.assertTrue(frappe.has_permission("Ledgix Payment", ptype="report"))
-        self.assertFalse(frappe.has_permission("Ledgix Payment", ptype="create"))
-        self.assertFalse(frappe.has_permission("Ledgix Payment", ptype="submit"))
+        self.assertEqual(frappe.has_permission("Ledgix Payment", ptype="create"), not frozen)
+        self.assertEqual(frappe.has_permission("Ledgix Payment", ptype="submit"), not frozen)
         self.assertFalse(frappe.has_permission("Ledgix Payment", ptype="cancel"))
+
+        self.assertEqual(require_pos_channel("B2B"), "B2B")
 
     def test_page_and_workspace_roles_match_v2_navigation_contract(self):
         def roles_for(parent, parenttype):

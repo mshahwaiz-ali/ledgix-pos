@@ -18,6 +18,7 @@ from frappe.utils import cint, flt, now_datetime, nowdate
 from ledgix_saas.services import erpnext_buying_inventory, erpnext_selling, erpnext_tax_authority
 from ledgix_saas.setup import erpnext_phase8_extensions
 from ledgix_saas.services.erpnext_item_scope import sellable_item_filters
+from ledgix_saas.api.security import require_pos_channel, has_any_role, LEDGIX_MANAGER_OR_ABOVE
 
 MONEY_TOLERANCE = 0.005
 
@@ -339,9 +340,9 @@ def _customer_payload(customer: str, sale_channel: str, company: str) -> dict:
 
 
 def customer_context(customer: str | None, sale_channel: str = "Retail", *, company: str | None = None) -> dict:
+    sale_channel = require_pos_channel(sale_channel)
     company = _company(company)
     profile = profile_for_user(company)
-    sale_channel = "B2B" if sale_channel == "B2B" else "Retail"
     if sale_channel == "B2B" and not str(customer or "").strip():
         frappe.throw(_("Customer is required for B2B POS mode."))
     customer_name = _profile_customer(profile, customer)
@@ -392,9 +393,9 @@ def search_items(
     company: str | None = None,
     limit: int = 80,
 ) -> dict:
+    sale_channel = require_pos_channel(sale_channel)
     company = _company(company)
     profile = profile_for_user(company)
-    sale_channel = "B2B" if sale_channel == "B2B" else "Retail"
     customer_name = _profile_customer(profile, customer)
     if sale_channel == "B2B" and not str(customer or "").strip():
         frappe.throw(_("Select a Customer before loading B2B pricing."))
@@ -462,7 +463,8 @@ def search_items(
                 qty=1,
                 posting_date=nowdate(),
             )
-        except Exception:
+        except frappe.ValidationError:
+            # Unpriceable Items are not offered; checkout rechecks native pricing.
             continue
         stock = {"actual_qty": 0.0}
         if cint(row.is_stock_item):
@@ -494,11 +496,10 @@ def search_items(
 
 
 def boot(sale_channel: str = "Retail", customer: str | None = None, *, company: str | None = None) -> dict:
+    sale_channel = require_pos_channel(sale_channel)
     company = _company(company)
     profile = profile_for_user(company)
-    sale_channel = "B2B" if sale_channel == "B2B" else "Retail"
-    roles = set(frappe.get_roles(frappe.session.user))
-    can_b2b = bool(roles.intersection({"System Manager", "Ledgix Admin", "Ledgix Manager"}))
+    can_b2b = has_any_role(LEDGIX_MANAGER_OR_ABOVE)
     can_override = can_b2b
     if sale_channel == "B2B" and not can_b2b:
         frappe.throw(_("B2B checkout requires Ledgix Manager or Admin access."), frappe.PermissionError)
@@ -577,13 +578,18 @@ def build_pos_invoice(
     company: str | None = None,
     pos_profile: str | None = None,
 ):
-    erpnext_phase8_extensions.sync_all()
+    require_pos_channel("Retail")
+    erpnext_selling.validate_checkout_discount_authority(discount_type, discount_value)
+    erpnext_phase8_extensions.require_schema_ready()
     company = _company(company)
     profile = profile_for_user(company, pos_profile=pos_profile)
     customer_name = _profile_customer(profile, customer)
     resolved_price_list = _price_list(profile, price_list)
     warehouse = _profile_warehouse(profile)
     raw = _raw_items(cart_items)
+    for row in raw:
+        if row.get("warehouse") and str(row["warehouse"]).strip() != warehouse:
+            frappe.throw("Retail item warehouse must match the POS Profile warehouse.")
     normalized = erpnext_selling._normalize_items(
         raw,
         customer=customer_name,
@@ -595,7 +601,9 @@ def build_pos_invoice(
     discount = erpnext_selling._apply_checkout_discount(normalized, discount_type, discount_value)
     audit = _override_audit(raw, normalized, allow_rate_override)
     for source_row, row in zip(raw, normalized):
-        row["warehouse"] = row.get("warehouse") or warehouse
+        if row.get("warehouse") and str(row["warehouse"]).strip() != warehouse:
+            frappe.throw("Retail item warehouse must match the POS Profile warehouse.")
+        row["warehouse"] = warehouse
         serials = source_row.get("serial_numbers") or source_row.get("serial_no")
         if isinstance(serials, (list, tuple)):
             serials = "\n".join(str(value).strip() for value in serials if str(value).strip())
@@ -670,43 +678,45 @@ def _existing_pos_sale(client_sale_id: str, company: str):
     return frappe.get_doc("POS Invoice", name) if name else None
 
 
+def resolve_payment_policy(mode, *, company=None, profile=None):
+    profile = profile or profile_for_user(company)
+    if company and profile.company != company:
+        frappe.throw("Payment POS Profile belongs to another Company.")
+    canonical = erpnext_selling._resolve_mode_of_payment(mode)
+    policy = next((row for row in payment_methods(profile) if row["name"] == canonical), None)
+    if not policy:
+        frappe.throw(f"Mode of Payment {canonical} is not configured on POS Profile {profile.name}.")
+    return profile, policy
+
+
 def _normalize_tenders(tenders, profile, grand_total: float) -> list[dict]:
-    rows = _parse(tenders) or []
-    configured = {row["name"]: row for row in payment_methods(profile)}
+    remaining = erpnext_selling.finite_amount(grand_total, "Invoice total")
     normalized = []
-    for raw in rows:
-        mode = erpnext_selling._resolve_mode_of_payment(
-            raw.get("payment_method") or raw.get("mode_of_payment")
-        )
-        if mode not in configured:
-            frappe.throw(_("Mode of Payment {0} is not configured on POS Profile {1}.").format(mode, profile.name))
-        amount = flt(raw.get("amount"))
+    generated_change = False
+    for raw in _parse(tenders) or []:
+        _, policy = resolve_payment_policy(raw.get("payment_method") or raw.get("mode_of_payment"), profile=profile)
+        amount = erpnext_selling.finite_amount(raw.get("amount"), "Tender amount")
         if amount <= 0:
-            continue
-        policy = configured[mode]
+            frappe.throw("Tender amount must be positive.")
+        if generated_change:
+            frappe.throw("No payment may follow a Cash tender that generated change.")
         reference = str(raw.get("reference_number") or raw.get("reference_no") or "").strip()
         if policy["requires_reference"] and not reference:
-            frappe.throw(_("Reference number is required for Mode of Payment {0}.").format(mode))
-        normalized.append(
-            {
-                "mode_of_payment": mode,
-                "amount": amount,
-                "account": policy["account"],
-                "type": policy["type"],
-                "default": 1 if policy["default"] else 0,
-                "reference_no": reference,
-                "allow_change": policy["allow_change"],
-            }
-        )
+            frappe.throw(f"Reference number is required for Mode of Payment {policy['name']}.")
+        excess = max(amount - max(remaining, 0), 0)
+        cash_change = policy["type"] == "Cash" and policy["allow_change"]
+        if excess > MONEY_TOLERANCE and not cash_change:
+            frappe.throw("Only the actual Cash tender configured to allow change may exceed the remaining amount.")
+        generated_change = excess > MONEY_TOLERANCE
+        normalized.append(dict(mode_of_payment=policy["name"], amount=amount,
+            account=policy["account"], type=policy["type"], default=int(bool(policy["default"])),
+            reference_no=reference, allow_change=policy["allow_change"],
+            change_amount=excess if generated_change else 0))
+        remaining -= amount
     if not normalized:
-        frappe.throw(_("At least one POS payment is required."))
-    tendered = flt(sum(row["amount"] for row in normalized), 2)
-    allow_partial = bool(cint(profile.allow_partial_payment))
-    if tendered + MONEY_TOLERANCE < flt(grand_total) and not allow_partial:
-        frappe.throw(_("POS Profile requires full payment before checkout."))
-    change = flt(max(tendered - flt(grand_total), 0), 2)
-    if change > MONEY_TOLERANCE and not any(row["allow_change"] and row["type"] == "Cash" for row in normalized):
-        frappe.throw(_("Over-tendered payment requires a Cash mode configured to allow change."))
+        frappe.throw("At least one POS payment is required.")
+    if remaining > MONEY_TOLERANCE and not cint(profile.allow_partial_payment):
+        frappe.throw("POS Profile requires full payment before checkout.")
     return normalized
 
 
@@ -722,6 +732,9 @@ def complete_sale(
     allow_rate_override: bool = False,
     company: str | None = None,
 ):
+    require_pos_channel("Retail")
+    erpnext_selling.validate_checkout_discount_authority(discount_type, discount_value)
+    erpnext_phase8_extensions.require_schema_ready()
     company = _company(company)
     profile = profile_for_user(company)
     if not active_opening(profile):
@@ -747,9 +760,9 @@ def complete_sale(
     normalized = _normalize_tenders(tenders, profile, flt(invoice.rounded_total or invoice.grand_total))
     invoice.set("payments", [])
     for row in normalized:
-        values = {key: value for key, value in row.items() if key != "allow_change"}
+        values = {key: value for key, value in row.items() if key not in ("allow_change", "change_amount")}
         invoice.append("payments", values)
-    cash_change_row = next((row for row in normalized if row["allow_change"] and row["type"] == "Cash"), None)
+    cash_change_row = next((row for row in normalized if row["change_amount"] > MONEY_TOLERANCE), None)
     if cash_change_row:
         invoice.account_for_change_amount = cash_change_row["account"]
     invoice.insert(ignore_permissions=True)
@@ -814,14 +827,19 @@ def create_hold(
     notes: str | None = None,
     company: str | None = None,
 ):
+    sale_channel = require_pos_channel(sale_channel)
+    erpnext_selling.validate_checkout_discount_authority(discount_type, discount_value)
+    erpnext_phase8_extensions.require_schema_ready()
     company = _company(company)
-    sale_channel = "B2B" if sale_channel == "B2B" else "Retail"
     hold_id = f"HOLD-{frappe.generate_hash(length=16).upper()}"
     safe_items = [
         {
             "item": row.get("item") or row.get("item_code"),
             "qty": row.get("qty") or row.get("quantity"),
             "serial_numbers": row.get("serial_numbers") or "",
+            "uom": row.get("uom"),
+            "warehouse": row.get("warehouse"),
+            "override_rate": row.get("override_rate") if row.get("override_rate") not in (None, "") else row.get("rate"),
         }
         for row in _raw_items(cart_items)
     ]
@@ -880,7 +898,7 @@ def create_hold(
 
 def _hold_docs() -> list:
     docs = []
-    for doctype in ("POS Invoice", "Sales Invoice"):
+    for doctype in (("POS Invoice", "Sales Invoice") if has_any_role(LEDGIX_MANAGER_OR_ABOVE) else ("POS Invoice",)):
         rows = frappe.get_all(
             doctype,
             filters={
@@ -932,8 +950,9 @@ def _hold_by_id(hold_id: str):
             "name",
         )
         if name:
+            require_pos_channel("B2B" if doctype == "Sales Invoice" else "Retail")
             doc = frappe.get_doc(doctype, name)
-            if doc.owner != frappe.session.user and not set(frappe.get_roles()).intersection({"System Manager", "Ledgix Admin", "Ledgix Manager"}):
+            if doc.owner != frappe.session.user and not has_any_role(LEDGIX_MANAGER_OR_ABOVE):
                 frappe.throw(_("You cannot access another user's held sale."), frappe.PermissionError)
             return doc
     frappe.throw(_("Held sale {0} was not found.").format(hold_id))
@@ -942,14 +961,15 @@ def _hold_by_id(hold_id: str):
 def resume_hold(hold_id: str) -> dict:
     doc = _hold_by_id(hold_id)
     payload = frappe.parse_json(doc.get("custom_ledgix_hold_request_json") or "{}") or {}
-    doc.db_set("custom_ledgix_hold_status", "Resumed", update_modified=True)
+    require_pos_channel("B2B" if doc.doctype == "Sales Invoice" else "Retail")
+    erpnext_selling.validate_checkout_discount_authority(payload.get("discount_type") or "Amount", payload.get("discount_value", 0))
     items = payload.get("cart_items") or [
         {"item": row.item_code, "qty": flt(row.qty), "serial_numbers": row.get("serial_no") or ""}
         for row in doc.items
     ]
     price_list = payload.get("price_list") or doc.selling_price_list
     customer = payload.get("customer") or doc.customer
-    sale_channel = payload.get("sale_channel") or ("Retail" if doc.doctype == "POS Invoice" else "B2B")
+    sale_channel = "Retail" if doc.doctype == "POS Invoice" else "B2B"
     priced = search_items(
         query=None,
         category=None,
@@ -973,6 +993,7 @@ def resume_hold(hold_id: str) -> dict:
                 "rate": flt(priced_row.get("rate")),
             }
         )
+    doc.db_set("custom_ledgix_hold_status", "Resumed", update_modified=True)
     return {
         "success": True,
         "hold_id": hold_id,

@@ -294,8 +294,9 @@ class TestItemScope(NoNetworkTest):
     def test_reachable_retail_and_b2b_builders_reject_out_of_scope_items(self):
         from ledgix_saas.services import erpnext_selling as selling, erpnext_pos as pos
         self.db.exists.return_value = True
-        self.stack.enter_context(patch.object(selling.erpnext_phase6_extensions, 'sync_all'))
-        self.stack.enter_context(patch.object(pos.erpnext_phase8_extensions, 'sync_all'))
+        self.stack.enter_context(patch.object(frappe, 'get_roles', return_value=['Ledgix Manager']))
+        self.stack.enter_context(patch.object(selling.erpnext_phase6_extensions, 'require_schema_ready'))
+        self.stack.enter_context(patch.object(pos.erpnext_phase8_extensions, 'require_schema_ready'))
         for module, name, value in ((selling,'_company','Shop'), (selling,'_resolve_customer','Customer'),
                 (selling,'_resolve_price_list','Selling'), (pos,'_company','Shop'),
                 (pos,'profile_for_user',Row(name='Profile')), (pos,'_profile_customer','Customer'),

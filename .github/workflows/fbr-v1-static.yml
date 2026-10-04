@@ -1,6 +1,8 @@
 name: FBR V1 static gate
 
 on:
+  push:
+    branches: [main]
   pull_request:
     paths:
       - "frappe-bench/apps/fbr_v1/**"

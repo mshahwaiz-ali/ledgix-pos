@@ -5,6 +5,7 @@ from frappe import _
 from frappe.utils import flt
 
 from ledgix_saas.services import erpnext_selling
+from ledgix_saas.api.security import require_ledgix_manager_or_above, require_ledgix_admin_or_system_manager, has_any_role, LEDGIX_MANAGER_OR_ABOVE
 
 
 def _parse(value):
@@ -12,23 +13,15 @@ def _parse(value):
 
 
 def _require_manager() -> None:
-    roles = set(frappe.get_roles(frappe.session.user))
-    if not roles.intersection({"System Manager", "Ledgix Admin", "Ledgix Manager"}):
-        frappe.throw(_("Manager or Admin access is required."), frappe.PermissionError)
+    require_ledgix_manager_or_above()
 
 
 def _require_admin() -> None:
-    roles = set(frappe.get_roles(frappe.session.user))
-    if not roles.intersection({"System Manager", "Ledgix Admin"}):
-        frappe.throw(_("Admin access is required."), frappe.PermissionError)
+    require_ledgix_admin_or_system_manager()
 
 
 def _allow_rate_override() -> bool:
-    return bool(
-        set(frappe.get_roles(frappe.session.user)).intersection(
-            {"System Manager", "Ledgix Admin", "Ledgix Manager"}
-        )
-    )
+    return has_any_role(LEDGIX_MANAGER_OR_ABOVE)
 
 
 def _invoice_items_from_cart(cart_items) -> list[dict]:
@@ -138,15 +131,16 @@ def validate_b2b_checkout_tenders(tenders):
     from ledgix_saas.services import erpnext_pos
 
     profile = erpnext_pos.profile_for_user()
-    allowed = {row["name"] for row in erpnext_pos.payment_methods(profile)}
     normalized = []
     for tender in _parse(tenders) or []:
-        selected = tender.get("payment_method") or tender.get("mode_of_payment")
-        mode = erpnext_selling._resolve_mode_of_payment(selected) if selected else ""
-        if not mode or mode not in allowed:
-            frappe.throw(f"Mode of Payment {mode or '(missing)'} is not configured on checkout POS Profile {profile.name}.")
-        normalized.append({"mode_of_payment": mode, "amount": tender.get("amount"),
-            "reference_no": tender.get("reference_number") or tender.get("reference_no")})
+        _, policy = erpnext_pos.resolve_payment_policy(tender.get("payment_method") or tender.get("mode_of_payment"), profile=profile)
+        amount = erpnext_selling.finite_amount(tender.get("amount"), "Tender amount")
+        if amount <= 0:
+            frappe.throw("Tender amount must be positive.")
+        reference = tender.get("reference_number") or tender.get("reference_no")
+        if policy.get("requires_reference") and not str(reference or "").strip():
+            frappe.throw("Reference number is required for this Mode of Payment.")
+        normalized.append({"mode_of_payment": policy["name"], "amount": amount, "reference_no": reference})
     return profile, normalized
 
 
@@ -262,12 +256,18 @@ def post_customer_payment(
     client_payment_id=None,
 ):
     _require_manager()
+    from ledgix_saas.services import erpnext_pos
+    company = erpnext_selling._company()
+    profile, policy = erpnext_pos.resolve_payment_policy(payment_method, company=company)
+    if policy.get("requires_reference") and not str(reference_number or "").strip():
+        frappe.throw("Reference number is required for this Mode of Payment.")
     allocations = _parse(allocations) or _auto_allocations(customer, flt(amount))
     if not allocations:
         frappe.throw(_("No open ERPNext Sales Invoice is available for allocation."))
     payment = erpnext_selling.post_customer_payment(
         customer=customer,
-        mode_of_payment=payment_method,
+        mode_of_payment=policy["name"],
+        company=profile.company,
         amount=amount,
         allocations=allocations,
         reference_number=reference_number,
@@ -324,9 +324,17 @@ def refund_credit_note(
     reference_number=None,
 ):
     _require_manager()
+    from ledgix_saas.services import erpnext_pos
+    note = frappe.get_doc("Sales Invoice", credit_note)
+    if note.docstatus != 1 or not note.is_return:
+        frappe.throw("A submitted Sales Invoice Credit Note is required for refund.")
+    note.check_permission("read")
+    _, policy = erpnext_pos.resolve_payment_policy(payment_method, company=note.company)
+    if policy.get("requires_reference") and not str(reference_number or "").strip():
+        frappe.throw("Reference number is required for this Mode of Payment.")
     payment = erpnext_selling.refund_credit_note(
         credit_note=credit_note,
-        mode_of_payment=payment_method,
+        mode_of_payment=policy["name"],
         amount=amount,
         client_payment_id=client_payment_id,
         reference_number=reference_number,
@@ -526,24 +534,23 @@ def _native_return_context(invoice) -> dict:
 
 @frappe.whitelist()
 def get_pos_return_context_compat(sale_id=None):
+    _require_manager()
     invoice = _native_invoice_reference(sale_id)
     if invoice:
         return _native_return_context(invoice)
-    from ledgix_saas.api.v2_returns import get_pos_v2_return_context
-
-    return get_pos_v2_return_context(sale_id=sale_id)
+    frappe.throw("Submitted native Sales Invoice not found.")
 
 
 @frappe.whitelist()
-def create_pos_return_compat(original_sale=None, return_items=None, reason=None):
+def create_pos_return_compat(original_sale=None, return_items=None, reason=None, client_return_id=None):
+    _require_manager()
     invoice = _native_invoice_reference(original_sale)
     if invoice:
-        _require_manager()
         note = erpnext_selling.create_sales_return(
             sales_invoice=invoice.name,
             return_items=_parse(return_items) or [],
             reason=reason,
-            client_return_id=None,
+            client_return_id=client_return_id,
             checkout_source="Ledgix POS B2B Return",
         )
         return {
@@ -557,10 +564,4 @@ def create_pos_return_compat(original_sale=None, return_items=None, reason=None)
             "fbr_status": note.get("custom_ledgix_fbr_status") or "",
             "financial_authority": "ERPNext",
         }
-    from ledgix_saas.api.v2_returns import create_pos_v2_return
-
-    return create_pos_v2_return(
-        original_sale=original_sale,
-        return_items=return_items,
-        reason=reason,
-    )
+    frappe.throw("Submitted native Sales Invoice not found.")

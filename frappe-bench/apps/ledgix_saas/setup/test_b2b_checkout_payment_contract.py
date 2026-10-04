@@ -17,6 +17,7 @@ class TestB2BCheckoutPayments(NoNetworkTest):
         self.stack.enter_context(patch.object(erpnext_pos, '_mode_policy',
             side_effect=lambda mode, company: {'name': mode, 'sort_order': 0, 'type': mode}))
         self.stack.enter_context(patch.object(selling.erpnext_selling, '_resolve_mode_of_payment', side_effect=lambda mode: mode))
+        self.stack.enter_context(patch.object(selling.erpnext_selling, '_company', return_value='Shop'))
         self.stack.enter_context(patch.object(frappe, 'get_all', return_value=['COUNTER']))
         self.stack.enter_context(patch.object(frappe, 'get_doc', return_value=self.profile))
         self.codes = {'Cash': '1 - Cash', 'Card': '2 - Card'}
@@ -64,4 +65,36 @@ class TestB2BCheckoutPayments(NoNetworkTest):
         readiness = get_payment_readiness('Shop', devices=[])
         self.assertTrue(readiness['ready'])
         self.assertEqual(readiness['mapped_modes'], ['Card', 'Cash'])
+        self.assert_read_only()
+
+    def test_standalone_payment_off_profile_rejected_before_service(self):
+        with patch.object(selling,'_require_manager'), patch.object(selling.erpnext_selling,'post_customer_payment') as payment:
+            with self.assertRaises(frappe.ValidationError):
+                selling.post_customer_payment('Customer','Existing Bank Transfer',100,allocations=[{'invoice':'INV','allocated_amount':100}])
+            payment.assert_not_called()
+        self.assert_read_only()
+
+    def test_standalone_refund_off_profile_rejected_before_service(self):
+        note=Row(company='Shop',docstatus=1,is_return=1)
+        with patch.object(selling,'_require_manager'), patch.object(frappe,'get_doc',return_value=note), patch.object(selling.erpnext_selling,'refund_credit_note') as refund:
+            with self.assertRaises(frappe.ValidationError):selling.refund_credit_note('NOTE','Existing Bank Transfer',100)
+            refund.assert_not_called()
+        self.assert_read_only()
+
+    def test_configured_cash_card_payment_and_refund_use_actual_company(self):
+        for mode in ('Cash','Card'):
+            payment=Row(name='PAY',docstatus=1,paid_amount=100,total_allocated_amount=100,unallocated_amount=0,payment_type='Pay')
+            with patch.object(selling,'_require_manager'), patch.object(selling.erpnext_selling,'post_customer_payment',return_value=payment) as post, patch.object(selling.erpnext_selling,'get_customer_receivables',return_value={}):
+                selling.post_customer_payment('Customer',mode,100,allocations=[{'invoice':'INV','allocated_amount':100}])
+                self.assertEqual(post.call_args.kwargs['company'],'Shop')
+                self.assertEqual(post.call_args.kwargs['mode_of_payment'],mode)
+            with patch.object(selling,'_require_manager'), patch.object(frappe,'get_doc',return_value=Row(company='Shop',docstatus=1,is_return=1)), patch.object(selling.erpnext_selling,'refund_credit_note',return_value=payment) as refund:
+                selling.refund_credit_note('NOTE',mode,100)
+                self.assertEqual(refund.call_args.kwargs['mode_of_payment'],mode)
+        self.assert_read_only()
+
+    def test_foreign_company_profile_rejected_before_refund(self):
+        with patch.object(selling,'_require_manager'), patch.object(frappe,'get_doc',return_value=Row(company='Other',docstatus=1,is_return=1)),patch.object(selling.erpnext_selling,'refund_credit_note') as refund:
+            with self.assertRaises(frappe.ValidationError):selling.refund_credit_note('NOTE','Cash',100)
+            refund.assert_not_called()
         self.assert_read_only()

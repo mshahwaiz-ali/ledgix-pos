@@ -238,6 +238,7 @@ class TestTaxReadiness(NoNetworkTest):
             stack.enter_context(patch.object(erpnext_pos, '_profile_warehouse', return_value='WAREHOUSE'))
             stack.enter_context(patch.object(erpnext_pos, '_barcode', return_value=''))
             stack.enter_context(patch.object(erpnext_pos.erpnext_selling, '_native_item_rate', return_value=Row(rate=100, price_list_rate=100)))
+            stack.enter_context(patch.object(frappe, 'get_roles', return_value=['Ledgix Cashier']))
             catalog = erpnext_pos.search_items(company='Shop')
         self.assertEqual([item['item_code'] for item in catalog['items']], ['SHARED'])
         result = self.inspect()

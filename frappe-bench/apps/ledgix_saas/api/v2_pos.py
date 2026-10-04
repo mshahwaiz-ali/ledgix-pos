@@ -106,60 +106,16 @@ def _resolve_catalog_item(item_name, customer, sale_channel, price_list, transac
 
 @frappe.whitelist()
 def get_pos_v2_boot(customer=None, sale_channel="Retail"):
-	require_ledgix_cashier_or_above()
-	sale_channel = sale_channel if sale_channel in {"Retail", "B2B"} else "Retail"
-	if sale_channel == "B2B":
-		_require_manager(_("B2B checkout requires Manager or Admin access."))
-		customer = (customer or "").strip() or None
-		if customer and not frappe.db.exists("Ledgix Customer", customer):
-			frappe.throw(_("Customer not found."))
-	else:
-		customer = _customer_name(customer, "Retail")
-	price_list = resolve_price_list(customer, None, sale_channel)
-	return {
-		"sale_channel": sale_channel,
-		"customer": _customer_context(customer, sale_channel),
-		"price_list": price_list,
-		"price_lists": frappe.get_all("Ledgix Price List", filters={"enabled": 1}, fields=["name", "price_list_name", "currency"], order_by="priority asc, price_list_name asc") if frappe.db.exists("DocType", "Ledgix Price List") else [],
-		"payment_methods": _payment_methods(),
-		"categories": _categories(),
-		"active_shift": _open_shift(),
-		"can_b2b": _manager_or_above(),
-		"can_discount": _manager_or_above(),
-		"can_override_price": _manager_or_above(),
-	}
+    """Delegate direct Python calls to the current native POS authority."""
+    from ledgix_saas.api import pos_compat
+    return pos_compat.get_pos_v2_boot(customer=customer, sale_channel=sale_channel)
 
 
 @frappe.whitelist()
 def search_pos_v2_items(query=None, category=None, customer=None, sale_channel="Retail", price_list=None, limit=80):
-	require_ledgix_cashier_or_above()
-	sale_channel = sale_channel if sale_channel in {"Retail", "B2B"} else "Retail"
-	customer = _customer_name(customer, sale_channel)
-	price_list = resolve_price_list(customer, price_list, sale_channel)
-	filters = {"active": 1}
-	if category and category != "All":
-		filters["category"] = category
-	or_filters = []
-	if query:
-		query = query.strip()
-		or_filters = [
-			["Ledgix Item", "item_name", "like", f"%{query}%"],
-			["Ledgix Item", "item_code", "like", f"%{query}%"],
-			["Ledgix Item", "sku", "like", f"%{query}%"],
-			["Ledgix Item", "barcode", "like", f"%{query}%"],
-		]
-	items = frappe.get_all(
-		"Ledgix Item",
-		filters=filters,
-		or_filters=or_filters,
-		pluck="name",
-		order_by="item_name asc",
-		limit_page_length=min(max(int(limit or 80), 1), 200),
-	)
-	return {
-		"price_list": price_list,
-		"items": [row for row in (_resolve_catalog_item(name, customer, sale_channel, price_list) for name in items) if row],
-	}
+    """Delegate direct Python calls to the current native POS authority."""
+    from ledgix_saas.api import pos_compat
+    return pos_compat.search_pos_v2_items(query=query, category=category, customer=customer, sale_channel=sale_channel, price_list=price_list, limit=limit)
 
 
 def _prepare_lines(cart_items, customer, sale_channel, price_list, discount_type, discount_value):
@@ -245,26 +201,20 @@ def _build_sale(customer, sale_channel, price_list, cart_items, discount_type, d
 
 @frappe.whitelist()
 def preview_pos_v2_checkout(*args, **kwargs):
-    """Direct compatibility calls share the current ERPNext authority."""
+    """Delegate direct Python calls to the current native POS authority."""
     from ledgix_saas.api import pos_compat
     return pos_compat.preview_pos_v2_checkout(*args, **kwargs)
 
 
 @frappe.whitelist()
 def complete_pos_v2_sale(*args, **kwargs):
-    """Direct compatibility calls share the current ERPNext authority."""
+    """Delegate direct Python calls to the current native POS authority."""
     from ledgix_saas.api import pos_compat
     return pos_compat.complete_pos_v2_sale(*args, **kwargs)
 
 
 @frappe.whitelist()
 def get_pos_v2_customer_context(customer, sale_channel=None):
-	require_ledgix_cashier_or_above()
-	if not frappe.db.exists("Ledgix Customer", customer):
-		frappe.throw(_("Customer not found."))
-	sale_channel = infer_sale_channel(customer, sale_channel)
-	return {
-		"sale_channel": sale_channel,
-		"customer": _customer_context(customer, sale_channel),
-		"price_list": resolve_price_list(customer, None, sale_channel),
-	}
+    """Delegate direct Python calls to the current native POS authority."""
+    from ledgix_saas.api import pos_compat
+    return pos_compat.get_pos_v2_customer_context(customer=customer, sale_channel=sale_channel)

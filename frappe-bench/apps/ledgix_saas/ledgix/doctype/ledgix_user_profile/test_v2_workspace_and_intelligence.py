@@ -16,10 +16,10 @@ class TestV2WorkspaceAndIntelligence(FrappeTestCase):
         content = json.loads(workspace.get("content") or "[]")
 
         cards = [row for row in content if row.get("type") == "card"]
-        self.assertEqual(len(cards), 7)
+        self.assertEqual(len(cards), 11)
         self.assertTrue(all((row.get("data") or {}).get("col") in {6, 12} for row in cards))
         self.assertEqual((cards[-1].get("data") or {}).get("card_name"), "Administration")
-        self.assertEqual((cards[-1].get("data") or {}).get("col"), 12)
+        self.assertEqual((cards[-1].get("data") or {}).get("col"), 6)
 
         shortcuts = {
             row.get("label"): row.get("link_to")
@@ -30,9 +30,6 @@ class TestV2WorkspaceAndIntelligence(FrappeTestCase):
             shortcuts,
             {
                 "Ledgix POS": "ledgix-pos",
-                "Inventory Intelligence": "business-intelligence-center",
-                "Tax & FBR Center": "ledgix-tax-center",
-                "Setup Wizard": "ledgix-setup",
             },
         )
 
@@ -43,7 +40,6 @@ class TestV2WorkspaceAndIntelligence(FrappeTestCase):
         }
         required_targets = {
             "ledgix-pos",
-            "ledgix-tax-center",
             "business-intelligence-center",
             "ledgix-setup",
             "Item",
@@ -58,7 +54,8 @@ class TestV2WorkspaceAndIntelligence(FrappeTestCase):
             "Accounts Receivable",
             "General Ledger",
             "Profit and Loss Statement",
-            "Ledgix Tax Audit Log",
+            "Tax Rule",
+            "Item Tax Template",
             "Ledgix User Profile",
         }
         self.assertTrue(required_targets.issubset(targets))
@@ -87,8 +84,11 @@ class TestV2WorkspaceAndIntelligence(FrappeTestCase):
         self.assertIn('if (event === "Sale") qty = -Number(', text)
         self.assertIn('else if (isReturn) qty = Number(', text)
         self.assertIn('row.sales_return || row.reference || row.sale', text)
-        self.assertIn('["Return", "Partial Return"].includes(event)) doctype = "Ledgix Sales Return";', text)
-        self.assertIn('style="align-items: start;"', text)
+        self.assertIn('row.reference_doctype', text)
+        self.assertIn('this.nativeReferenceDoctypes.has(doctype)', text)
+        self.assertIn('"Sales Invoice"', text)
+        self.assertIn('"POS Invoice"', text)
+        self.assertNotIn('doctype = "Ledgix Sales Return"', text)
 
     def test_inventory_page_has_bounded_pagination_and_interactive_risks(self):
         path = APP_ROOT / "ledgix" / "page" / "business_intelligence_center" / "business_intelligence_center.js"
@@ -107,7 +107,7 @@ class TestV2WorkspaceAndIntelligence(FrappeTestCase):
         self.assertIn("lx-ii-lot-prev", text)
         self.assertIn("lx-ii-lot-next", text)
         self.assertIn("loaded events", text)
-        self.assertIn("loaded lots", text)
+        self.assertIn("loaded batches", text)
         self.assertIn("timeline_cap_reached", text)
         self.assertIn("lot_cap_reached", text)
         self.assertIn("meta.load_error", text)
@@ -117,7 +117,7 @@ class TestV2WorkspaceAndIntelligence(FrappeTestCase):
         self.assertNotIn("lx-ii-timeline-more", text)
         self.assertNotIn("lx-ii-timeline-less", text)
         self.assertNotIn('+${risks.length - 8} more signal(s)', text)
-        self.assertLess(text.index("<h3>Lot performance</h3>"), text.index("<h3>Transaction timeline</h3>"))
+        self.assertLess(text.index("<h3>Batch performance</h3>"), text.index("<h3>Transaction timeline</h3>"))
 
     def test_normal_stock_search_matches_activity_not_only_item_text(self):
         items = {

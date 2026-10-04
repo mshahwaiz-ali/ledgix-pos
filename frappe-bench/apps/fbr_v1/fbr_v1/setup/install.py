@@ -50,3 +50,5 @@ def after_install() -> None:
 
 def after_migrate() -> None:
     sync_all()
+    from fbr_v1.setup.legacy_v12_retirement import retire_legacy_desk_metadata
+    retire_legacy_desk_metadata()

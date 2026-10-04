@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from collections import defaultdict
 
+import math
+
 import frappe
 from frappe import _
 from frappe.utils import cint, flt, getdate, nowdate, today
@@ -149,23 +151,12 @@ def _native_item_rate(
         }
     )
     details = frappe._dict(get_item_details(args) or {})
-    rate = flt(details.get("rate") or details.get("price_list_rate"))
-    if rate <= 0:
-        rows = frappe.get_all(
-            "Item Price",
-            filters={
-                "item_code": item_code,
-                "price_list": price_list,
-                "selling": 1,
-            },
-            fields=["name", "price_list_rate"],
-            order_by="valid_from desc, creation desc",
-            limit_page_length=1,
-        )
-        price_row = rows[0] if rows else None
-        rate = flt((price_row or {}).get("price_list_rate"))
-        if price_row:
-            details.item_price_reference = price_row.name
+    # A native response without a Pricing Rule rate supplies price_list_rate.
+    # Preserve an explicit zero rate as a failure, never resurrect a price row.
+    effective = details.get("rate")
+    if effective in (None, ""):
+        effective = details.get("price_list_rate")
+    rate = finite_amount(0 if effective in (None, "") else effective, "ERPNext effective selling rate")
     if rate <= 0:
         frappe.throw(
             _("No effective ERPNext selling price was found for item {0} in {1}.").format(
@@ -195,7 +186,7 @@ def _normalize_items(
     normalized = []
     for raw in items:
         item_code = _resolve_item(raw.get("item_code") or raw.get("item"))
-        qty = flt(raw.get("qty") or raw.get("quantity"))
+        qty = finite_amount(raw.get("qty") or raw.get("quantity"), "Item quantity")
         if qty <= 0:
             frappe.throw(_("Quantity must be greater than zero for {0}.").format(item_code))
         details = _native_item_rate(
@@ -213,17 +204,21 @@ def _normalize_items(
         if requested not in (None, ""):
             if not allow_rate_override:
                 frappe.throw(_("Explicit rate override is not allowed for this request."))
-            requested = flt(requested)
+            from ledgix_saas.api.security import require_ledgix_manager_or_above
+            require_ledgix_manager_or_above()
+            requested = finite_amount(requested, "Rate override")
             if requested < 0:
                 frappe.throw(_("Rate cannot be negative."))
             rate = requested
+        native_uom = str(details.get("uom") or "").strip()
+        requested_uom = str(raw.get("uom") or "").strip()
+        if not native_uom or (requested_uom and requested_uom != native_uom):
+            frappe.throw("Client UOM must match the ERPNext-resolved selling UOM.")
         normalized.append(
             {
                 "item_code": item_code,
                 "qty": qty,
-                "uom": raw.get("uom")
-                or details.get("uom")
-                or frappe.db.get_value("Item", item_code, "stock_uom"),
+                "uom": native_uom,
                 "rate": rate,
                 "price_list_rate": flt(details.price_list_rate),
                 "discount_percentage": flt(details.get("discount_percentage")),
@@ -233,10 +228,30 @@ def _normalize_items(
     return normalized
 
 
+def finite_amount(value: object, label: str) -> float:
+    try:
+        amount = float(value)
+    except (TypeError, ValueError, OverflowError):
+        frappe.throw(f"{label} must be a finite number.")
+    if not math.isfinite(amount):
+        frappe.throw(f"{label} must be a finite number.")
+    return amount
+
+
+def validate_checkout_discount_authority(discount_type: str = "Amount", discount_value: object = 0) -> float:
+    value = finite_amount(0 if discount_value in (None, "") else discount_value, "Discount")
+    if value < 0 or discount_type not in ("Amount", "Percent"):
+        frappe.throw("Discount must be non-negative with Amount or Percent type.")
+    if value:
+        from ledgix_saas.api.security import require_ledgix_manager_or_above
+        require_ledgix_manager_or_above()
+    return value
+
+
 def _apply_checkout_discount(
     items: list[dict], discount_type: str, discount_value: float
 ) -> dict:
-    discount_value = max(flt(discount_value), 0)
+    discount_value = validate_checkout_discount_authority(discount_type, discount_value)
     subtotal = sum(flt(row["qty"]) * flt(row["rate"]) for row in items)
     if not discount_value or subtotal <= 0:
         return {"type": "Amount", "value": 0.0, "amount": 0.0, "ratio": 0.0}
@@ -295,7 +310,10 @@ def build_sales_invoice(
 ):
     """Build an unsaved ERPNext Sales Invoice using ERPNext masters/pricing."""
 
-    erpnext_phase6_extensions.sync_all()
+    from ledgix_saas.api.security import require_pos_channel
+    require_pos_channel(sale_channel)
+    validate_checkout_discount_authority(discount_type, discount_value)
+    erpnext_phase6_extensions.require_schema_ready()
     company = _company(company)
     customer = _resolve_customer(customer)
     price_list = _resolve_price_list(selling_price_list)
@@ -347,6 +365,10 @@ def create_sales_invoice(
     fbr_v1_payment_evidence: dict | None = None,
     **kwargs,
 ):
+    from ledgix_saas.api.security import require_pos_channel
+    require_pos_channel(kwargs.get("sale_channel", "B2B"))
+    validate_checkout_discount_authority(kwargs.get("discount_type", "Amount"), kwargs.get("discount_value", 0))
+    erpnext_phase6_extensions.require_schema_ready()
     company = _company(kwargs.get("company"))
     client_sale_id = str(kwargs.get("client_sale_id") or "").strip()
     _lock_company(company)
@@ -437,11 +459,11 @@ def post_customer_payment(
 ):
     """Submit a native Payment Entry against one or more Sales Invoices."""
 
-    erpnext_phase6_extensions.sync_all()
+    erpnext_phase6_extensions.require_schema_ready()
     company = _company(company)
     customer = _resolve_customer(customer)
     mode_of_payment = _resolve_mode_of_payment(mode_of_payment)
-    amount = flt(amount)
+    amount = finite_amount(amount, "Payment amount")
     if amount <= 0:
         frappe.throw(_("Payment amount must be greater than zero."))
 
@@ -515,6 +537,7 @@ def refund_credit_note(
 ):
     """Refund a submitted native Sales Invoice Credit Note through Payment Entry."""
 
+    erpnext_phase6_extensions.require_schema_ready()
     note = frappe.get_doc("Sales Invoice", credit_note)
     if note.docstatus != 1 or not cint(note.is_return):
         frappe.throw(_("A submitted Sales Invoice Credit Note is required for refund."))
@@ -543,7 +566,7 @@ def refund_credit_note(
     payment = get_payment_entry("Sales Invoice", note.name)
     if payment.payment_type != "Pay":
         frappe.throw(_("ERPNext did not resolve the Credit Note as a customer refund."))
-    refund_amount = flt(amount or abs(flt(note.outstanding_amount)))
+    refund_amount = finite_amount(abs(flt(note.outstanding_amount)) if amount is None else amount, "Refund amount")
     if refund_amount <= 0:
         frappe.throw(_("Credit Note has no refundable outstanding amount."))
     if refund_amount - abs(flt(note.outstanding_amount)) > MONEY_TOLERANCE:

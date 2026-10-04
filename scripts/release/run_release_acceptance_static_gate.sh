@@ -28,7 +28,10 @@ cd "$REPO_ROOT"
   fbr_v1.setup.test_fbr_v1_tax_readiness_runtime \
   ledgix_saas.setup.test_fbr_v2_legacy_transport_retirement_contract \
   ledgix_saas.setup.test_fbr_v2_print_legacy_seller_contract \
-  ledgix_saas.setup.test_release_acceptance_contract
+  ledgix_saas.setup.test_release_acceptance_contract \
+  ledgix_saas.setup.test_pos_authority_hardening_contract \
+  ledgix_saas.setup.test_b2b_checkout_payment_contract \
+  fbr_v1.setup.test_legacy_v12_desk_retirement
 
 printf '[PASS] current V1 read-only readiness and Sandbox acceptance contracts\n'
 printf '[PASS] retired V2 routes reject before DB, credentials, or transport\n'

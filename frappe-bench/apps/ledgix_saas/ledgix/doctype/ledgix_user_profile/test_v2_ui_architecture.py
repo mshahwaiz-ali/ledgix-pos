@@ -30,7 +30,7 @@ class TestV2UIArchitecture(FrappeTestCase):
 
     def test_surviving_custom_pages_use_native_frappe_page_titles(self):
         expected = {
-            APP_ROOT / "ledgix" / "page" / "ledgix_tax_center" / "ledgix_tax_center.js": 'title: "Tax & FBR Center"',
+            APP_ROOT / "ledgix" / "page" / "ledgix_tax_center" / "ledgix_tax_center.js": 'title: __("Federal FBR POS / IMS V1")',
             APP_ROOT / "ledgix" / "page" / "business_intelligence_center" / "business_intelligence_center.js": 'title: "Inventory Intelligence"',
             APP_ROOT / "ledgix" / "page" / "ledgix_pos" / "ledgix_pos.js": 'title: "Ledgix POS"',
         }

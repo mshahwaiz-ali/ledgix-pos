@@ -76,3 +76,39 @@ for base in ('scripts','deploy'):
         require(not re.search(r'install-app\s+fbr_v12', path.read_text()), 'current DI installation script: ' + str(path))
 require('"fbr_v12"' not in (ROOT / 'scripts/validation/validate_repo.sh').read_text(), 'DI app in current validation')
 print('PASS: Federal V1-only architecture; DI endpoints=0; alternate HTTP=0; historical live fallback=0; wrong Sandbox/approval equivalence=0')
+
+# Current POS/financial request paths must never perform a schema migration.
+for folder in ('api', 'services'):
+    for path in (LED / folder).rglob('*.py'):
+        if path.name.startswith('test_'):
+            continue
+        for node in ast.walk(ast.parse(path.read_text())):
+            if isinstance(node, ast.Call):
+                name = node.func.attr if isinstance(node.func, ast.Attribute) else node.func.id if isinstance(node.func, ast.Name) else ''
+                require(name not in {'sync_all','sync_custom_fields','create_custom_fields','updatedb'}, f'runtime schema mutation: {path}:{name}')
+pricing = ast.parse((LED / 'services/erpnext_selling.py').read_text())
+resolver = next(n for n in pricing.body if isinstance(n, ast.FunctionDef) and n.name == '_native_item_rate')
+require(not any(isinstance(n, ast.Constant) and n.value == 'Item Price' for n in ast.walk(resolver)), 'manual native-pricing fallback')
+hook_tree = ast.parse((LED / 'hooks.py').read_text())
+overrides = next(ast.literal_eval(n.value) for n in hook_tree.body if isinstance(n, ast.Assign) and any(isinstance(t, ast.Name) and t.id == 'override_whitelisted_methods' for t in n.targets))
+for original, target in overrides.items():
+    if not target.startswith('ledgix_saas.api.pos_compat.'):
+        continue
+    module, function = original.rsplit('.', 1)
+    path = LED / Path(*module.split('.')[1:]).with_suffix('.py')
+    tree = ast.parse(path.read_text())
+    definition = next((n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == function), None)
+    if definition is None:
+        # api.api imports the shift functions; shifts themselves must delegate.
+        require(module == 'ledgix_saas.api.api' and any(isinstance(n, ast.ImportFrom) and n.module == 'ledgix_saas.api.shifts' and any(a.name == function for a in n.names) for n in tree.body), 'missing direct native route: '+original)
+        continue
+    returns = [n for n in definition.body if isinstance(n, ast.Return)]
+    require(len(returns) == 1 and isinstance(returns[0].value, ast.Call) and isinstance(returns[0].value.func, ast.Attribute) and isinstance(returns[0].value.func.value, ast.Name) and returns[0].value.func.value.id == 'pos_compat' and returns[0].value.func.attr == target.rsplit('.',1)[1], 'alternate direct POS engine: '+original)
+compat = ast.parse((LED / 'api/pos_compat.py').read_text())
+for node in compat.body:
+    if isinstance(node, ast.FunctionDef) and any(a.arg == 'sale_channel' for a in node.args.args):
+        require(any(isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id == 'require_pos_channel' for n in ast.walk(node)), 'missing channel authority: '+node.name)
+install = ast.parse((V1 / 'setup/install.py').read_text())
+after = next(n for n in install.body if isinstance(n, ast.FunctionDef) and n.name == 'after_migrate')
+require(any(isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id == 'retire_legacy_desk_metadata' for n in ast.walk(after)), 'missing current-owned Desk retirement')
+print('PASS: POS channel authority; native pricing; runtime schema read-only; direct Python convergence; current-owned Desk retirement')

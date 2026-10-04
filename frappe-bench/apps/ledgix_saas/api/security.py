@@ -45,3 +45,12 @@ def require_ledgix_manager_or_above():
 def require_ledgix_admin_or_system_manager():
     if not has_any_role(LEDGIX_ADMIN_OR_SYSTEM_MANAGER):
         frappe.throw("You do not have permission to manage Ledgix settings.", frappe.PermissionError)
+
+
+def require_pos_channel(sale_channel: str = "Retail") -> str:
+    """Authenticate every channel, including direct compatibility calls."""
+    require_ledgix_cashier_or_above()
+    channel = "B2B" if sale_channel == "B2B" else "Retail"
+    if channel == "B2B":
+        require_ledgix_manager_or_above()
+    return channel
